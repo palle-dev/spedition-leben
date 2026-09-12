@@ -6,7 +6,7 @@ import { ROLE_LABELS, paginate, totalPages } from "@/lib/personnelMarketData";
 import ApplicantCard from "@/components/personnel/ApplicantCard";
 import Drawer from "@/components/ui/Drawer";
 import Portrait from "@/components/ui/Portrait";
-import { Search, RotateCcw, RefreshCw, Briefcase, ChevronLeft, ChevronRight, Truck, Headset, Sparkles, Wrench, Calculator, Users, Star, UserPlus, MapPin, Clock } from "lucide-react";
+import { Search, RotateCcw, Briefcase, ChevronLeft, ChevronRight, Truck, Headset, Sparkles, Wrench, Calculator, Users, Star, UserPlus, MapPin, Clock } from "lucide-react";
 
 const ROLE_ICON = {
   driver: Truck, dispatcher: Headset, dispatcher_senior: Headset,
