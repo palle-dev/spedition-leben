@@ -10,7 +10,9 @@ import AbsenceTab from "@/components/personnel/AbsenceTab";
 import ServicesTab from "@/components/personnel/ServicesTab";
 import ApplicantBrowser from "@/components/personnel/ApplicantBrowser";
 import JobPostingPanel from "@/components/personnel/JobPostingPanel";
-import { UserPlus, Users, MapPin, Clock, Truck, Headset, Sparkles, Wrench, Calculator, Settings, Check, X, AlertCircle, Briefcase, LogOut, RotateCcw } from "lucide-react";
+import TeamClimate from "@/components/personnel/TeamClimate";
+import SatisfactionDetail from "@/components/personnel/SatisfactionDetail";
+import { UserPlus, Users, MapPin, Clock, Truck, Headset, Sparkles, Wrench, Calculator, Settings, Check, X, AlertCircle, Briefcase, LogOut, RotateCcw, HeartHandshake } from "lucide-react";
 
 const ROLE_ICON = {
   driver: Truck, dispatcher: Headset, dispatcher_senior: Headset,
@@ -93,6 +95,7 @@ export default function Personnel() {
       <div className="flex gap-1 border-b border-white/10">
         {[
           { id: "team", label: "Team", icon: Users },
+          { id: "climate", label: "Teamklima", icon: HeartHandshake },
           { id: "hire", label: "Einstellen", icon: UserPlus },
           { id: "former", label: "Ehemalige", icon: Briefcase },
           { id: "absence", label: "Abwesenheiten", icon: Clock },
@@ -137,6 +140,11 @@ export default function Personnel() {
             <EmptyTeam />
           )}
         </div>
+      )}
+
+      {/* Teamklima Tab (Auftrag 30) */}
+      {tab === "climate" && (
+        <TeamClimate onOpenPerson={(p) => setManagePerson({ id: p.personId, kind: p.kind, name: p.name })} />
       )}
 
       {/* Einstellen Tab – Bewerbermarkt (Auftrag 29) */}
@@ -548,6 +556,19 @@ function PersonnelDetail({ personId, kind, onSetupDispatcher, onTerminate }) {
         <div className="text-xs text-muted-foreground text-center py-2">
           Diese Person hat das Unternehmen verlassen.
           Historische Touren, Buchungen und Nachrichten bleiben erhalten.
+        </div>
+      )}
+
+      {/* Zufriedenheits-Detail (Auftrag 30) */}
+      {!former && (
+        <div className="pt-3 border-t border-white/10">
+          <SatisfactionDetail
+            personId={personId}
+            personName={person.name}
+            kind={kind}
+            onSetupDispatcher={onSetupDispatcher}
+            onTerminate={onTerminate}
+          />
         </div>
       )}
     </div>
