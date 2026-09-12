@@ -4,7 +4,7 @@
 // Alle Zinssätze, Gebühren und Konditionen sind fiktive Spielwerte.
 
 import { formatGameTime } from "./gameRules.ts";
-import { postJournal, registerAsset, MONTH_MIN, getCashFlow } from "./accountingEngine.ts";
+import { postJournal, registerAsset, getVehicleBookValue, MONTH_MIN, getCashFlow } from "./accountingEngine.ts";
 import { deliverMessage } from "./mailEngine.ts";
 
 // ---------- Konstanten ----------
@@ -47,14 +47,14 @@ function uid(state, prefix) {
 export function computeEquity(state) {
   const bank = state.company?.accountCents || 0;
   const ownedVehicleValue = (state.vehicles || [])
-    .filter(v => (v.ownership_type || "owned") === "owned")
-    .reduce((s, v) => s + (v.bookValueCents || 0), 0);
+    .filter(v => (v.ownership_type || "owned") === "owned" && v.status !== "archived" && v.status !== "sold")
+    .reduce((s, v) => s + getVehicleBookValue(state, v.id), 0);
   const openCompanyCosts = (state.openCosts || [])
     .filter(o => o.account === "company")
     .reduce((s, o) => s + o.amountCents, 0);
   const loanDebt = (state.loans || [])
     .filter(l => l.status === "active")
-    .reduce((s, l) => s + (l.remainingPrincipalCents || 0) + (l.accruedInterestCents || 0) + (l.overdueInterestCents || 0), 0);
+    .reduce((s, l) => s + (l.remainingPrincipalCents || 0) + (l.accruedInterestCents || 0) + (l.overdueInterestCents || 0) + (l.overduePrincipalCents || 0), 0);
   return bank + ownedVehicleValue - openCompanyCosts - loanDebt;
 }
 
@@ -347,6 +347,11 @@ export function leaseTruck(state, { provisionCity } = {}) {
   if (state.company.accountCents < offer.specialPaymentCents)
     throw new Error("Firmenkonto reicht für die Sonderzahlung (" + (offer.specialPaymentCents / 100).toFixed(0) + " €) nicht aus.");
 
+  // 1. Unternehmenssubstanzprüfung (Auftrag 21): E >= 0 erforderlich.
+  const E = computeEquity(state);
+  if (E < 0)
+    throw new Error("Unternehmenssubstanz nicht ausreichend: Eigenkapital ist negativ (" + (E / 100).toFixed(0) + " €). Eigene Fahrzeugbuchwerte und bestehende Schulden sind berücksichtigt.");
+
   // Liquiditätsprüfung 90 Tage
   const dailyCosts = (state.drivers.length * 10000
     + (state.employees || []).filter(e => e.employmentStatus === "employed").reduce((s, e) => s + e.costPerDayCents, 0)
@@ -368,6 +373,8 @@ export function leaseTruck(state, { provisionCity } = {}) {
     bookValueCents: 0, condition: 100, locationCity: provisionCity,
     status: "free", tripId: null, maintenanceUntil: null,
     ownership_type: "leased", leasingContractId: null, odometerKm: 0,
+    acquiredAtMin: startMin, referencePriceCents: 3000000,
+    markedForSale: false, saleOffer: null,
   };
   state.vehicles.push(vehicle);
 
@@ -619,6 +626,9 @@ export function buyoutLeasedTruck(state, { contractId }) {
   vehicle.ownership_type = "owned";
   vehicle.bookValueCents = contract.buyoutPriceCents;
   vehicle.leasingContractId = null;
+  vehicle.referencePriceCents = vehicle.referencePriceCents || 3000000;
+  // acquiredAtMin bleibt erhalten – Alter/Kilometer/Zustand gehen nicht verloren (Auftrag 21)
+  if (vehicle.acquiredAtMin === undefined) vehicle.acquiredAtMin = contract.startMin;
   registerAsset(state, {
     vehicleId: vehicle.id, account: "1200",
     name: "Lkw " + String(parseInt(String(vehicle.id).replace(/[^0-9]/g, ""), 10) || 1).padStart(2, "0"),

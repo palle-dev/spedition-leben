@@ -11,7 +11,8 @@ import {
   VEHICLE_PRICE, HIRE_FEE, MAINTENANCE_COST, MAINTENANCE_DURATION,
   INVITATION_COST, STRESS_MAINT_THRESHOLD, MAINT_STRESS_FACTOR,
   PERSONNEL_ROLES, SERVICE_START_MIN, SERVICE_END_MIN, SERVICE_INTERVAL_MIN,
-  APPLICANT_NAMES, PORTRAIT_IDS, NOTICE_PERIOD_MIN
+  APPLICANT_NAMES, PORTRAIT_IDS, NOTICE_PERIOD_MIN,
+  computeMarketValue, computeDealerOffer,
 } from "./gameRules.ts";
 import {
   buildTourPlan, confirmTour as doConfirmTour, cancelTour as doCancelTour,
@@ -28,7 +29,7 @@ import {
   addOpenItem, settleOpenItem, registerAsset, disposeAsset,
   calculateDepreciation, processMonthEnd, processAccountant,
   roleExpenseAccount, periodOf, periodStartMin, periodEndMin, MONTH_MIN,
-  migrateAccounting,
+  migrateAccounting, getVehicleBookValue,
 } from "./accountingEngine.ts";
 import {
   initMail, migrateMail, deliverMessage, getPersonInfo, getAllContacts,
@@ -162,7 +163,7 @@ export function createInitialState(names) {
     gameTime: 480, // Tag 1, 08:00
     rngSeed: 1234567,
     idCounter: 100,
-    company: { name: p.companyName || "Nordlicht Transport GmbH", accountCents: 7500000 },
+    company: { name: p.companyName || "Nordlicht Transport GmbH", accountCents: 0 },
     private: {
       playerName: p.playerName || "Spieler",
       partnerName: p.partnerName || "Mara",
@@ -174,7 +175,9 @@ export function createInitialState(names) {
     vehicles: [1, 2, 3].map(i => ({
       id: "v" + i, branchId: "b1", type: STANDARD_TRUCK.type, capacityTons: 12,
       consumptionPer100km: 28, bookValueCents: STANDARD_TRUCK.bookValueCents,
-      condition: 85, locationCity: "Hamburg", status: "free", tripId: null, maintenanceUntil: null
+      condition: 85, locationCity: "Hamburg", status: "free", tripId: null, maintenanceUntil: null,
+      ownership_type: "owned", odometerKm: 0, acquiredAtMin: 480, referencePriceCents: VEHICLE_PRICE,
+      markedForSale: false, saleOffer: null,
     })),
     drivers: [
       { id: "d1", name: "Klaus Werner", branchId: "b1", costPerDayCents: DRIVER_COST_PER_DAY, locationCity: "Hamburg", status: "free", restUntil: null, employedDay: 1 },
@@ -230,11 +233,12 @@ export function createInitialState(names) {
   // Markt-Engine initialisieren und auf Zielbestand auffüllen (Auftrag 19)
   migrateMarket(state);
   fillInitialMarket(state);
-  // Buchhaltung initialisieren und Eröffnungsbuchung erstellen
+  // Buchhaltung initialisieren und Eröffnungsbuchung erstellen.
+  // accountCents startet bei 0 – die Eröffnungsbuchung setzt es auf den Startwert.
   initAccounting(state);
   const _assetCents = state.vehicles.reduce((s, v) => s + v.bookValueCents, 0);
   book(state, "opening", {
-    bankCents: state.company.accountCents,
+    bankCents: 7500000,
     assetCents: _assetCents,
     liabilityCents: 0,
   });
@@ -1012,7 +1016,9 @@ export function applyCommand(state, command, params) {
       const v = {
         id: uid(state, "v"), branchId: "b1", type: STANDARD_TRUCK.type, capacityTons: 12,
         consumptionPer100km: 28, bookValueCents: VEHICLE_PRICE, condition: 85,
-        locationCity: "Hamburg", status: "free", tripId: null, maintenanceUntil: null
+        locationCity: "Hamburg", status: "free", tripId: null, maintenanceUntil: null,
+        ownership_type: "owned", odometerKm: 0, acquiredAtMin: state.gameTime, referencePriceCents: VEHICLE_PRICE,
+        markedForSale: false, saleOffer: null,
       };
       state.vehicles.push(v);
       registerAsset(state, {
@@ -1022,6 +1028,160 @@ export function applyCommand(state, command, params) {
       });
       const newAchs = checkAchievements(state, state.gameTime);
       result = { ok: true, vehicleId: v.id, newAchievements: newAchs };
+      break;
+    }
+
+    // ---------- Fahrzeugverkauf (Auftrag 21) ----------
+
+    case "previewSale": {
+      const v = state.vehicles.find(x => x.id === p.vehicleId);
+      if (!v) throw new Error("Fahrzeug nicht gefunden.");
+      if ((v.ownership_type || "owned") !== "owned") throw new Error("Nur eigene Fahrzeuge können verkauft werden.");
+      if (v.status === "archived" || v.status === "sold") throw new Error("Fahrzeug ist nicht mehr im aktiven Bestand.");
+      const bookValue = getVehicleBookValue(state, v.id);
+      const marketValue = computeMarketValue(v, state.gameTime);
+      const dealerOffer = computeDealerOffer(v, state.gameTime);
+      const gainLoss = dealerOffer - bookValue;
+      const activeTrip = state.trips.find(t => t.vehicleId === v.id && t.status === "in_progress");
+      const futureTours = (state.tours || []).filter(t => t.status === "active" && (t.deployments || []).some(d => d.vehicleId === v.id && d.status === "planned"));
+      const assignedDispatchers = (state.employees || []).filter(e =>
+        (e.assignedVehicleIds || []).includes(v.id));
+      result = {
+        ok: true,
+        vehicleId: v.id,
+        bookValueCents: bookValue,
+        marketValueCents: marketValue,
+        dealerOfferCents: dealerOffer,
+        gainLossCents: gainLoss,
+        isGain: gainLoss >= 0,
+        canSellImmediately: v.status === "free" && !activeTrip,
+        activeTrip: activeTrip ? { id: activeTrip.id, endMin: activeTrip.endMin } : null,
+        futureTours: futureTours.map(t => ({ id: t.id, startMin: t.deployments?.[0]?.startMin })),
+        assignedDispatchers: assignedDispatchers.map(e => ({ id: e.id, name: e.name })),
+        markedForSale: v.markedForSale || false,
+        saleOffer: v.saleOffer || null,
+        locationCity: v.locationCity,
+        condition: v.condition,
+        odometerKm: v.odometerKm || 0,
+      };
+      break;
+    }
+
+    case "requestSaleOffer": {
+      ensureNotBlocked(state);
+      const v = state.vehicles.find(x => x.id === p.vehicleId);
+      if (!v) throw new Error("Fahrzeug nicht gefunden.");
+      if ((v.ownership_type || "owned") !== "owned") throw new Error("Nur eigene Fahrzeuge können verkauft werden.");
+      if (v.status === "archived" || v.status === "sold") throw new Error("Fahrzeug ist nicht mehr im aktiven Bestand.");
+      const dealerOffer = computeDealerOffer(v, state.gameTime);
+      v.saleOffer = {
+        priceCents: dealerOffer,
+        validUntilMin: state.gameTime + 24 * 60,
+        odometerKm: v.odometerKm || 0,
+        condition: v.condition,
+        gameTime: state.gameTime,
+      };
+      result = { ok: true, vehicleId: v.id, saleOffer: v.saleOffer };
+      break;
+    }
+
+    case "markForSale": {
+      ensureNotBlocked(state);
+      const v = state.vehicles.find(x => x.id === p.vehicleId);
+      if (!v) throw new Error("Fahrzeug nicht gefunden.");
+      if ((v.ownership_type || "owned") !== "owned") throw new Error("Nur eigene Fahrzeuge können zum Verkauf vorgemerkt werden.");
+      if (v.status === "archived" || v.status === "sold") throw new Error("Fahrzeug ist nicht mehr im aktiven Bestand.");
+      v.markedForSale = true;
+      // Aus Disponenten-Zuweisungen entfernen
+      for (const emp of (state.employees || [])) {
+        if (emp.assignedVehicleIds) {
+          emp.assignedVehicleIds = emp.assignedVehicleIds.filter(vid => vid !== v.id);
+        }
+      }
+      result = { ok: true, vehicleId: v.id, markedForSale: true };
+      break;
+    }
+
+    case "unmarkForSale": {
+      ensureNotBlocked(state);
+      const v = state.vehicles.find(x => x.id === p.vehicleId);
+      if (!v) throw new Error("Fahrzeug nicht gefunden.");
+      v.markedForSale = false;
+      result = { ok: true, vehicleId: v.id, markedForSale: false };
+      break;
+    }
+
+    case "sellVehicle": {
+      ensureNotBlocked(state);
+      const v = state.vehicles.find(x => x.id === p.vehicleId);
+      if (!v) throw new Error("Fahrzeug nicht gefunden.");
+      if ((v.ownership_type || "owned") !== "owned") throw new Error("Nur eigene Fahrzeuge können verkauft werden.");
+      if (v.status === "archived" || v.status === "sold") throw new Error("Fahrzeug wurde bereits verkauft oder archiviert.");
+      // Fahrzeug muss frei sein (nicht auf Tour, nicht in Wartung, nicht ladend/entladend)
+      if (v.status === "on_trip") throw new Error("Fahrzeug ist auf Tour. Vormerken möglich, Verkauf erst nach Tourende.");
+      if (v.status === "maintenance") throw new Error("Fahrzeug ist in Wartung. Verkauf erst nach Wartungsende.");
+      // Verbindliches Angebot prüfen oder neu erstellen
+      let offerPrice;
+      if (v.saleOffer && v.saleOffer.validUntilMin >= state.gameTime) {
+        // Angebot noch gültig – eingefrorener Preis
+        offerPrice = v.saleOffer.priceCents;
+      } else {
+        // Kein gültiges Angebot – neu berechnen
+        offerPrice = computeDealerOffer(v, state.gameTime);
+      }
+      // Buchwert aus Anlagenverzeichnis
+      const bookValue = getVehicleBookValue(state, v.id);
+      // Anlagenabgang mit Abschreibung bis Abgang
+      const asset = (state.accounting?.assets || []).find(a => a.vehicleId === v.id && a.disposedAtMin === null);
+      if (asset) {
+        disposeAsset(state, asset.id, offerPrice);
+      } else {
+        // Fallback: direkte Buchung ohne Anlagenverzeichnis
+        const gain = offerPrice - bookValue;
+        postJournal(state, {
+          text: "Anlagenverkauf: " + v.id, type: "asset_disposal", gameTime: state.gameTime,
+          actor: "player", vehicleId: v.id,
+          lines: [
+            { account: "1000", debit: offerPrice },
+            { account: "1200", credit: bookValue },
+            ...(gain > 0 ? [{ account: "4200", credit: gain }] : []),
+            ...(gain < 0 ? [{ account: "5510", debit: -gain }] : []),
+          ],
+        });
+      }
+      // Fahrzeug als verkauft markieren (nicht löschen – Historie bleibt)
+      v.status = "sold";
+      v.soldAtMin = state.gameTime;
+      v.salePriceCents = offerPrice;
+      v.saleOffer = null;
+      v.markedForSale = false;
+      // Aus Disponenten-Zuweisungen entfernen
+      for (const emp of (state.employees || [])) {
+        if (emp.assignedVehicleIds) {
+          emp.assignedVehicleIds = emp.assignedVehicleIds.filter(vid => vid !== v.id);
+        }
+      }
+      // Zukünftige geplante Touren für dieses Fahrzeug stornieren
+      for (const tour of (state.tours || [])) {
+        if (tour.status !== "active") continue;
+        for (const dep of (tour.deployments || [])) {
+          if (dep.vehicleId === v.id && dep.status === "planned") {
+            dep.status = "cancelled";
+            dep.cancelReason = "vehicle_sold";
+          }
+        }
+      }
+      // Bestätigungsnachricht
+      const gainLoss = offerPrice - bookValue;
+      deliverMessage(state, {
+        fromId: "system", toId: "player",
+        subject: "Lkw verkauft",
+        body: `Fahrzeug ${v.id} wurde für ${(offerPrice / 100).toFixed(2)} € an einen Händler verkauft.\nBuchwert: ${(bookValue / 100).toFixed(2)} €\n${gainLoss >= 0 ? "Gewinn" : "Verlust"}: ${Math.abs(gainLoss / 100).toFixed(2)} €\nAuszahlung an Firmenbank verbucht.`,
+        gameTime: state.gameTime, category: "financing", priority: "normal",
+        linkedRefs: { type: "vehicle", id: v.id }, dedupKey: `vehicle_sold:${v.id}`,
+      });
+      const newAchs = checkAchievements(state, state.gameTime);
+      result = { ok: true, vehicleId: v.id, salePriceCents: offerPrice, bookValueCents: bookValue, gainLossCents: gainLoss, newAchievements: newAchs };
       break;
     }
 

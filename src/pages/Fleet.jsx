@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
-import { formatEuro, formatGameTime } from "@/lib/gameData";
-import { ownershipLabel } from "@/lib/financingData";
+import { formatEuro, formatGameTime, computeDealerOffer } from "@/lib/gameData";
+import { ownershipLabel, getVehicleBookValue } from "@/lib/financingData";
 import StatusBadge from "@/components/ui/StatusBadge";
-import { Wrench, Plus, Truck, MapPin, Gauge, FileText } from "lucide-react";
+import SellVehicleDialog from "@/components/fleet/SellVehicleDialog";
+import { Wrench, Plus, Truck, MapPin, Gauge, FileText, TrendingUp, FileCheck } from "lucide-react";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
 
 export default function Fleet() {
@@ -13,10 +14,11 @@ export default function Fleet() {
   const [busyId, setBusyId] = useState(null);
   const [buying, setBuying] = useState(false);
   const [leasing, setLeasing] = useState(false);
+  const [sellVehicle, setSellVehicle] = useState(null);
   const stressed = state.private.stress >= 80;
   const maintCost = stressed ? Math.round(150000 * 1.25) : 150000;
   const openCompany = state.openCosts.some(o => o.account === "company");
-  const activeVehicles = state.vehicles.filter(v => v.status !== "archived");
+  const activeVehicles = state.vehicles.filter(v => v.status !== "archived" && v.status !== "sold");
   const ownedCount = activeVehicles.filter(v => (v.ownership_type || "owned") === "owned").length;
   const leasedCount = activeVehicles.filter(v => v.ownership_type === "leased").length;
 
@@ -65,12 +67,17 @@ export default function Fleet() {
           const trip = v.tripId ? state.trips.find(t => t.id === v.tripId) : null;
           const canMaint = v.status === "free" && v.condition < 100;
           const isLeased = (v.ownership_type || "owned") === "leased";
+          const isOwned = !isLeased;
+          const bookValue = isOwned ? getVehicleBookValue(state, v.id) : 0;
+          const dealerOffer = isOwned ? computeDealerOffer(v, state.gameTime) : 0;
+          const hasValidOffer = v.saleOffer && v.saleOffer.validUntilMin >= state.gameTime;
           return (
-            <div key={v.id} className="glass border border-white/10 rounded-xl p-4 hover:border-lime/20 transition">
+            <div key={v.id} className={`glass border rounded-xl p-4 hover:border-lime/20 transition ${v.markedForSale ? "border-amber-400/30" : "border-white/10"}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 font-medium">
                   <Truck className="w-4 h-4 text-lime/70" /> {vehicleDisplayName(v)}
                   <span className={`text-[10px] px-1.5 py-0.5 rounded ${isLeased ? "bg-sky-400/15 text-sky-300" : "bg-lime/15 text-lime"}`}>{ownershipLabel(v)}</span>
+                  {v.markedForSale && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-300">Vorgemerkt</span>}
                 </div>
                 <StatusBadge status={v.status} />
               </div>
@@ -79,19 +86,38 @@ export default function Fleet() {
                 <Info icon={Gauge} label="Zustand" value={`${v.condition}/100`} />
               </div>
               <div className="text-xs text-muted-foreground mt-2">
-                {isLeased ? `Geleast · km ${(v.odometerKm || 0).toLocaleString("de-DE")}` : `Buchwert ${formatEuro(v.bookValueCents)}`} · 12 t · 28 L/100km
+                {isLeased
+                  ? `Geleast · km ${(v.odometerKm || 0).toLocaleString("de-DE")}`
+                  : `Buchwert ${formatEuro(bookValue)} · Markt ${formatEuro(dealerOffer)}`} · 12 t · 28 L/100km
               </div>
               {trip && <div className="text-xs text-amber-300 mt-1">Unterwegs bis {formatGameTime(trip.endMin)}</div>}
               {v.status === "maintenance" && <div className="text-xs text-sky-300 mt-1">Wartung bis {formatGameTime(v.maintenanceUntil)}</div>}
-              <button onClick={() => maintain(v)} disabled={!canMaint || busyId === v.id || state.company.accountCents < maintCost}
-                className="mt-3 w-full flex items-center justify-center gap-1.5 rounded-lg py-2.5 bg-white/5 border border-white/10 text-sm hover:bg-white/10 disabled:opacity-40 transition active:scale-[0.98]">
-                {busyId === v.id ? <span className="w-4 h-4 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" /> : <><Wrench className="w-4 h-4" /> Wartung ({formatEuro(maintCost)})</>}
-              </button>
+              {hasValidOffer && <div className="text-xs text-lime mt-1">Angebot: {formatEuro(v.saleOffer.priceCents)} bis {formatGameTime(v.saleOffer.validUntilMin)}</div>}
+              <div className="mt-3 flex gap-2">
+                <button onClick={() => maintain(v)} disabled={!canMaint || busyId === v.id || state.company.accountCents < maintCost}
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2.5 bg-white/5 border border-white/10 text-sm hover:bg-white/10 disabled:opacity-40 transition active:scale-[0.98]">
+                  {busyId === v.id ? <span className="w-4 h-4 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" /> : <><Wrench className="w-4 h-4" /> Wartung</>}
+                </button>
+                {isOwned && (
+                  <button onClick={() => setSellVehicle(v)}
+                    className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2.5 bg-white/5 border border-white/10 text-sm hover:bg-white/10 transition active:scale-[0.98]">
+                    <TrendingUp className="w-4 h-4" /> Verkaufen
+                  </button>
+                )}
+                {isLeased && (
+                  <button onClick={() => navigate("/finanzen")}
+                    className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2.5 bg-white/5 border border-white/10 text-sm hover:bg-white/10 transition active:scale-[0.98]">
+                    <FileCheck className="w-4 h-4" /> Vertrag
+                  </button>
+                )}
+              </div>
               {!canMaint && v.status === "free" && v.condition >= 100 && <div className="text-xs text-muted-foreground/50 mt-1.5 text-center">Zustand bereits 100</div>}
             </div>
           );
         })}
       </div>
+
+      {sellVehicle && <SellVehicleDialog vehicle={sellVehicle} onClose={() => setSellVehicle(null)} />}
     </div>
   );
 }

@@ -68,6 +68,38 @@ export const STANDARD_TRUCK = {
   bookValueCents: 3000000
 };
 
+// Referenz-Neupreis für die Marktwertberechnung (Auftrag 21).
+export const VEHICLE_REFERENCE_PRICE = 3000000; // 30.000 €
+
+// ---------- Marktwertfunktion (Auftrag 21) ----------
+// R = gespeicherter Referenz-Neupreis des Modells.
+// A = seit Inbetriebnahme verstrichene Spielmonate (kontinuierlich, 1 Monat = 30 Tage = 43200 Min).
+// K = tatsächliche Kilometer.
+// C = technischer Zustand 0–100.
+// Altersfaktor     = max(0,25; 1 − 0,0125 × A)
+// Kilometerfaktor  = max(0,40; 1 − K / 1.000.000)
+// Zustandsfaktor   = 0,30 + 0,70 × C / 100
+// Marktwert        = R × Altersfaktor × Kilometerfaktor × Zustandsfaktor
+// Händler-Ankauf   = 90 % des Marktwerts.
+// Alle Werte in Cent; abschließend runden.
+export const MONTH_MIN = 43200; // 30 Tage × 1440 Min
+
+export function computeMarketValue(vehicle, atMin) {
+  const R = vehicle.referencePriceCents || VEHICLE_REFERENCE_PRICE;
+  const acquiredAt = vehicle.acquiredAtMin || 0;
+  const A = Math.max(0, (atMin - acquiredAt) / MONTH_MIN);
+  const K = vehicle.odometerKm || 0;
+  const C = Math.max(0, Math.min(100, vehicle.condition || 0));
+  const ageFactor = Math.max(0.25, 1 - 0.0125 * A);
+  const kmFactor = Math.max(0.40, 1 - K / 1000000);
+  const condFactor = 0.30 + 0.70 * C / 100;
+  return Math.round(R * ageFactor * kmFactor * condFactor);
+}
+
+export function computeDealerOffer(vehicle, atMin) {
+  return Math.round(computeMarketValue(vehicle, atMin) * 0.9);
+}
+
 export const DRIVER_APPLICANT_POOL = [
   "Greta Möller", "Tobias Brandt", "Stefan Kloth", "Helena Voss", "Rüdiger Mai",
   "Anke Ruge", "Friedhelm Paasch", "Silke Quaas", "Manfred Brod", "Tanja Hennig",

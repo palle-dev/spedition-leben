@@ -44,12 +44,32 @@ export const FUEL_PRICE = 1.70;
 export const TOLL_PER_KM = 0.20;
 // Gespiegelte Spielwerte (Spiegel von base44/shared/gameRules.ts) für die Darstellung.
 export const VEHICLE_PRICE_EUR = 30000;
+export const VEHICLE_REFERENCE_PRICE = 3000000; // 30.000 € in Cent
 export const HIRE_FEE_EUR = 500;
 export const DRIVER_COST_PER_DAY_EUR = 100;
 export const BRANCH_COST_PER_DAY_EUR = 100;
 export const MAINTENANCE_EUR = 1500;
 export const PRIVATE_WITHDRAWAL_EUR = 100;
 export const PRIVATE_LIVING_EUR = 30;
+
+// ---------- Marktwertfunktion (Auftrag 21, Spiegel von gameRules.ts) ----------
+const MONTH_MIN_VAL = 43200; // 30 Tage × 1440 Min
+
+export function computeMarketValue(vehicle, atMin) {
+  const R = vehicle.referencePriceCents || VEHICLE_REFERENCE_PRICE;
+  const acquiredAt = vehicle.acquiredAtMin || 0;
+  const A = Math.max(0, (atMin - acquiredAt) / MONTH_MIN_VAL);
+  const K = vehicle.odometerKm || 0;
+  const C = Math.max(0, Math.min(100, vehicle.condition || 0));
+  const ageFactor = Math.max(0.25, 1 - 0.0125 * A);
+  const kmFactor = Math.max(0.40, 1 - K / 1000000);
+  const condFactor = 0.30 + 0.70 * C / 100;
+  return Math.round(R * ageFactor * kmFactor * condFactor);
+}
+
+export function computeDealerOffer(vehicle, atMin) {
+  return Math.round(computeMarketValue(vehicle, atMin) * 0.9);
+}
 export function driveMinutes(km) { return Math.ceil((km / AVG_SPEED) * 60); }
 export function fuelEur(km, consumption) { return Math.round(km * consumption / 100 * FUEL_PRICE * 100) / 100; }
 export function tollEur(km) { return Math.round(km * TOLL_PER_KM * 100) / 100; }

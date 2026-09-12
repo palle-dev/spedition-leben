@@ -466,6 +466,18 @@ export function settleOpenItem(state, itemId, amountCents) {
   return { paid: pay, remaining: item.remainingCents };
 }
 
+// ---------- Fahrzeug-Buchwert aus Anlagenverzeichnis (Auftrag 21) ----------
+// Liefert den tatsächlichen Restbuchwert aus dem Anlagenverzeichnis,
+// nicht den unveränderten Anschaffungswert auf dem Fahrzeugdatensatz.
+export function getVehicleBookValue(state, vehicleId) {
+  const asset = (state.accounting?.assets || []).find(
+    a => a.vehicleId === vehicleId && a.disposedAtMin === null
+  );
+  if (asset) return asset.bookValueCents;
+  const vehicle = (state.vehicles || []).find(v => v.id === vehicleId);
+  return vehicle?.bookValueCents || 0;
+}
+
 // ---------- Anlagen ----------
 export function registerAsset(state, params) {
   if (!state.accounting) initAccounting(state);

@@ -12,13 +12,15 @@ import { migrateFinancing } from "./financingEngine.ts";
 import { migrateTermination } from "./terminationEngine.ts";
 import { migrateMarket } from "./marketEngine.ts";
 import { migrateTimeControl } from "./timeControlEngine.ts";
+import { getVehicleBookValue, MONTH_MIN } from "./accountingEngine.ts";
+import { VEHICLE_REFERENCE_PRICE } from "./gameRules.ts";
 
 // --- Vermögensberechnungen ---
 
 export function computeCompanyValue(state) {
   const vehicleValue = (state.vehicles || [])
-    .filter(v => (v.ownership_type || "owned") === "owned")
-    .reduce((s, v) => s + (v.bookValueCents || 0), 0);
+    .filter(v => (v.ownership_type || "owned") === "owned" && v.status !== "archived" && v.status !== "sold")
+    .reduce((s, v) => s + getVehicleBookValue(state, v.id), 0);
   const openCompanyCosts = (state.openCosts || []).filter(o => o.account === "company").reduce((s, o) => s + o.amountCents, 0);
   const loanDebt = (state.loans || [])
     .filter(l => l.status === "active")
@@ -149,6 +151,16 @@ export function migrateState(state) {
   };
   for (const [k, v] of Object.entries(defaultStats)) {
     if (state.stats[k] === undefined) state.stats[k] = v;
+  }
+
+  // ---------- Fahrzeug-Migration (Auftrag 21) ----------
+  // acquiredAtMin und referencePriceCents für Marktwertberechnung ergänzen.
+  // Startfahrzeuge ohne acquiredAtMin erhalten den Spielstart als Inbetriebnahme.
+  for (const v of (state.vehicles || [])) {
+    if (v.acquiredAtMin === undefined) v.acquiredAtMin = state.gameTime || 480;
+    if (v.referencePriceCents === undefined) v.referencePriceCents = VEHICLE_REFERENCE_PRICE;
+    if (v.markedForSale === undefined) v.markedForSale = false;
+    if (v.saleOffer === undefined) v.saleOffer = null;
   }
 
   // ---------- Personalmodell Migration (Auftrag 11) ----------
