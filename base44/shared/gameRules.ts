@@ -79,7 +79,7 @@ export const PERSONNEL_ROLES = {
 // Dienstzeiten für nicht fahrende Mitarbeiter (08:00–16:00 Spielzeit)
 export const SERVICE_START_MIN = 480;
 export const SERVICE_END_MIN = 960;
-export const SERVICE_INTERVAL_MIN = 60;
+export const SERVICE_INTERVAL_MIN = 15;
 
 // Bewerber-Namen-Pools pro Rolle (disjunkt von Fahrer-Pool)
 export const APPLICANT_NAMES = {

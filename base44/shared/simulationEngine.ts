@@ -461,6 +461,8 @@ function completeTrip(state, trip, m, log) {
   generateDriverDeliveryReport(state, driver, trip, order, m);
 }
 function processEventsAt(state, m, log) {
+  // Spielzeit auf Ereigniszeit aktualisieren (startDeployment nutzt state.gameTime)
+  state.gameTime = m;
   // 1. Lieferabschlüsse (vor Fristprüfung)
   for (const trip of state.trips) {
     if (trip.status === "in_progress" && trip.currentLeg < trip.legs.length && trip.legs[trip.currentLeg].endMin === m) {
@@ -522,6 +524,8 @@ function processEventsAt(state, m, log) {
   }
   // 3b. Tour-automatische Folge-Einsätze starten (nach Erholung, vor Tagesabrechnung)
   processTours(state, m, log);
+  // 3b.2 Ereignisgesteuerte Dispositionsplanung (außerhalb des regulären Diensttakts)
+  triggerDispatcherPlanning(state, m, log);
   // 3c. Angestellte verarbeiten (Disponenten, Reinigung, etc.) an Dienstzeitpunkten
   if (m % 1440 >= SERVICE_START_MIN && m % 1440 <= SERVICE_END_MIN && m % SERVICE_INTERVAL_MIN === 0) {
     processEmployees(state, m, log);
@@ -626,137 +630,157 @@ function processEmployees(state, m, log) {
 
 // Disponent verarbeitet seine zugewiesenen Lkw.
 // Modus A: erstellt Vorschläge für freie Fahrzeuge mit angenommenen Aufträgen.
-// Modus B: darf angenommene Aufträge verbindlich planen und starten.
-// Modus C: darf zusätzlich Marktangebote annehmen (Etappe 4 – hier vorbereitet).
+// Modus B/C: nutzt suggestTours für flottenweite Planung mit Erholung, Rückladungen,
+//   Liquiditätsprüfung und Rentabilitätsfilter. Berücksichtigt auch ruhende Fahrer
+//   und zurückkehrende Fahrzeuge über earliestAvailable.
 function processDispatcher(state, emp, m, log) {
-  const assignedVehicles = (emp.assignedVehicleIds || []).map(vid => state.vehicles.find(v => v.id === vid)).filter(Boolean);
-  if (assignedVehicles.length === 0) return;
-
-  // Nur verarbeiten, wenn sich etwas geändert hat seit letzter Entscheidung
-  // (Vermeide stündliche Wiederholung unveränderter Vorschläge)
-  const hasAcceptedOrders = state.orders.some(o => o.status === "angenommen");
-  const hasFreeVehicles = assignedVehicles.some(v => v.status === "free" || v.status === "resting");
-  if (!hasAcceptedOrders || !hasFreeVehicles) {
-    // Aufräumen: alte Vorschläge entfernen wenn keine Aufträge/Fahrzeuge
+  const assignedVehicleIds = emp.assignedVehicleIds || [];
+  const assignedVehicles = assignedVehicleIds.map(vid => state.vehicles.find(v => v.id === vid)).filter(Boolean);
+  if (assignedVehicles.length === 0) {
     if ((emp.suggestions || []).length > 0) {
       emp.suggestions = [];
-      log.push({ type: "dispatcher_suggestions_cleared", employee: emp.id, atMin: m, reason: "keine Aufträge oder freie Fahrzeuge" });
+      log.push({ type: "dispatcher_suggestions_cleared", employee: emp.id, atMin: m, reason: "keine Lkw zugewiesen" });
     }
     return;
   }
 
-  // Modus A: Vorschläge vorbereiten
+  // ---------- Modus A: Vorschläge vorbereiten ----------
   if (emp.workMode === "suggestions") {
-    // Prüfe, ob es bereits gültige Vorschläge gibt
+    const hasAcceptedOrders = state.orders.some(o => o.status === "angenommen");
+    const hasFreeVehicles = assignedVehicles.some(v => v.status === "free" || v.status === "resting");
+    if (!hasAcceptedOrders || !hasFreeVehicles) {
+      if ((emp.suggestions || []).length > 0) {
+        emp.suggestions = [];
+        log.push({ type: "dispatcher_suggestions_cleared", employee: emp.id, atMin: m, reason: "keine Aufträge oder freie Fahrzeuge" });
+      }
+      return;
+    }
     const existingValid = (emp.suggestions || []).filter(s => s.status === "pending");
     if (existingValid.length > 0) {
-      // Prüfe, ob sich die Situation geändert hat
-      const situationChanged = hasSituationChanged(state, emp, existingValid);
-      if (!situationChanged) return; // Keine neuen Vorschläge nötig
+      if (!hasSituationChanged(state, emp, existingValid)) return;
     }
-
-    // Neue Vorschläge generieren (nur für zugewiesene Fahrzeuge)
     const result = suggestTours(state, {
-      vehicleIds: emp.assignedVehicleIds,
-      earliestStart: m,
-      horizonMin: 2880,
-      desiredEndCity: null,
-      latestReturnMin: null,
-      mode: "balanced",
-      acceptNew: false, // Modus A: keine neuen Angebote annehmen
+      vehicleIds: assignedVehicleIds, earliestStart: m, horizonMin: 2880,
+      desiredEndCity: null, latestReturnMin: null, mode: "balanced", acceptNew: false,
     });
-
-    // Alte Vorschläge aufräumen
     emp.suggestions = (emp.suggestions || []).filter(s => s.status !== "pending");
-    // Neue Vorschläge hinzufügen
     for (const s of result.suggestions) {
       const sug = {
-        id: uid(state, "sug"),
-        employeeId: emp.id,
-        employeeName: emp.name,
-        createdAtMin: m,
-        vehicleId: s.vehicleId,
-        driverId: s.driverId,
-        orderIds: s.orderIds,
-        plan: s.plan,
-        status: "pending",
+        id: uid(state, "sug"), employeeId: emp.id, employeeName: emp.name, createdAtMin: m,
+        vehicleId: s.vehicleId, driverId: s.driverId, orderIds: s.orderIds, plan: s.plan, status: "pending",
       };
       emp.suggestions.push(sug);
       log.push({ type: "dispatcher_suggestion", employee: emp.id, suggestion: sug.id, vehicle: s.vehicleId, atMin: m });
     }
     emp.lastDecisionMin = m;
+    return;
   }
 
-  // Modus B: angenommene Auftraege verbindlich planen
-  if (emp.workMode === "dispatch_accepted" || emp.workMode === "autonomous") {
-    const acceptedOrders = state.orders.filter(o =>
-      o.status === "angenommen" &&
-      !state.trips.some(t => t.orderId === o.id && t.status === "in_progress")
-    );
-    for (const order of acceptedOrders) {
-      const vehicle = assignedVehicles.find(v => v.status === "free" && v.condition >= 20);
-      if (!vehicle) break;
-      const driver = state.drivers.find(d =>
-        d.status === "free" && d.locationCity === vehicle.locationCity &&
-        d.employmentStatus === "employed" && d.attendance === "present" &&
-        (!d.restUntil || d.restUntil <= m)
-      );
-      if (!driver) continue;
-      try {
-        const r = doConfirmTour(state, {
-          vehicleId: vehicle.id, driverId: driver.id, orderIds: [order.id],
-        });
-        order.plannedById = emp.id; order.plannedByName = emp.name;
-        order.history = order.history || [];
-        order.history.push({ type: "planned", min: m, actor: emp.id, actorName: emp.name, details: { vehicleId: vehicle.id, driverId: driver.id } });
-        const tour = r.tour || { id: r.tourId, vehicleId: vehicle.id, driverId: driver.id, orderIds: [order.id], startMin: m, endMin: r.endMin };
-        onTourConfirmed(state, tour, emp.id, m);
-        emp.dailyStats = emp.dailyStats || { day: dayOf(m), offersChecked: 0, ordersAccepted: 0, ordersPlanned: 0, toursStarted: 0 };
-        emp.dailyStats.ordersPlanned = (emp.dailyStats.ordersPlanned || 0) + 1;
-        emp.dailyStats.toursStarted = (emp.dailyStats.toursStarted || 0) + 1;
-        log.push({ type: "dispatcher_planned", employee: emp.id, order: order.id, vehicle: vehicle.id, atMin: m });
-      } catch (e) {
-        log.push({ type: "dispatcher_plan_failed", employee: emp.id, order: order.id, error: e.message, atMin: m });
+  // ---------- Modus B/C: flottenweite Planung mit suggestTours ----------
+  const acceptNew = emp.workMode === "autonomous";
+  const hasAcceptedOrders = state.orders.some(o =>
+    o.status === "angenommen" && !state.trips.some(t => t.orderId === o.id && t.status === "in_progress")
+  );
+  const hasOfferedOrders = acceptNew && state.orders.some(o => o.status === "offered" && o.acceptDeadlineMin > m);
+  if (!hasAcceptedOrders && !hasOfferedOrders) {
+    emp.lastIdleReason = "Keine Aufträge zu vergeben";
+    emp.lastIdleReasonAtMin = m;
+    return;
+  }
+
+  // suggestTours berücksichtigt auch ruhende Fahrer und zurückkehrende Fahrzeuge
+  const result = suggestTours(state, {
+    vehicleIds: assignedVehicleIds, earliestStart: m, horizonMin: 72 * 60,
+    desiredEndCity: null, latestReturnMin: null, mode: "balanced", acceptNew,
+  });
+
+  const usedVehicleIds = new Set();
+  const usedOrderIds = new Set();
+  let planned = 0;
+
+  for (const sug of result.suggestions) {
+    if (usedVehicleIds.has(sug.vehicleId)) continue;
+    // Aufträge noch verfügbar?
+    const allAvailable = sug.orderIds.every(oid => {
+      if (usedOrderIds.has(oid)) return false;
+      const o = state.orders.find(x => x.id === oid);
+      return o && (o.status === "offered" || o.status === "angenommen");
+    });
+    if (!allAvailable) continue;
+    // Rentabilitätsprüfung: Nur positive Beiträge bei Neuaufträgen
+    const newOrderIds = sug.plan.acceptedOrderIds || [];
+    if (newOrderIds.length > 0 && sug.plan.totalContributionCents <= 0) continue;
+
+    try {
+      const r = doConfirmTour(state, {
+        vehicleId: sug.vehicleId, driverId: sug.driverId, orderIds: sug.orderIds,
+        desiredEndCity: sug.plan.desiredEndCity || null, latestReturnMin: sug.plan.latestReturnMin || null,
+      });
+      usedVehicleIds.add(sug.vehicleId);
+      sug.orderIds.forEach(oid => usedOrderIds.add(oid));
+      planned++;
+      // Auftragsmetadaten aktualisieren
+      for (const oid of sug.orderIds) {
+        const o = state.orders.find(x => x.id === oid);
+        if (!o) continue;
+        o.plannedById = emp.id; o.plannedByName = emp.name;
+        o.history = o.history || [];
+        o.history.push({ type: "planned", min: m, actor: emp.id, actorName: emp.name, details: { vehicleId: sug.vehicleId, driverId: sug.driverId } });
       }
+      // Tagesstatistik
+      emp.dailyStats = emp.dailyStats || { day: dayOf(m), offersChecked: 0, ordersAccepted: 0, ordersPlanned: 0, toursStarted: 0 };
+      if (emp.dailyStats.day !== dayOf(m)) emp.dailyStats = { day: dayOf(m), offersChecked: 0, ordersAccepted: 0, ordersPlanned: 0, toursStarted: 0 };
+      if (acceptNew) {
+        for (const oid of sug.orderIds) {
+          const o = state.orders.find(x => x.id === oid);
+          if (o && o.acceptedById === emp.id) emp.dailyStats.ordersAccepted = (emp.dailyStats.ordersAccepted || 0) + 1;
+        }
+      }
+      emp.dailyStats.ordersPlanned = (emp.dailyStats.ordersPlanned || 0) + 1;
+      emp.dailyStats.toursStarted = (emp.dailyStats.toursStarted || 0) + 1;
+      // Mail-Benachrichtigung
+      const tour = r.tour || { id: r.tourId, vehicleId: sug.vehicleId, driverId: sug.driverId, orderIds: sug.orderIds, startMin: m, endMin: r.endMin };
+      onTourConfirmed(state, tour, emp.id, m);
+      log.push({ type: "dispatcher_planned", employee: emp.id, orders: sug.orderIds, vehicle: sug.vehicleId, atMin: m, contributionCents: sug.plan.totalContributionCents });
+    } catch (e) {
+      log.push({ type: "dispatcher_plan_failed", employee: emp.id, orders: sug.orderIds, error: e.message, atMin: m });
     }
   }
 
-  // Modus C: Marktangebote annehmen und planen
-  if (emp.workMode === "autonomous") {
-    const offered = state.orders.filter(o => o.status === "offered" && o.acceptDeadlineMin > m);
-    for (const order of offered.slice(0, 3)) {
-      const vehicle = assignedVehicles.find(v => v.status === "free" && v.condition >= 20);
-      if (!vehicle) break;
-      const driver = state.drivers.find(d =>
-        d.status === "free" && d.locationCity === vehicle.locationCity &&
-        d.employmentStatus === "employed" && d.attendance === "present" &&
-        (!d.restUntil || d.restUntil <= m)
-      );
-      if (!driver) continue;
-      order.status = "angenommen"; order.acceptedAtMin = m;
-      order.acceptedById = emp.id; order.acceptedByName = emp.name;
-      order.history = order.history || [];
-      order.history.push({ type: "accepted", min: m, actor: emp.id, actorName: emp.name });
-      try {
-        const r = doConfirmTour(state, {
-          vehicleId: vehicle.id, driverId: driver.id, orderIds: [order.id],
-        });
-        order.plannedById = emp.id; order.plannedByName = emp.name;
-        order.history.push({ type: "planned", min: m, actor: emp.id, actorName: emp.name, details: { vehicleId: vehicle.id, driverId: driver.id } });
-        const tour = r.tour || { id: r.tourId, vehicleId: vehicle.id, driverId: driver.id, orderIds: [order.id], startMin: m, endMin: r.endMin };
-        onOrderAccepted(state, order, emp.id, m);
-        onTourConfirmed(state, tour, emp.id, m);
-        emp.dailyStats = emp.dailyStats || { day: dayOf(m), offersChecked: 0, ordersAccepted: 0, ordersPlanned: 0, toursStarted: 0 };
-        emp.dailyStats.ordersAccepted = (emp.dailyStats.ordersAccepted || 0) + 1;
-        emp.dailyStats.ordersPlanned = (emp.dailyStats.ordersPlanned || 0) + 1;
-        emp.dailyStats.toursStarted = (emp.dailyStats.toursStarted || 0) + 1;
-        log.push({ type: "dispatcher_accepted", employee: emp.id, order: order.id, vehicle: vehicle.id, atMin: m });
-      } catch (e) {
-        order.status = "offered"; order.acceptedAtMin = null;
-        order.acceptedById = null; order.acceptedByName = null;
-        log.push({ type: "dispatcher_accept_failed", employee: emp.id, order: order.id, error: e.message, atMin: m });
-      }
+  // Stillstandsgründe für ungenutzte Fahrzeuge dokumentieren
+  for (const v of assignedVehicles) {
+    if (usedVehicleIds.has(v.id)) { v.idleReason = null; continue; }
+    if (v.status === "on_trip") { v.idleReason = "Unterwegs"; continue; }
+    if (v.status === "maintenance") { v.idleReason = "Wartung bis " + formatGameTime(v.maintenanceUntil); continue; }
+    let reason = "Kein geeigneter Auftrag gefunden";
+    if (v.condition < 20) reason = "Zustand unter 20 – Wartung erforderlich";
+    else if (!state.drivers.some(d => d.locationCity === v.locationCity && (d.status === "free" || d.status === "resting") && d.employmentStatus === "employed")) {
+      reason = "Kein Fahrer am Standort " + v.locationCity;
+    } else if (!hasAcceptedOrders && !hasOfferedOrders) {
+      reason = "Keine Aufträge verfügbar";
     }
+    v.idleReason = reason;
+    v.idleReasonAtMin = m;
+  }
+  emp.lastDecisionMin = m;
+  emp.lastPlanningResult = { atMin: m, planned, totalVehicles: assignedVehicles.length, usedVehicles: usedVehicleIds.size };
+}
+
+// Ereignisgesteuerte Dispositionsplanung: ruft processDispatcher für alle
+// autonomen/disponierenden Disponenten außerhalb des regulären Diensttakts auf.
+// Vermeidet Doppelverarbeitung in derselben Spielminute.
+function triggerDispatcherPlanning(state, m, log) {
+  const clock = m % 1440;
+  if (clock < SERVICE_START_MIN || clock > SERVICE_END_MIN) return;
+  if (clock % SERVICE_INTERVAL_MIN === 0) return; // Bereits durch processEmployees abgedeckt
+  for (const emp of (state.employees || [])) {
+    if (emp.employmentStatus !== "employed") continue;
+    if (emp.attendance !== "present") continue;
+    if (emp.role !== "dispatcher" && emp.role !== "dispatcher_senior") continue;
+    if (emp.workMode !== "autonomous" && emp.workMode !== "dispatch_accepted") continue;
+    if ((emp.assignedVehicleIds || []).length === 0) continue;
+    if (emp.lastDecisionMin === m) continue;
+    processDispatcher(state, emp, m, log);
   }
 }
 

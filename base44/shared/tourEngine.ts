@@ -198,8 +198,8 @@ export function buildTourPlan(state, opts) {
     if (dep.endMin > order.deliveryDeadlineMin) {
       return { error: "Lieferung von " + order.customer + " würde die Lieferfrist überschreiten (Ankunft " + formatGameTime(dep.endMin) + ", Frist " + formatGameTime(order.deliveryDeadlineMin) + ")." };
     }
-    if (order.status === "offered" && order.acceptDeadlineMin <= t) {
-      return { error: "Annahmefrist für " + order.customer + " ist abgelaufen oder reicht nicht für diesen Startzeitpunkt." };
+    if (order.status === "offered" && order.acceptDeadlineMin <= state.gameTime) {
+      return { error: "Annahmefrist für " + order.customer + " ist abgelaufen." };
     }
 
     if (order.status === "offered") acceptedOrderIds.push(orderId);
@@ -380,13 +380,19 @@ export function confirmTour(state, params) {
   state.tours = state.tours || [];
   state.tours.push(tour);
 
-  // 5. Starte den ersten Einsatz sofort
+  // 5. Starte den ersten Einsatz – sofort oder geplant für die Zukunft
   const firstDep = tour.deployments[0];
-  const startResult = startDeployment(state, tour, firstDep, 0);
-  firstDep.tripId = startResult.tripId;
-  firstDep.status = "active";
-  firstDep.actualStartMin = state.gameTime;
-  tour.currentDepIndex = 0;
+  if (firstDep.startMin <= state.gameTime) {
+    const startResult = startDeployment(state, tour, firstDep, 0);
+    firstDep.tripId = startResult.tripId;
+    firstDep.status = "active";
+    firstDep.actualStartMin = state.gameTime;
+    tour.currentDepIndex = 0;
+  } else {
+    // Zukünftiger Start – processTours startet bei Erreichen des Zeitpunkts
+    firstDep.status = "planned";
+    tour.currentDepIndex = 0;
+  }
 
   return {
     ok: true,
@@ -721,6 +727,8 @@ export function suggestTours(state, opts) {
 
   const startMin = earliestStart || state.gameTime;
   const maxMin = startMin + (horizonMin || 48 * 60);
+  const usedDriverIds = new Set();
+  const usedOrderIds = new Set();
 
   for (const vehicleId of vehicleIds || state.vehicles.map(v => v.id)) {
     const vehicle = state.vehicles.find(v => v.id === vehicleId);
@@ -728,25 +736,28 @@ export function suggestTours(state, opts) {
     if (vehicle.status !== "free" && vehicle.status !== "resting") continue;
     if (vehicle.condition < 20) continue;
 
-    // Finde einen passenden Fahrer am gleichen Ort
+    // Finde einen passenden Fahrer am gleichen Ort (auch ruhende, noch nicht zugewiesen)
     const driver = state.drivers.find(d =>
       d.locationCity === vehicle.locationCity &&
       (d.status === "free" || d.status === "resting") &&
-      (!d.restUntil || d.restUntil <= startMin)
+      d.employmentStatus === "employed" &&
+      !usedDriverIds.has(d.id)
     );
     if (!driver) continue;
 
-    // 1. Bereits angenommene, unzugewiesene Aufträge
+    // 1. Bereits angenommene, unzugewiesene Aufträge (nicht bereits zugewiesen)
     const acceptedOrders = state.orders.filter(o =>
       o.status === "angenommen" &&
-      o.tons <= vehicle.capacityTons
+      o.tons <= vehicle.capacityTons &&
+      !usedOrderIds.has(o.id)
     );
 
-    // 2. Offene Angebote (nur wenn acceptNew)
+    // 2. Offene Angebote (nur wenn acceptNew, nicht bereits zugewiesen)
     const offeredOrders = acceptNew ? state.orders.filter(o =>
       o.status === "offered" &&
       o.acceptDeadlineMin > startMin &&
-      o.tons <= vehicle.capacityTons
+      o.tons <= vehicle.capacityTons &&
+      !usedOrderIds.has(o.id)
     ) : [];
 
     const allOrders = [...acceptedOrders, ...offeredOrders];
@@ -791,6 +802,8 @@ export function suggestTours(state, opts) {
     }
 
     if (bestPlan) {
+      usedDriverIds.add(driver.id);
+      bestOrders.forEach(oid => usedOrderIds.add(oid));
       suggestions.push({
         vehicleId,
         driverId: driver.id,
@@ -802,7 +815,7 @@ export function suggestTours(state, opts) {
     }
   }
 
-  return { suggestions: suggestions.slice(0, 3) };
+  return { suggestions };
 }
 
 function comparePlans(a, b, mode) {
