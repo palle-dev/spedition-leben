@@ -5,6 +5,7 @@
 
 import { ACHIEVEMENTS, XP_LEVELS, COMPANY_STAGES, GOAL_TEMPLATES } from "./achievementCatalog.ts";
 import { PERSONNEL_ROLES, PORTRAIT_IDS, DRIVER_COST_PER_DAY, HIRE_FEE } from "./gameRules.ts";
+import { migrateAccounting } from "./accountingEngine.ts";
 
 // --- Vermögensberechnungen ---
 
@@ -195,6 +196,9 @@ export function migrateState(state) {
   }
 
   if (!state.portraitAssignments) state.portraitAssignments = {};
+
+  // ---------- Buchhaltungs-Migration (Auftrag 12) ----------
+  migrateAccounting(state);
 
   return state;
 }

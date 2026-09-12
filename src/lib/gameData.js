@@ -73,7 +73,8 @@ export const PERSONNEL_ROLES = {
   dispatcher_senior:  { id: "dispatcher_senior",  label: "Erfahrener Disponent",    hireFeeCents: 100000, costPerDayCents: 26000, capacity: 12 },
   cleaner:            { id: "cleaner",            label: "Reinigungskraft",         hireFeeCents: 15000,  costPerDayCents: 6000,  capacity: 4 },
   mechanic:           { id: "mechanic",           label: "Werkstattmitarbeiter",    hireFeeCents: 50000,  costPerDayCents: 14000, capacity: 1 },
-  accountant:         { id: "accountant",         label: "Buchhalter/Buchhalterin", hireFeeCents: 40000,  costPerDayCents: 12000, capacity: 0 },
+  accountant:         { id: "accountant",         label: "Buchhalter/Buchhalterin",       hireFeeCents: 40000,  costPerDayCents: 12000, capacity: 40 },
+  accountant_senior:  { id: "accountant_senior",  label: "Erfahrene Buchhaltungskraft",   hireFeeCents: 70000,  costPerDayCents: 19000, capacity: 80 },
 };
 
 export const SERVICE_START_MIN = 480;
@@ -87,6 +88,7 @@ export const ROLE_LABELS = {
   cleaner: "Reinigung",
   mechanic: "Werkstatt",
   accountant: "Buchhaltung",
+  accountant_senior: "Erf. Buchhaltung",
 };
 
 export const ROLE_ICONS = {
@@ -96,4 +98,5 @@ export const ROLE_ICONS = {
   cleaner: "Sparkles",
   mechanic: "Wrench",
   accountant: "Calculator",
+  accountant_senior: "Calculator",
 };

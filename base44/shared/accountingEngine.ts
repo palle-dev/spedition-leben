@@ -1,0 +1,838 @@
+// Buchhaltungs-Engine für FERNWERK.
+// Doppelte Buchführung, Kontenplan, Belege, offene Posten, Anlagen,
+// Abschreibung, Periodenabschluss, Buchhaltungspersonal, Auswertungen, Migration.
+// Trennung: gameRules (statisch) · accountingEngine (Buchhaltungslogik) · simulationEngine (Spiellogik).
+
+import {
+  DRIVER_COST_PER_DAY, BRANCH_COST_PER_DAY, PRIVATE_WITHDRAWAL_PER_DAY,
+  PERSONNEL_ROLES, PORTRAIT_IDS, HIRE_FEE, VEHICLE_PRICE,
+} from "./gameRules.ts";
+
+// ---------- Kontenplan ----------
+export const ACCOUNTS = {
+  // Aktiva
+  "1000": { no: "1000", name: "Firmenbank", type: "asset", group: "current_assets" },
+  "1100": { no: "1100", name: "Kundenforderungen", type: "asset", group: "current_assets" },
+  "1150": { no: "1150", name: "Sonstige Forderungen", type: "asset", group: "current_assets" },
+  "1200": { no: "1200", name: "Eigene Lkw", type: "asset", group: "fixed_assets" },
+  "1210": { no: "1210", name: "Werkstattausstattung", type: "asset", group: "fixed_assets" },
+  "1220": { no: "1220", name: "Weitere Betriebsanlagen", type: "asset", group: "fixed_assets" },
+  // Eigenkapital
+  "2000": { no: "2000", name: "Eigenkapital", type: "equity", group: "equity" },
+  "2010": { no: "2010", name: "Private Entnahmen", type: "equity", group: "equity", contra: true },
+  "2020": { no: "2020", name: "Private Einlagen", type: "equity", group: "equity" },
+  // Passiva
+  "2100": { no: "2100", name: "Lieferantenverbindlichkeiten", type: "liability", group: "current_liabilities" },
+  "2110": { no: "2110", name: "Offene Löhne", type: "liability", group: "current_liabilities" },
+  "2120": { no: "2120", name: "Sonstige Verbindlichkeiten", type: "liability", group: "current_liabilities" },
+  "2200": { no: "2200", name: "Darlehen", type: "liability", group: "long_term_liabilities" },
+  // Erträge
+  "4000": { no: "4000", name: "Transporterlöse", type: "revenue", group: "operating_revenue" },
+  "4090": { no: "4090", name: "Erlösschmälerungen", type: "revenue", group: "operating_revenue", contra: true },
+  "4100": { no: "4100", name: "Versicherungsentschädigungen", type: "revenue", group: "other_revenue" },
+  "4200": { no: "4200", name: "Gewinne aus Anlagenverkauf", type: "revenue", group: "other_revenue" },
+  // Aufwendungen
+  "5000": { no: "5000", name: "Kraftstoff", type: "expense", group: "direct_costs" },
+  "5010": { no: "5010", name: "Maut", type: "expense", group: "direct_costs" },
+  "5020": { no: "5020", name: "Fremdtransporte", type: "expense", group: "direct_costs" },
+  "5100": { no: "5100", name: "Fahrerlohn", type: "expense", group: "personnel" },
+  "5110": { no: "5110", name: "Disposition", type: "expense", group: "personnel" },
+  "5120": { no: "5120", name: "Buchhaltung und Verwaltung", type: "expense", group: "personnel" },
+  "5130": { no: "5130", name: "Reinigung und Werkstattpersonal", type: "expense", group: "personnel" },
+  "5140": { no: "5140", name: "Personalgewinnung und Bereitstellung", type: "expense", group: "personnel" },
+  "5200": { no: "5200", name: "Standortkosten", type: "expense", group: "operations" },
+  "5210": { no: "5210", name: "Externe Reinigung und Betriebshilfen", type: "expense", group: "operations" },
+  "5220": { no: "5220", name: "Miete für Fahrzeuge und Ausstattung", type: "expense", group: "operations" },
+  "5300": { no: "5300", name: "Wartung und Reparatur", type: "expense", group: "operations" },
+  "5310": { no: "5310", name: "Unfall-, Abschlepp- und Ladungsschäden", type: "expense", group: "operations" },
+  "5400": { no: "5400", name: "Versicherungsbeiträge", type: "expense", group: "operations" },
+  "5500": { no: "5500", name: "Abschreibungen", type: "expense", group: "depreciation" },
+  "5510": { no: "5510", name: "Verluste aus Anlagenverkauf", type: "expense", group: "depreciation" },
+  "5600": { no: "5600", name: "Zinsaufwand", type: "expense", group: "finance" },
+  "5700": { no: "5700", name: "Auftragsstorno und sonstige Betriebskosten", type: "expense", group: "operations" },
+};
+
+export const ACCOUNT_LIST = Object.values(ACCOUNTS);
+
+export function accountName(no) { return ACCOUNTS[no]?.name || no; }
+export function accountType(no) { return ACCOUNTS[no]?.type || "unknown"; }
+export function accountGroup(no) { return ACCOUNTS[no]?.group || "unknown"; }
+export function isContraAccount(no) { return ACCOUNTS[no]?.contra || false; }
+
+// ---------- Perioden ----------
+// 1 Spielmonat = 30 Spieltage = 43200 Minuten
+export const MONTH_MIN = 43200;
+export const MONTH_DAYS = 30;
+export const DEPR_MONTHS = 60; // Nutzungsdauer in Spielmonaten
+
+export function periodOf(min) { return Math.floor(min / MONTH_MIN) + 1; }
+export function periodStartMin(p) { return (p - 1) * MONTH_MIN; }
+export function periodEndMin(p) { return p * MONTH_MIN; }
+export function dayOfMin(min) { return Math.floor(min / 1440) + 1; }
+
+// ---------- Initialisierung ----------
+export function initAccounting(state) {
+  state.accounting = {
+    journal: [],
+    receipts: [],
+    openItems: [],
+    assets: [],
+    periods: [],
+    accountBalances: {},
+    nextEntryNo: 1,
+    nextReceiptNo: 1,
+    nextOpenItemNo: 1,
+    nextAssetNo: 1,
+    nextTaskNo: 1,
+    lastDepreciationMonth: 0,
+    depreciationStartMonth: 2, // Einführungsregel: erst ab Monat 2
+    taskQueue: [],
+    migrationDone: false,
+  };
+}
+
+// ---------- Buchungsjournal ----------
+export function postJournal(state, data) {
+  if (!state.accounting) initAccounting(state);
+  const lines = (data.lines || []).filter(l => (l.debit || 0) > 0 || (l.credit || 0) > 0);
+  const debit = lines.reduce((s, l) => s + (l.debit || 0), 0);
+  const credit = lines.reduce((s, l) => s + (l.credit || 0), 0);
+  if (debit !== credit) {
+    throw new Error(`Unausgeglichene Buchung: "${data.text}" – Soll ${debit} ≠ Haben ${credit}`);
+  }
+  if (lines.length < 2) {
+    throw new Error(`Buchung braucht mindestens zwei Zeilen: "${data.text}"`);
+  }
+  const gt = data.gameTime ?? state.gameTime;
+  const entry = {
+    id: "je_" + (state.accounting.nextEntryNo++),
+    entryNo: state.accounting.nextEntryNo - 1,
+    gameTime: gt,
+    period: periodOf(gt),
+    text: data.text,
+    type: data.type || "other",
+    sourceEventId: data.sourceEventId || null,
+    orderId: data.orderId || null,
+    tourId: data.tourId || null,
+    vehicleId: data.vehicleId || null,
+    employeeId: data.employeeId || null,
+    branchId: data.branchId || null,
+    partnerName: data.partnerName || null,
+    actor: data.actor || "system",
+    status: "posted",
+    lines: lines.map(l => ({
+      account: l.account,
+      debitCents: l.debit || 0,
+      creditCents: l.credit || 0,
+      orderId: l.orderId || data.orderId || null,
+      vehicleId: l.vehicleId || data.vehicleId || null,
+      employeeId: l.employeeId || data.employeeId || null,
+      openItemId: l.openItemId || null,
+    })),
+    correctionOf: data.correctionOf || null,
+  };
+  // Kontensalden aktualisieren
+  for (const line of entry.lines) {
+    const bal = state.accounting.accountBalances[line.account] || 0;
+    state.accounting.accountBalances[line.account] = bal + line.debitCents - line.creditCents;
+  }
+  // Bankkonto (1000) mit state.company.accountCents synchron halten
+  for (const line of entry.lines) {
+    if (line.account === "1000") {
+      state.company.accountCents += line.debitCents - line.creditCents;
+    }
+  }
+  state.accounting.journal.push(entry);
+  return entry;
+}
+
+// ---------- Buchungsvorlagen ----------
+export const TEMPLATES = {
+  opening: (s, p) => ({
+    text: p.text || "Eröffnungsbilanz",
+    type: "opening",
+    actor: "system",
+    lines: [
+      { account: "1000", debit: p.bankCents },
+      { account: "1200", debit: p.assetCents },
+      { account: "2000", credit: p.bankCents + p.assetCents - p.liabilityCents },
+      ...(p.liabilityCents > 0 ? [{ account: "2120", credit: p.liabilityCents }] : []),
+    ],
+  }),
+  fuel_toll: (s, p) => ({
+    text: `Kraftstoff & Maut: ${p.customer || "Transport"}`,
+    type: "fuel_toll",
+    actor: "system",
+    orderId: p.orderId,
+    vehicleId: p.vehicleId,
+    partnerName: p.customer,
+    lines: [
+      { account: "5000", debit: p.fuelCents },
+      { account: "5010", debit: p.tollCents },
+      { account: "1000", credit: p.fuelCents + p.tollCents },
+    ],
+  }),
+  fuel_toll_empty: (s, p) => ({
+    text: `Kraftstoff & Maut (Leerfahrt)`,
+    type: "fuel_toll_empty",
+    actor: "system",
+    vehicleId: p.vehicleId,
+    lines: [
+      { account: "5000", debit: p.fuelCents },
+      { account: "5010", debit: p.tollCents },
+      { account: "1000", credit: p.fuelCents + p.tollCents },
+    ],
+  }),
+  revenue_immediate: (s, p) => ({
+    text: `Vergütung: ${p.customer}`,
+    type: "revenue",
+    actor: "system",
+    orderId: p.orderId,
+    partnerName: p.customer,
+    lines: [
+      { account: "1000", debit: p.paymentCents },
+      { account: "4000", credit: p.paymentCents },
+    ],
+  }),
+  revenue_deferred: (s, p) => ({
+    text: `Vergütung (Zahlungsziel): ${p.customer}`,
+    type: "revenue_deferred",
+    actor: "system",
+    orderId: p.orderId,
+    partnerName: p.customer,
+    lines: [
+      { account: "1100", debit: p.paymentCents },
+      { account: "4000", credit: p.paymentCents },
+    ],
+    openItem: { account: "1100", amountCents: p.paymentCents, dueMin: p.dueMin, partnerName: p.customer, orderId: p.orderId },
+  }),
+  revenue_collection: (s, p) => ({
+    text: `Zahlungseingang: ${p.customer}`,
+    type: "revenue_collection",
+    actor: "system",
+    orderId: p.orderId,
+    partnerName: p.customer,
+    lines: [
+      { account: "1000", debit: p.amountCents },
+      { account: "1100", credit: p.amountCents },
+    ],
+  }),
+  withdrawal: (s, p) => ({
+    text: "Private Entnahme",
+    type: "withdrawal",
+    actor: "system",
+    lines: [
+      { account: "2010", debit: p.amountCents },
+      { account: "1000", credit: p.amountCents },
+    ],
+  }),
+  deposit: (s, p) => ({
+    text: "Private Einlage",
+    type: "deposit",
+    actor: "player",
+    lines: [
+      { account: "1000", debit: p.amountCents },
+      { account: "2020", credit: p.amountCents },
+    ],
+  }),
+  cancellation: (s, p) => ({
+    text: `Stornogebühr: ${p.customer}`,
+    type: "cancellation",
+    actor: "system",
+    orderId: p.orderId,
+    partnerName: p.customer,
+    lines: [
+      { account: "5700", debit: p.feeCents },
+      { account: "1000", credit: p.feeCents },
+    ],
+  }),
+  vehicle_purchase: (s, p) => ({
+    text: `Fahrzeugkauf: ${p.vehicleName || p.vehicleId}`,
+    type: "vehicle_purchase",
+    actor: "player",
+    vehicleId: p.vehicleId,
+    lines: [
+      { account: "1200", debit: p.priceCents },
+      { account: "1000", credit: p.priceCents },
+    ],
+  }),
+  maintenance: (s, p) => ({
+    text: `Wartung: ${p.vehicleName || p.vehicleId}`,
+    type: "maintenance",
+    actor: "player",
+    vehicleId: p.vehicleId,
+    lines: [
+      { account: "5300", debit: p.amountCents },
+      { account: "1000", credit: p.paidCents || p.amountCents },
+      ...(p.unpaidCents > 0 ? [{ account: p.liabilityAccount || "2120", credit: p.unpaidCents }] : []),
+    ],
+  }),
+  hire_fee: (s, p) => ({
+    text: `Einstellung: ${p.name}`,
+    type: "hire_fee",
+    actor: "player",
+    employeeId: p.employeeId,
+    lines: [
+      { account: "5140", debit: p.amountCents },
+      { account: "1000", credit: p.paidCents || p.amountCents },
+      ...(p.unpaidCents > 0 ? [{ account: "2120", credit: p.unpaidCents }] : []),
+    ],
+  }),
+  expense: (s, p) => ({
+    text: p.text,
+    type: p.type || "expense",
+    actor: p.actor || "system",
+    orderId: p.orderId,
+    vehicleId: p.vehicleId,
+    employeeId: p.employeeId,
+    branchId: p.branchId,
+    partnerName: p.partnerName,
+    lines: [
+      { account: p.expenseAccount, debit: p.amountCents },
+      ...(p.paidCents > 0 ? [{ account: "1000", credit: p.paidCents }] : []),
+      ...(p.unpaidCents > 0 ? [{ account: p.liabilityAccount || "2120", credit: p.unpaidCents }] : []),
+    ],
+  }),
+  depreciation: (s, p) => ({
+    text: `Abschreibung: ${p.assetName || p.assetId}`,
+    type: "depreciation",
+    actor: "system",
+    vehicleId: p.vehicleId,
+    lines: [
+      { account: "5500", debit: p.amountCents },
+      { account: p.assetAccount || "1200", credit: p.amountCents },
+    ],
+  }),
+  asset_disposal: (s, p) => {
+    const loss = p.bookValueCents - p.salePriceCents;
+    const gain = p.salePriceCents - p.bookValueCents;
+    const lines = [{ account: "1000", debit: p.salePriceCents }];
+    if (loss > 0) lines.push({ account: "5510", debit: loss });
+    lines.push({ account: p.assetAccount || "1200", credit: p.bookValueCents });
+    if (gain > 0) lines.push({ account: "4200", credit: gain });
+    return {
+      text: `Anlagenverkauf: ${p.assetName || p.assetId}`,
+      type: "asset_disposal",
+      actor: "player",
+      vehicleId: p.vehicleId,
+      lines,
+    };
+  },
+  insurance_claim: (s, p) => ({
+    text: `Versicherungsanspruch: ${p.cause || "Schaden"}`,
+    type: "insurance_claim",
+    actor: "system",
+    lines: [
+      { account: "1150", debit: p.amountCents },
+      { account: "4100", credit: p.amountCents },
+    ],
+    openItem: { account: "1150", amountCents: p.amountCents, dueMin: p.dueMin, partnerName: "Versicherung", cause: p.cause },
+  }),
+  insurance_payment: (s, p) => ({
+    text: `Versicherungszahlung erhalten`,
+    type: "insurance_payment",
+    actor: "system",
+    lines: [
+      { account: "1000", debit: p.amountCents },
+      { account: "1150", credit: p.amountCents },
+    ],
+  }),
+  pay_liability: (s, p) => ({
+    text: `Zahlung: ${p.cause || "Offener Posten"}`,
+    type: "liability_payment",
+    actor: p.actor || "player",
+    lines: [
+      { account: p.liabilityAccount, debit: p.amountCents },
+      { account: "1000", credit: p.amountCents },
+    ],
+  }),
+};
+
+// ---------- Buchung aus Vorlage ----------
+export function book(state, templateName, params) {
+  if (!state.accounting) initAccounting(state);
+  const tpl = TEMPLATES[templateName];
+  if (!tpl) throw new Error("Unbekannte Buchungsvorlage: " + templateName);
+  const data = tpl(state, params || {});
+  if (params?.gameTime !== undefined) data.gameTime = params.gameTime;
+  const entry = postJournal(state, data);
+  createReceipt(state, entry);
+  // Open Item erstellen falls definiert
+  if (data.openItem) {
+    addOpenItem(state, { ...data.openItem, refEntryId: entry.id, createdAtMin: data.gameTime ?? state.gameTime });
+  }
+  return entry;
+}
+
+// ---------- Aufwand mit teilweiser Zahlung ----------
+export function bookExpense(state, params) {
+  if (!state.accounting) initAccounting(state);
+  const bal = state.company.accountCents;
+  const paidCents = Math.min(bal, params.amountCents);
+  const unpaidCents = params.amountCents - paidCents;
+  const gt = params.gameTime ?? state.gameTime;
+  const entry = book(state, "expense", { ...params, paidCents, unpaidCents, gameTime: gt });
+  if (unpaidCents > 0) {
+    addOpenItem(state, {
+      account: params.liabilityAccount || "2120",
+      amountCents: unpaidCents,
+      remainingCents: unpaidCents,
+      cause: params.text,
+      refEntryId: entry.id,
+      createdAtMin: gt,
+      dueMin: null,
+      partnerName: params.partnerName || null,
+      orderId: params.orderId || null,
+      vehicleId: params.vehicleId || null,
+      employeeId: params.employeeId || null,
+    });
+  }
+  return { entry, paidCents, unpaidCents };
+}
+
+// ---------- Belege ----------
+export function createReceipt(state, entry) {
+  if (!state.accounting) initAccounting(state);
+  const receipt = {
+    id: "rec_" + (state.accounting.nextReceiptNo++),
+    receiptNo: state.accounting.nextReceiptNo - 1,
+    entryId: entry.id,
+    type: entry.type,
+    text: entry.text,
+    gameTime: entry.gameTime,
+    period: entry.period,
+    partnerName: entry.partnerName,
+    amountCents: entry.lines.reduce((s, l) => s + l.debitCents, 0),
+    status: "generated", // generated → checked → approved
+    checkedAtMin: null,
+    checkedBy: null,
+    refType: entry.orderId ? "order" : entry.vehicleId ? "vehicle" : entry.employeeId ? "employee" : entry.branchId ? "branch" : null,
+    refId: entry.orderId || entry.vehicleId || entry.employeeId || entry.branchId || null,
+  };
+  state.accounting.receipts.push(receipt);
+  // Prüfungsaufgabe generieren
+  addTask(state, { type: "check_receipt", points: 1, receiptId: receipt.id });
+  return receipt;
+}
+
+// ---------- Offene Posten ----------
+export function addOpenItem(state, params) {
+  if (!state.accounting) initAccounting(state);
+  const item = {
+    id: "op_" + (state.accounting.nextOpenItemNo++),
+    account: params.account,
+    amountCents: params.amountCents,
+    remainingCents: params.remainingCents || params.amountCents,
+    cause: params.cause || "",
+    partnerName: params.partnerName || null,
+    orderId: params.orderId || null,
+    vehicleId: params.vehicleId || null,
+    employeeId: params.employeeId || null,
+    refEntryId: params.refEntryId || null,
+    createdAtMin: params.createdAtMin || state.gameTime,
+    dueMin: params.dueMin || null,
+    status: "open", // open → partially_paid → paid
+    payments: [],
+  };
+  state.accounting.openItems.push(item);
+  if (params.dueMin) {
+    addTask(state, { type: "prepare_payment", points: 1, openItemId: item.id, dueMin: params.dueMin });
+  }
+  return item;
+}
+
+export function settleOpenItem(state, itemId, amountCents) {
+  if (!state.accounting) initAccounting(state);
+  const item = state.accounting.openItems.find(o => o.id === itemId);
+  if (!item) throw new Error("Offener Posten nicht gefunden: " + itemId);
+  const pay = Math.min(amountCents, item.remainingCents);
+  if (pay <= 0) return { paid: 0, remaining: item.remainingCents };
+  item.remainingCents -= pay;
+  item.payments.push({ amountCents: pay, atMin: state.gameTime });
+  item.status = item.remainingCents <= 0 ? "paid" : "partially_paid";
+  // Buchung: Soll Verbindlichkeit, Haben Bank
+  book(state, "pay_liability", {
+    amountCents: pay,
+    liabilityAccount: item.account,
+    cause: item.cause,
+    actor: "player",
+  });
+  return { paid: pay, remaining: item.remainingCents };
+}
+
+// ---------- Anlagen ----------
+export function registerAsset(state, params) {
+  if (!state.accounting) initAccounting(state);
+  const monthlyDep = Math.floor(params.acquisitionCostCents / DEPR_MONTHS);
+  const asset = {
+    id: "asset_" + (state.accounting.nextAssetNo++),
+    vehicleId: params.vehicleId || null,
+    account: params.account || "1200",
+    name: params.name || "Anlage",
+    acquisitionCostCents: params.acquisitionCostCents,
+    acquiredAtMin: params.acquiredAtMin,
+    acquiredPeriod: periodOf(params.acquiredAtMin),
+    accumulatedDepreciationCents: 0,
+    bookValueCents: params.acquisitionCostCents,
+    disposedAtMin: null,
+    disposalPriceCents: null,
+    monthlyDepreciationCents: monthlyDep,
+    depreciationStartMonth: state.accounting.depreciationStartMonth,
+  };
+  state.accounting.assets.push(asset);
+  return asset;
+}
+
+export function disposeAsset(state, assetId, salePriceCents) {
+  if (!state.accounting) initAccounting(state);
+  const asset = state.accounting.assets.find(a => a.id === assetId);
+  if (!asset) throw new Error("Anlage nicht gefunden: " + assetId);
+  // Abschreibung bis Abgang berechnen (vor Verkauf)
+  depreciateAssetForMonth(state, asset, periodOf(state.gameTime), true);
+  asset.disposedAtMin = state.gameTime;
+  asset.disposalPriceCents = salePriceCents;
+  book(state, "asset_disposal", {
+    assetId: asset.id,
+    assetName: asset.name,
+    assetAccount: asset.account,
+    bookValueCents: asset.bookValueCents,
+    salePriceCents,
+    vehicleId: asset.vehicleId,
+  });
+  return asset;
+}
+
+// ---------- Abschreibung ----------
+function depreciateAssetForMonth(state, asset, currentMonth, isDisposal) {
+  if (asset.disposedAtMin !== null) return 0;
+  if (currentMonth < asset.depreciationStartMonth && !isDisposal) return 0;
+  if (currentMonth < asset.acquiredPeriod) return 0;
+  const monthlyDep = asset.monthlyDepreciationCents;
+  const dailyDep = Math.floor(monthlyDep / MONTH_DAYS);
+  let depRate = monthlyDep;
+  // Anschaffungsmonat: zeitanteilig
+  if (currentMonth === asset.acquiredPeriod && asset.acquiredPeriod >= asset.depreciationStartMonth) {
+    const daysInMonth = MONTH_DAYS - dayOfMin(asset.acquiredAtMin) + 1;
+    depRate = dailyDep * daysInMonth;
+  }
+  // Abgangsmonat: zeitanteilig (Abgangstag zählt nicht)
+  if (isDisposal && currentMonth === periodOf(state.gameTime)) {
+    const daysUsed = dayOfMin(state.gameTime) - 1;
+    depRate = dailyDep * Math.max(0, daysUsed);
+  }
+  // Nicht unter 0
+  depRate = Math.min(depRate, asset.bookValueCents);
+  if (depRate > 0) {
+    asset.accumulatedDepreciationCents += depRate;
+    asset.bookValueCents -= depRate;
+    book(state, "depreciation", {
+      amountCents: depRate,
+      assetId: asset.id,
+      assetName: asset.name,
+      assetAccount: asset.account,
+      vehicleId: asset.vehicleId,
+    });
+  }
+  return depRate;
+}
+
+export function calculateDepreciation(state, min) {
+  if (!state.accounting) initAccounting(state);
+  const currentMonth = periodOf(min);
+  if (state.accounting.lastDepreciationMonth >= currentMonth) return;
+  if (currentMonth < state.accounting.depreciationStartMonth) {
+    state.accounting.lastDepreciationMonth = currentMonth;
+    return;
+  }
+  for (const asset of state.accounting.assets) {
+    // Alle Monate seit letzter Abschreibung bis zum aktuellen
+    const startMonth = Math.max(state.accounting.lastDepreciationMonth + 1, asset.depreciationStartMonth);
+    for (let m = startMonth; m <= currentMonth; m++) {
+      depreciateAssetForMonth(state, asset, m, false);
+    }
+  }
+  state.accounting.lastDepreciationMonth = currentMonth;
+}
+
+// ---------- Periodenabschluss ----------
+export function processMonthEnd(state, min, log) {
+  if (!state.accounting) initAccounting(state);
+  const currentMonth = periodOf(min);
+  // Abschreibung buchen
+  calculateDepreciation(state, min);
+  // Periodenrecord erstellen oder aktualisieren
+  let period = state.accounting.periods.find(p => p.month === currentMonth);
+  if (!period) {
+    const pnl = getPnL(state, periodStartMin(currentMonth), min);
+    period = {
+      id: "per_" + currentMonth,
+      month: currentMonth,
+      startMin: periodStartMin(currentMonth),
+      endMin: min,
+      status: "open", // open → checking → ready → closed
+      pnl,
+      createdAtMin: min,
+    };
+    state.accounting.periods.push(period);
+  }
+  // Abschlussprüfungsaufgabe generieren
+  addTask(state, { type: "period_close", points: 10, periodId: period.id, dueMin: min });
+  log.push({ type: "month_end", month: currentMonth, atMin: min });
+}
+
+// ---------- Aufgaben (Buchhaltungspersonal) ----------
+function addTask(state, params) {
+  if (!state.accounting) initAccounting(state);
+  // Keine Duplikate
+  const exists = (state.accounting.taskQueue || []).some(t =>
+    t.status === "pending" && t.type === params.type &&
+    ((t.receiptId === params.receiptId && params.receiptId) ||
+     (t.openItemId === params.openItemId && params.openItemId) ||
+     (t.periodId === params.periodId && params.periodId))
+  );
+  if (exists) return;
+  const task = {
+    id: "task_" + (state.accounting.nextTaskNo++),
+    type: params.type,
+    points: params.points,
+    status: "pending",
+    receiptId: params.receiptId || null,
+    openItemId: params.openItemId || null,
+    periodId: params.periodId || null,
+    dueMin: params.dueMin || null,
+    createdAtMin: state.gameTime,
+    completedAtMin: null,
+    completedBy: null,
+  };
+  state.accounting.taskQueue.push(task);
+}
+
+export function processAccountant(state, emp, m, log) {
+  if (!state.accounting) initAccounting(state);
+  const capacity = emp.role === "accountant_senior" ? 10 : 5; // Prüfpunkte pro Stunde
+  let remaining = capacity;
+  const pending = (state.accounting.taskQueue || []).filter(t => t.status === "pending");
+  for (const task of pending) {
+    if (remaining <= 0) break;
+    if (task.points > remaining) continue;
+    // Aufgabe erledigen
+    task.status = "done";
+    task.completedAtMin = m;
+    task.completedBy = emp.id;
+    remaining -= task.points;
+    if (task.type === "check_receipt") {
+      const r = state.accounting.receipts.find(x => x.id === task.receiptId);
+      if (r && r.status === "generated") { r.status = "checked"; r.checkedAtMin = m; r.checkedBy = emp.id; }
+    } else if (task.type === "prepare_payment") {
+      const item = state.accounting.openItems.find(x => x.id === task.openItemId);
+      if (item) item.paymentPrepared = true;
+    } else if (task.type === "period_close") {
+      const per = state.accounting.periods.find(x => x.id === task.periodId);
+      if (per && per.status === "open") per.status = "checking";
+    }
+    log.push({ type: "accountant_task_done", employee: emp.id, task: task.id, taskType: task.type, atMin: m });
+  }
+}
+
+// ---------- Auswertungen ----------
+export function getAccountBalance(state, accountNo, upToMin) {
+  if (!state.accounting) return 0;
+  const cap = upToMin === undefined ? Infinity : upToMin;
+  let bal = 0;
+  for (const e of state.accounting.journal) {
+    if (e.gameTime > cap) continue;
+    for (const l of e.lines) {
+      if (l.account === accountNo) bal += l.debitCents - l.creditCents;
+    }
+  }
+  return bal;
+}
+
+export function getAccountMovements(state, accountNo, fromMin, toMin) {
+  if (!state.accounting) return [];
+  return state.accounting.journal
+    .filter(e => e.gameTime >= fromMin && e.gameTime <= toMin)
+    .flatMap(e => e.lines.filter(l => l.account === accountNo).map(l => ({ ...l, entryId: e.id, gameTime: e.gameTime, text: e.text, type: e.type })));
+}
+
+export function getPnL(state, fromMin, toMin) {
+  if (!state.accounting) return { revenue: 0, expenses: 0, result: 0, lines: [] };
+  const lines = [];
+  const revAccounts = ACCOUNT_LIST.filter(a => a.type === "revenue");
+  const expAccounts = ACCOUNT_LIST.filter(a => a.type === "expense");
+  let totalRev = 0, totalExp = 0;
+  for (const acc of revAccounts) {
+    const bal = getAccountBalance(state, acc.no, toMin) - getAccountBalance(state, acc.no, fromMin - 1);
+    if (bal !== 0) {
+      const signed = acc.contra ? bal : -bal; // Erträge sind Haben (negativ im Saldo), contra positiv
+      lines.push({ account: acc.no, name: acc.name, amountCents: acc.contra ? bal : -bal, type: "revenue", contra: acc.contra });
+      totalRev += acc.contra ? bal : -bal;
+    }
+  }
+  for (const acc of expAccounts) {
+    const bal = getAccountBalance(state, acc.no, toMin) - getAccountBalance(state, acc.no, fromMin - 1);
+    if (bal !== 0) {
+      lines.push({ account: acc.no, name: acc.name, amountCents: bal, type: "expense", contra: acc.contra });
+      totalExp += bal;
+    }
+  }
+  return { revenue: totalRev, expenses: totalExp, result: totalRev - totalExp, lines };
+}
+
+export function getBalanceSheet(state, atMin) {
+  if (!state.accounting) return { assets: [], liabilities: [], equity: [], total: {} };
+  const cap = atMin === undefined ? Infinity : atMin;
+  const assets = [], liabilities = [], equity = [];
+  let totalAssets = 0, totalLiab = 0, totalEquity = 0;
+  for (const acc of ACCOUNT_LIST) {
+    const bal = getAccountBalance(state, acc.no, cap);
+    if (bal === 0) continue;
+    if (acc.type === "asset") {
+      assets.push({ account: acc.no, name: acc.name, amountCents: bal });
+      totalAssets += bal;
+    } else if (acc.type === "liability") {
+      liabilities.push({ account: acc.no, name: acc.name, amountCents: -bal });
+      totalLiab += -bal;
+    } else if (acc.type === "equity") {
+      const signed = acc.contra ? bal : -bal;
+      equity.push({ account: acc.no, name: acc.name, amountCents: signed, contra: acc.contra });
+      totalEquity += signed;
+    }
+  }
+  // Periodenergebnis hinzufügen
+  const pnl = getPnL(state, 0, cap);
+  if (pnl.result !== 0) {
+    equity.push({ account: "PNL", name: "Periodenergebnis", amountCents: pnl.result });
+    totalEquity += pnl.result;
+  }
+  return {
+    assets, liabilities, equity,
+    total: {
+      assets: totalAssets,
+      liabilities: totalLiab,
+      equity: totalEquity,
+      balanced: totalAssets === totalLiab + totalEquity,
+    },
+  };
+}
+
+export function getCashFlow(state, fromMin, toMin) {
+  if (!state.accounting) return { operating: 0, investing: 0, financing: 0, total: 0 };
+  let operating = 0, investing = 0, financing = 0;
+  for (const e of state.accounting.journal) {
+    if (e.gameTime < fromMin || e.gameTime > toMin) continue;
+    for (const l of e.lines) {
+      if (l.account !== "1000") continue;
+      const delta = l.debitCents - l.creditCents;
+      if (delta === 0) continue;
+      // Klassifizieren
+      const otherAccounts = e.lines.filter(x => x.account !== "1000").map(x => x.account);
+      const isInvesting = otherAccounts.some(a => ACCOUNTS[a]?.group === "fixed_assets");
+      const isFinancing = otherAccounts.some(a => a === "2010" || a === "2020" || a === "2200");
+      if (isInvesting) investing += delta;
+      else if (isFinancing) financing += delta;
+      else operating += delta;
+    }
+  }
+  return { operating, investing, financing, total: operating + investing + financing };
+}
+
+export function getLiquidityProjection(state, days) {
+  const startMin = state.gameTime;
+  const endMin = startMin + days * 1440;
+  const currentBalance = state.company.accountCents;
+  // Tägliche Pflichtkosten
+  const dailyDriverWages = state.drivers.length * DRIVER_COST_PER_DAY;
+  const dailyEmployeeWages = (state.employees || []).filter(e => e.employmentStatus === "employed").reduce((s, e) => s + e.costPerDayCents, 0);
+  const dailyBranchCosts = state.branches.reduce((s, b) => s + b.costPerDayCents, 0);
+  const dailyWithdrawal = PRIVATE_WITHDRAWAL_PER_DAY;
+  const dailyTotal = dailyDriverWages + dailyEmployeeWages + dailyBranchCosts + dailyWithdrawal;
+  // Erwartete Einnahmen aus laufenden Fahrten
+  let expectedRevenue = 0;
+  for (const trip of state.trips) {
+    if (trip.status === "in_progress") expectedRevenue += trip.paymentCents;
+  }
+  // Fällige offene Posten
+  let dueLiabilities = 0;
+  for (const item of (state.accounting?.openItems || [])) {
+    if (item.remainingCents > 0 && (!item.dueMin || item.dueMin <= endMin)) {
+      dueLiabilities += item.remainingCents;
+    }
+  }
+  const projectedBalance = currentBalance + expectedRevenue - dailyTotal * days - dueLiabilities;
+  return {
+    currentBalance, expectedRevenue, projectedExpenses: dailyTotal * days,
+    dueLiabilities, projectedBalance, days,
+    dailyBreakdown: { driverWages: dailyDriverWages, employeeWages: dailyEmployeeWages, branchCosts: dailyBranchCosts, withdrawal: dailyWithdrawal },
+  };
+}
+
+// ---------- Rollen-Mapping ----------
+export function roleExpenseAccount(role) {
+  const map = {
+    driver: "5100", dispatcher: "5110", dispatcher_senior: "5110",
+    cleaner: "5130", mechanic: "5130",
+    accountant: "5120", accountant_senior: "5120",
+  };
+  return map[role] || "5120";
+}
+
+// ---------- Migration ----------
+export function migrateAccounting(state) {
+  if (!state.accounting) {
+    initAccounting(state);
+  }
+  // Sicherstellen, dass alle Felder existieren
+  const a = state.accounting;
+  if (!a.journal) a.journal = [];
+  if (!a.receipts) a.receipts = [];
+  if (!a.openItems) a.openItems = [];
+  if (!a.assets) a.assets = [];
+  if (!a.periods) a.periods = [];
+  if (!a.accountBalances) a.accountBalances = {};
+  if (!a.nextEntryNo) a.nextEntryNo = 1;
+  if (!a.nextReceiptNo) a.nextReceiptNo = 1;
+  if (!a.nextOpenItemNo) a.nextOpenItemNo = 1;
+  if (!a.nextAssetNo) a.nextAssetNo = 1;
+  if (!a.nextTaskNo) a.nextTaskNo = 1;
+  if (!a.taskQueue) a.taskQueue = [];
+  if (!a.lastDepreciationMonth) a.lastDepreciationMonth = 0;
+  if (!a.depreciationStartMonth) a.depreciationStartMonth = Math.max(2, periodOf(state.gameTime) + 1);
+
+  // Wenn noch keine Journal-Einträge existieren: Eröffnungsbilanz aus aktuellem Zustand
+  if (a.journal.length === 0 && !a.migrationDone) {
+    const bankCents = state.company?.accountCents || 0;
+    const assetCents = (state.vehicles || []).reduce((s, v) => s + (v.bookValueCents || 0), 0);
+    const liabilityCents = (state.openCosts || []).filter(o => o.account === "company").reduce((s, o) => s + o.amountCents, 0);
+    // Eröffnungsbuchung
+    book(state, "opening", {
+      bankCents, assetCents, liabilityCents,
+      text: "Übernommener Spielstand – Eröffnungsbilanz",
+    });
+    // Anlagen registrieren
+    for (const v of (state.vehicles || [])) {
+      registerAsset(state, {
+        vehicleId: v.id,
+        account: "1200",
+        name: "Lkw " + String(parseInt(String(v.id).replace(/[^0-9]/g, ""), 10) || 1).padStart(2, "0"),
+        acquisitionCostCents: v.bookValueCents || VEHICLE_PRICE,
+        acquiredAtMin: state.gameTime,
+      });
+    }
+    // Offene Kosten als offene Posten übernehmen
+    for (const oc of (state.openCosts || []).filter(o => o.account === "company")) {
+      addOpenItem(state, {
+        account: "2120",
+        amountCents: oc.amountCents,
+        remainingCents: oc.amountCents,
+        cause: oc.cause,
+        createdAtMin: oc.createdAtMin || state.gameTime,
+        refEntryId: null,
+      });
+    }
+    a.depreciationStartMonth = Math.max(2, periodOf(state.gameTime) + 1);
+    a.migrationDone = true;
+  }
+
+  return state;
+}

@@ -19,6 +19,13 @@ import {
 } from "./tourEngine.ts";
 import { checkAchievements, migrateState } from "./progressEngine.ts";
 import { ACHIEVEMENTS, GOAL_TEMPLATES } from "./achievementCatalog.ts";
+import {
+  initAccounting, book, bookExpense, postJournal, TEMPLATES, createReceipt,
+  addOpenItem, settleOpenItem, registerAsset, disposeAsset,
+  calculateDepreciation, processMonthEnd, processAccountant,
+  roleExpenseAccount, periodOf, periodStartMin, periodEndMin, MONTH_MIN,
+  migrateAccounting,
+} from "./accountingEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -29,10 +36,41 @@ function nextRng(state) {
   state.rngSeed = (Math.floor(v * 4294967296)) >>> 0;
   return v;
 }
+// Ursachen-Zuordnung zu Buchungskonten für die Legacy-Schnittstelle.
+const CAUSE_ACCOUNT_MAP = {
+  "Kraftstoff": "5000", "Maut": "5010", "Vergütung": "4000",
+  "Fahrerlohn": "5100", "Standort": "5200", "Lohn": "5120",
+  "Private Entnahme": "2010", "Stornogebühr": "5700",
+  "Fahrzeugkauf": "1200", "Einstellung": "5140", "Wartung": "5300",
+  "Kraftstoff (Leerfahrt)": "5000", "Maut (Leerfahrt)": "5010",
+  "Offene Kosten bezahlt": "2120",
+};
+
 function addBooking(state, min, cause, amountCents, account, refId) {
+  // Legacy-Array für Kompatibilität beibehalten
   state.bookings.push({ min, cause, amountCents, account, refId });
-  if (account === "company") state.company.accountCents += amountCents;
-  else if (account === "private") state.private.accountCents += amountCents;
+  if (account === "private") {
+    state.private.accountCents += amountCents;
+    return;
+  }
+  // Firmenbuchung: doppelte Buchführung über Journal
+  const isPositive = amountCents >= 0;
+  const abs = Math.abs(amountCents);
+  const causeKey = cause.split(":")[0].trim();
+  const matchAcct = CAUSE_ACCOUNT_MAP[causeKey] || (isPositive ? "4000" : "5700");
+  if (matchAcct === "2010") {
+    postJournal(state, { text: cause, type: "withdrawal", gameTime: min,
+      lines: [{ account: "2010", debit: abs }, { account: "1000", credit: abs }] });
+  } else if (matchAcct === "1200") {
+    postJournal(state, { text: cause, type: "vehicle_purchase", gameTime: min,
+      lines: [{ account: "1200", debit: abs }, { account: "1000", credit: abs }] });
+  } else if (isPositive) {
+    postJournal(state, { text: cause, type: "revenue", gameTime: min,
+      lines: [{ account: "1000", debit: abs }, { account: matchAcct, credit: abs }] });
+  } else {
+    postJournal(state, { text: cause, type: "expense", gameTime: min,
+      lines: [{ account: matchAcct, debit: abs }, { account: "1000", credit: abs }] });
+  }
 }
 function isPlayerBlocked(state) {
   return state.appointments.some(a => a.status === "active");
@@ -147,6 +185,21 @@ export function createInitialState(names) {
     d.consecutiveLowSatisfactionDays = 0;
   }
   state.orders = initialOffers(state);
+  // Buchhaltung initialisieren und Eröffnungsbuchung erstellen
+  initAccounting(state);
+  const _assetCents = state.vehicles.reduce((s, v) => s + v.bookValueCents, 0);
+  book(state, "opening", {
+    bankCents: state.company.accountCents,
+    assetCents: _assetCents,
+    liabilityCents: 0,
+  });
+  for (const v of state.vehicles) {
+    registerAsset(state, {
+      vehicleId: v.id, account: "1200",
+      name: "Lkw " + String(parseInt(String(v.id).replace(/[^0-9]/g, ""), 10) || 1).padStart(2, "0"),
+      acquisitionCostCents: v.bookValueCents, acquiredAtMin: state.gameTime,
+    });
+  }
   return { state };
 }
 
@@ -184,24 +237,40 @@ function makeInitialApplicants() {
   // Buchhalter
   apps.push({ id: "a" + (idNum++), name: "Veit Karger", role: "accountant",
     hireFeeCents: PERSONNEL_ROLES.accountant.hireFeeCents, costPerDayCents: PERSONNEL_ROLES.accountant.costPerDayCents,
-    capacity: 0, portraitId: "p12" });
+    capacity: 40, portraitId: "p12" });
+  // Erfahrene Buchhaltungskraft
+  apps.push({ id: "a" + (idNum++), name: "Christine Aal", role: "accountant_senior",
+    hireFeeCents: PERSONNEL_ROLES.accountant_senior.hireFeeCents, costPerDayCents: PERSONNEL_ROLES.accountant_senior.costPerDayCents,
+    capacity: 80, portraitId: "p11" });
   return apps;
 }
 
 // ---------- Tagesabrechnung ----------
 function payCost(state, account, amountCents, cause, refId, min) {
-  const bal = account === "company" ? state.company.accountCents : state.private.accountCents;
-  const paid = Math.min(bal, amountCents);
-  const unpaid = amountCents - paid;
-  if (paid > 0) addBooking(state, min, cause, -paid, account, refId);
-  if (unpaid > 0) state.openCosts.push({ id: uid(state, "oc"), account, cause, amountCents: unpaid, refId, createdAtMin: min });
-  return { paid, unpaid };
+  if (account === "private") {
+    const bal = state.private.accountCents;
+    const paid = Math.min(bal, amountCents);
+    const unpaid = amountCents - paid;
+    if (paid > 0) { state.private.accountCents -= paid; state.bookings.push({ min, cause, amountCents: -paid, account, refId }); }
+    if (unpaid > 0) state.openCosts.push({ id: uid(state, "oc"), account, cause, amountCents: unpaid, refId, createdAtMin: min });
+    return { paid, unpaid };
+  }
+  // Firmenkosten: doppelte Buchführung mit teilweiser Zahlung
+  const causeKey = cause.split(":")[0].trim();
+  const expenseAcct = CAUSE_ACCOUNT_MAP[causeKey] || "5700";
+  const r = bookExpense(state, {
+    expenseAccount: expenseAcct, liabilityAccount: "2120",
+    amountCents, text: cause, type: causeKey.toLowerCase().replace(/\s/g, "_"),
+    gameTime: min, refId,
+  });
+  return { paid: r.paidCents, unpaid: r.unpaidCents };
 }
 function doWithdrawal(state, min) {
-  if (state.openCosts.some(o => o.account === "company")) return { done: false, reason: "offene betriebliche Kosten" };
+  const hasCompanyLiabilities = (state.accounting?.openItems || []).some(o => o.remainingCents > 0) || (state.openCosts || []).some(o => o.account === "company" && o.amountCents > 0);
+  if (hasCompanyLiabilities) return { done: false, reason: "offene betriebliche Kosten" };
   if (state.company.accountCents < PRIVATE_WITHDRAWAL_PER_DAY) return { done: false, reason: "Firma kann Entnahme nach Tageskosten nicht bezahlen" };
   addBooking(state, min, "Private Entnahme", -PRIVATE_WITHDRAWAL_PER_DAY, "company", "withdrawal");
-  addBooking(state, min, "Private Entnahme", +PRIVATE_WITHDRAWAL_PER_DAY, "private", "withdrawal");
+  state.private.accountCents += PRIVATE_WITHDRAWAL_PER_DAY;
   return { done: true };
 }
 function makeOffer(state, midnight) {
@@ -306,6 +375,7 @@ function earliestEventAfter(state, t, maxMin) {
     else if (a.status === "active") cand(a.endMin);
   }
   cand(Math.floor(t / 1440) * 1440 + 1440); // nächste Mitternacht
+  cand(Math.floor(t / MONTH_MIN) * MONTH_MIN + MONTH_MIN); // nächste Monatsgrenze
   for (const o of state.orders) { if (o.status === "offered") cand(o.acceptDeadlineMin); }
   if (!state.tutorialInviteCreated) cand(720);
   for (const d of state.drivers) { if (d.status === "resting" && d.restUntil !== null) cand(d.restUntil); }
@@ -430,6 +500,11 @@ function processEventsAt(state, m, log) {
     const dlog = doDailyAccounting(state, m);
     log.push({ type: "daily_accounting", min: m, details: dlog });
   }
+  // 4b. Monatswechsel (Abschreibung, Periodenabschluss)
+  if (m % MONTH_MIN === 0 && m > 0) {
+    calculateDepreciation(state, m);
+    processMonthEnd(state, m, log);
+  }
   // 5. Angebotsablauf
   for (const o of state.orders) { if (o.status === "offered" && o.acceptDeadlineMin === m) { o.status = "expired"; log.push({ type: "order_expired", order: o.id }); } }
   // 6. Tutorial-Einladung erscheint
@@ -509,7 +584,9 @@ function processEmployees(state, m, log) {
     if (emp.role === "dispatcher" || emp.role === "dispatcher_senior") {
       processDispatcher(state, emp, m, log);
     }
-    // Reinigung, Werkstatt, Buchhaltung: Etappe 2
+    if (emp.role === "accountant" || emp.role === "accountant_senior") {
+      processAccountant(state, emp, m, log);
+    }
   }
 }
 
@@ -747,6 +824,11 @@ export function applyCommand(state, command, params) {
         locationCity: "Hamburg", status: "free", tripId: null, maintenanceUntil: null
       };
       state.vehicles.push(v);
+      registerAsset(state, {
+        vehicleId: v.id, account: "1200",
+        name: "Lkw " + String(parseInt(String(v.id).replace(/[^0-9]/g, ""), 10) || 1).padStart(2, "0"),
+        acquisitionCostCents: VEHICLE_PRICE, acquiredAtMin: state.gameTime,
+      });
       const newAchs = checkAchievements(state, state.gameTime);
       result = { ok: true, vehicleId: v.id, newAchievements: newAchs };
       break;
@@ -935,19 +1017,33 @@ export function applyCommand(state, command, params) {
 
     case "payOpenCosts": {
       const account = p.account || "company";
-      const list = state.openCosts.filter(o => o.account === account).sort((a, b) => a.createdAtMin - b.createdAtMin);
-      let paid = 0; const paidItems = [];
-      for (const o of list) {
-        const bal = account === "company" ? state.company.accountCents : state.private.accountCents;
-        if (bal <= 0) break;
-        const pay = Math.min(bal, o.amountCents);
-        addBooking(state, state.gameTime, "Offene Kosten bezahlt: " + o.cause, -pay, account, o.id);
-        o.amountCents -= pay;
-        paid += pay;
-        paidItems.push({ id: o.id, paid: pay, remaining: o.amountCents });
+      if (account === "private") {
+        // Private offene Kosten direkt bezahlen
+        const list = state.openCosts.filter(o => o.account === "private").sort((a, b) => a.createdAtMin - b.createdAtMin);
+        let paid = 0; const paidItems = [];
+        for (const o of list) {
+          if (state.private.accountCents <= 0) break;
+          const pay = Math.min(state.private.accountCents, o.amountCents);
+          state.private.accountCents -= pay;
+          o.amountCents -= pay;
+          paid += pay;
+          paidItems.push({ id: o.id, paid: pay, remaining: o.amountCents });
+        }
+        state.openCosts = state.openCosts.filter(o => o.amountCents > 0);
+        result = { ok: true, paidCents: paid, paidItems, remainingOpenCents: state.openCosts.filter(o => o.account === "private").reduce((s, o) => s + o.amountCents, 0) };
+        break;
       }
-      state.openCosts = state.openCosts.filter(o => o.amountCents > 0);
-      const remaining = state.openCosts.filter(o => o.account === account).reduce((s, o) => s + o.amountCents, 0);
+      // Firmen-Verbindlichkeiten über offene Posten abrechnen
+      const items = (state.accounting?.openItems || []).filter(o => o.remainingCents > 0).sort((a, b) => a.createdAtMin - b.createdAtMin);
+      let paid = 0; const paidItems = [];
+      for (const o of items) {
+        if (state.company.accountCents <= 0) break;
+        const pay = Math.min(state.company.accountCents, o.remainingCents);
+        const r = settleOpenItem(state, o.id, pay);
+        paid += r.paid;
+        paidItems.push({ id: o.id, paid: r.paid, remaining: r.remaining });
+      }
+      const remaining = (state.accounting?.openItems || []).filter(o => o.remainingCents > 0).reduce((s, o) => s + o.remainingCents, 0);
       result = { ok: true, paidCents: paid, paidItems, remainingOpenCents: remaining };
       break;
     }
@@ -1078,6 +1174,67 @@ export function applyCommand(state, command, params) {
     case "markAllAchievementsSeen": {
       for (const a of (state.achievements || [])) a.seen = true;
       result = { ok: true };
+      break;
+    }
+
+    // ---------- Buchhaltung: Offene Posten & Abschluss ----------
+
+    case "payOpenItem": {
+      ensureNotBlocked(state);
+      const item = (state.accounting?.openItems || []).find(o => o.id === p.itemId);
+      if (!item) throw new Error("Offener Posten nicht gefunden.");
+      if (item.remainingCents <= 0) throw new Error("Posten bereits bezahlt.");
+      const pay = Math.min(state.company.accountCents, p.amountCents || item.remainingCents);
+      if (pay <= 0) throw new Error("Firmenkonto hat keinen ausreichenden Saldo.");
+      const r = settleOpenItem(state, item.id, pay);
+      result = { ok: true, paidCents: r.paid, remainingCents: r.remaining };
+      break;
+    }
+
+    case "manualCheckReceipt": {
+      ensureNotBlocked(state);
+      const rec = (state.accounting?.receipts || []).find(r => r.id === p.receiptId);
+      if (!rec) throw new Error("Beleg nicht gefunden.");
+      if (rec.status !== "generated") throw new Error("Beleg ist bereits geprüft.");
+      const dur = 5;
+      const log = [];
+      advanceTo(state, state.gameTime + dur, log);
+      rec.status = "checked"; rec.checkedAtMin = state.gameTime; rec.checkedBy = "player";
+      result = { ok: true, receiptId: rec.id, events: log };
+      break;
+    }
+
+    case "manualPreparePayment": {
+      ensureNotBlocked(state);
+      const item = (state.accounting?.openItems || []).find(o => o.id === p.itemId);
+      if (!item) throw new Error("Offener Posten nicht gefunden.");
+      const dur = 10;
+      const log = [];
+      advanceTo(state, state.gameTime + dur, log);
+      item.paymentPrepared = true;
+      result = { ok: true, itemId: item.id, events: log };
+      break;
+    }
+
+    case "manualClosePeriod": {
+      ensureNotBlocked(state);
+      const per = (state.accounting?.periods || []).find(pp => pp.id === p.periodId);
+      if (!per) throw new Error("Periode nicht gefunden.");
+      if (per.status === "closed") throw new Error("Periode bereits abgeschlossen.");
+      const dur = 60;
+      const log = [];
+      advanceTo(state, state.gameTime + dur, log);
+      per.status = "closed"; per.closedAtMin = state.gameTime; per.closedBy = "player";
+      result = { ok: true, periodId: per.id, events: log };
+      break;
+    }
+
+    case "closePeriod": {
+      const per = (state.accounting?.periods || []).find(pp => pp.id === p.periodId);
+      if (!per) throw new Error("Periode nicht gefunden.");
+      if (per.status === "closed") throw new Error("Periode bereits abgeschlossen.");
+      per.status = "closed"; per.closedAtMin = state.gameTime; per.closedBy = p.actor || "player";
+      result = { ok: true, periodId: per.id };
       break;
     }
 
