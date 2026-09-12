@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import { formatGameTime, dayOf, clockOf } from "@/lib/gameData";
 import { getNextEvent } from "@/lib/displayHelpers";
-import { Building2, Package, Map, Truck, Users, Wallet, Home as HomeIcon, BookOpen, Play, Clock, SkipForward, MoreHorizontal } from "lucide-react";
+import { Building2, Package, Map, Truck, Users, Wallet, Home as HomeIcon, BookOpen, Play, Clock, SkipForward, MoreHorizontal, Trophy } from "lucide-react";
 
 const PRIMARY_NAV = [
   { to: "/", label: "Büro", icon: Building2 },
@@ -15,6 +15,7 @@ const SECONDARY_NAV = [
   { to: "/fuhrpark", label: "Fuhrpark", icon: Truck },
   { to: "/personal", label: "Personal", icon: Users },
   { to: "/finanzen", label: "Finanzen", icon: Wallet },
+  { to: "/erfolge", label: "Erfolge", icon: Trophy },
   { to: "/journal", label: "Journal", icon: BookOpen }
 ];
 const ALL_NAV = [...PRIMARY_NAV, ...SECONDARY_NAV];

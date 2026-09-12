@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, CheckCircle2, Trophy, Truck, Heart, MapPin, ArrowRight, Fuel, CreditCard, Clock } from "lucide-react";
+import { X, CheckCircle2, Trophy, Truck, Heart, MapPin, ArrowRight, Fuel, CreditCard, Clock, Star, Sparkles } from "lucide-react";
 import { formatEuro, formatGameTime } from "@/lib/gameData";
 import { EASE } from "@/lib/motion";
 
@@ -41,6 +41,7 @@ export default function EventOverlay({ overlay, onDismiss }) {
             {overlay.type === "milestone" && <MilestoneContent data={overlay.data} />}
             {overlay.type === "transportStart" && <TransportStartContent data={overlay.data} />}
             {overlay.type === "invitation" && <InvitationContent data={overlay.data} />}
+            {overlay.type === "achievement" && <AchievementContent data={overlay.data} />}
             <button onClick={onDismiss} className="mt-5 w-full rounded-lg py-2.5 bg-white/5 border border-white/10 text-sm text-foreground hover:bg-white/10 transition">
               Weiter
             </button>
@@ -75,6 +76,25 @@ function DeliveryContent({ data }) {
           <span className="text-sm font-medium text-foreground tabular-nums">{formatEuro(data.contributionCents)}</span>
         </div>
       )}
+    </div>
+  );
+}
+
+function AchievementContent({ data }) {
+  return (
+    <div className="text-center">
+      <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-lime/10 border border-lime/30 mb-4 animate-pop">
+        <Trophy className="w-7 h-7 text-lime" />
+      </div>
+      <div className="flex items-center justify-center gap-1.5 text-[10px] tracking-[0.16em] uppercase text-lime/80 mb-2">
+        <Sparkles className="w-3 h-3" /> Erfolg freigeschaltet
+      </div>
+      <h3 className="text-xl font-medium tracking-tight text-foreground">{data.title}</h3>
+      {data.desc && <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto leading-relaxed">{data.desc}</p>}
+      <div className="flex items-center justify-center gap-1.5 mt-4 text-lime">
+        <Star className="w-4 h-4 fill-lime" />
+        <span className="text-lg font-medium tabular-nums">+{data.xp} XP</span>
+      </div>
     </div>
   );
 }

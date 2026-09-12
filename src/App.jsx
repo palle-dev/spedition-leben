@@ -21,6 +21,7 @@ import Personnel from '@/pages/Personnel';
 import Finances from '@/pages/Finances';
 import Home from '@/pages/Home';
 import Journal from '@/pages/Journal';
+import Achievements from '@/pages/Achievements';
 // Add page imports here
 
 const AuthenticatedApp = () => {
@@ -63,6 +64,7 @@ const AuthenticatedApp = () => {
         <Route path="/finanzen" element={<Finances />} />
         <Route path="/zuhause" element={<Home />} />
         <Route path="/journal" element={<Journal />} />
+        <Route path="/erfolge" element={<Achievements />} />
       </Route>
     </Route>
     <Route path="*" element={<PageNotFound />} />

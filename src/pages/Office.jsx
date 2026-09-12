@@ -6,8 +6,10 @@ import { motion } from "framer-motion";
 import { heroStagger, heroItem, EASE } from "@/lib/motion";
 import Drawer from "@/components/ui/Drawer";
 import DispositionForm from "@/components/DispositionForm";
-import { Package, Clock, MapPin, Truck, ArrowRight, Heart, TrendingUp, CheckCircle2 } from "lucide-react";
+import { Package, Clock, MapPin, Truck, ArrowRight, Heart, TrendingUp, CheckCircle2, Trophy } from "lucide-react";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
+import { computeCompanyValue, getDevelopmentStage, getExperienceLevel } from "@/lib/progressEngine.js";
+import { ACHIEVEMENTS } from "@/lib/achievementCatalog.js";
 
 export default function Office() {
   const { state, send, showToast } = useGame();
@@ -239,15 +241,15 @@ function OpportunityCard({ opp, onAction, busyId }) {
 function GameStrip({ state }) {
   const navigate = useNavigate();
   const vehicles = state.vehicles.slice(0, 4);
-  const milestone = state.milestones.find(m => !m.achieved);
   const invite = state.appointments.find(a => a.status === "pending" && a.appearMin <= state.gameTime);
 
-  let prog = 0, target = 1, label = "";
-  if (milestone) {
-    if (milestone.id === "m1") { prog = state.stats.totalDeliveries; target = 1; label = "Lieferungen"; }
-    else if (milestone.id === "m2") { prog = state.stats.timelyDeliveries; target = 10; label = "rechtzeitige Lieferungen"; }
-    else if (milestone.id === "m3") { prog = state.vehicles.length; target = 4; label = "eigene Lkw"; }
-  }
+  const companyValue = computeCompanyValue(state);
+  const stage = getDevelopmentStage(companyValue);
+  const xp = state.xp || 0;
+  const level = getExperienceLevel(xp);
+  const unlockedCount = (state.achievements || []).filter(a => a.unlocked).length;
+  const recentAchievement = (state.achievements || []).filter(a => a.unlocked && !a.seen).slice(-1)[0];
+  const recentDef = recentAchievement ? ACHIEVEMENTS.find(d => d.id === recentAchievement.id) : null;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-8 mt-8 lg:mt-10 pt-6 border-t border-white/10">
@@ -273,26 +275,29 @@ function GameStrip({ state }) {
         </div>
       </div>
 
-      {/* Wachstum */}
+      {/* Unternehmensentwicklung + Erfolge */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <span className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground">Dein nächstes Ziel</span>
-          {milestone && <TrendingUp className="w-4 h-4 text-lime/60" />}
+          <span className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground">Unternehmensentwicklung</span>
+          <button onClick={() => navigate("/erfolge")} className="text-[10px] text-lime/70 hover:text-lime transition flex items-center gap-1">
+            <Trophy className="w-3 h-3" /> {unlockedCount}/{ACHIEVEMENTS.length}
+          </button>
         </div>
-        {milestone ? (
-          <>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl lg:text-3xl font-medium tracking-tight tabular-nums">{prog} / {target}</span>
-              <span className="text-xs text-muted-foreground">{label}</span>
-            </div>
-            <div className="h-1 rounded-full bg-white/10 mt-3 mb-3 overflow-hidden">
-              <motion.div className="h-full bg-lime rounded-full" initial={{ width: 0 }} animate={{ width: `${Math.min(100, (prog / target) * 100)}%` }} transition={{ duration: 0.6, ease: EASE }} />
-            </div>
-            <div className="text-[11px] text-muted-foreground leading-relaxed">{milestone.name}</div>
-          </>
-        ) : (
-          <div className="flex items-center gap-2 text-sm text-lime"><CheckCircle2 className="w-5 h-5" /> Alle Meilensteine erreicht!</div>
-        )}
+        <button onClick={() => navigate("/erfolge")} className="text-left w-full group">
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl lg:text-3xl font-medium tracking-tight tabular-nums">{formatEuro(companyValue)}</span>
+            <span className="text-xs text-lime">{stage.name}</span>
+          </div>
+          <div className="flex gap-1 mt-3 mb-3">
+            {[0, 25000000, 100000000, 500000000].map((threshold, i) => (
+              <div key={i} className={`flex-1 h-1 rounded-full ${companyValue >= threshold ? "bg-lime" : "bg-white/10"}`} />
+            ))}
+          </div>
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground group-hover:text-lime transition">
+            <TrendingUp className="w-3.5 h-3.5" />
+            {recentDef ? `Neu: ${recentDef.title} (+${recentDef.xp} XP)` : `Level ${level.level} · ${level.title}`}
+          </div>
+        </button>
       </div>
 
       {/* Privatleben */}
