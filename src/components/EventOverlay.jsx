@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, CheckCircle2, Trophy, Truck, Heart, MapPin, ArrowRight, Fuel, CreditCard, Clock, Star, Sparkles } from "lucide-react";
+import { X, CheckCircle2, Trophy, Truck, Heart, MapPin, ArrowRight, Fuel, CreditCard, Clock, Star, Sparkles, TrendingUp, TrendingDown, Mail as MailIcon, Package } from "lucide-react";
 import { formatEuro, formatGameTime } from "@/lib/gameData";
 import { EASE } from "@/lib/motion";
 
@@ -42,6 +42,7 @@ export default function EventOverlay({ overlay, onDismiss }) {
             {overlay.type === "transportStart" && <TransportStartContent data={overlay.data} />}
             {overlay.type === "invitation" && <InvitationContent data={overlay.data} />}
             {overlay.type === "achievement" && <AchievementContent data={overlay.data} />}
+            {overlay.type === "welcomeBack" && <WelcomeBackContent data={overlay.data} />}
             <button onClick={onDismiss} className="mt-5 w-full rounded-lg py-2.5 bg-white/5 border border-white/10 text-sm text-foreground hover:bg-white/10 transition">
               Weiter
             </button>
@@ -154,6 +155,55 @@ function Vital({ label, value, invert }) {
     <div className="text-center">
       <div className={`text-lg font-medium tabular-nums ${color}`}>{value}</div>
       <div className="text-[10px] text-muted-foreground mt-0.5">{label}</div>
+    </div>
+  );
+}
+
+function WelcomeBackContent({ data }) {
+  const days = data.daysAway || 0;
+  const hours = data.hoursAway || 0;
+  const companyDelta = data.companyDelta || 0;
+  const deliveriesDelta = data.deliveriesDelta || 0;
+  const unreadMail = data.unreadMail || 0;
+  return (
+    <div className="text-center">
+      <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-lime/10 border border-lime/30 mb-4">
+        <Clock className="w-7 h-7 text-lime" />
+      </div>
+      <h3 className="text-xl font-medium tracking-tight text-foreground">Willkommen zurück!</h3>
+      <p className="text-sm text-muted-foreground mt-2">
+        {days > 0 && `${days} Tag${days > 1 ? "e" : ""} `}
+        {hours > 0 && `${hours} Std. `}
+        {days === 0 && hours === 0 && "Kurze Abwesenheit"}
+        {"in der Spielwelt vergangen."}
+      </p>
+      <div className="mt-5 space-y-2 text-left">
+        <div className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2">
+          <span className="flex items-center gap-2 text-sm text-muted-foreground">
+            {companyDelta >= 0 ? <TrendingUp className="w-4 h-4 text-lime" /> : <TrendingDown className="w-4 h-4 text-red-300" />}
+            Firmenkonto
+          </span>
+          <span className={`text-sm font-medium tabular-nums ${companyDelta >= 0 ? "text-lime" : "text-red-300"}`}>
+            {companyDelta >= 0 ? "+" : ""}{formatEuro(companyDelta)}
+          </span>
+        </div>
+        {deliveriesDelta > 0 && (
+          <div className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2">
+            <span className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Package className="w-4 h-4 text-lime" /> Lieferungen
+            </span>
+            <span className="text-sm font-medium tabular-nums text-foreground">+{deliveriesDelta}</span>
+          </div>
+        )}
+        {unreadMail > 0 && (
+          <div className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2">
+            <span className="flex items-center gap-2 text-sm text-muted-foreground">
+              <MailIcon className="w-4 h-4 text-coral" /> Neue Nachrichten
+            </span>
+            <span className="text-sm font-medium tabular-nums text-coral">{unreadMail} ungelesen</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

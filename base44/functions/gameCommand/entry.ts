@@ -108,6 +108,12 @@ export default async function (req) {
       return Response.json({ error: e.message }, { status: 400 });
     }
 
+    // Optimierung: syncAutomation ohne Ereignisse überspringt das Speichern
+    // (verhindert Revisionserhöhung beim Client-Polling, wenn keine Spielzeit vergangen ist).
+    if (command === "syncAutomation" && (!result.events || result.events.length === 0)) {
+      return Response.json({ state: newState, revision: rec.revision, stateId, result, idle: true });
+    }
+
     // Nachweis der verarbeiteten Aktion zusammen mit Zustand speichern.
     newState.processedActions = newState.processedActions || {};
     newState.processedActions[action_id] = { hash: cmdHash, revision: rec.revision + 1, result, ts: Date.now() };

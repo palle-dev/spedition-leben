@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import MoneyText from "@/components/MoneyText";
 import FernwerkSignet from "@/components/brand/FernwerkSignet";
+import AutomationControl from "@/components/game/AutomationControl";
 import { Building2, Heart, Sparkles, Mail as MailIcon } from "lucide-react";
 import { getMailboxStats } from "@/lib/mailData";
 
@@ -46,6 +47,7 @@ export default function ShellHeader() {
 
       {/* Konten */}
       <div className="ml-auto flex items-center gap-3 lg:gap-6">
+        <AutomationControl />
         <button onClick={() => navigate("/finanzen")} className="text-left group" aria-label="Firmenkonto und Finanzen">
           <div className="text-[9px] lg:text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Firma</div>
           <MoneyText value={state.company.accountCents} className="text-sm lg:text-lg font-medium tracking-tight text-foreground group-hover:text-lime transition-colors" accentOnFlash="text-lime" />
