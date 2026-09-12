@@ -116,9 +116,11 @@ export default async function (req) {
       { $set: { state: newState, revision: newRev, last_action_id: action_id, last_result: result, last_command_hash: cmdHash } }
     );
 
-    // Erfolgsnachweis: neue Revision muss gesetzt sein.
+    // Erfolgsnachweis: nur die eigene Aktion darf den Zustand überschreiben.
+    // last_action_id prüft, ob dieses updateMany den Datensatz tatsächlich geschrieben hat
+    // (bei 0 getroffenen Zeilen durch eine parallele Aktion steht hier eine andere action_id).
     const check = await S.get(stateId);
-    if (!check || check.revision !== newRev) {
+    if (!check || check.last_action_id !== action_id || check.revision !== newRev) {
       return Response.json({ error: "Konflikt: Zustand wurde gleichzeitig geändert", conflict: true, current_revision: check ? check.revision : 0 }, { status: 409 });
     }
 
