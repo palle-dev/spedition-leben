@@ -9,7 +9,8 @@ import DispatchPlanner from "./DispatchPlanner";
 import TourPlanner from "./TourPlanner";
 import DispatchActiveTours from "./DispatchActiveTours";
 import DispatcherPanel from "./DispatcherPanel";
-import { Truck, Users, Package, ArrowRight, Play, AlertTriangle, Route, X, Headset } from "lucide-react";
+import DispatchLiveLog from "./DispatchLiveLog";
+import { Truck, Users, Package, ArrowRight, Play, AlertTriangle, Route, X, Headset, Activity } from "lucide-react";
 
 // Vier gleichrangige Bereiche: Aufträge, Touren, Flotte, Disponenten.
 // Tour-Planung und Assistent sind in den fachlichen Kontext integriert.
@@ -38,6 +39,7 @@ export default function DispatchWorkspace({
   const dispatchers = (state.employees || []).filter(e => (e.role === "dispatcher" || e.role === "dispatcher_senior") && e.employmentStatus === "employed");
   const pendingSuggestions = dispatchers.reduce((sum, emp) => sum + (emp.suggestions || []).filter(s => s.status === "pending").length, 0);
   const searchLower = (search || "").toLowerCase();
+  const recentEvents = (state.events || []).slice(-30).reverse();
 
   const filteredTrips = running.filter(t => {
     if (!searchLower) return true;
@@ -71,6 +73,7 @@ export default function DispatchWorkspace({
         <TabButton active={activeTab === "touren"} onClick={() => setActiveTab("touren")} label="Touren" count={running.length} icon={Truck} />
         <TabButton active={activeTab === "flotte"} onClick={() => setActiveTab("flotte")} label="Flotte" count={state.vehicles.length} icon={Users} />
         <TabButton active={activeTab === "disponenten"} onClick={() => setActiveTab("disponenten")} label="Disponenten" count={pendingSuggestions} icon={Headset} />
+        <TabButton active={activeTab === "verlauf"} onClick={() => setActiveTab("verlauf")} label="Verlauf" icon={Activity} />
       </div>
 
       {/* Tab content – scrollbar */}
@@ -256,6 +259,9 @@ export default function DispatchWorkspace({
 
         {/* ---------- Disponenten ---------- */}
         {activeTab === "disponenten" && <DispatcherPanel />}
+
+        {/* ---------- Verlauf ---------- */}
+        {activeTab === "verlauf" && <DispatchLiveLog events={recentEvents} />}
       </div>
     </div>
   );
