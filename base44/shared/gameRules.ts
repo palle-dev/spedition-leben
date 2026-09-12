@@ -64,6 +64,38 @@ export const DRIVER_APPLICANT_POOL = [
   "Veit Karger", "Dorothee Saar"
 ];
 
+// ---------- Personalrollen-Katalog ----------
+// Alle Rollen sind von Beginn an einstellbar. Keine künstliche Freischaltung.
+export const PERSONNEL_ROLES = {
+  driver:             { id: "driver",             label: "Fahrer",                  hireFeeCents: 50000,  costPerDayCents: 10000, capacity: 0 },
+  dispatcher:         { id: "dispatcher",         label: "Disponent",               hireFeeCents: 50000,  costPerDayCents: 18000, capacity: 6 },
+  dispatcher_senior:  { id: "dispatcher_senior",  label: "Erfahrener Disponent",    hireFeeCents: 100000, costPerDayCents: 26000, capacity: 12 },
+  cleaner:            { id: "cleaner",            label: "Reinigungskraft",         hireFeeCents: 15000,  costPerDayCents: 6000,  capacity: 4 },
+  mechanic:           { id: "mechanic",           label: "Werkstattmitarbeiter",    hireFeeCents: 50000,  costPerDayCents: 14000, capacity: 1 },
+  accountant:         { id: "accountant",         label: "Buchhalter/Buchhalterin", hireFeeCents: 40000,  costPerDayCents: 12000, capacity: 0 },
+};
+
+// Dienstzeiten für nicht fahrende Mitarbeiter (08:00–16:00 Spielzeit)
+export const SERVICE_START_MIN = 480;
+export const SERVICE_END_MIN = 960;
+export const SERVICE_INTERVAL_MIN = 60;
+
+// Bewerber-Namen-Pools pro Rolle (disjunkt von Fahrer-Pool)
+export const APPLICANT_NAMES = {
+  dispatcher:        ["Helena Voss", "Stefan Kloth", "Anke Ruge", "Silke Quaas"],
+  dispatcher_senior: ["Rüdiger Mai", "Friedhelm Paasch"],
+  cleaner:           ["Tanja Hennig", "Dorothee Saar"],
+  mechanic:          ["Manfred Brod", "Veit Karger"],
+  accountant:        ["Greta Möller", "Tobias Brandt"],
+};
+
+// Porträt-Katalog: 12 einheitliche Cartoon-Porträts.
+// IDs p01–p12 werden beim Start zugeordnet und persistent gespeichert.
+export const PORTRAIT_IDS = [
+  "p01", "p02", "p03", "p04", "p05", "p06",
+  "p07", "p08", "p09", "p10", "p11", "p12"
+];
+
 export const CARGO_TYPES = [
   "Stückgut", "Bauteile", "Lebensmittel", "Möbel", "Elektronik",
   "Verpackungsmaterial", "Maschinenteile", "Getränke", "Textilien", "Baustoffe"

@@ -9,7 +9,9 @@ import {
   LOAD_MIN, UNLOAD_MIN, MAX_DUTY_MIN, REST_MIN,
   DRIVER_COST_PER_DAY, BRANCH_COST_PER_DAY, PRIVATE_WITHDRAWAL_PER_DAY, PRIVATE_LIVING_PER_DAY,
   VEHICLE_PRICE, HIRE_FEE, MAINTENANCE_COST, MAINTENANCE_DURATION,
-  INVITATION_COST, STRESS_MAINT_THRESHOLD, MAINT_STRESS_FACTOR
+  INVITATION_COST, STRESS_MAINT_THRESHOLD, MAINT_STRESS_FACTOR,
+  PERSONNEL_ROLES, SERVICE_START_MIN, SERVICE_END_MIN, SERVICE_INTERVAL_MIN,
+  APPLICANT_NAMES, PORTRAIT_IDS
 } from "./gameRules.ts";
 import {
   buildTourPlan, confirmTour as doConfirmTour, cancelTour as doCancelTour,
@@ -126,14 +128,64 @@ export function createInitialState(names) {
       homeFurnishingTypes: [], hasHome: false, hasCar: false,
       hasSportCar: false, hasBoat: false, hasVilla: false, tripsCompleted: 0,
     },
-    availableApplicants: [{ id: "a1", name: "Greta Möller" }, { id: "a2", name: "Tobias Brandt" }, { id: "a3", name: "Stefan Kloth" }],
+    employees: [],
+    availableApplicants: makeInitialApplicants(state),
     hiredApplicantNames: [],
+    portraitAssignments: {},
     leisureUsedDay: 0,
     tutorialInviteCreated: false,
     lastInvitationTemplateId: null
   };
+  // Porträts für bestehende Fahrer zuordnen
+  let pIdx = 0;
+  for (const d of state.drivers) {
+    d.portraitId = PORTRAIT_IDS[pIdx++] || PORTRAIT_IDS[0];
+    d.satisfaction = 70;
+    d.satisfactionReasons = [];
+    d.employmentStatus = "employed";
+    d.attendance = "present";
+    d.consecutiveLowSatisfactionDays = 0;
+  }
   state.orders = initialOffers(state);
   return { state };
+}
+
+// Erzeugt Bewerber für alle Rollen ab Spielbeginn.
+// Mindestens zwei Disponenten (180 € und 260 € Variante).
+function makeInitialApplicants(state) {
+  const apps = [];
+  let idNum = 1;
+  // Fahrer-Bewerber (bestehende 3) – Porträts passend zum Geschlecht
+  apps.push({ id: "a" + (idNum++), name: "Greta Möller", role: "driver",
+    hireFeeCents: PERSONNEL_ROLES.driver.hireFeeCents, costPerDayCents: DRIVER_COST_PER_DAY,
+    capacity: 0, portraitId: "p09" });
+  apps.push({ id: "a" + (idNum++), name: "Tobias Brandt", role: "driver",
+    hireFeeCents: PERSONNEL_ROLES.driver.hireFeeCents, costPerDayCents: DRIVER_COST_PER_DAY,
+    capacity: 0, portraitId: "p06" });
+  apps.push({ id: "a" + (idNum++), name: "Stefan Kloth", role: "driver",
+    hireFeeCents: PERSONNEL_ROLES.driver.hireFeeCents, costPerDayCents: DRIVER_COST_PER_DAY,
+    capacity: 0, portraitId: "p10" });
+  // Disponent (180 €/Tag, Kapazität 6)
+  apps.push({ id: "a" + (idNum++), name: "Helena Voss", role: "dispatcher",
+    hireFeeCents: PERSONNEL_ROLES.dispatcher.hireFeeCents, costPerDayCents: PERSONNEL_ROLES.dispatcher.costPerDayCents,
+    capacity: 6, portraitId: "p04" });
+  // Erfahrener Disponent (260 €/Tag, Kapazität 12)
+  apps.push({ id: "a" + (idNum++), name: "Rüdiger Mai", role: "dispatcher_senior",
+    hireFeeCents: PERSONNEL_ROLES.dispatcher_senior.hireFeeCents, costPerDayCents: PERSONNEL_ROLES.dispatcher_senior.costPerDayCents,
+    capacity: 12, portraitId: "p05" });
+  // Reinigungskraft
+  apps.push({ id: "a" + (idNum++), name: "Tanja Hennig", role: "cleaner",
+    hireFeeCents: PERSONNEL_ROLES.cleaner.hireFeeCents, costPerDayCents: PERSONNEL_ROLES.cleaner.costPerDayCents,
+    capacity: 4, portraitId: "p07" });
+  // Werkstattmitarbeiter
+  apps.push({ id: "a" + (idNum++), name: "Manfred Brod", role: "mechanic",
+    hireFeeCents: PERSONNEL_ROLES.mechanic.hireFeeCents, costPerDayCents: PERSONNEL_ROLES.mechanic.costPerDayCents,
+    capacity: 1, portraitId: "p08" });
+  // Buchhalter
+  apps.push({ id: "a" + (idNum++), name: "Veit Karger", role: "accountant",
+    hireFeeCents: PERSONNEL_ROLES.accountant.hireFeeCents, costPerDayCents: PERSONNEL_ROLES.accountant.costPerDayCents,
+    capacity: 0, portraitId: "p12" });
+  return apps;
 }
 
 // ---------- Tagesabrechnung ----------
@@ -218,6 +270,12 @@ function doDailyAccounting(state, midnight) {
     const r = payCost(state, "company", BRANCH_COST_PER_DAY, "Standort: " + b.name, b.id, midnight);
     log.push({ cause: "Standort", branch: b.name, paid: r.paid, unpaid: r.unpaid });
   }
+  // Löhne für alle Angestellten (nicht fahrende Rollen)
+  for (const emp of (state.employees || [])) {
+    if (emp.employmentStatus !== "employed") continue;
+    const r = payCost(state, "company", emp.costPerDayCents, "Lohn: " + emp.name + " (" + (PERSONNEL_ROLES[emp.role]?.label || emp.role) + ")", emp.id, midnight);
+    log.push({ cause: "Lohn", employee: emp.name, role: emp.role, paid: r.paid, unpaid: r.unpaid });
+  }
   const w = doWithdrawal(state, midnight);
   log.push({ cause: "Private Entnahme", done: w.done, reason: w.reason });
   const l = payCost(state, "private", PRIVATE_LIVING_PER_DAY, "Lebenshaltung", "living", midnight);
@@ -252,6 +310,14 @@ function earliestEventAfter(state, t, maxMin) {
   if (!state.tutorialInviteCreated) cand(720);
   for (const d of state.drivers) { if (d.status === "resting" && d.restUntil !== null) cand(d.restUntil); }
   for (const v of state.vehicles) { if (v.status === "maintenance" && v.maintenanceUntil !== null) cand(v.maintenanceUntil); }
+  // Dienstzeiten für Angestellte (Disponenten, Reinigung, etc.)
+  const hasWorkingStaff = (state.employees || []).some(e => e.employmentStatus === "employed" && e.attendance === "present" && e.role !== "driver");
+  if (hasWorkingStaff) {
+    const dayStart = Math.floor(t / 1440) * 1440;
+    for (let st = dayStart + SERVICE_START_MIN; st <= dayStart + SERVICE_END_MIN; st += SERVICE_INTERVAL_MIN) {
+      cand(st);
+    }
+  }
   // Tour-Deployment-Startzeiten
   for (const tour of state.tours || []) {
     if (tour.status !== "active") continue;
@@ -355,6 +421,10 @@ function processEventsAt(state, m, log) {
   }
   // 3b. Tour-automatische Folge-Einsätze starten (nach Erholung, vor Tagesabrechnung)
   processTours(state, m, log);
+  // 3c. Angestellte verarbeiten (Disponenten, Reinigung, etc.) an Dienstzeitpunkten
+  if (m % 1440 >= SERVICE_START_MIN && m % 1440 <= SERVICE_END_MIN && m % SERVICE_INTERVAL_MIN === 0) {
+    processEmployees(state, m, log);
+  }
   // 4. Tagesabrechnung (Mitternacht)
   if (m % 1440 === 0 && m > 0) {
     const dlog = doDailyAccounting(state, m);
@@ -420,6 +490,111 @@ function refreshApplicants(state) {
     const name = pool[Math.floor(nextRng(state) * pool.length)];
     state.availableApplicants.push({ id: uid(state, "a"), name });
   }
+}
+
+// ---------- Angestellten-Verarbeitung ----------
+// Wird an Dienstzeitpunkten (08:00–16:00, alle 60 min) aufgerufen.
+// Disponenten erstellen Vorschläge (Modus A), disponieren (Modus B/C).
+// Reinigung, Werkstatt, Buchhaltung folgen in Etappe 2.
+function processEmployees(state, m, log) {
+  for (const emp of (state.employees || [])) {
+    if (emp.employmentStatus !== "employed") continue;
+    if (emp.attendance !== "present") continue;
+    if (emp.role === "dispatcher" || emp.role === "dispatcher_senior") {
+      processDispatcher(state, emp, m, log);
+    }
+    // Reinigung, Werkstatt, Buchhaltung: Etappe 2
+  }
+}
+
+// Disponent verarbeitet seine zugewiesenen Lkw.
+// Modus A: erstellt Vorschläge für freie Fahrzeuge mit angenommenen Aufträgen.
+// Modus B: darf angenommene Aufträge verbindlich planen und starten.
+// Modus C: darf zusätzlich Marktangebote annehmen (Etappe 4 – hier vorbereitet).
+function processDispatcher(state, emp, m, log) {
+  const assignedVehicles = (emp.assignedVehicleIds || []).map(vid => state.vehicles.find(v => v.id === vid)).filter(Boolean);
+  if (assignedVehicles.length === 0) return;
+
+  // Nur verarbeiten, wenn sich etwas geändert hat seit letzter Entscheidung
+  // (Vermeide stündliche Wiederholung unveränderter Vorschläge)
+  const hasAcceptedOrders = state.orders.some(o => o.status === "angenommen");
+  const hasFreeVehicles = assignedVehicles.some(v => v.status === "free" || v.status === "resting");
+  if (!hasAcceptedOrders || !hasFreeVehicles) {
+    // Aufräumen: alte Vorschläge entfernen wenn keine Aufträge/Fahrzeuge
+    if ((emp.suggestions || []).length > 0) {
+      emp.suggestions = [];
+      log.push({ type: "dispatcher_suggestions_cleared", employee: emp.id, atMin: m, reason: "keine Aufträge oder freie Fahrzeuge" });
+    }
+    return;
+  }
+
+  // Modus A: Vorschläge vorbereiten
+  if (emp.workMode === "suggestions") {
+    // Prüfe, ob es bereits gültige Vorschläge gibt
+    const existingValid = (emp.suggestions || []).filter(s => s.status === "pending");
+    if (existingValid.length > 0) {
+      // Prüfe, ob sich die Situation geändert hat
+      const situationChanged = hasSituationChanged(state, emp, existingValid);
+      if (!situationChanged) return; // Keine neuen Vorschläge nötig
+    }
+
+    // Neue Vorschläge generieren (nur für zugewiesene Fahrzeuge)
+    const result = suggestTours(state, {
+      vehicleIds: emp.assignedVehicleIds,
+      earliestStart: m,
+      horizonMin: 2880,
+      desiredEndCity: null,
+      latestReturnMin: null,
+      mode: "balanced",
+      acceptNew: false, // Modus A: keine neuen Angebote annehmen
+    });
+
+    // Alte Vorschläge aufräumen
+    emp.suggestions = (emp.suggestions || []).filter(s => s.status !== "pending");
+    // Neue Vorschläge hinzufügen
+    for (const s of result.suggestions) {
+      const sug = {
+        id: uid(state, "sug"),
+        employeeId: emp.id,
+        employeeName: emp.name,
+        createdAtMin: m,
+        vehicleId: s.vehicleId,
+        driverId: s.driverId,
+        orderIds: s.orderIds,
+        plan: s.plan,
+        status: "pending",
+      };
+      emp.suggestions.push(sug);
+      log.push({ type: "dispatcher_suggestion", employee: emp.id, suggestion: sug.id, vehicle: s.vehicleId, atMin: m });
+    }
+    emp.lastDecisionMin = m;
+  }
+
+  // Modus B: angenommene Aufträge verbindlich planen (Etappe 4 – vorbereitet)
+  // Modus C: Marktangebote annehmen (Etappe 4 – vorbereitet)
+}
+
+// Prüft, ob sich die Situation seit der letzten Vorschlagserstellung geändert hat.
+function hasSituationChanged(state, emp, existingSuggestions) {
+  const acceptedOrders = state.orders.filter(o => o.status === "angenommen");
+  const assignedFree = (emp.assignedVehicleIds || []).filter(vid => {
+    const v = state.vehicles.find(x => x.id === vid);
+    return v && (v.status === "free" || v.status === "resting");
+  });
+  // Wenn es angenommene Aufträge gibt, die nicht in bestehenden Vorschlägen abgedeckt sind
+  const coveredOrderIds = new Set();
+  for (const s of existingSuggestions) {
+    for (const oid of s.orderIds) coveredOrderIds.add(oid);
+  }
+  const uncovered = acceptedOrders.filter(o => !coveredOrderIds.has(o.id));
+  // Wenn es neue ungedeckte angenommene Aufträge gibt oder die Vorschläge nicht mehr gültig sind
+  if (uncovered.length > 0) return true;
+  // Prüfe, ob bestehende Vorschläge noch gültig sind
+  for (const s of existingSuggestions) {
+    const v = state.vehicles.find(x => x.id === s.vehicleId);
+    if (!v || (v.status !== "free" && v.status !== "resting")) return true;
+  }
+  return false;
 }
 
 // ---------- Befehle ----------
@@ -579,12 +754,125 @@ export function applyCommand(state, command, params) {
       if (state.hiredApplicantNames.includes(app.name)) throw new Error("Dieser Bewerber wurde bereits eingestellt.");
       if (state.company.accountCents < HIRE_FEE) throw new Error("Firmenkonto reicht für die Einstellungsgebühr (500 €) nicht aus.");
       addBooking(state, state.gameTime, "Einstellung: " + app.name, -HIRE_FEE, "company", "hire:" + app.name);
-      const d = { id: uid(state, "d"), name: app.name, branchId: "b1", costPerDayCents: DRIVER_COST_PER_DAY, locationCity: "Hamburg", status: "free", restUntil: null, employedDay: dayOf(state.gameTime) };
+      const d = { id: uid(state, "d"), name: app.name, branchId: "b1", costPerDayCents: DRIVER_COST_PER_DAY, locationCity: "Hamburg", status: "free", restUntil: null, employedDay: dayOf(state.gameTime), portraitId: app.portraitId || null, satisfaction: 70, satisfactionReasons: [], employmentStatus: "employed", attendance: "present", consecutiveLowSatisfactionDays: 0 };
       state.drivers.push(d);
       state.hiredApplicantNames.push(app.name);
       state.availableApplicants = state.availableApplicants.filter(a => a.id !== app.id);
       refreshApplicants(state);
       result = { ok: true, driverId: d.id };
+      break;
+    }
+
+    // ---------- Personal: allgemeine Einstellung ----------
+
+    case "hireEmployee": {
+      ensureNotBlocked(state);
+      if (state.openCosts.some(o => o.account === "company")) throw new Error("Es gibt offene betriebliche Kosten. Bitte bezahle diese zuerst.");
+      const app = state.availableApplicants.find(a => a.id === p.applicantId);
+      if (!app) throw new Error("Bewerber nicht verfügbar.");
+      if (state.hiredApplicantNames.includes(app.name + ":" + app.role)) throw new Error("Dieser Bewerber wurde bereits in dieser Rolle eingestellt.");
+      const role = app.role || "driver";
+      const roleDef = PERSONNEL_ROLES[role];
+      if (!roleDef) throw new Error("Unbekannte Rolle: " + role);
+      const hireFee = app.hireFeeCents || roleDef.hireFeeCents;
+      const dailyWage = app.costPerDayCents || roleDef.costPerDayCents;
+      if (state.company.accountCents < hireFee) throw new Error("Firmenkonto reicht für die Einstellungsgebühr (" + (hireFee / 100) + " €) nicht aus.");
+      addBooking(state, state.gameTime, "Einstellung: " + app.name + " (" + roleDef.label + ")", -hireFee, "company", "hire:" + app.id);
+
+      if (role === "driver") {
+        // Fahrer werden in das bestehende drivers-Array aufgenommen
+        const d = {
+          id: uid(state, "d"), name: app.name, branchId: "b1",
+          costPerDayCents: dailyWage, locationCity: "Hamburg", status: "free",
+          restUntil: null, employedDay: dayOf(state.gameTime),
+          portraitId: app.portraitId || null, satisfaction: 70, satisfactionReasons: [],
+          employmentStatus: "employed", attendance: "present", consecutiveLowSatisfactionDays: 0,
+        };
+        state.drivers.push(d);
+        result = { ok: true, employeeId: d.id, role: "driver" };
+      } else {
+        // Nicht fahrende Angestellte werden in das employees-Array aufgenommen
+        const emp = {
+          id: uid(state, "emp"), name: app.name, role, branchId: "b1",
+          locationCity: "Hamburg", employedDay: dayOf(state.gameTime),
+          costPerDayCents: dailyWage, hireFeeCents: hireFee,
+          satisfaction: 70, satisfactionReasons: [],
+          employmentStatus: "employed", exitDate: null,
+          attendance: "present", sickUntil: null, vacationUntil: null,
+          vacationDaysAvailable: 3,
+          activity: "idle", consecutiveLowSatisfactionDays: 0,
+          assignedVehicleIds: [], workMode: "suggestions",
+          capacity: app.capacity || roleDef.capacity,
+          lastDecisionMin: null, suggestions: [],
+          portraitId: app.portraitId || null,
+        };
+        state.employees.push(emp);
+        result = { ok: true, employeeId: emp.id, role };
+      }
+      state.hiredApplicantNames.push(app.name + ":" + app.role);
+      state.availableApplicants = state.availableApplicants.filter(a => a.id !== app.id);
+      refreshApplicants(state);
+      break;
+    }
+
+    case "setupDispatcher": {
+      ensureNotBlocked(state);
+      const emp = (state.employees || []).find(e => e.id === p.employeeId);
+      if (!emp) throw new Error("Angestellter nicht gefunden.");
+      if (emp.role !== "dispatcher" && emp.role !== "dispatcher_senior") throw new Error("Diese Person ist kein Disponent.");
+      const vehicleIds = p.vehicleIds || [];
+      if (vehicleIds.length > emp.capacity) throw new Error("Überlastung: " + vehicleIds.length + " Lkw überschreiten Kapazität von " + emp.capacity + ".");
+      // Prüfe, dass keine Lkw bereits einem anderen Disponenten zugewiesen sind
+      for (const vid of vehicleIds) {
+        const v = state.vehicles.find(x => x.id === vid);
+        if (!v) throw new Error("Fahrzeug nicht gefunden: " + vid);
+        for (const other of (state.employees || [])) {
+          if (other.id === emp.id) continue;
+          if (other.role !== "dispatcher" && other.role !== "dispatcher_senior") continue;
+          if ((other.assignedVehicleIds || []).includes(vid)) {
+            throw new Error("Lkw " + vid + " ist bereits " + other.name + " zugewiesen.");
+          }
+        }
+      }
+      emp.assignedVehicleIds = vehicleIds;
+      if (p.workMode && ["suggestions", "dispatch_accepted", "autonomous"].includes(p.workMode)) {
+        emp.workMode = p.workMode;
+      }
+      // Alte Vorschläge aufräumen
+      emp.suggestions = [];
+      result = { ok: true, employeeId: emp.id, assignedVehicleIds: vehicleIds, workMode: emp.workMode };
+      break;
+    }
+
+    case "confirmDispatcherSuggestion": {
+      ensureNotBlocked(state);
+      const emp = (state.employees || []).find(e => e.id === p.employeeId);
+      if (!emp) throw new Error("Angestellter nicht gefunden.");
+      const sug = (emp.suggestions || []).find(s => s.id === p.suggestionId);
+      if (!sug) throw new Error("Vorschlag nicht gefunden.");
+      if (sug.status !== "pending") throw new Error("Vorschlag ist nicht mehr verfügbar.");
+      // Verbindlich bestätigen – nutzt die bestehende Tour-Logik
+      const r = doConfirmTour(state, {
+        vehicleId: sug.vehicleId,
+        driverId: sug.driverId,
+        orderIds: sug.orderIds,
+        desiredEndCity: sug.plan.desiredEndCity || null,
+        latestReturnMin: sug.plan.latestReturnMin || null,
+      });
+      sug.status = "confirmed";
+      sug.confirmedAtMin = state.gameTime;
+      result = { ok: true, ...r, suggestionId: sug.id };
+      break;
+    }
+
+    case "dismissDispatcherSuggestion": {
+      const emp = (state.employees || []).find(e => e.id === p.employeeId);
+      if (!emp) throw new Error("Angestellter nicht gefunden.");
+      const sug = (emp.suggestions || []).find(s => s.id === p.suggestionId);
+      if (!sug) throw new Error("Vorschlag nicht gefunden.");
+      sug.status = "dismissed";
+      sug.dismissedAtMin = state.gameTime;
+      result = { ok: true };
       break;
     }
 

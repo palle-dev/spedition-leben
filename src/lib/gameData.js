@@ -65,3 +65,35 @@ export function euroSigned(cents) {
   const s = cents < 0 ? "-" : "+";
   return s + formatEuro(Math.abs(cents));
 }
+
+// ---------- Personalrollen (Spiegel von gameRules.ts) ----------
+export const PERSONNEL_ROLES = {
+  driver:             { id: "driver",             label: "Fahrer",                  hireFeeCents: 50000,  costPerDayCents: 10000, capacity: 0 },
+  dispatcher:         { id: "dispatcher",         label: "Disponent",               hireFeeCents: 50000,  costPerDayCents: 18000, capacity: 6 },
+  dispatcher_senior:  { id: "dispatcher_senior",  label: "Erfahrener Disponent",    hireFeeCents: 100000, costPerDayCents: 26000, capacity: 12 },
+  cleaner:            { id: "cleaner",            label: "Reinigungskraft",         hireFeeCents: 15000,  costPerDayCents: 6000,  capacity: 4 },
+  mechanic:           { id: "mechanic",           label: "Werkstattmitarbeiter",    hireFeeCents: 50000,  costPerDayCents: 14000, capacity: 1 },
+  accountant:         { id: "accountant",         label: "Buchhalter/Buchhalterin", hireFeeCents: 40000,  costPerDayCents: 12000, capacity: 0 },
+};
+
+export const SERVICE_START_MIN = 480;
+export const SERVICE_END_MIN = 960;
+export const SERVICE_INTERVAL_MIN = 60;
+
+export const ROLE_LABELS = {
+  driver: "Fahrer",
+  dispatcher: "Disponent",
+  dispatcher_senior: "Erf. Disponent",
+  cleaner: "Reinigung",
+  mechanic: "Werkstatt",
+  accountant: "Buchhaltung",
+};
+
+export const ROLE_ICONS = {
+  driver: "Truck",
+  dispatcher: "Headset",
+  dispatcher_senior: "Headset",
+  cleaner: "Sparkles",
+  mechanic: "Wrench",
+  accountant: "Calculator",
+};

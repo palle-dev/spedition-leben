@@ -40,6 +40,51 @@ export function driverAvatarClass(d) {
   return AVATAR_COLORS[n % AVATAR_COLORS.length];
 }
 
+// Rollen-Label für Anzeige
+export function roleLabel(role) {
+  const labels = {
+    driver: "Fahrer", dispatcher: "Disponent", dispatcher_senior: "Erf. Disponent",
+    cleaner: "Reinigungskraft", mechanic: "Werkstattmitarbeiter", accountant: "Buchhalter/Buchhalterin",
+  };
+  return labels[role] || role;
+}
+
+// Rollen-Icon-Name (lucide-react)
+export function roleIconName(role) {
+  const icons = {
+    driver: "Truck", dispatcher: "Headset", dispatcher_senior: "Headset",
+    cleaner: "Sparkles", mechanic: "Wrench", accountant: "Calculator",
+  };
+  return icons[role] || "User";
+}
+
+// Zufriedenheits-Label und Farbe
+export function satisfactionLabel(sat) {
+  if (sat >= 70) return { label: "Zufrieden", color: "text-lime", dot: "bg-lime" };
+  if (sat >= 40) return { label: "Normal", color: "text-amber-300", dot: "bg-amber-300" };
+  return { label: "Unzufrieden", color: "text-coral", dot: "bg-coral" };
+}
+
+// Anwesenheits-Label
+export function attendanceLabel(att) {
+  const labels = {
+    present: { label: "Anwesend", color: "text-lime", dot: "bg-lime" },
+    sick: { label: "Krank", color: "text-coral", dot: "bg-coral" },
+    vacation: { label: "Urlaub", color: "text-sky-300", dot: "bg-sky-300" },
+  };
+  return labels[att] || { label: att || "—", color: "text-muted-foreground", dot: "bg-muted-foreground" };
+}
+
+// Arbeitsweise-Label für Disponenten
+export function workModeLabel(mode) {
+  const labels = {
+    suggestions: { label: "Vorschläge", desc: "Bereitet Vorschläge vor – du bestätigst." },
+    dispatch_accepted: { label: "Disponiert", desc: "Darf angenommene Aufträge verbindlich planen." },
+    autonomous: { label: "Selbstständig", desc: "Darf Marktangebote annehmen und disponieren." },
+  };
+  return labels[mode] || { label: mode || "—", desc: "" };
+}
+
 // Fahrzeugposition aus Trip-Fortschritt ableiten (rein aus Zustand)
 export function getVehiclePosition(vehicle, state) {
   if (!vehicle) return null;

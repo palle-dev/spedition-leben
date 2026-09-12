@@ -4,6 +4,7 @@
 // Trennung: achievementCatalog (statisch) · progressEngine (Berechnung).
 
 import { ACHIEVEMENTS, XP_LEVELS, COMPANY_STAGES, GOAL_TEMPLATES } from "./achievementCatalog.ts";
+import { PERSONNEL_ROLES, PORTRAIT_IDS, DRIVER_COST_PER_DAY, HIRE_FEE } from "./gameRules.ts";
 
 // --- Vermögensberechnungen ---
 
@@ -137,6 +138,63 @@ export function migrateState(state) {
   for (const [k, v] of Object.entries(defaultStats)) {
     if (state.stats[k] === undefined) state.stats[k] = v;
   }
+
+  // ---------- Personalmodell Migration (Auftrag 11) ----------
+  // employees-Array anlegen
+  if (!state.employees) state.employees = [];
+
+  // Fahrer um neue Felder erweitern (Beschäftigung, Anwesenheit, Zufriedenheit, Porträt)
+  let portraitIdx = 0;
+  for (const d of (state.drivers || [])) {
+    if (d.satisfaction === undefined) d.satisfaction = 70;
+    if (!d.satisfactionReasons) d.satisfactionReasons = [];
+    if (!d.employmentStatus) d.employmentStatus = "employed";
+    if (!d.attendance) d.attendance = "present";
+    if (d.consecutiveLowSatisfactionDays === undefined) d.consecutiveLowSatisfactionDays = 0;
+    if (!d.portraitId) d.portraitId = PORTRAIT_IDS[portraitIdx++ % PORTRAIT_IDS.length];
+  }
+
+  // Alte Bewerber (nur {id, name}) um Rollen-Felder erweitern
+  for (const app of (state.availableApplicants || [])) {
+    if (!app.role) {
+      app.role = "driver";
+      app.hireFeeCents = HIRE_FEE;
+      app.costPerDayCents = DRIVER_COST_PER_DAY;
+      app.capacity = 0;
+    }
+    if (!app.portraitId) {
+      app.portraitId = PORTRAIT_IDS[portraitIdx++ % PORTRAIT_IDS.length];
+    }
+  }
+
+  // hiredApplicantNames auf neues Format (name:role) migrieren
+  if (state.hiredApplicantNames && state.hiredApplicantNames.length > 0) {
+    state.hiredApplicantNames = state.hiredApplicantNames.map(n =>
+      n.includes(":") ? n : n + ":driver"
+    );
+  }
+
+  // Wenn noch keine Rollen-Bewerber vorhanden sind, fehlende Rollen nachfüllen
+  const hasDispatcherApp = (state.availableApplicants || []).some(a => a.role === "dispatcher");
+  if (!hasDispatcherApp && state.availableApplicants) {
+    let idNum = (state.availableApplicants.length || 0) + 1;
+    // Standard-Disponent
+    state.availableApplicants.push({
+      id: "a" + (idNum++), name: "Helena Voss", role: "dispatcher",
+      hireFeeCents: PERSONNEL_ROLES.dispatcher.hireFeeCents,
+      costPerDayCents: PERSONNEL_ROLES.dispatcher.costPerDayCents,
+      capacity: 6, portraitId: PORTRAIT_IDS[portraitIdx++ % PORTRAIT_IDS.length],
+    });
+    // Erfahrener Disponent
+    state.availableApplicants.push({
+      id: "a" + (idNum++), name: "Rüdiger Mai", role: "dispatcher_senior",
+      hireFeeCents: PERSONNEL_ROLES.dispatcher_senior.hireFeeCents,
+      costPerDayCents: PERSONNEL_ROLES.dispatcher_senior.costPerDayCents,
+      capacity: 12, portraitId: PORTRAIT_IDS[portraitIdx++ % PORTRAIT_IDS.length],
+    });
+  }
+
+  if (!state.portraitAssignments) state.portraitAssignments = {};
 
   return state;
 }
