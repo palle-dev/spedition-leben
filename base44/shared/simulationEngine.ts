@@ -56,6 +56,9 @@ import {
 import {
   generateMarketWave, migrateMarket, fillInitialMarket, getMarketStats,
 } from "./marketEngine.ts";
+import {
+  enableAutomation, pauseAutomation, syncToTarget, computeTargetGameMinute,
+} from "./timeControlEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -1616,6 +1619,33 @@ export function applyCommand(state, command, params) {
       ensureNotBlocked(state);
       const r = earlyTerminateLease(state, { contractId: p.contractId });
       result = r;
+      break;
+    }
+
+    // ---------- Zeitautomatik (Auftrag 20) ----------
+
+    case "enableAutomation": {
+      const tc = enableAutomation(state, p.serverNowMs || Date.now());
+      result = { ok: true, timeControl: tc };
+      break;
+    }
+
+    case "pauseAutomation": {
+      const r = pauseAutomation(state, p.serverNowMs || Date.now(), p.reason);
+      result = { ok: true, timeControl: r.tc, targetNumerator: r.targetNumerator };
+      break;
+    }
+
+    case "syncAutomation": {
+      const r = syncToTarget(state, p.serverNowMs || Date.now(), advanceTo);
+      result = { ok: true, timeControl: state.timeControl, events: r.log, gameTime: r.gameTime };
+      break;
+    }
+
+    case "getAutomationStatus": {
+      const tc = state.timeControl;
+      const targetMin = computeTargetGameMinute(tc, p.serverNowMs || Date.now());
+      result = { ok: true, timeControl: tc, targetGameMinute: targetMin, gameTime: state.gameTime };
       break;
     }
 

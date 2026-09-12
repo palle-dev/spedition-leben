@@ -11,6 +11,7 @@ import { migrateTripPhases } from "./driverTimeEngine.ts";
 import { migrateFinancing } from "./financingEngine.ts";
 import { migrateTermination } from "./terminationEngine.ts";
 import { migrateMarket } from "./marketEngine.ts";
+import { migrateTimeControl } from "./timeControlEngine.ts";
 
 // --- Vermögensberechnungen ---
 
@@ -231,6 +232,9 @@ export function migrateState(state) {
 
   // ---------- Markt-Migration (Auftrag 19) ----------
   migrateMarket(state);
+
+  // ---------- Zeitsteuerungs-Migration (Auftrag 20) ----------
+  migrateTimeControl(state);
 
   return state;
 }

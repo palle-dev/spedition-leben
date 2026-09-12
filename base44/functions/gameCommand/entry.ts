@@ -56,7 +56,9 @@ export default async function (req) {
         games: list.map(r => ({
           id: r.id, revision: r.revision, created_date: r.created_date,
           company: r.state && r.state.company ? r.state.company.name : null,
-          gameTime: r.state ? r.state.gameTime : null
+          gameTime: r.state ? r.state.gameTime : null,
+          automationEnabled: r.automation_enabled || false,
+          timeControl: r.state?.timeControl || null,
         }))
       });
     }
@@ -95,9 +97,12 @@ export default async function (req) {
     }
 
     // Regelprüfung und Zustandsänderung.
+    // serverNowMs für Zeitautomatik-Befehle ergänzen (serverseitige Zeitautorität).
+    const isTimeCommand = ["enableAutomation", "pauseAutomation", "syncAutomation", "getAutomationStatus"].includes(command);
+    const paramsWithTime = isTimeCommand ? { ...(params || {}), serverNowMs: Date.now() } : (params || {});
     let newState, result;
     try {
-      const r = applyCommand(state, command, params || {});
+      const r = applyCommand(state, command, paramsWithTime);
       newState = r.state; result = r.result;
     } catch (e) {
       return Response.json({ error: e.message }, { status: 400 });
@@ -112,9 +117,13 @@ export default async function (req) {
     const newRev = rec.revision + 1;
 
     // Atomares bedingtes Update: nur wenn Eigentümer und bisherige Revision noch stimmen.
+    const updateSet = { state: newState, revision: newRev, last_action_id: action_id, last_result: result, last_command_hash: cmdHash };
+    // automation_enabled-Feld für Filterung durch Hintergrunddienst setzen.
+    if (command === "enableAutomation") updateSet.automation_enabled = true;
+    else if (command === "pauseAutomation") updateSet.automation_enabled = false;
     const upd = await S.updateMany(
       { id: stateId, owner_id: user.id, revision: expected_revision },
-      { $set: { state: newState, revision: newRev, last_action_id: action_id, last_result: result, last_command_hash: cmdHash } }
+      { $set: updateSet }
     );
 
     // Erfolgsnachweis: nur die eigene Aktion darf den Zustand überschreiben.
