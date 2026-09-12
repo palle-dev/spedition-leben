@@ -61,14 +61,14 @@ export default async function(req) {
         const newRev = rec.revision + 1;
 
         // Atomar speichern mit Revisionssicherung (verhindert doppelte Verarbeitung).
-        await S.updateMany(
+        // updateMany gibt die Anzahl geschriebener Dokumente zurück – ein erneuter
+        // Lesezugriff pro Spielstand entfällt (halbiert die Entity-Reads pro Lauf).
+        const upd = await S.updateMany(
           { id: rec.id, revision: rec.revision },
           { $set: { state: newState, revision: newRev, last_result: r.result } }
         );
 
-        // Prüfen, ob das Update erfolgreich war.
-        const check = await S.get(rec.id);
-        if (check && check.revision === newRev) {
+        if (upd && upd.updated === 1) {
           processed++;
           results.push({
             id: rec.id,

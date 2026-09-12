@@ -138,12 +138,12 @@ export default async function (req) {
       { $set: updateSet }
     );
 
-    // Erfolgsnachweis: nur die eigene Aktion darf den Zustand überschreiben.
-    // last_action_id prüft, ob dieses updateMany den Datensatz tatsächlich geschrieben hat
-    // (bei 0 getroffenen Zeilen durch eine parallele Aktion steht hier eine andere action_id).
-    const check = await S.get(stateId);
-    if (!check || check.last_action_id !== action_id || check.revision !== newRev) {
-      return Response.json({ error: "Konflikt: Zustand wurde gleichzeitig geändert", conflict: true, current_revision: check ? check.revision : 0 }, { status: 409 });
+    // Erfolgsnachweis: updateMany gibt die Anzahl geschriebener Dokumente zurück.
+    // Bei 0 Treffern wurde der Zustand gleichzeitig von einer anderen Aktion geändert
+    // – nur dann ist ein erneuter Lesezugriff nötig, um die aktuelle Revision zu melden.
+    if (!upd || upd.updated !== 1) {
+      const cur = await S.get(stateId);
+      return Response.json({ error: "Konflikt: Zustand wurde gleichzeitig geändert", conflict: true, current_revision: cur ? cur.revision : 0 }, { status: 409 });
     }
 
     return Response.json({ state: newState, revision: newRev, stateId, result });
