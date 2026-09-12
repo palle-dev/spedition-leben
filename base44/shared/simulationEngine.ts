@@ -109,6 +109,19 @@ import {
   conductConversation, completeConversation, prepareRetentionConversation,
   conductRetentionConversation, cancelSelfTermination,
 } from "./satisfactionEngine.ts";
+import {
+  migrateTraining, COURSE_CATALOG, getCourseById,
+  previewCourseBooking, bookCourse, cancelCourse,
+  processCourseEvents, processApprenticeshipEvents,
+  getTrainingEventTimes, getTrainingOverview, getTrainingSchedule,
+  previewApprenticeship, startApprenticeship,
+  takeoverApprentice, releaseApprentice,
+  updateAutoRefreshConfig, getAutoRefreshConfig,
+  getPersonQualifications, getAllPersonQualifications,
+  hasQualification, hasEcoDrive, hasAdrBasic, hasAdrTank,
+  hasMaterialEfficiency, hasMentorQualification, hasDgDispatch,
+  getEffectiveCapacity, isPersonInTraining,
+} from "./trainingEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -486,6 +499,8 @@ function earliestEventAfter(state, t, maxMin) {
   for (const a of (state.appointments || [])) {
     if (a.type === "conversation" && a.status === "active" && a.endMin > t && a.endMin <= maxMin) cand(a.endMin);
   }
+  // Aus- und Weiterbildung (Auftrag 31): Kursblöcke, Ausbildungen, Ablauf
+  for (const tm of getTrainingEventTimes(state, t, maxMin)) cand(tm);
   return best;
 }
 function completeTrip(state, trip, m, log) {
@@ -717,6 +732,9 @@ function processEventsAt(state, m, log) {
     state.personnelMarket.nextDemandWaveMin = null;
   }
   expireApplicants(state, m, log);
+  // Auftrag 31: Aus- und Weiterbildung – Kursblöcke, Ausbildungen, Ablauf
+  processCourseEvents(state, m, log);
+  processApprenticeshipEvents(state, m, log);
   // 4b. Monatswechsel (Abschreibung, Periodenabschluss)
   if (m % MONTH_MIN === 0 && m > 0) {
     calculateDepreciation(state, m);
@@ -1031,6 +1049,7 @@ export function applyCommand(state, command, params) {
   migratePurchases(state);
   migrateWorkshop(state);
   migratePersonnelMarket(state);
+  migrateTraining(state);
   const p = params || {};
   let result;
   switch (command) {
@@ -2333,6 +2352,86 @@ export function applyCommand(state, command, params) {
     case "conductRetentionConversation": {
       const r = conductRetentionConversation(state, p.personId);
       result = r;
+      break;
+    }
+
+    // ---------- Aus- und Weiterbildung (Auftrag 31) ----------
+
+    case "getCourseCatalog": {
+      result = { ok: true, catalog: COURSE_CATALOG };
+      break;
+    }
+
+    case "previewCourseBooking": {
+      result = previewCourseBooking(state, p.personId, p.courseId);
+      break;
+    }
+
+    case "bookCourse": {
+      ensureNotBlocked(state);
+      const r = bookCourse(state, p.personId, p.courseId, { confirmPromotion: p.confirmPromotion || false });
+      result = r;
+      break;
+    }
+
+    case "cancelCourse": {
+      ensureNotBlocked(state);
+      const r = cancelCourse(state, p.enrollmentId);
+      result = r;
+      break;
+    }
+
+    case "getTrainingOverview": {
+      result = getTrainingOverview(state);
+      break;
+    }
+
+    case "getTrainingSchedule": {
+      const fromMin = p.fromMin || state.gameTime;
+      const toMin = p.toMin || state.gameTime + 30 * 1440;
+      result = { ok: true, events: getTrainingSchedule(state, fromMin, toMin) };
+      break;
+    }
+
+    case "getPersonQualifications": {
+      result = { ok: true, qualifications: getPersonQualifications(state, p.personId), allQualifications: getAllPersonQualifications(state, p.personId) };
+      break;
+    }
+
+    case "previewApprenticeship": {
+      result = previewApprenticeship(state, p.personId, p.role);
+      break;
+    }
+
+    case "startApprenticeship": {
+      ensureNotBlocked(state);
+      const r = startApprenticeship(state, p.personId, p.role, { takeoverAuthorized: p.takeoverAuthorized || false });
+      result = r;
+      break;
+    }
+
+    case "takeoverApprentice": {
+      ensureNotBlocked(state);
+      const r = takeoverApprentice(state, p.apprenticeshipId, state.gameTime, []);
+      result = r;
+      break;
+    }
+
+    case "releaseApprentice": {
+      ensureNotBlocked(state);
+      const r = releaseApprentice(state, p.apprenticeshipId, state.gameTime);
+      result = r;
+      break;
+    }
+
+    case "updateAutoRefreshConfig": {
+      const r = updateAutoRefreshConfig(state, p.config);
+      result = r;
+      break;
+    }
+
+    case "getAutoRefreshConfig": {
+      result = { ok: true, config: getAutoRefreshConfig(state) };
       break;
     }
 

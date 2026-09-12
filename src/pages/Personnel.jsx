@@ -12,7 +12,8 @@ import ApplicantBrowser from "@/components/personnel/ApplicantBrowser";
 import JobPostingPanel from "@/components/personnel/JobPostingPanel";
 import TeamClimate from "@/components/personnel/TeamClimate";
 import SatisfactionDetail from "@/components/personnel/SatisfactionDetail";
-import { UserPlus, Users, MapPin, Clock, Truck, Headset, Sparkles, Wrench, Calculator, Settings, Check, X, AlertCircle, Briefcase, LogOut, RotateCcw, HeartHandshake } from "lucide-react";
+import DevelopmentSection from "@/components/personnel/DevelopmentSection";
+import { UserPlus, Users, MapPin, Clock, Truck, Headset, Sparkles, Wrench, Calculator, Settings, Check, X, AlertCircle, Briefcase, LogOut, RotateCcw, HeartHandshake, GraduationCap } from "lucide-react";
 
 const ROLE_ICON = {
   driver: Truck, dispatcher: Headset, dispatcher_senior: Headset,
@@ -96,6 +97,7 @@ export default function Personnel() {
         {[
           { id: "team", label: "Team", icon: Users },
           { id: "climate", label: "Teamklima", icon: HeartHandshake },
+          { id: "development", label: "Entwicklung", icon: GraduationCap },
           { id: "hire", label: "Einstellen", icon: UserPlus },
           { id: "former", label: "Ehemalige", icon: Briefcase },
           { id: "absence", label: "Abwesenheiten", icon: Clock },
@@ -145,6 +147,11 @@ export default function Personnel() {
       {/* Teamklima Tab (Auftrag 30) */}
       {tab === "climate" && (
         <TeamClimate onOpenPerson={(p) => setManagePerson({ id: p.personId, kind: p.kind, name: p.name })} />
+      )}
+
+      {/* Entwicklung Tab (Auftrag 31) */}
+      {tab === "development" && (
+        <DevelopmentSection />
       )}
 
       {/* Einstellen Tab – Bewerbermarkt (Auftrag 29) */}
