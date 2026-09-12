@@ -418,6 +418,10 @@ function earliestEventAfter(state, t, maxMin) {
     }
     if (tour.returnDeployment && tour.returnDeployment.status === "planned") cand(tour.returnDeployment.startMin);
   }
+  // Staff-Task-Verarbeitungszeiten (Postfach)
+  for (const task of (state.mail?.staffTasks || [])) {
+    if (task.status === "pending") cand(task.earliestProcessMin);
+  }
   return best;
 }
 function completeTrip(state, trip, m, log) {
