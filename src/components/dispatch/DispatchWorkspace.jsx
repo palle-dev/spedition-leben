@@ -8,6 +8,7 @@ import DispatchTourDetails from "./DispatchTourDetails";
 import DispatchPlanner from "./DispatchPlanner";
 import TourPlanner from "./TourPlanner";
 import DispatchActiveTours from "./DispatchActiveTours";
+import DriverWorkBudget from "./DriverWorkBudget";
 import DispatcherPanel from "./DispatcherPanel";
 import DispatchLiveLog from "./DispatchLiveLog";
 import { Truck, Users, Package, ArrowRight, Play, AlertTriangle, Route, X, Headset, Activity } from "lucide-react";
@@ -195,6 +196,7 @@ export default function DispatchWorkspace({
           ) : (
             <div className="space-y-3">
               <DispatchActiveTours tours={activeTours} state={state} onSelectTrip={onSelectTrip} />
+              <DriverWorkBudget state={state} />
               <DispatchTourList trips={filteredTrips} state={state} selectedTripId={selectedTripId} onSelectTrip={onSelectTrip} />
             </div>
           )
