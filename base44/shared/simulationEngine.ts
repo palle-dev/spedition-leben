@@ -26,6 +26,19 @@ import {
   roleExpenseAccount, periodOf, periodStartMin, periodEndMin, MONTH_MIN,
   migrateAccounting,
 } from "./accountingEngine.ts";
+import {
+  initMail, migrateMail, deliverMessage, getPersonInfo, getAllContacts,
+  findOrCreateConversation, markMessageRead, markConversationRead,
+  starMessage, archiveMessage, saveDraft, deleteDraft,
+  getMailboxStats, searchConversations, getConversationMessages,
+  exportCorrespondence, createStaffTask, isEmployeeAvailable,
+} from "./mailEngine.ts";
+import { detectIntent, processStaffTasks, getQuickReplies, getIntentByType } from "./mailIntents.ts";
+import {
+  processReportSchedules, generateDriverDeliveryReport,
+  generateEmployeeIntroduction, onOrderAccepted, onTourConfirmed,
+  onEmployeeHired, onMaintenanceCompleted, resetDailyStats,
+} from "./mailReports.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -201,6 +214,8 @@ export function createInitialState(names) {
       acquisitionCostCents: v.bookValueCents, acquiredAtMin: state.gameTime,
     });
   }
+  // Postfach initialisieren
+  initMail(state);
   return { state };
 }
 
@@ -331,6 +346,8 @@ function maybeGenerateInvitation(state, day, midnight) {
 function doDailyAccounting(state, midnight) {
   const day = dayOf(midnight);
   const log = [];
+  resetDailyStats(state, midnight);
+  resetDailyStats(state, midnight);
   const drivers = [...state.drivers].sort((a, b) => (a.id < b.id ? -1 : 1));
   for (const d of drivers) {
     const r = payCost(state, "company", DRIVER_COST_PER_DAY, "Fahrerlohn: " + d.name, d.id, midnight);
@@ -424,6 +441,8 @@ function completeTrip(state, trip, m, log) {
   const payment = onTime ? trip.paymentCents : Math.round(trip.paymentCents * 0.9);
   addBooking(state, m, "Vergütung: " + order.customer, payment, "company", order.id);
   order.paidCents = payment;
+  order.history = order.history || [];
+  order.history.push({ type: "delivered", min: m, actor: driver.id, actorName: driver.name, details: { onTime, paymentCents: payment } });
   state.stats.totalDeliveries++;
   if (onTime) { state.stats.timelyDeliveries++; state.stats.consecutiveTimely = (state.stats.consecutiveTimely || 0) + 1; }
   else { state.stats.consecutiveTimely = 0; }
@@ -434,6 +453,8 @@ function completeTrip(state, trip, m, log) {
   log.push({ type: "delivery", trip: trip.id, order: order.id, onTime, paymentCents: payment });
   // Tour-Verknüpfung: Deployment als abgeschlossen markieren
   onTripCompleted(state, trip, m, log);
+  // Fahrer-Lieferbericht an GF postfach
+  generateDriverDeliveryReport(state, driver, trip, order, m);
 }
 function processEventsAt(state, m, log) {
   // 1. Lieferabschlüsse (vor Fristprüfung)
@@ -492,6 +513,7 @@ function processEventsAt(state, m, log) {
       v.status = "free"; v.maintenanceUntil = null; v.condition = 100;
       if (!(state.stats.maintainedVehicleIds || []).includes(v.id)) state.stats.maintainedVehicleIds.push(v.id);
       log.push({ type: "maintenance_end", vehicle: v.id });
+      onMaintenanceCompleted(state, v, m);
     }
   }
   // 3b. Tour-automatische Folge-Einsätze starten (nach Erholung, vor Tagesabrechnung)
@@ -500,6 +522,9 @@ function processEventsAt(state, m, log) {
   if (m % 1440 >= SERVICE_START_MIN && m % 1440 <= SERVICE_END_MIN && m % SERVICE_INTERVAL_MIN === 0) {
     processEmployees(state, m, log);
   }
+  // 3d. Berichte generieren und Staff-Tasks verarbeiten
+  processReportSchedules(state, m, log);
+  processStaffTasks(state, m, log);
   // 4. Tagesabrechnung (Mitternacht)
   if (m % 1440 === 0 && m > 0) {
     const dlog = doDailyAccounting(state, m);
@@ -658,8 +683,77 @@ function processDispatcher(state, emp, m, log) {
     emp.lastDecisionMin = m;
   }
 
-  // Modus B: angenommene Aufträge verbindlich planen (Etappe 4 – vorbereitet)
-  // Modus C: Marktangebote annehmen (Etappe 4 – vorbereitet)
+  // Modus B: angenommene Auftraege verbindlich planen
+  if (emp.workMode === "dispatch_accepted" || emp.workMode === "autonomous") {
+    const acceptedOrders = state.orders.filter(o =>
+      o.status === "angenommen" &&
+      !state.trips.some(t => t.orderId === o.id && t.status === "in_progress")
+    );
+    for (const order of acceptedOrders) {
+      const vehicle = assignedVehicles.find(v => v.status === "free" && v.condition >= 20);
+      if (!vehicle) break;
+      const driver = state.drivers.find(d =>
+        d.status === "free" && d.locationCity === vehicle.locationCity &&
+        d.employmentStatus === "employed" && d.attendance === "present" &&
+        (!d.restUntil || d.restUntil <= m)
+      );
+      if (!driver) continue;
+      try {
+        const r = doConfirmTour(state, {
+          vehicleId: vehicle.id, driverId: driver.id, orderIds: [order.id],
+        });
+        order.plannedById = emp.id; order.plannedByName = emp.name;
+        order.history = order.history || [];
+        order.history.push({ type: "planned", min: m, actor: emp.id, actorName: emp.name, details: { vehicleId: vehicle.id, driverId: driver.id } });
+        const tour = r.tour || { id: r.tourId, vehicleId: vehicle.id, driverId: driver.id, orderIds: [order.id], startMin: m, endMin: r.endMin };
+        onTourConfirmed(state, tour, emp.id, m);
+        emp.dailyStats = emp.dailyStats || { day: dayOf(m), offersChecked: 0, ordersAccepted: 0, ordersPlanned: 0, toursStarted: 0 };
+        emp.dailyStats.ordersPlanned = (emp.dailyStats.ordersPlanned || 0) + 1;
+        emp.dailyStats.toursStarted = (emp.dailyStats.toursStarted || 0) + 1;
+        log.push({ type: "dispatcher_planned", employee: emp.id, order: order.id, vehicle: vehicle.id, atMin: m });
+      } catch (e) {
+        log.push({ type: "dispatcher_plan_failed", employee: emp.id, order: order.id, error: e.message, atMin: m });
+      }
+    }
+  }
+
+  // Modus C: Marktangebote annehmen und planen
+  if (emp.workMode === "autonomous") {
+    const offered = state.orders.filter(o => o.status === "offered" && o.acceptDeadlineMin > m);
+    for (const order of offered.slice(0, 3)) {
+      const vehicle = assignedVehicles.find(v => v.status === "free" && v.condition >= 20);
+      if (!vehicle) break;
+      const driver = state.drivers.find(d =>
+        d.status === "free" && d.locationCity === vehicle.locationCity &&
+        d.employmentStatus === "employed" && d.attendance === "present" &&
+        (!d.restUntil || d.restUntil <= m)
+      );
+      if (!driver) continue;
+      order.status = "angenommen"; order.acceptedAtMin = m;
+      order.acceptedById = emp.id; order.acceptedByName = emp.name;
+      order.history = order.history || [];
+      order.history.push({ type: "accepted", min: m, actor: emp.id, actorName: emp.name });
+      try {
+        const r = doConfirmTour(state, {
+          vehicleId: vehicle.id, driverId: driver.id, orderIds: [order.id],
+        });
+        order.plannedById = emp.id; order.plannedByName = emp.name;
+        order.history.push({ type: "planned", min: m, actor: emp.id, actorName: emp.name, details: { vehicleId: vehicle.id, driverId: driver.id } });
+        const tour = r.tour || { id: r.tourId, vehicleId: vehicle.id, driverId: driver.id, orderIds: [order.id], startMin: m, endMin: r.endMin };
+        onOrderAccepted(state, order, emp.id, m);
+        onTourConfirmed(state, tour, emp.id, m);
+        emp.dailyStats = emp.dailyStats || { day: dayOf(m), offersChecked: 0, ordersAccepted: 0, ordersPlanned: 0, toursStarted: 0 };
+        emp.dailyStats.ordersAccepted = (emp.dailyStats.ordersAccepted || 0) + 1;
+        emp.dailyStats.ordersPlanned = (emp.dailyStats.ordersPlanned || 0) + 1;
+        emp.dailyStats.toursStarted = (emp.dailyStats.toursStarted || 0) + 1;
+        log.push({ type: "dispatcher_accepted", employee: emp.id, order: order.id, vehicle: vehicle.id, atMin: m });
+      } catch (e) {
+        order.status = "offered"; order.acceptedAtMin = null;
+        order.acceptedById = null; order.acceptedByName = null;
+        log.push({ type: "dispatcher_accept_failed", employee: emp.id, order: order.id, error: e.message, atMin: m });
+      }
+    }
+  }
 }
 
 // Prüft, ob sich die Situation seit der letzten Vorschlagserstellung geändert hat.
@@ -685,6 +779,23 @@ function hasSituationChanged(state, emp, existingSuggestions) {
   return false;
 }
 
+// ---------- Task-Parameter Extraktion ----------
+function extractTaskParams(body, state, conv) {
+  const params = {};
+  const orderMatch = body.match(/o_\d+/i);
+  if (orderMatch) params.orderId = orderMatch[0];
+  const tourMatch = body.match(/tour_\d+/i);
+  if (tourMatch) params.tourId = tourMatch[0];
+  const vehicleMatch = body.match(/v\d+/i);
+  if (vehicleMatch) params.vehicleId = vehicleMatch[0];
+  if (conv?.linkedRef) {
+    if (conv.linkedRef.type === "order") params.orderId = conv.linkedRef.id;
+    if (conv.linkedRef.type === "tour") params.tourId = conv.linkedRef.id;
+    if (conv.linkedRef.type === "vehicle") params.vehicleId = conv.linkedRef.id;
+  }
+  return params;
+}
+
 // ---------- Befehle ----------
 export function applyCommand(state, command, params) {
   migrateState(state);
@@ -707,6 +818,9 @@ export function applyCommand(state, command, params) {
       if (o.status !== "offered") throw new Error("Auftrag ist nicht mehr verfügbar.");
       if (o.acceptDeadlineMin <= state.gameTime) throw new Error("Die Annahmefrist ist abgelaufen.");
       o.status = "angenommen"; o.acceptedAtMin = state.gameTime;
+      o.acceptedById = "player"; o.acceptedByName = state.private.playerName;
+      o.history = o.history || [];
+      o.history.push({ type: "accepted", min: state.gameTime, actor: "player", actorName: state.private.playerName });
       if (state.tutorial.active && state.tutorial.step === 0) state.tutorial.step = 1;
       result = { ok: true, orderId: o.id };
       break;
@@ -764,6 +878,10 @@ export function applyCommand(state, command, params) {
       v.status = "on_trip"; v.tripId = trip.id;
       d.status = "on_trip";
       o.status = "unterwegs"; o.startedAtMin = state.gameTime;
+      o.plannedById = "player"; o.plannedByName = state.private.playerName;
+      o.history = o.history || [];
+      o.history.push({ type: "planned", min: state.gameTime, actor: "player", actorName: state.private.playerName, details: { vehicleId: v.id, driverId: d.id, startMin: state.gameTime, endMin: plan.endMin, fuelCents: fuel, tollCents: toll } });
+      o.history.push({ type: "started", min: state.gameTime, actor: "player", actorName: state.private.playerName, details: { tripId: trip.id, vehicleId: v.id, driverId: d.id } });
       if (state.tutorial.active && state.tutorial.step === 1) state.tutorial.step = 2;
       result = { ok: true, tripId: trip.id, fuelCents: fuel, tollCents: toll, totalKm: plan.totalKm, endMin: plan.endMin, legs: plan.legs };
       break;
@@ -905,6 +1023,11 @@ export function applyCommand(state, command, params) {
       state.hiredApplicantNames.push(app.name + ":" + app.role);
       state.availableApplicants = state.availableApplicants.filter(a => a.id !== app.id);
       refreshApplicants(state);
+      // Einfuehrungsnachricht an GF
+      const newHire = role === "driver"
+        ? state.drivers[state.drivers.length - 1]
+        : (state.employees || []).find(e => e.name === app.name && e.role === role);
+      if (newHire) onEmployeeHired(state, newHire, state.gameTime);
       break;
     }
 
@@ -1240,6 +1363,122 @@ export function applyCommand(state, command, params) {
       if (per.status === "closed") throw new Error("Periode bereits abgeschlossen.");
       per.status = "closed"; per.closedAtMin = state.gameTime; per.closedBy = p.actor || "player";
       result = { ok: true, periodId: per.id };
+      break;
+    }
+
+    // ---------- Postfach ----------
+
+    case "sendMail": {
+      const { conversationId, toId, subject, body, intentType } = p;
+      if (!body || !body.trim()) throw new Error("Nachrichtentext darf nicht leer sein.");
+      if (body.length > 10000) throw new Error("Nachricht darf maximal 10.000 Zeichen haben.");
+
+      let conv = null;
+      if (conversationId) {
+        conv = (state.mail?.conversations || []).find(c => c.id === conversationId);
+        if (!conv) throw new Error("Gespraech nicht gefunden.");
+      }
+
+      let recipientId = toId;
+      if (conv && !recipientId) {
+        recipientId = conv.participantIds.find(id => id !== "player");
+      }
+      if (!recipientId) throw new Error("Empfaenger erforderlich.");
+
+      const recipient = getPersonInfo(state, recipientId);
+      if (!recipient) throw new Error("Empfaenger nicht gefunden.");
+
+      // Intent erkennen
+      let intent = null;
+      if (intentType) {
+        intent = getIntentByType(intentType, recipient.roleKey);
+      } else {
+        intent = detectIntent(body, { recipientRoleKey: recipient.roleKey });
+      }
+
+      // Bei operativer Freigabe: Sperre pruefen
+      if (intent && intent.requiresDecision) {
+        ensureNotBlocked(state);
+      }
+
+      // Nachricht senden
+      const msg = deliverMessage(state, {
+        fromId: "player",
+        toId: recipientId,
+        subject: subject || (conv ? "Re: " + conv.subject : "Neue Nachricht"),
+        body,
+        gameTime: state.gameTime,
+        category: conv?.category || "operations",
+        priority: "normal",
+        conversationId: conv?.id,
+        intent,
+        status: "delivered",
+      });
+
+      // Staff-Task erstellen
+      if (intent && intent.createsTask) {
+        createStaffTask(state, {
+          employeeId: recipientId,
+          conversationId: msg.conversationId,
+          messageId: msg.id,
+          type: intent.type,
+          params: { body, conversationId: msg.conversationId, ...extractTaskParams(body, state, conv) },
+          earliestProcessMin: state.gameTime + 15,
+        });
+      } else if (!intent && !recipient.isFormer) {
+        createStaffTask(state, {
+          employeeId: recipientId,
+          conversationId: msg.conversationId,
+          messageId: msg.id,
+          type: "no_intent",
+          params: { body },
+          earliestProcessMin: state.gameTime + 15,
+        });
+      }
+
+      result = { ok: true, messageId: msg.id, conversationId: msg.conversationId, intent };
+      break;
+    }
+
+    case "saveDraft": {
+      const draft = saveDraft(state, p);
+      result = { ok: true, draftId: draft.id };
+      break;
+    }
+
+    case "deleteDraft": {
+      deleteDraft(state, p.draftId);
+      result = { ok: true };
+      break;
+    }
+
+    case "markMessageRead": {
+      markMessageRead(state, p.messageId, p.read !== false);
+      result = { ok: true };
+      break;
+    }
+
+    case "markConversationRead": {
+      markConversationRead(state, p.conversationId);
+      result = { ok: true };
+      break;
+    }
+
+    case "starMessage": {
+      starMessage(state, p.messageId, p.starred !== false);
+      result = { ok: true };
+      break;
+    }
+
+    case "archiveMessage": {
+      archiveMessage(state, p.messageId, p.archived !== false);
+      result = { ok: true };
+      break;
+    }
+
+    case "exportCorrespondence": {
+      const data = exportCorrespondence(state);
+      result = { ok: true, export: data };
       break;
     }
 

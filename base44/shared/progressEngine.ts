@@ -6,6 +6,7 @@
 import { ACHIEVEMENTS, XP_LEVELS, COMPANY_STAGES, GOAL_TEMPLATES } from "./achievementCatalog.ts";
 import { PERSONNEL_ROLES, PORTRAIT_IDS, DRIVER_COST_PER_DAY, HIRE_FEE } from "./gameRules.ts";
 import { migrateAccounting } from "./accountingEngine.ts";
+import { migrateMail } from "./mailEngine.ts";
 
 // --- Vermögensberechnungen ---
 
@@ -199,6 +200,9 @@ export function migrateState(state) {
 
   // ---------- Buchhaltungs-Migration (Auftrag 12) ----------
   migrateAccounting(state);
+
+  // ---------- Postfach-Migration (Auftrag 13) ----------
+  migrateMail(state);
 
   return state;
 }
