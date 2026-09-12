@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { EASE } from "@/lib/motion";
 import { Check, Calendar, Truck, Package, Info, X, Bell } from "lucide-react";
@@ -16,7 +16,8 @@ const KIND_STYLES = {
 
 export default function ToastStack({ toasts, onDismiss }) {
   const navigate = useNavigate();
-  const visible = toasts.slice(0, MAX_VISIBLE);
+  const visible = useMemo(() => toasts.slice(0, MAX_VISIBLE), [toasts]);
+  const visibleIds = useMemo(() => new Set(visible.map(t => t.id)), [visible]);
   const overflow = toasts.length - MAX_VISIBLE;
   const pausedRef = useRef(false);
   const timersRef = useRef({});
@@ -28,9 +29,7 @@ export default function ToastStack({ toasts, onDismiss }) {
 
   const pauseAll = useCallback(() => {
     pausedRef.current = true;
-    for (const [id, timer] of Object.entries(timersRef.current)) {
-      clearTimeout(timer);
-    }
+    for (const timer of Object.values(timersRef.current)) clearTimeout(timer);
   }, []);
 
   const resumeAll = useCallback(() => {
@@ -40,17 +39,28 @@ export default function ToastStack({ toasts, onDismiss }) {
     }
   }, [visible, startTimer]);
 
+  // Timer für neue Toasts starten, alte Toasts aufräumen — ohne bestehende Timer zurückzusetzen.
   useEffect(() => {
     for (const t of visible) {
       if (!timersRef.current[t.id]) {
         startTimer(t.id, t.duration || DEFAULT_DURATION);
       }
     }
+    for (const id of Object.keys(timersRef.current)) {
+      if (!visibleIds.has(id)) {
+        clearTimeout(timersRef.current[id]);
+        delete timersRef.current[id];
+      }
+    }
+  }, [visible, visibleIds, startTimer]);
+
+  // Alle Timer beim Unmount aufräumen.
+  useEffect(() => {
     return () => {
       for (const timer of Object.values(timersRef.current)) clearTimeout(timer);
       timersRef.current = {};
     };
-  }, [visible, startTimer]);
+  }, []);
 
   const handleAction = (toast) => {
     if (toast.action?.targetType === "order") navigate("/auftraege");
