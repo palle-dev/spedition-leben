@@ -83,16 +83,54 @@ export function getVehicleGeoPosition(vehicle, state, routeData) {
   if (vehicle.status === "on_trip" && vehicle.tripId) {
     const trip = state.trips.find(t => t.id === vehicle.tripId);
     if (!trip || trip.status !== "in_progress") return cityGeo || null;
-    const leg = trip.legs[trip.currentLeg];
-    if (!leg) return cityGeo || null;
-    if (leg.type === "load" || leg.type === "unload") return CITY_GEO[leg.fromCity] || cityGeo || null;
-    const dur = leg.endMin - leg.startMin;
-    const progress = dur > 0 ? Math.min(1, Math.max(0, (state.gameTime - leg.startMin) / dur)) : 0;
-    const route = getRouteGeometry(leg.fromCity, leg.toCity, routeData);
-    if (route) return interpolateAlongRoute(route.coordinates, progress);
-    const from = CITY_GEO[leg.fromCity], to = CITY_GEO[leg.toCity];
-    if (!from || !to) return cityGeo || null;
-    return [from[0] + (to[0] - from[0]) * progress, from[1] + (to[1] - from[1]) * progress];
+    const phases = trip.phases || trip.legs || [];
+    const idx = trip.currentPhase !== undefined ? trip.currentPhase : trip.currentLeg;
+    if (idx === undefined || idx >= phases.length) return cityGeo || null;
+    const phase = phases[idx];
+
+    // Laden/Entladen: an der Stadt
+    if (phase.type === "load" || phase.type === "loading" || phase.type === "unload" || phase.type === "unloading") {
+      return CITY_GEO[phase.fromCity] || cityGeo || null;
+    }
+
+    // Fahrt: entlang Route interpolieren
+    if (phase.type === "empty_drive" || phase.type === "loaded_drive" || phase.type === "empty" || phase.type === "drive") {
+      const dur = phase.endMin - phase.startMin;
+      const progress = dur > 0 ? Math.min(1, Math.max(0, (state.gameTime - phase.startMin) / dur)) : 0;
+      const route = getRouteGeometry(phase.fromCity, phase.toCity, routeData);
+      if (route) return interpolateAlongRoute(route.coordinates, progress);
+      const from = CITY_GEO[phase.fromCity], to = CITY_GEO[phase.toCity];
+      if (!from || !to) return cityGeo || null;
+      return [from[0] + (to[0] - from[0]) * progress, from[1] + (to[1] - from[1]) * progress];
+    }
+
+    // Pause/Ruhe: an Position des letzten Fahr-Abschnitts bleiben
+    if (phase.type === "break" || phase.type === "daily_rest") {
+      let lastDrive = null;
+      for (let i = idx - 1; i >= 0; i--) {
+        const p = phases[i];
+        if (p.type === "empty_drive" || p.type === "loaded_drive" || p.type === "empty" || p.type === "drive") { lastDrive = p; break; }
+      }
+      if (lastDrive) {
+        const stepFrom = lastDrive.fromCity, stepTo = lastDrive.toCity;
+        let totalDur = 0, cumDur = 0;
+        for (let i = 0; i < phases.length; i++) {
+          const p = phases[i];
+          const isDrive = p.type === "empty_drive" || p.type === "loaded_drive" || p.type === "empty" || p.type === "drive";
+          if (isDrive && p.fromCity === stepFrom && p.toCity === stepTo) {
+            totalDur += (p.endMin - p.startMin);
+            if (i < idx) cumDur += (p.endMin - p.startMin);
+          }
+        }
+        const progress = totalDur > 0 ? cumDur / totalDur : 0;
+        const route = getRouteGeometry(stepFrom, stepTo, routeData);
+        if (route) return interpolateAlongRoute(route.coordinates, progress);
+        const from = CITY_GEO[stepFrom], to = CITY_GEO[stepTo];
+        if (!from || !to) return cityGeo || null;
+        return [from[0] + (to[0] - from[0]) * progress, from[1] + (to[1] - from[1]) * progress];
+      }
+      return cityGeo || null;
+    }
   }
   return cityGeo || null;
 }
@@ -100,26 +138,32 @@ export function getVehicleGeoPosition(vehicle, state, routeData) {
 // --- GeoJSON für Tour-Routen ---
 
 export function buildTripRouteGeoJSON(trip, routeData) {
-  if (!trip?.legs) return { type: "FeatureCollection", features: [] };
+  const phases = trip?.phases || trip?.legs || [];
+  if (!phases || phases.length === 0) return { type: "FeatureCollection", features: [] };
+  const idx = trip.currentPhase !== undefined ? trip.currentPhase : trip.currentLeg;
   const features = [];
-  for (const leg of trip.legs) {
-    if (leg.type === "load" || leg.type === "unload") continue;
-    const route = getRouteGeometry(leg.fromCity, leg.toCity, routeData);
-    const isCurrent = trip.legs[trip.currentLeg] === leg;
-    const isPast = trip.legs.indexOf(leg) < trip.currentLeg;
+  for (let i = 0; i < phases.length; i++) {
+    const phase = phases[i];
+    const t = phase.type;
+    // Nur Fahr-Phasen zeichnen; Pause/Ruhe/Laden/Entladen überspringen
+    if (t === "load" || t === "loading" || t === "unload" || t === "unloading" || t === "break" || t === "daily_rest") continue;
+    const route = getRouteGeometry(phase.fromCity, phase.toCity, routeData);
+    const isCurrent = i === idx;
+    const isPast = i < idx;
+    const legType = (t === "empty" || t === "empty_drive") ? "empty" : "drive";
     if (route) {
       features.push({
         type: "Feature",
         geometry: { type: "LineString", coordinates: route.coordinates },
-        properties: { tripId: trip.id, legType: leg.type, fromCity: leg.fromCity, toCity: leg.toCity, isCurrent, isPast, fallback: false }
+        properties: { tripId: trip.id, legType, fromCity: phase.fromCity, toCity: phase.toCity, isCurrent, isPast, fallback: false }
       });
     } else {
-      const from = CITY_GEO[leg.fromCity], to = CITY_GEO[leg.toCity];
+      const from = CITY_GEO[phase.fromCity], to = CITY_GEO[phase.toCity];
       if (from && to) {
         features.push({
           type: "Feature",
           geometry: { type: "LineString", coordinates: [from, to] },
-          properties: { tripId: trip.id, legType: leg.type, fromCity: leg.fromCity, toCity: leg.toCity, isCurrent, isPast, fallback: true }
+          properties: { tripId: trip.id, legType, fromCity: phase.fromCity, toCity: phase.toCity, isCurrent, isPast, fallback: true }
         });
       }
     }
@@ -158,22 +202,25 @@ export function buildTourRouteGeoJSON(plan, routeData) {
 
   for (let di = 0; di < allDeps.length; di++) {
     const dep = allDeps[di];
-    const isReturn = di > 0 || dep.orderId === null; // Erster Einsatz = Hin, weitere = Rück/Leer
-    for (const leg of dep.legs || []) {
-      if (leg.type === "load" || leg.type === "unload") continue;
-      const route = getRouteGeometry(leg.fromCity, leg.toCity, routeData);
-      const coords = route ? route.coordinates : [CITY_GEO[leg.fromCity], CITY_GEO[leg.toCity]].filter(Boolean);
+    const isReturn = di > 0 || dep.orderId === null;
+    const depPhases = dep.phases || dep.legs || [];
+    for (const phase of depPhases) {
+      const t = phase.type;
+      if (t === "load" || t === "loading" || t === "unload" || t === "unloading" || t === "break" || t === "daily_rest") continue;
+      const route = getRouteGeometry(phase.fromCity, phase.toCity, routeData);
+      const coords = route ? route.coordinates : [CITY_GEO[phase.fromCity], CITY_GEO[phase.toCity]].filter(Boolean);
       if (!coords || coords.length < 2) continue;
+      const legType = (t === "empty" || t === "empty_drive") ? "empty" : "drive";
       features.push({
         type: "Feature",
         geometry: { type: "LineString", coordinates: coords },
         properties: {
-          legType: leg.type,
-          fromCity: leg.fromCity,
-          toCity: leg.toCity,
+          legType,
+          fromCity: phase.fromCity,
+          toCity: phase.toCity,
           depIndex: di,
           isReturn,
-          isOutbound: di === 0 && leg.type !== "empty_drive",
+          isOutbound: di === 0 && t !== "empty_drive" && t !== "empty",
           fallback: !route,
           tourLeg: true,
         },
@@ -186,8 +233,9 @@ export function buildTourRouteGeoJSON(plan, routeData) {
   const seenCities = new Set();
   for (let di = 0; di < allDeps.length; di++) {
     const dep = allDeps[di];
-    const startCity = dep.legs?.[0]?.fromCity || dep.fromCity;
-    const endCity = dep.legs?.[dep.legs.length - 1]?.toCity || dep.toCity;
+    const depPhases = dep.phases || dep.legs || [];
+    const startCity = depPhases[0]?.fromCity || dep.fromCity;
+    const endCity = depPhases[depPhases.length - 1]?.toCity || dep.toCity;
     const startKey = `${di}_start_${startCity}`;
     const endKey = `${di}_end_${endCity}`;
     const depIsReturn = di > 0 || (allDeps[di].orderId === null);

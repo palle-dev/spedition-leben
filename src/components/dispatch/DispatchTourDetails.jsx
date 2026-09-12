@@ -2,16 +2,21 @@ import React from "react";
 import { vehicleDisplayName, driverDisplayName } from "@/lib/displayHelpers";
 import { formatGameTime, formatEuro } from "@/lib/gameData";
 import { hasRealGeometry } from "@/lib/geoData";
-import { ArrowLeft, MapPin, Clock, Package, Truck, CheckCircle2, AlertTriangle, Fuel, CreditCard, User } from "lucide-react";
+import { phaseLabel } from "@/lib/driverTimeEngine";
+import { ArrowLeft, MapPin, Clock, Package, Truck, CheckCircle2, AlertTriangle, Fuel, CreditCard, User, Coffee, Moon } from "lucide-react";
 
 export default function DispatchTourDetails({ trip, state, routeData, onBack, onShowOnMap, onShowVehicle }) {
   const vehicle = state.vehicles.find(v => v.id === trip.vehicleId);
   const driver = state.drivers.find(d => d.id === trip.driverId);
   const order = state.orders.find(o => o.id === trip.orderId);
-  const currentLeg = trip.legs[trip.currentLeg];
-  const hasGeometry = trip.legs.every(l =>
-    l.type === "load" || l.type === "unload" || hasRealGeometry(l.fromCity, l.toCity, routeData)
-  );
+  const phases = trip.phases || trip.legs || [];
+  const currentIdx = trip.currentPhase !== undefined ? trip.currentPhase : trip.currentLeg;
+  const currentPhase = phases[currentIdx];
+  const hasGeometry = phases.every(p => {
+    const t = p.type;
+    if (t === "load" || t === "loading" || t === "unload" || t === "unloading" || t === "break" || t === "daily_rest") return true;
+    return hasRealGeometry(p.fromCity, p.toCity, routeData);
+  });
 
   const buffer = order ? order.deliveryDeadlineMin - trip.endMin : null;
 
@@ -33,8 +38,8 @@ export default function DispatchTourDetails({ trip, state, routeData, onBack, on
       {/* Phase timeline */}
       <div className="space-y-1.5">
         <div className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground mb-2">Phasen</div>
-        {trip.legs.map((leg, i) => (
-          <PhaseRow key={i} leg={leg} isCurrent={i === trip.currentLeg} isPast={i < trip.currentLeg} gameTime={state.gameTime} />
+        {phases.map((phase, i) => (
+          <PhaseRow key={i} phase={phase} isCurrent={i === currentIdx} isPast={i < currentIdx} gameTime={state.gameTime} />
         ))}
       </div>
 
@@ -42,12 +47,14 @@ export default function DispatchTourDetails({ trip, state, routeData, onBack, on
       <div className="glass border border-white/10 rounded-lg p-3">
         <div className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground mb-1">Aktueller Abschnitt</div>
         <div className="text-sm text-foreground flex items-center gap-1.5">
-          <MapPin className="w-3.5 h-3.5 text-lime" />
-          {currentLeg ? phaseDescription(currentLeg) : "Angekommen"}
+          {currentPhase?.type === "break" ? <Coffee className="w-3.5 h-3.5 text-amber-300" /> :
+           currentPhase?.type === "daily_rest" ? <Moon className="w-3.5 h-3.5 text-indigo-300" /> :
+           <MapPin className="w-3.5 h-3.5 text-lime" />}
+          {currentPhase ? phaseDescription(currentPhase) : "Angekommen"}
         </div>
-        {currentLeg && (
+        {currentPhase && (
           <div className="text-xs text-muted-foreground mt-1 tabular-nums">
-            {formatGameTime(currentLeg.startMin)} – {formatGameTime(currentLeg.endMin)}
+            {formatGameTime(currentPhase.startMin)} – {formatGameTime(currentPhase.endMin)}
           </div>
         )}
       </div>
@@ -83,7 +90,9 @@ export default function DispatchTourDetails({ trip, state, routeData, onBack, on
       {/* Driver rest info */}
       {driver?.status === "on_trip" && (
         <div className="text-[11px] text-muted-foreground/70 leading-relaxed">
-          Nach Abschluss ruht {driverDisplayName(driver)} bis {formatGameTime(trip.endMin + 480)}.
+          {driver.workMinutesSinceRest >= 480
+            ? `Nach Abschluss ruht ${driverDisplayName(driver)} für 12 Stunden (erschöpftes Arbeitsbudget).`
+            : `Arbeitsbudget nach Abschluss: ${480 - (driver.workMinutesSinceRest || 0)} min verbleibend – kein Ruhezeitbedarf.`}
         </div>
       )}
 
@@ -114,20 +123,24 @@ export default function DispatchTourDetails({ trip, state, routeData, onBack, on
   );
 }
 
-function PhaseRow({ leg, isCurrent, isPast, gameTime }) {
-  const label = leg.type === "empty" || leg.type === "empty_drive" ? "Leerfahrt"
-    : leg.type === "load" ? "Laden"
-    : leg.type === "drive" ? "Beladene Fahrt"
-    : leg.type === "unload" ? "Entladen" : leg.type;
+function PhaseRow({ phase, isCurrent, isPast, gameTime }) {
+  const label = phaseLabel(phase.type) || phase.type;
+  const isBreak = phase.type === "break";
+  const isRest = phase.type === "daily_rest";
+  const isStationary = isBreak || isRest || phase.type === "load" || phase.type === "loading" || phase.type === "unload" || phase.type === "unloading";
 
-  const dotColor = isCurrent ? "bg-lime" : isPast ? "bg-lime/40" : "bg-white/20";
+  const dotColor = isCurrent ? (isBreak ? "bg-amber-300" : isRest ? "bg-indigo-300" : "bg-lime") : isPast ? "bg-lime/40" : "bg-white/20";
   const textColor = isCurrent ? "text-foreground" : isPast ? "text-foreground/60" : "text-muted-foreground";
 
   let progress = null;
-  if (isCurrent && leg.type !== "load" && leg.type !== "unload") {
-    const dur = leg.endMin - leg.startMin;
-    progress = dur > 0 ? Math.min(1, Math.max(0, (gameTime - leg.startMin) / dur)) : 0;
+  if (isCurrent && !isStationary) {
+    const dur = phase.endMin - phase.startMin;
+    progress = dur > 0 ? Math.min(1, Math.max(0, (gameTime - phase.startMin) / dur)) : 0;
   }
+
+  const route = isStationary
+    ? (phase.fromCity || "—")
+    : `${phase.fromCity} → ${phase.toCity}`;
 
   return (
     <div className="flex items-start gap-2.5">
@@ -137,12 +150,12 @@ function PhaseRow({ leg, isCurrent, isPast, gameTime }) {
       </div>
       <div className={`flex-1 pb-2 ${textColor}`}>
         <div className="text-xs font-medium flex items-center justify-between">
-          <span>{label}: {leg.fromCity} → {leg.toCity}</span>
+          <span>{label}: {route}</span>
           {isCurrent && <span className="text-[9px] text-lime uppercase tracking-wider">aktiv</span>}
         </div>
         <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
-          {formatGameTime(leg.startMin)} – {formatGameTime(leg.endMin)}
-          {leg.distanceKm ? ` · ${leg.distanceKm} km` : ""}
+          {formatGameTime(phase.startMin)} – {formatGameTime(phase.endMin)}
+          {phase.distanceKm ? ` · ${phase.distanceKm} km` : ""}
         </div>
         {progress != null && (
           <div className="w-full h-0.5 rounded-full bg-white/10 mt-1.5 overflow-hidden">
@@ -154,12 +167,15 @@ function PhaseRow({ leg, isCurrent, isPast, gameTime }) {
   );
 }
 
-function phaseDescription(leg) {
-  if (leg.type === "load") return `Laden in ${leg.fromCity}`;
-  if (leg.type === "unload") return `Entladen in ${leg.toCity}`;
-  if (leg.type === "empty" || leg.type === "empty_drive") return `Leerfahrt nach ${leg.toCity}`;
-  if (leg.type === "drive") return `Unterwegs nach ${leg.toCity}`;
-  return leg.type;
+function phaseDescription(phase) {
+  const t = phase.type;
+  if (t === "load" || t === "loading") return `Laden in ${phase.fromCity}`;
+  if (t === "unload" || t === "unloading") return `Entladen in ${phase.toCity}`;
+  if (t === "break") return `Fahrpause`;
+  if (t === "daily_rest") return `Ruhezeit`;
+  if (t === "empty" || t === "empty_drive") return `Leerfahrt nach ${phase.toCity}`;
+  if (t === "drive" || t === "loaded_drive") return `Unterwegs nach ${phase.toCity}`;
+  return t;
 }
 
 function Row({ icon: Icon, label, value, tone }) {

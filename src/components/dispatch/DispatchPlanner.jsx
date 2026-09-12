@@ -2,10 +2,11 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useGame } from "@/lib/gameContext";
 import {
   CITIES, getDistance, driveMinutes, fuelEur, tollEur, formatEuro, formatGameTime,
-  LOAD_MIN, UNLOAD_MIN, MAX_DUTY_MIN
+  LOAD_MIN, UNLOAD_MIN, WORK_BUDGET_MIN
 } from "@/lib/gameData";
+import { buildPhases, buildWorkSteps, summarizePhases, phaseLabel } from "@/lib/driverTimeEngine";
 import { vehicleDisplayName, driverDisplayName, driverInitials, driverAvatarClass } from "@/lib/displayHelpers";
-import { Truck, Users, Play, ArrowLeft, AlertTriangle, Package, MapPin, Clock, Fuel, CreditCard, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Truck, Users, Play, ArrowLeft, AlertTriangle, Package, MapPin, Clock, Fuel, CreditCard, ArrowRight, CheckCircle2, Coffee, Moon } from "lucide-react";
 
 export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChange, preselectedVehicleId }) {
   const { state, send, showToast } = useGame();
@@ -19,28 +20,28 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
 
   const plan = useMemo(() => {
     if (!order || !vehicle) return null;
-    let t = state.gameTime, totalKm = 0, emptyKm = 0, driveKm = 0;
-    const legs = [];
-    if (vehicle.locationCity !== order.fromCity) {
-      const d = getDistance(vehicle.locationCity, order.fromCity);
-      emptyKm = d; totalKm += d;
-      const dur = driveMinutes(d);
-      legs.push({ type: "Leerfahrt", from: vehicle.locationCity, to: order.fromCity, dur });
-      t += dur;
-    }
-    legs.push({ type: "Laden", from: order.fromCity, to: order.fromCity, dur: LOAD_MIN });
-    t += LOAD_MIN;
-    const d = getDistance(order.fromCity, order.toCity);
-    driveKm = d; totalKm += d;
-    const dur = driveMinutes(d);
-    legs.push({ type: "Fahrt", from: order.fromCity, to: order.toCity, dur });
-    t += dur;
-    legs.push({ type: "Entladen", from: order.toCity, to: order.toCity, dur: UNLOAD_MIN });
-    t += UNLOAD_MIN;
+    const workSteps = buildWorkSteps(vehicle.locationCity, order);
+    const counters = driver
+      ? { workMin: driver.workMinutesSinceRest || 0, driveMin: driver.driveMinutesSinceBreak || 0 }
+      : { workMin: 0, driveMin: 0 };
+    const result = buildPhases(workSteps, counters, state.gameTime);
+    const totalKm = workSteps.reduce((s, step) => s + (step.distanceKm || 0), 0);
+    const emptyKm = vehicle.locationCity !== order.fromCity ? getDistance(vehicle.locationCity, order.fromCity) : 0;
+    const driveKm = getDistance(order.fromCity, order.toCity);
+    const summary = summarizePhases(result.phases);
     const fuel = fuelEur(totalKm, vehicle.consumptionPer100km);
     const toll = tollEur(totalKm);
-    return { emptyKm, driveKm, totalKm, totalDuration: t - state.gameTime, endMin: t, fuel, toll, legs };
-  }, [order, vehicle, state.gameTime]);
+    return {
+      emptyKm, driveKm, totalKm,
+      totalDuration: result.endMin - state.gameTime,
+      endMin: result.endMin,
+      fuel, toll,
+      phases: result.phases,
+      summary,
+      finalWorkMin: result.finalWorkMin,
+      needsRest: result.finalWorkMin >= WORK_BUDGET_MIN,
+    };
+  }, [order, vehicle, driver, state.gameTime]);
 
   const validation = useMemo(() => {
     if (!vehicle || !driver) return null;
@@ -50,7 +51,6 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
     if (vehicle.condition < 20) return "Fahrzeugzustand unter 20 – Wartung erforderlich.";
     if (vehicle.locationCity !== driver.locationCity) return "Fahrer und Lkw sind an verschiedenen Orten.";
     if (order.tons > vehicle.capacityTons) return `Überladung: ${order.tons} t überschreiten ${vehicle.capacityTons} t Nutzlast.`;
-    if (plan && plan.totalDuration > MAX_DUTY_MIN) return `Einsatzdauer überschreitet 8 Stunden (${Math.floor(plan.totalDuration / 60)} h ${plan.totalDuration % 60} min).`;
     if (state.company.accountCents < (plan ? (plan.fuel + plan.toll) * 100 : 0)) return "Firmenkonto reicht für Kraftstoff und Maut nicht aus.";
     return null;
   }, [vehicle, driver, order, plan, state.gameTime, state.company.accountCents]);
@@ -194,16 +194,22 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
       {plan && (
         <div className="space-y-2 border-t border-white/10 pt-3">
           <div className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground mb-1">Vorschau</div>
-          {plan.legs.map((l, i) => (
+          {plan.phases.map((p, i) => (
             <div key={i} className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">{l.type}: {l.from} <ArrowRight className="w-3 h-3 inline" /> {l.to}</span>
-              <span className="text-foreground/70 tabular-nums">{Math.floor(l.dur / 60)} h {l.dur % 60} min</span>
+              <span className="text-muted-foreground flex items-center gap-1">
+                {(p.type === "break") && <Coffee className="w-3 h-3 text-amber-300" />}
+                {(p.type === "daily_rest") && <Moon className="w-3 h-3 text-indigo-300" />}
+                {phaseLabel(p.type)}: {p.fromCity && p.toCity && p.fromCity !== p.toCity ? <>{p.fromCity} <ArrowRight className="w-3 h-3 inline" /> {p.toCity}</> : p.fromCity || ""}
+              </span>
+              <span className="text-foreground/70 tabular-nums">{Math.floor(p.durationMin / 60)} h {p.durationMin % 60} min</span>
             </div>
           ))}
           <div className="space-y-1.5 pt-2 border-t border-white/10">
             <SummaryRow label="Leerfahrt" value={`${plan.emptyKm} km`} />
             <SummaryRow label="Beladene Fahrt" value={`${plan.driveKm} km`} />
-            <SummaryRow label="Einsatzdauer" value={`${Math.floor(plan.totalDuration / 60)} h ${plan.totalDuration % 60} min`} warn={plan.totalDuration > MAX_DUTY_MIN} />
+            <SummaryRow label="Einsatzdauer" value={`${Math.floor(plan.totalDuration / 60)} h ${plan.totalDuration % 60} min`} />
+            {plan.summary.breakCount > 0 && <SummaryRow icon={Coffee} label="Fahrpausen" value={`${plan.summary.breakCount}× 45 min`} />}
+            {plan.summary.restCount > 0 && <SummaryRow icon={Moon} label="Ruhezeiten" value={`${plan.summary.restCount}× 12 h`} />}
             <SummaryRow label="Ankunft" value={formatGameTime(plan.endMin)} />
             <SummaryRow label="Fristpuffer" value={buffer != null ? `${buffer >= 0 ? "+" : ""}${Math.floor(Math.abs(buffer) / 60)} h ${Math.abs(buffer) % 60} min` : "—"} tone={buffer >= 0 ? "ok" : "late"} />
             <SummaryRow icon={Fuel} label="Kraftstoff" value={formatEuro(plan.fuel * 100)} />

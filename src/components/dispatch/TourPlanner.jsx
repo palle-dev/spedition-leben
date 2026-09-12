@@ -207,7 +207,11 @@ function TourPreview({ plan }) {
               </div>
               <div className="text-[10px] text-muted-foreground/70 mt-0.5">
                 {formatGameTime(dep.startMin)} – {formatGameTime(dep.endMin)}
-                {dep.restEndMin && dep.restEndMin > dep.endMin && <span className="text-sky-300/70"> · Erholung bis {formatGameTime(dep.restEndMin)}</span>}
+                {dep.finalWorkMin != null && (
+                  <span className={dep.finalWorkMin >= 480 ? "text-amber-300/70" : "text-muted-foreground/50"}>
+                    {" · "}Arbeitsbudget: {dep.finalWorkMin}/480 min
+                  </span>
+                )}
               </div>
             </div>
             <div className="text-right shrink-0">

@@ -2,7 +2,7 @@
 // Wandelt interne IDs in Anzeigenamen um, berechnet Fahrzeugpositionen
 // und ermittelt das nächste Spielereignis — alles aus vorhandenem Zustand.
 
-import { CITY_COORDS } from "./gameData";
+import { CITY_COORDS, clockOf, formatGameTime } from "./gameData";
 
 // Lkw-Anzeigename: "v1" → "Lkw 01", "v12" → "Lkw 12"
 export function vehicleDisplayName(v) {
@@ -85,7 +85,7 @@ export function workModeLabel(mode) {
   return labels[mode] || { label: mode || "—", desc: "" };
 }
 
-// Fahrzeugposition aus Trip-Fortschritt ableiten (rein aus Zustand)
+// Fahrzeugposition aus Trip-Phasen-Fortschritt ableiten (rein aus Zustand)
 export function getVehiclePosition(vehicle, state) {
   if (!vehicle) return null;
   if (vehicle.status === "free" || vehicle.status === "maintenance") {
@@ -94,18 +94,52 @@ export function getVehiclePosition(vehicle, state) {
   if (vehicle.status === "on_trip" && vehicle.tripId) {
     const trip = state.trips.find(t => t.id === vehicle.tripId);
     if (!trip || trip.status !== "in_progress") return CITY_COORDS[vehicle.locationCity] || null;
-    const leg = trip.legs[trip.currentLeg];
-    if (!leg) return CITY_COORDS[vehicle.locationCity] || null;
-    const fromC = CITY_COORDS[leg.fromCity];
-    const toC = CITY_COORDS[leg.toCity];
-    if (!fromC || !toC) return CITY_COORDS[vehicle.locationCity] || null;
-    if (leg.type === "load" || leg.type === "unload") return fromC;
-    const dur = leg.endMin - leg.startMin;
-    const progress = dur > 0 ? Math.min(1, Math.max(0, (state.gameTime - leg.startMin) / dur)) : 0;
-    return {
-      x: fromC.x + (toC.x - fromC.x) * progress,
-      y: fromC.y + (toC.y - fromC.y) * progress
-    };
+    const phases = trip.phases || trip.legs || [];
+    const currentIdx = trip.currentPhase !== undefined ? trip.currentPhase : trip.currentLeg;
+    if (currentIdx === undefined || currentIdx >= phases.length) return CITY_COORDS[vehicle.locationCity] || null;
+    const phase = phases[currentIdx];
+
+    // Laden/Entladen: an der Stadt
+    if (phase.type === "loading" || phase.type === "unloading" || phase.type === "load" || phase.type === "unload") {
+      return CITY_COORDS[phase.fromCity] || CITY_COORDS[vehicle.locationCity] || null;
+    }
+
+    // Fahrt: interpolieren
+    if (phase.type === "empty_drive" || phase.type === "loaded_drive" || phase.type === "empty" || phase.type === "drive") {
+      const fromC = CITY_COORDS[phase.fromCity];
+      const toC = CITY_COORDS[phase.toCity];
+      if (!fromC || !toC) return CITY_COORDS[vehicle.locationCity] || null;
+      const dur = phase.endMin - phase.startMin;
+      const progress = dur > 0 ? Math.min(1, Math.max(0, (state.gameTime - phase.startMin) / dur)) : 0;
+      return { x: fromC.x + (toC.x - fromC.x) * progress, y: fromC.y + (toC.y - fromC.y) * progress };
+    }
+
+    // Pause/Ruhe: an der Position des letzten Fahr-Abschnitts bleiben
+    if (phase.type === "break" || phase.type === "daily_rest") {
+      let lastDrive = null;
+      for (let i = currentIdx - 1; i >= 0; i--) {
+        const p = phases[i];
+        if (p.type === "empty_drive" || p.type === "loaded_drive" || p.type === "empty" || p.type === "drive") { lastDrive = p; break; }
+      }
+      if (lastDrive) {
+        const stepFrom = lastDrive.fromCity, stepTo = lastDrive.toCity;
+        let totalDist = 0, cumDist = 0;
+        for (let i = 0; i < phases.length; i++) {
+          const p = phases[i];
+          const isDrive = p.type === "empty_drive" || p.type === "loaded_drive" || p.type === "empty" || p.type === "drive";
+          if (isDrive && p.fromCity === stepFrom && p.toCity === stepTo) {
+            totalDist += p.distanceKm || 0;
+            if (i < currentIdx) cumDist += p.distanceKm || 0;
+          }
+        }
+        const fromC = CITY_COORDS[stepFrom], toC = CITY_COORDS[stepTo];
+        if (fromC && toC && totalDist > 0) {
+          const frac = cumDist / totalDist;
+          return { x: fromC.x + (toC.x - fromC.x) * frac, y: fromC.y + (toC.y - fromC.y) * frac };
+        }
+      }
+      return CITY_COORDS[vehicle.locationCity] || null;
+    }
   }
   return CITY_COORDS[vehicle.locationCity] || null;
 }
@@ -113,13 +147,28 @@ export function getVehiclePosition(vehicle, state) {
 // Aktuelle Phase eines Trips für die Anzeige
 export function tripPhaseLabel(trip) {
   if (!trip || trip.status !== "in_progress") return "—";
-  const leg = trip.legs[trip.currentLeg];
-  if (!leg) return "Angekommen";
-  if (leg.type === "empty" || leg.type === "empty_drive") return "Leerfahrt";
-  if (leg.type === "load") return "Laden";
-  if (leg.type === "drive") return "Beladene Fahrt";
-  if (leg.type === "unload") return "Entladen";
-  return leg.type;
+  const phases = trip.phases || trip.legs || [];
+  const idx = trip.currentPhase !== undefined ? trip.currentPhase : trip.currentLeg;
+  if (idx === undefined || idx >= phases.length) return "Angekommen";
+  const phase = phases[idx];
+  const labels = {
+    empty_drive: "Leerfahrt", loading: "Laden", loaded_drive: "Beladene Fahrt",
+    break: "Fahrpause", daily_rest: "Ruhezeit", unloading: "Entladen",
+    empty: "Leerfahrt", load: "Laden", drive: "Beladene Fahrt", unload: "Entladen",
+  };
+  return labels[phase.type] || phase.type;
+}
+
+// Detaillierter Status für Fahrer/Fahrzeug-Anzeige (Pause/Ruhe)
+export function tripStatusDetail(trip) {
+  if (!trip || trip.status !== "in_progress") return null;
+  const phases = trip.phases || [];
+  const idx = trip.currentPhase !== undefined ? trip.currentPhase : 0;
+  if (idx >= phases.length) return null;
+  const phase = phases[idx];
+  if (phase.type === "break") return { label: "Fahrpause bis " + clockOf(phase.endMin), isPaused: true };
+  if (phase.type === "daily_rest") return { label: "Ruhezeit bis " + formatGameTime(phase.endMin), isPaused: true };
+  return null;
 }
 
 // Nächstes Spielereignis aus Zustand ableiten
@@ -129,9 +178,11 @@ export function getNextEvent(state) {
   const events = [];
 
   for (const trip of state.trips) {
-    if (trip.status === "in_progress" && trip.currentLeg < trip.legs.length) {
-      const leg = trip.legs[trip.currentLeg];
-      events.push({ min: leg.endMin, type: "trip", label: phaseShort(leg.type), icon: "truck" });
+    const phases = trip.phases || trip.legs || [];
+    const idx = trip.currentPhase !== undefined ? trip.currentPhase : trip.currentLeg;
+    if (trip.status === "in_progress" && idx !== undefined && idx < phases.length) {
+      const phase = phases[idx];
+      events.push({ min: phase.endMin, type: "trip", label: phaseShort(phase.type), icon: "truck" });
     }
   }
   for (const a of state.appointments) {
@@ -165,8 +216,10 @@ export function getNextEvent(state) {
 
 function phaseShort(type) {
   if (type === "empty" || type === "empty_drive") return "Leerfahrt";
-  if (type === "load") return "Laden";
-  if (type === "drive") return "Fahrt";
-  if (type === "unload") return "Entladen";
+  if (type === "load" || type === "loading") return "Laden";
+  if (type === "drive" || type === "loaded_drive") return "Fahrt";
+  if (type === "unload" || type === "unloading") return "Entladen";
+  if (type === "break") return "Fahrpause";
+  if (type === "daily_rest") return "Ruhezeit";
   return "Fahrtabschnitt";
 }
