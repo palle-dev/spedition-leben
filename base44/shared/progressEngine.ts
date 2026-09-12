@@ -19,6 +19,7 @@ import { migrateRewards } from "./rewardEngine.ts";
 import { migratePurchases } from "./purchaseEngine.ts";
 import { migrateWorkshop } from "./workshopEngine.ts";
 import { migratePersonnelMarket } from "./personnelMarketEngine.ts";
+import { migrateSatisfaction } from "./satisfactionEngine.ts";
 import { getVehicleBookValue, MONTH_MIN } from "./accountingEngine.ts";
 import { VEHICLE_REFERENCE_PRICE } from "./gameRules.ts";
 
@@ -271,6 +272,9 @@ export function migrateState(state) {
 
   // ---------- Personalmarkt-Migration (Auftrag 29) ----------
   migratePersonnelMarket(state);
+
+  // ---------- Zufriedenheits-Migration (Auftrag 30) ----------
+  migrateSatisfaction(state);
 
   return state;
 }

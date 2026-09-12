@@ -102,6 +102,13 @@ import {
   toggleWatchlist, getPersonnelMarketStatus, computeRoleTargets,
   countAvailableByRole,
 } from "./personnelMarketEngine.ts";
+import {
+  migrateSatisfaction, processDailySatisfaction, processDailyRecovery,
+  processTerminationWarnings, getSatisfactionDetail, getTeamClimate,
+  payPersonWages, raiseSalary, giveBonus, prepareConversation,
+  conductConversation, completeConversation, prepareRetentionConversation,
+  conductRetentionConversation, cancelSelfTermination,
+} from "./satisfactionEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -315,7 +322,7 @@ export function createInitialState(names) {
 }
 
 // ---------- Tagesabrechnung ----------
-function payCost(state, account, amountCents, cause, refId, min) {
+function payCost(state, account, amountCents, cause, refId, min, opts) {
   if (account === "private") {
     const bal = state.private.accountCents;
     const paid = Math.min(bal, amountCents);
@@ -331,6 +338,7 @@ function payCost(state, account, amountCents, cause, refId, min) {
     expenseAccount: expenseAcct, liabilityAccount: "2120",
     amountCents, text: cause, type: causeKey.toLowerCase().replace(/\s/g, "_"),
     gameTime: min, refId,
+    employeeId: opts?.employeeId || null,
   });
   return { paid: r.paidCents, unpaid: r.unpaidCents };
 }
@@ -372,7 +380,7 @@ function doDailyAccounting(state, midnight) {
   const drivers = [...state.drivers].sort((a, b) => (a.id < b.id ? -1 : 1));
   for (const d of drivers) {
     if (!isActivelyEmployed(d)) continue;
-    const r = payCost(state, "company", DRIVER_COST_PER_DAY, "Fahrerlohn: " + d.name, d.id, midnight);
+    const r = payCost(state, "company", DRIVER_COST_PER_DAY, "Fahrerlohn: " + d.name, d.id, midnight, { employeeId: d.id });
     log.push({ cause: "Fahrerlohn", driver: d.name, paid: r.paid, unpaid: r.unpaid });
   }
   for (const b of state.branches) {
@@ -386,7 +394,7 @@ function doDailyAccounting(state, midnight) {
       : emp.role === "cleaner" || emp.role === "mechanic" ? "Reinigung und Werkstatt"
       : emp.role === "accountant" || emp.role === "accountant_senior" ? "Buchhaltung"
       : "Lohn";
-    const r = payCost(state, "company", emp.costPerDayCents, causeLabel + ": " + emp.name, emp.id, midnight);
+    const r = payCost(state, "company", emp.costPerDayCents, causeLabel + ": " + emp.name, emp.id, midnight, { employeeId: emp.id });
     log.push({ cause: causeLabel, employee: emp.name, role: emp.role, paid: r.paid, unpaid: r.unpaid });
   }
   const w = doWithdrawal(state, midnight);
@@ -402,6 +410,10 @@ function doDailyAccounting(state, midnight) {
   }
   state.stats.lastBalanceDay = day;
   state.lastDailyAccountingMin = midnight;
+  // Auftrag 30: Zufriedenheitsregeln, Erholung und Kündigungsrisiken
+  processDailySatisfaction(state, midnight);
+  processDailyRecovery(state, midnight);
+  processTerminationWarnings(state, midnight);
   return log;
 }
 
@@ -469,6 +481,10 @@ function earliestEventAfter(state, t, maxMin) {
     if (nextReg <= maxMin) cand(nextReg);
     const nextDemand = state.personnelMarket?.nextDemandWaveMin;
     if (nextDemand && nextDemand > t && nextDemand <= maxMin) cand(nextDemand);
+  }
+  // Gespräche (Auftrag 30): Endzeit aktiver Gesprächstermine
+  for (const a of (state.appointments || [])) {
+    if (a.type === "conversation" && a.status === "active" && a.endMin > t && a.endMin <= maxMin) cand(a.endMin);
   }
   return best;
 }
@@ -593,7 +609,14 @@ function processEventsAt(state, m, log) {
     } else if (a.status === "active" && a.endMin === m) {
       a.status = "done";
       if (!a.effectsApplied) {
-        if (a.type === "invitation" || a.type === "invitation_ersatz") {
+        if (a.type === "conversation") {
+          // Auftrag 30: Gesprächsabschluss
+          completeConversation(state, a.conversationId, m);
+          // Bleibegespräch: Kündigung zurücknehmen wenn Voraussetzungen erfüllt
+          if (a.personId) cancelSelfTermination(state, a.personId, m);
+          a.effectsApplied = true;
+          log.push({ type: "conversation_completed", appointment: a.id, conversationId: a.conversationId });
+        } else if (a.type === "invitation" || a.type === "invitation_ersatz") {
           state.private.relationship = clamp(state.private.relationship + 8, 0, 100);
           state.private.stress = clamp(state.private.stress - 15, 0, 100);
           state.private.happiness = clamp(state.private.happiness + 5, 0, 100);
@@ -2254,6 +2277,61 @@ export function applyCommand(state, command, params) {
 
     case "toggleApplicantWatchlist": {
       const r = toggleWatchlist(state, p.applicantId);
+      result = r;
+      break;
+    }
+
+    // ---------- Zufriedenheit (Auftrag 30) ----------
+
+    case "getSatisfactionDetail": {
+      result = getSatisfactionDetail(state, p.personId);
+      break;
+    }
+
+    case "getTeamClimate": {
+      result = getTeamClimate(state);
+      break;
+    }
+
+    case "payPersonWages": {
+      ensureNotBlocked(state);
+      const r = payPersonWages(state, p.personId, p.itemIds);
+      result = r;
+      break;
+    }
+
+    case "raiseSalary": {
+      ensureNotBlocked(state);
+      const r = raiseSalary(state, p.personId, p.newDailyWageCents);
+      result = r;
+      break;
+    }
+
+    case "giveBonus": {
+      ensureNotBlocked(state);
+      const r = giveBonus(state, p.personId);
+      result = r;
+      break;
+    }
+
+    case "prepareConversation": {
+      result = prepareConversation(state, p.personId);
+      break;
+    }
+
+    case "conductConversation": {
+      const r = conductConversation(state, p.personId);
+      result = r;
+      break;
+    }
+
+    case "prepareRetentionConversation": {
+      result = prepareRetentionConversation(state, p.personId);
+      break;
+    }
+
+    case "conductRetentionConversation": {
+      const r = conductRetentionConversation(state, p.personId);
       result = r;
       break;
     }
