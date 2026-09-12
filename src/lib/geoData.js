@@ -148,6 +148,65 @@ export function buildPlanRouteGeoJSON(fromCity, toCity, hasEmpty, emptyFrom, emp
   return { type: "FeatureCollection", features };
 }
 
+// --- GeoJSON für Tour-Ketten (Mehrfachauftrags-Touren) ---
+
+export function buildTourRouteGeoJSON(plan, routeData) {
+  if (!plan || !plan.deployments) return { type: "FeatureCollection", features: [] };
+  const features = [];
+  const allDeps = [...plan.deployments];
+  if (plan.returnDeployment) allDeps.push(plan.returnDeployment);
+
+  for (let di = 0; di < allDeps.length; di++) {
+    const dep = allDeps[di];
+    const isReturn = di > 0 || dep.orderId === null; // Erster Einsatz = Hin, weitere = Rück/Leer
+    for (const leg of dep.legs || []) {
+      if (leg.type === "load" || leg.type === "unload") continue;
+      const route = getRouteGeometry(leg.fromCity, leg.toCity, routeData);
+      const coords = route ? route.coordinates : [CITY_GEO[leg.fromCity], CITY_GEO[leg.toCity]].filter(Boolean);
+      if (!coords || coords.length < 2) continue;
+      features.push({
+        type: "Feature",
+        geometry: { type: "LineString", coordinates: coords },
+        properties: {
+          legType: leg.type,
+          fromCity: leg.fromCity,
+          toCity: leg.toCity,
+          depIndex: di,
+          isReturn,
+          isOutbound: di === 0 && leg.type !== "empty_drive",
+          fallback: !route,
+          tourLeg: true,
+        },
+      });
+    }
+  }
+
+  // Stop-Marker (numeriert)
+  const stops = [];
+  const seenCities = new Set();
+  for (let di = 0; di < allDeps.length; di++) {
+    const dep = allDeps[di];
+    const startCity = dep.legs?.[0]?.fromCity || dep.fromCity;
+    const endCity = dep.legs?.[dep.legs.length - 1]?.toCity || dep.toCity;
+    const startKey = `${di}_start_${startCity}`;
+    const endKey = `${di}_end_${endCity}`;
+    if (!seenCities.has(startKey)) {
+      const geo = CITY_GEO[startCity];
+      if (geo) features.push({ type: "Feature", geometry: { type: "Point", coordinates: geo }, properties: { stopType: "stop", stopIndex: stops.length + 1, city: startCity, depIndex: di } });
+      seenCities.add(startKey);
+      stops.push(startCity);
+    }
+    if (!seenCities.has(endKey)) {
+      const geo = CITY_GEO[endCity];
+      if (geo) features.push({ type: "Feature", geometry: { type: "Point", coordinates: geo }, properties: { stopType: "stop", stopIndex: stops.length + 1, city: endCity, depIndex: di } });
+      seenCities.add(endKey);
+      stops.push(endCity);
+    }
+  }
+
+  return { type: "FeatureCollection", features };
+}
+
 // --- Bounding Box ---
 
 export function getTripBounds(trip, routeData) {

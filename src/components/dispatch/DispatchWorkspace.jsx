@@ -5,7 +5,9 @@ import { formatGameTime, formatEuro, CITIES, getDistance, driveMinutes, fuelEur,
 import DispatchTourList from "./DispatchTourList";
 import DispatchTourDetails from "./DispatchTourDetails";
 import DispatchPlanner from "./DispatchPlanner";
-import { Truck, Users, Package, ArrowRight, Play, AlertTriangle } from "lucide-react";
+import TourPlanner from "./TourPlanner";
+import DispatchAssistant from "./DispatchAssistant";
+import { Truck, Users, Package, ArrowRight, Play, AlertTriangle, Sparkles, Route } from "lucide-react";
 
 export default function DispatchWorkspace({
   activeTab, setActiveTab,
@@ -13,6 +15,7 @@ export default function DispatchWorkspace({
   planningOrderId, onPlanOrder, onPlanChange, onStarted,
   selectedVehicleId, onSelectVehicle,
   onShowOnMap, onShowVehicle,
+  onPlanRoute,
   search, routeData
 }) {
   const { state, send, showToast } = useGame();
@@ -22,9 +25,11 @@ export default function DispatchWorkspace({
   const [emptyVehicleId, setEmptyVehicleId] = useState("");
   const [emptyDriverId, setEmptyDriverId] = useState("");
   const [startingEmpty, setStartingEmpty] = useState(false);
+  const [tourOrderId, setTourOrderId] = useState(null);
 
   const running = state.trips.filter(t => t.status === "in_progress");
   const accepted = state.orders.filter(o => o.status === "angenommen" && !state.trips.some(t => t.orderId === o.id && t.status === "in_progress"));
+  const activeTours = (state.tours || []).filter(t => t.status === "active");
   const searchLower = (search || "").toLowerCase();
 
   const filteredTrips = running.filter(t => {
@@ -57,6 +62,8 @@ export default function DispatchWorkspace({
       <div className="flex border-b border-white/10 shrink-0 px-2 pt-1">
         <TabButton active={activeTab === "touren"} onClick={() => setActiveTab("touren")} label="Touren" count={running.length} icon={Truck} />
         <TabButton active={activeTab === "auftraege"} onClick={() => setActiveTab("auftraege")} label="Aufträge" count={accepted.length} icon={Package} />
+        <TabButton active={activeTab === "tour"} onClick={() => setActiveTab("tour")} label="Tour" icon={Route} />
+        <TabButton active={activeTab === "assistent"} onClick={() => setActiveTab("assistent")} label="Assistent" icon={Sparkles} />
         <TabButton active={activeTab === "flotte"} onClick={() => setActiveTab("flotte")} label="Flotte" count={state.vehicles.length} icon={Users} />
       </div>
 
@@ -130,6 +137,53 @@ export default function DispatchWorkspace({
               </button>
             </div>
           )
+        )}
+
+        {activeTab === "tour" && (
+          tourOrderId ? (
+            <TourPlanner
+              primaryOrderId={tourOrderId}
+              onBack={() => { setTourOrderId(null); onPlanRoute?.(null); }}
+              onConfirmed={(r) => { setTourOrderId(null); onPlanRoute?.(null); onStarted?.(r); }}
+              onPlanRoute={onPlanRoute}
+            />
+          ) : (
+            <div className="space-y-3">
+              <div className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground">Hin- und Rücktour planen</div>
+              <div className="text-xs text-muted-foreground/70 bg-surface-2/50 rounded-lg px-3 py-2.5 border border-white/5">
+                Wähle einen Hinauftrag. Der Assistent sucht dann Rückladungen am Zielort und prüft Erholung, Fristen und Liquidität.
+              </div>
+              {(state.orders.filter(o => o.status === "offered" || o.status === "angenommen")).length === 0 ? (
+                <div className="text-xs text-muted-foreground text-center py-4">Keine Aufträge verfügbar.</div>
+              ) : (
+                (state.orders.filter(o => o.status === "offered" || o.status === "angenommen")).map(o => (
+                  <button
+                    key={o.id}
+                    onClick={() => setTourOrderId(o.id)}
+                    className="w-full text-left rounded-xl p-3 border border-white/10 hover:border-lime/30 bg-surface/30 transition active:scale-[0.99]"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium truncate">{o.customer}</span>
+                      <span className="text-lime text-xs font-medium tabular-nums shrink-0">{formatEuro(o.paymentCents)}</span>
+                    </div>
+                    <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        {o.fromCity} <ArrowRight className="w-3 h-3" /> {o.toCity} · {o.tons} t
+                      </span>
+                      <span className={o.status === "offered" ? "text-amber-300" : "text-lime"}>{o.status === "offered" ? "Offen" : "Angenommen"}</span>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          )
+        )}
+
+        {activeTab === "assistent" && (
+          <DispatchAssistant
+            onPlanRoute={onPlanRoute}
+            onConfirmTour={(r) => { onStarted?.(r); }}
+          />
         )}
 
         {activeTab === "flotte" && (

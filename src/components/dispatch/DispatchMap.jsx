@@ -192,10 +192,10 @@ function setupLayers(map) {
       "line-opacity": ["case", ["get", "isSelected"], 1, 0.2]
     }
   });
-  // Planungs-Vorschau
+  // Planungs-Vorschau (auch für Tour-Ketten mit mehreren Beinen)
   map.addLayer({
     id: "plan-empty", type: "line", source: "plan-route",
-    filter: ["==", ["get", "legType"], "empty"],
+    filter: ["match", ["get", "legType"], ["empty", "empty_drive"], true, false],
     layout: { "line-cap": "round" },
     paint: { "line-color": "#FF9E7A", "line-width": 3, "line-opacity": 0.7, "line-dasharray": [3, 2] }
   });
@@ -204,6 +204,28 @@ function setupLayers(map) {
     filter: ["==", ["get", "legType"], "drive"],
     layout: { "line-cap": "round" },
     paint: { "line-color": "#D5FB83", "line-width": 4, "line-opacity": 0.7 }
+  });
+  // Tour-Stopps (nummeriert)
+  map.addLayer({
+    id: "plan-stops", type: "circle", source: "plan-route",
+    filter: ["==", ["get", "stopType"], "stop"],
+    paint: {
+      "circle-radius": 9,
+      "circle-color": ["case", ["get", "isReturn"], "#FF9E7A", "#D5FB83"],
+      "circle-stroke-width": 2,
+      "circle-stroke-color": "#0b1011"
+    }
+  });
+  map.addLayer({
+    id: "plan-stop-labels", type: "symbol", source: "plan-route",
+    filter: ["==", ["get", "stopType"], "stop"],
+    layout: {
+      "text-field": ["to-string", ["get", "stopIndex"]],
+      "text-size": 12,
+      "text-anchor": "center",
+      "text-offset": [0, 0.05]
+    },
+    paint: { "text-color": "#0b1011" }
   });
   // Städte
   map.addLayer({

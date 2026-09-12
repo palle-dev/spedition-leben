@@ -187,6 +187,7 @@ export default function Dispatch() {
             onSelectVehicle={handleSelectVehicle}
             onShowOnMap={(tripId) => { setFocusAction({ type: "trip", tripId }); if (window.innerWidth < 1024) setMobileView("map"); }}
             onShowVehicle={(vehicleId) => { setFocusAction({ type: "vehicle", vehicleId }); if (window.innerWidth < 1024) setMobileView("map"); }}
+            onPlanRoute={(geojson) => setPlanRoute(geojson)}
             search={search}
             routeData={routeData}
           />

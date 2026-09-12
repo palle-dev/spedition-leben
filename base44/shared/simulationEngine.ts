@@ -11,6 +11,10 @@ import {
   VEHICLE_PRICE, HIRE_FEE, MAINTENANCE_COST, MAINTENANCE_DURATION,
   INVITATION_COST, STRESS_MAINT_THRESHOLD, MAINT_STRESS_FACTOR
 } from "./gameRules.ts";
+import {
+  buildTourPlan, confirmTour as doConfirmTour, cancelTour as doCancelTour,
+  processTours, onTripCompleted, findReturnLoads, suggestTours
+} from "./tourEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -97,6 +101,7 @@ export function createInitialState(names) {
     ],
     orders: [],
     trips: [],
+    tours: [],
     appointments: [],
     bookings: [],
     openCosts: [],
@@ -228,6 +233,14 @@ function earliestEventAfter(state, t, maxMin) {
   if (!state.tutorialInviteCreated) cand(720);
   for (const d of state.drivers) { if (d.status === "resting" && d.restUntil !== null) cand(d.restUntil); }
   for (const v of state.vehicles) { if (v.status === "maintenance" && v.maintenanceUntil !== null) cand(v.maintenanceUntil); }
+  // Tour-Deployment-Startzeiten
+  for (const tour of state.tours || []) {
+    if (tour.status !== "active") continue;
+    for (const dep of tour.deployments) {
+      if (dep.status === "planned") cand(dep.startMin);
+    }
+    if (tour.returnDeployment && tour.returnDeployment.status === "planned") cand(tour.returnDeployment.startMin);
+  }
   return best;
 }
 function completeTrip(state, trip, m, log) {
@@ -240,6 +253,8 @@ function completeTrip(state, trip, m, log) {
   vehicle.condition = Math.max(0, vehicle.condition - 1);
   driver.status = "resting"; driver.restUntil = m + REST_MIN; driver.locationCity = finalCity;
   if (trip.type === "empty") {
+    // Tour-Verknüpfung prüfen
+    onTripCompleted(state, trip, m, log);
     log.push({ type: "emptytrip_completed", trip: trip.id, vehicle: vehicle.id, driver: driver.id, atCity: finalCity });
     return;
   }
@@ -254,6 +269,8 @@ function completeTrip(state, trip, m, log) {
   checkMilestones(state, m);
   if (state.tutorial.active && state.tutorial.step === 2) state.tutorial.step = 3;
   log.push({ type: "delivery", trip: trip.id, order: order.id, onTime, paymentCents: payment });
+  // Tour-Verknüpfung: Deployment als abgeschlossen markieren
+  onTripCompleted(state, trip, m, log);
 }
 function processEventsAt(state, m, log) {
   // 1. Lieferabschlüsse (vor Fristprüfung)
@@ -304,6 +321,8 @@ function processEventsAt(state, m, log) {
   // 3. Erholung / Wartung
   for (const d of state.drivers) { if (d.status === "resting" && d.restUntil === m) { d.status = "free"; d.restUntil = null; log.push({ type: "rest_end", driver: d.id }); } }
   for (const v of state.vehicles) { if (v.status === "maintenance" && v.maintenanceUntil === m) { v.status = "free"; v.maintenanceUntil = null; v.condition = 100; log.push({ type: "maintenance_end", vehicle: v.id }); } }
+  // 3b. Tour-automatische Folge-Einsätze starten (nach Erholung, vor Tagesabrechnung)
+  processTours(state, m, log);
   // 4. Tagesabrechnung (Mitternacht)
   if (m % 1440 === 0 && m > 0) {
     const dlog = doDailyAccounting(state, m);
@@ -635,6 +654,65 @@ export function applyCommand(state, command, params) {
     case "dismissTutorial": {
       state.tutorial.active = false;
       result = { ok: true };
+      break;
+    }
+
+    // ---------- Tourenketten ----------
+
+    case "planTour": {
+      // Rein lesende Vorschau – keine Zustandsänderung, kein Zufall.
+      const plan = buildTourPlan(state, {
+        vehicleId: p.vehicleId,
+        driverId: p.driverId,
+        orderIds: p.orderIds || [],
+        desiredEndCity: p.desiredEndCity || null,
+        latestReturnMin: p.latestReturnMin || null,
+      });
+      if (plan.error) throw new Error(plan.error);
+      result = { ok: true, plan };
+      break;
+    }
+
+    case "confirmTour": {
+      ensureNotBlocked(state);
+      const r = doConfirmTour(state, {
+        vehicleId: p.vehicleId,
+        driverId: p.driverId,
+        orderIds: p.orderIds || [],
+        desiredEndCity: p.desiredEndCity || null,
+        latestReturnMin: p.latestReturnMin || null,
+      });
+      result = r;
+      break;
+    }
+
+    case "cancelTour": {
+      ensureNotBlocked(state);
+      const r = doCancelTour(state, p.tourId);
+      result = r;
+      break;
+    }
+
+    case "findReturnLoads": {
+      // Rein lesend – keine Zustandsänderung.
+      const r = findReturnLoads(state, p.primaryOrderId, p.vehicleId, p.driverId);
+      if (r.error) throw new Error(r.error);
+      result = { ok: true, candidates: r.candidates };
+      break;
+    }
+
+    case "suggestTours": {
+      // Rein lesend – keine Zustandsänderung.
+      const r = suggestTours(state, {
+        vehicleIds: p.vehicleIds,
+        earliestStart: p.earliestStart,
+        horizonMin: p.horizonMin || 2880,
+        desiredEndCity: p.desiredEndCity || null,
+        latestReturnMin: p.latestReturnMin || null,
+        mode: p.mode || "balanced",
+        acceptNew: p.acceptNew !== false,
+      });
+      result = { ok: true, suggestions: r.suggestions };
       break;
     }
 
