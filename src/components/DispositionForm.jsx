@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
 import { CITIES, getDistance, driveMinutes, fuelEur, tollEur, formatEuro, formatGameTime, LOAD_MIN, UNLOAD_MIN, MAX_DUTY_MIN } from "@/lib/gameData";
 import { Truck, Users, Play, ArrowRight, AlertTriangle, MapPin, Clock, Package } from "lucide-react";
+import { vehicleDisplayName } from "@/lib/displayHelpers";
 
 // Dispositionsformular für die seitliche Disposition.
 // Wird im Drawer (von Büro/Aufträge) und auf der Disposition-Seite verwendet.
@@ -92,7 +93,7 @@ export default function DispositionForm({ orderId, onClose, onSuccess }) {
       <div className="space-y-3">
         <SelectField label="Fahrzeug" icon={Truck} value={vehicleId} onChange={setVehicleId}>
           <option value="">– wählen –</option>
-          {freeVehicles.map(v => <option key={v.id} value={v.id}>{v.id} · {v.locationCity} · Zustand {v.condition}</option>)}
+          {freeVehicles.map(v => <option key={v.id} value={v.id}>{vehicleDisplayName(v)} · {v.locationCity} · Zustand {v.condition}</option>)}
         </SelectField>
         <SelectField label="Fahrer" icon={Users} value={driverId} onChange={setDriverId}>
           <option value="">– wählen –</option>

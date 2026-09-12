@@ -2,14 +2,18 @@ import React from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatGameTime, euroSigned } from "@/lib/gameData";
 import { BookOpen, Truck, Heart, Trophy, Package, Euro } from "lucide-react";
+import { vehicleDisplayName } from "@/lib/displayHelpers";
 
 export default function Journal() {
   const { state } = useGame();
   const events = [];
 
-  state.bookings.forEach(b => events.push({ min: b.min, icon: "euro", text: `${b.cause} [${b.account}]`, amount: b.amountCents }));
+  state.bookings.forEach(b => events.push({ min: b.min, icon: "euro", text: `${b.cause} (${b.account === "company" ? "Firma" : "Privat"})`, amount: b.amountCents }));
   state.trips.forEach(t => {
-    if (t.status === "completed") events.push({ min: t.endMin, icon: "truck", text: `Fahrt ${t.id} abgeschlossen in ${t.legs[t.legs.length - 1].toCity}` });
+    if (t.status === "completed") {
+      const v = state.vehicles.find(x => x.id === t.vehicleId);
+      events.push({ min: t.endMin, icon: "truck", text: `${vehicleDisplayName(v)} abgeschlossen in ${t.legs[t.legs.length - 1].toCity}` });
+    }
   });
   state.appointments.forEach(a => {
     if (a.status === "done") events.push({ min: a.endMin, icon: "heart", text: `Termin beendet: ${labelOf(a)}` });

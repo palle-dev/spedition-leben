@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useGame } from "@/lib/gameContext";
-import { Building2, Plus, Play } from "lucide-react";
+import { Plus, Play } from "lucide-react";
+import FernwerkLogo from "@/components/brand/FernwerkLogo";
 import { formatGameTime, formatEuro } from "@/lib/gameData";
 
 const OFFICE_URL = "https://media.base44.com/images/public/6aa52ebc01a939da57f8b78f/af8b503ab_office_cinematic.png";
@@ -34,11 +35,12 @@ export default function StartScreen() {
 
       <div className="relative z-10 max-w-lg w-full">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-lime/10 border border-lime/40 mb-4">
-            <Building2 className="w-8 h-8 text-lime" />
+          <div className="flex justify-center mb-5">
+            <FernwerkLogo size={48} showWord={false} />
           </div>
-          <h1 className="text-3xl font-medium tracking-tight text-foreground">Spedition &amp; Leben</h1>
-          <p className="text-muted-foreground mt-2 text-sm">Eine Wirtschaftssimulation über Transport, Unternehmertum und Privatleben.</p>
+          <h1 className="text-3xl font-bold tracking-[0.08em] uppercase text-foreground">FERNWERK</h1>
+          <p className="text-[11px] tracking-[0.04em] text-muted-foreground mt-2">Dein Unternehmen. Dein Leben. Dein Weg.</p>
+          <p className="text-muted-foreground mt-3 text-sm max-w-xs mx-auto">Die Wirtschaftssimulation über Transport, Unternehmertum und das Leben dahinter.</p>
         </div>
 
         {games.length > 0 && !showForm && (

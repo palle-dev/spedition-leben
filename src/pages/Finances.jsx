@@ -54,7 +54,7 @@ export default function Finances() {
                 <div className="min-w-0">
                   <span className="text-muted-foreground text-xs tabular-nums mr-2">{formatGameTime(b.min)}</span>
                   <span className="text-foreground/80">{b.cause}</span>
-                  <span className="text-muted-foreground/40 text-xs ml-2">[{b.account}]</span>
+                  <span className="text-muted-foreground/40 text-xs ml-2">({b.account === "company" ? "Firma" : "Privat"})</span>
                 </div>
                 <span className={`tabular-nums shrink-0 ml-3 ${b.amountCents >= 0 ? "text-lime" : "text-red-300"}`}>{euroSigned(b.amountCents)}</span>
               </div>

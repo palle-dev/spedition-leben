@@ -10,9 +10,10 @@ import { AlertTriangle, CheckCircle2, Info } from "lucide-react";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { EASE } from "@/lib/motion";
 import { formatGameTime } from "@/lib/gameData";
+import EventOverlay from "@/components/EventOverlay";
 
 export default function GameShell() {
-  const { state, loading, toast, motionEnabled } = useGame();
+  const { state, loading, toast, motionEnabled, overlay, dismissOverlay } = useGame();
   const location = useLocation();
 
   if (loading) return <LoadingScreen />;
@@ -24,26 +25,27 @@ export default function GameShell() {
 
   return (
     <MotionConfig reducedMotion={motionEnabled ? "user" : "always"}>
-    <div className="relative min-h-screen flex flex-col">
-      <SceneBackground scene={scene} motionEnabled={motionEnabled} />
-      <div className="relative z-10 flex flex-col min-h-screen">
-        <ShellHeader />
-        {blocked && (
-          <div className="relative z-20 bg-coral/10 border-b border-coral/30 px-4 lg:px-12 py-2 text-sm text-coral flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            Du bist mit einer privaten Aktivität beschäftigt. Operative Aktionen sind bis {formatGameTime(blocked.endMin)} gesperrt.
-          </div>
-        )}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden">
-          <Outlet />
-        </main>
-        <ShellDock />
+      <div className="relative h-[100dvh] flex flex-col overflow-hidden">
+        <SceneBackground scene={scene} motionEnabled={motionEnabled} />
+        <div className="relative z-10 flex flex-col h-full min-h-0">
+          <ShellHeader />
+          {blocked && (
+            <div className="relative z-20 bg-coral/10 border-b border-coral/30 px-4 lg:px-12 py-2 text-sm text-coral flex items-center gap-2 shrink-0">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              Du bist mit einer privaten Aktivität beschäftigt. Operative Aktionen sind bis {formatGameTime(blocked.endMin)} gesperrt.
+            </div>
+          )}
+          <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+            <Outlet />
+          </main>
+          <ShellDock />
+        </div>
+        {state.tutorial.active && <Tutorial />}
+        <AnimatePresence>
+          {toast && <ToastView key={toast.id} toast={toast} />}
+        </AnimatePresence>
+        <EventOverlay overlay={overlay} onDismiss={dismissOverlay} />
       </div>
-      {state.tutorial.active && <Tutorial />}
-      <AnimatePresence>
-        {toast && <ToastView key={toast.id} toast={toast} />}
-      </AnimatePresence>
-    </div>
     </MotionConfig>
   );
 }

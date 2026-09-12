@@ -7,6 +7,7 @@ import { heroStagger, heroItem, EASE } from "@/lib/motion";
 import Drawer from "@/components/ui/Drawer";
 import DispositionForm from "@/components/DispositionForm";
 import { Package, Clock, MapPin, Truck, ArrowRight, Heart, TrendingUp, CheckCircle2 } from "lucide-react";
+import { vehicleDisplayName } from "@/lib/displayHelpers";
 
 export default function Office() {
   const { state, send, showToast } = useGame();
@@ -19,7 +20,6 @@ export default function Office() {
 
   async function handleAction() {
     if (opp.actionTo) { navigate(opp.actionTo); return; }
-    if (opp.actionAdvance) { navigate("/disposition"); return; }
     if (opp.actionDispatch) { openDrawer(opp.actionDispatch); return; }
     if (opp.actionAccept) {
       setBusyId(opp.actionAccept);
@@ -33,7 +33,7 @@ export default function Office() {
 
   return (
     <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1600px] mx-auto">
-      <div className="flex flex-col lg:flex-row gap-6 lg:gap-10 items-start lg:items-center min-h-[calc(100vh-300px)]">
+      <div className="flex flex-col lg:flex-row gap-6 lg:gap-10 items-start lg:items-center">
         <Hero state={state} opp={opp} />
         <OpportunityCard opp={opp} onAction={handleAction} busyId={busyId} />
       </div>
@@ -77,7 +77,7 @@ function deriveOpportunity(state) {
       customer: o.customer, from: o.fromCity, to: o.toCity,
       meta: [{ icon: Package, text: `${o.tons} t · ${o.cargo}` }, { icon: Clock, text: `Frist ${formatGameTime(o.deliveryDeadlineMin)}` }],
       fee: o.paymentCents, actionLabel: "Transport planen", actionDispatch: o.id,
-      footnote: "Wähle Lkw und Fahrer – das Backend prüft alle Regeln.",
+      footnote: "Wähle Lkw und Fahrer – das System prüft alle Bedingungen.",
     };
   }
 
@@ -91,7 +91,7 @@ function deriveOpportunity(state) {
       title: o ? `Unterwegs nach ${o.toCity}.` : "Unterwegs.",
       customer: o ? o.customer : "Leerfahrt", from: o?.fromCity, to: o?.toCity,
       meta: [{ icon: Truck, text: legLabel(leg) }, { icon: Clock, text: `bis ${formatGameTime(leg.endMin)}` }],
-      fee: o?.paymentCents, actionLabel: "Zur Disposition", actionAdvance: true,
+      fee: o?.paymentCents, actionLabel: "Zur Disposition", actionTo: "/disposition?trip=" + t.id,
       footnote: "Deine Flotte ist unterwegs. Setze die Zeit fort, um die Lieferung abzuschließen.",
     };
   }
@@ -162,10 +162,15 @@ function deriveHero(state, opp) {
     headline: <>Deine Flotte.<br /><em className="text-lime not-italic">In Bewegung.</em></>,
     desc: "Die Tour ist geplant. Dein Fahrer übernimmt – du entscheidest, was als Nächstes kommt.",
   };
+  if (state.stats.totalDeliveries >= 10) return {
+    chapter: "Unternehmen",
+    headline: <>Deine Spedition.<br /><em className="text-lime not-italic">läuft.</em></>,
+    desc: "Zehn Lieferungen geschafft. Baue weiter auf – und vergiss das Leben nicht.",
+  };
   if (state.stats.totalDeliveries > 0) return {
     chapter: "Unternehmen",
-    headline: <>Deine Spedition.<br /><em className="text-lime not-italic">im Aufbau.</em></>,
-    desc: "Nimm Aufträge an, disponiere deine Flotte und führe dein Unternehmen zum Erfolg.",
+    headline: <>Erste Lieferung.<br /><em className="text-lime not-italic">geschafft.</em></>,
+    desc: "Der Anfang ist gemacht. Nimm den nächsten Auftrag an und disponiere deine Flotte.",
   };
   return {
     chapter: "Unternehmen",
@@ -250,12 +255,15 @@ function GameStrip({ state }) {
       <div>
         <div className="flex items-center justify-between mb-4">
           <span className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground">Dein Fuhrpark</span>
+          <span className="text-[10px] text-muted-foreground/60 tabular-nums">
+            {state.vehicles.filter(v => v.status === "free").length} frei · {state.vehicles.filter(v => v.status === "on_trip").length} unterwegs · {state.vehicles.filter(v => v.status === "maintenance").length} Wartung
+          </span>
         </div>
         <div className="flex gap-2.5">
           {vehicles.map(v => (
             <div key={v.id} className="flex-1 min-w-0 border border-white/10 rounded-lg p-3 bg-surface/40 hover:border-lime/30 transition">
               <Truck className="w-6 h-5 text-foreground/60 mb-2.5" />
-              <div className="text-[11px] font-medium">{v.id}</div>
+              <div className="text-[11px] font-medium">{vehicleDisplayName(v)}</div>
               <div className={`text-[9px] mt-1 flex items-center gap-1 ${v.status === "free" ? "text-lime" : v.status === "on_trip" ? "text-amber-300" : "text-sky-300"}`}>
                 <span className="w-1 h-1 rounded-full bg-current" />
                 {v.status === "free" ? "Bereit" : v.status === "on_trip" ? "Unterwegs" : "Wartung"}

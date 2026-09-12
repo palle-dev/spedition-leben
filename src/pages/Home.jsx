@@ -17,6 +17,7 @@ export default function Home() {
   );
   const active = state.appointments.find(a => a.status === "active");
   const upcoming = state.appointments.filter(a => ["accepted", "active"].includes(a.status)).sort((a, b) => a.startMin - b.startMin);
+  const nextAccepted = state.appointments.filter(a => a.status === "accepted").sort((a, b) => a.startMin - b.startMin)[0];
   const canWalk = state.leisureUsedDay !== dayOf(state.gameTime) && !active;
 
   const refs = { leisure: useRef(null), invitation: useRef(null), vitals: useRef(null), account: useRef(null) };
@@ -35,7 +36,7 @@ export default function Home() {
 
   return (
     <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1600px] mx-auto">
-      <div className="flex flex-col lg:flex-row gap-6 lg:gap-10 items-start lg:items-center min-h-[calc(100vh-300px)]">
+      <div className="flex flex-col lg:flex-row gap-6 lg:gap-10 items-start lg:items-center">
         {/* Hero */}
         <motion.div variants={heroStagger} initial="initial" animate="animate" className="flex-1 max-w-2xl">
           <motion.div variants={heroItem} className="flex items-center gap-3 mb-5 lg:mb-7">
@@ -106,6 +107,21 @@ export default function Home() {
                 </button>
               </div>
               {p.accountCents < 6000 && <div className="text-[10px] text-red-300 mt-2 text-center">Zusage gesperrt: Privatkonto reicht für 60 € nicht aus.</div>}
+            </>
+          ) : nextAccepted ? (
+            <>
+              <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-coral">
+                <span className="w-1.5 h-1.5 rounded-full bg-coral" />
+                Zugesagt
+              </div>
+              <h2 className="text-xl lg:text-2xl font-medium tracking-tight mt-4">Ein Abend für euch.</h2>
+              <div className="text-xs text-muted-foreground mt-1">{p.partnerName} freut sich</div>
+              <div className="flex items-center gap-3 mt-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {formatGameTime(nextAccepted.startMin)} – {formatGameTime(nextAccepted.endMin)}</span>
+              </div>
+              <div className="text-[11px] text-muted-foreground/70 mt-5 leading-relaxed border-t border-white/10 pt-4">
+                Du hast zugesagt. Der Termin steht – nutze die Zeit bis dahin.
+              </div>
             </>
           ) : (
             <>

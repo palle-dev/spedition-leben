@@ -3,6 +3,7 @@ import { useGame } from "@/lib/gameContext";
 import { formatGameTime } from "@/lib/gameData";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { UserPlus, Users, MapPin, Clock, Coffee } from "lucide-react";
+import { driverInitials, driverAvatarClass } from "@/lib/displayHelpers";
 
 export default function Personnel() {
   const { state, send, showToast } = useGame();
@@ -30,7 +31,10 @@ export default function Personnel() {
           {state.drivers.map(d => (
             <div key={d.id} className="glass border border-white/10 rounded-xl p-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 font-medium"><Users className="w-4 h-4 text-lime/70" /> {d.name}</div>
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full grid place-items-center text-sm font-semibold ${driverAvatarClass(d)}`}>{driverInitials(d)}</div>
+                  <div className="font-medium">{d.name}</div>
+                </div>
                 <StatusBadge status={d.status} />
               </div>
               <div className="grid grid-cols-2 gap-2 text-sm mt-3">

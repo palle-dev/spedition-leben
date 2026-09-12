@@ -1,12 +1,14 @@
 import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
-import { formatEuro, formatGameTime } from "@/lib/gameData";
+import { formatEuro, formatGameTime, CITIES } from "@/lib/gameData";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { Check, X, MapPin, Clock, Package, ArrowRight } from "lucide-react";
 
 export default function Orders() {
   const { state, send, showToast } = useGame();
   const [busyId, setBusyId] = useState(null);
+  const [filterCity, setFilterCity] = useState("");
+  const [sortBy, setSortBy] = useState("deadline");
 
   async function accept(o) {
     setBusyId(o.id);
@@ -21,7 +23,14 @@ export default function Orders() {
     finally { setBusyId(null); }
   }
 
-  const offered = state.orders.filter(o => o.status === "offered").sort((a, b) => a.acceptDeadlineMin - b.acceptDeadlineMin);
+  const offered = state.orders
+    .filter(o => o.status === "offered")
+    .filter(o => !filterCity || o.fromCity === filterCity)
+    .sort((a, b) => {
+      if (sortBy === "payment") return b.paymentCents - a.paymentCents;
+      if (sortBy === "accept") return a.acceptDeadlineMin - b.acceptDeadlineMin;
+      return a.deliveryDeadlineMin - b.deliveryDeadlineMin;
+    });
   const active = state.orders.filter(o => ["angenommen", "unterwegs"].includes(o.status));
   const done = state.orders.filter(o => ["geliefert", "storniert", "expired"].includes(o.status)).slice(-8);
 
@@ -34,6 +43,18 @@ export default function Orders() {
 
       <Section title="Offene Angebote" count={offered.length}>
         {offered.length === 0 ? <Empty text="Aktuell keine Angebote." /> : (
+          <>
+          <div className="flex items-center gap-3 mb-3">
+            <select value={filterCity} onChange={e => setFilterCity(e.target.value)} className="px-3 py-1.5 rounded-lg bg-surface-2 border border-white/10 text-xs text-foreground focus:border-lime/50 outline-none">
+              <option value="">Alle Startorte</option>
+              {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="px-3 py-1.5 rounded-lg bg-surface-2 border border-white/10 text-xs text-foreground focus:border-lime/50 outline-none">
+              <option value="deadline">Nach Lieferfrist</option>
+              <option value="accept">Nach Annahmefrist</option>
+              <option value="payment">Nach Vergütung</option>
+            </select>
+          </div>
           <div className="grid md:grid-cols-2 gap-3">
             {offered.map(o => (
               <div key={o.id} className="glass border border-white/10 rounded-xl p-4 hover:border-lime/30 transition">
@@ -58,6 +79,7 @@ export default function Orders() {
               </div>
             ))}
           </div>
+          </>
         )}
       </Section>
 

@@ -26,6 +26,9 @@ export function GameProvider({ children }) {
   });
   const revRef = useRef(0);
   const idRef = useRef(null);
+  const [overlay, setOverlay] = useState(null);
+  const prevMilestonesRef = useRef(new Set());
+  const dismissOverlay = useCallback(() => setOverlay(null), []);
 
   useEffect(() => {
     document.body.classList.toggle("no-motion", !motionEnabled);
@@ -45,6 +48,7 @@ export function GameProvider({ children }) {
     setStateId(data.stateId);
     idRef.current = data.stateId;
     if (data.stateId) localStorage.setItem(LS_KEY, data.stateId);
+    prevMilestonesRef.current = new Set((data.state?.milestones || []).filter(m => m.achieved).map(m => m.id));
   }, []);
 
   const reload = useCallback(async () => {
@@ -90,6 +94,35 @@ export function GameProvider({ children }) {
       }
       if (data.error) throw new Error(data.error);
       applyLoaded(data);
+      const result = data.result;
+      if (result?.events) {
+        const delivery = result.events.find(e => e.type === "delivery");
+        if (delivery) {
+          const order = data.state.orders.find(o => o.id === delivery.order);
+          const trip = data.state.trips.find(t => t.id === delivery.trip);
+          setOverlay({
+            type: "delivery",
+            data: {
+              customer: order?.customer, fromCity: order?.fromCity, toCity: order?.toCity,
+              paymentCents: delivery.paymentCents, onTime: delivery.onTime,
+              contributionCents: trip ? delivery.paymentCents - trip.fuelCents - trip.tollCents : null
+            }
+          });
+        }
+      }
+      const newMs = (data.state?.milestones || []).filter(m => m.achieved && !prevMilestonesRef.current.has(m.id));
+      if (newMs.length > 0) {
+        setOverlay({ type: "milestone", data: { name: newMs[0].name, id: newMs[0].id } });
+      }
+      if (command === "startTransport" && result?.fuelCents != null) {
+        setOverlay({ type: "transportStart", data: { fuelCents: result.fuelCents, tollCents: result.tollCents, endMin: result.endMin } });
+      }
+      if (command === "answerInvitation" && result?.choice) {
+        setOverlay({
+          type: "invitation",
+          data: { choice: result.choice, relationship: data.state.private.relationship, happiness: data.state.private.happiness, stress: data.state.private.stress }
+        });
+      }
       return data.result;
     } catch (e) {
       if (e.response && e.response.data && e.response.data.conflict) {
@@ -123,6 +156,6 @@ export function GameProvider({ children }) {
     applyLoaded(data);
   }, [applyLoaded]);
 
-  const value = { state, revision, stateId, loading, busy, toast, showToast, send, newGame, listGames, loadGame, reload, motionEnabled, toggleMotion };
+  const value = { state, revision, stateId, loading, busy, toast, showToast, send, newGame, listGames, loadGame, reload, motionEnabled, toggleMotion, overlay, dismissOverlay };
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }

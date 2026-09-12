@@ -3,6 +3,7 @@ import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime } from "@/lib/gameData";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { Wrench, Plus, Truck, MapPin, Gauge } from "lucide-react";
+import { vehicleDisplayName } from "@/lib/displayHelpers";
 
 export default function Fleet() {
   const { state, send, showToast } = useGame();
@@ -20,7 +21,7 @@ export default function Fleet() {
   }
   async function buy() {
     setBuying(true);
-    try { const r = await send("buyVehicle", {}); showToast(`Neuer Lkw ${r.vehicleId} in Hamburg übernommen.`, "success"); }
+    try { const r = await send("buyVehicle", {}); showToast("Neuer Lkw in Hamburg übernommen.", "success"); }
     catch (e) { showToast(e.message, "error"); }
     finally { setBuying(false); }
   }
@@ -47,7 +48,7 @@ export default function Fleet() {
           return (
             <div key={v.id} className="glass border border-white/10 rounded-xl p-4 hover:border-lime/20 transition">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 font-medium"><Truck className="w-4 h-4 text-lime/70" /> {v.id}</div>
+                <div className="flex items-center gap-2 font-medium"><Truck className="w-4 h-4 text-lime/70" /> {vehicleDisplayName(v)}</div>
                 <StatusBadge status={v.status} />
               </div>
               <div className="grid grid-cols-2 gap-2 text-sm mt-3">

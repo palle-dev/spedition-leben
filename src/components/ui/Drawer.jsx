@@ -48,7 +48,7 @@ export default function Drawer({ open, onClose, title, kicker, children, maxWidt
               <button
                 ref={closeRef}
                 onClick={onClose}
-                className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 grid place-items-center text-muted-foreground hover:text-foreground transition shrink-0"
+                className="w-11 h-11 rounded-full bg-white/5 hover:bg-white/10 grid place-items-center text-muted-foreground hover:text-foreground transition shrink-0"
                 aria-label="Schließen"
               >
                 <X className="w-4 h-4" />
