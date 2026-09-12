@@ -41,7 +41,7 @@ export default function DispatchAssistant({ routeData, onPlanRoute, onConfirmTou
   // Update map preview
   useEffect(() => {
     if (selected?.plan && onPlanRoute) {
-      onPlanRoute(buildTourRouteGeoJSON(selected.plan, null));
+      onPlanRoute(buildTourRouteGeoJSON(selected.plan, routeData));
     }
   }, [selected]);
 

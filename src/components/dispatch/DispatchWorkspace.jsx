@@ -7,6 +7,7 @@ import DispatchTourDetails from "./DispatchTourDetails";
 import DispatchPlanner from "./DispatchPlanner";
 import TourPlanner from "./TourPlanner";
 import DispatchAssistant from "./DispatchAssistant";
+import DispatchActiveTours from "./DispatchActiveTours";
 import { Truck, Users, Package, ArrowRight, Play, AlertTriangle, Sparkles, Route } from "lucide-react";
 
 export default function DispatchWorkspace({
@@ -80,7 +81,10 @@ export default function DispatchWorkspace({
               onShowVehicle={() => onShowVehicle?.(running.find(t => t.id === selectedTripId)?.vehicleId)}
             />
           ) : (
-            <DispatchTourList trips={filteredTrips} state={state} selectedTripId={selectedTripId} onSelectTrip={onSelectTrip} />
+            <div className="space-y-3">
+              <DispatchActiveTours tours={activeTours} state={state} onSelectTrip={onSelectTrip} />
+              <DispatchTourList trips={filteredTrips} state={state} selectedTripId={selectedTripId} onSelectTrip={onSelectTrip} />
+            </div>
           )
         )}
 

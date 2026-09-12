@@ -190,15 +190,16 @@ export function buildTourRouteGeoJSON(plan, routeData) {
     const endCity = dep.legs?.[dep.legs.length - 1]?.toCity || dep.toCity;
     const startKey = `${di}_start_${startCity}`;
     const endKey = `${di}_end_${endCity}`;
+    const depIsReturn = di > 0 || (allDeps[di].orderId === null);
     if (!seenCities.has(startKey)) {
       const geo = CITY_GEO[startCity];
-      if (geo) features.push({ type: "Feature", geometry: { type: "Point", coordinates: geo }, properties: { stopType: "stop", stopIndex: stops.length + 1, city: startCity, depIndex: di } });
+      if (geo) features.push({ type: "Feature", geometry: { type: "Point", coordinates: geo }, properties: { stopType: "stop", stopIndex: stops.length + 1, city: startCity, depIndex: di, isReturn: depIsReturn } });
       seenCities.add(startKey);
       stops.push(startCity);
     }
     if (!seenCities.has(endKey)) {
       const geo = CITY_GEO[endCity];
-      if (geo) features.push({ type: "Feature", geometry: { type: "Point", coordinates: geo }, properties: { stopType: "stop", stopIndex: stops.length + 1, city: endCity, depIndex: di } });
+      if (geo) features.push({ type: "Feature", geometry: { type: "Point", coordinates: geo }, properties: { stopType: "stop", stopIndex: stops.length + 1, city: endCity, depIndex: di, isReturn: depIsReturn } });
       seenCities.add(endKey);
       stops.push(endCity);
     }
