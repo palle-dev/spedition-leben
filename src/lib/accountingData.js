@@ -2,8 +2,6 @@
 // Spiegelt den Kontenplan und die Auswertungslogik aus base44/shared/accountingEngine.ts.
 // Wird für die Darstellung in der Finanzen-Seite verwendet.
 
-import { ACCOUNTS as SERVER_ACCOUNTS, ACCOUNT_LIST as SERVER_ACCOUNT_LIST } from "./gameDataMirror";
-
 // Kontenplan (Spiegel von accountingEngine.ts)
 export const ACCOUNTS = {
   "1000": { no: "1000", name: "Firmenbank", type: "asset", group: "current_assets" },

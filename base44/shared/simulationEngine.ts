@@ -44,6 +44,7 @@ const CAUSE_ACCOUNT_MAP = {
   "Fahrzeugkauf": "1200", "Einstellung": "5140", "Wartung": "5300",
   "Kraftstoff (Leerfahrt)": "5000", "Maut (Leerfahrt)": "5010",
   "Offene Kosten bezahlt": "2120",
+  "Disposition": "5110", "Reinigung und Werkstatt": "5130", "Buchhaltung": "5120",
 };
 
 function addBooking(state, min, cause, amountCents, account, refId) {
@@ -339,11 +340,15 @@ function doDailyAccounting(state, midnight) {
     const r = payCost(state, "company", BRANCH_COST_PER_DAY, "Standort: " + b.name, b.id, midnight);
     log.push({ cause: "Standort", branch: b.name, paid: r.paid, unpaid: r.unpaid });
   }
-  // Löhne für alle Angestellten (nicht fahrende Rollen)
+  // Löhne für alle Angestellten (nicht fahrende Rollen) – rollenspezifische Konten
   for (const emp of (state.employees || [])) {
     if (emp.employmentStatus !== "employed") continue;
-    const r = payCost(state, "company", emp.costPerDayCents, "Lohn: " + emp.name + " (" + (PERSONNEL_ROLES[emp.role]?.label || emp.role) + ")", emp.id, midnight);
-    log.push({ cause: "Lohn", employee: emp.name, role: emp.role, paid: r.paid, unpaid: r.unpaid });
+    const causeLabel = emp.role === "dispatcher" || emp.role === "dispatcher_senior" ? "Disposition"
+      : emp.role === "cleaner" || emp.role === "mechanic" ? "Reinigung und Werkstatt"
+      : emp.role === "accountant" || emp.role === "accountant_senior" ? "Buchhaltung"
+      : "Lohn";
+    const r = payCost(state, "company", emp.costPerDayCents, causeLabel + ": " + emp.name, emp.id, midnight);
+    log.push({ cause: causeLabel, employee: emp.name, role: emp.role, paid: r.paid, unpaid: r.unpaid });
   }
   const w = doWithdrawal(state, midnight);
   log.push({ cause: "Private Entnahme", done: w.done, reason: w.reason });
