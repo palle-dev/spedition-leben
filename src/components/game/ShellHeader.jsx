@@ -3,7 +3,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import MoneyText from "@/components/MoneyText";
 import FernwerkSignet from "@/components/brand/FernwerkSignet";
-import { Building2, Heart, Sparkles } from "lucide-react";
+import { Building2, Heart, Sparkles, Mail as MailIcon } from "lucide-react";
+import { getMailboxStats } from "@/lib/mailData";
 
 // Obere Statusleiste: FERNWERK-Marke, Welt-Umschaltung, beide Konten, Bewegungs-Toggle.
 export default function ShellHeader() {
@@ -11,6 +12,8 @@ export default function ShellHeader() {
   const navigate = useNavigate();
   const location = useLocation();
   const isHome = location.pathname === "/zuhause";
+  const mailStats = state?.mail ? getMailboxStats(state) : null;
+  const unreadCount = mailStats?.unread || 0;
 
   return (
     <header className="relative z-20 flex items-center gap-3 lg:gap-6 px-4 lg:px-12 h-14 lg:h-16 border-b border-white/10 backdrop-blur-md bg-ink/60 shrink-0">
@@ -50,6 +53,19 @@ export default function ShellHeader() {
         <button onClick={() => navigate("/finanzen")} className="text-left group hidden sm:block" aria-label="Privatkonto und Haushalt">
           <div className="text-[9px] lg:text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Privat</div>
           <MoneyText value={state.private.accountCents} className="text-sm lg:text-lg font-medium tracking-tight text-foreground group-hover:text-coral transition-colors" accentOnFlash="text-coral" />
+        </button>
+        <button
+          onClick={() => navigate("/postfach")}
+          className="relative w-9 h-9 grid place-items-center rounded-full border border-white/10 bg-white/5 text-muted-foreground hover:text-lime transition shrink-0"
+          aria-label={`Postfach${unreadCount > 0 ? ` – ${unreadCount} ungelesen` : ""}`}
+          title="Postfach"
+        >
+          <MailIcon className="w-4 h-4" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 grid place-items-center min-w-[16px] h-4 px-1 rounded-full bg-coral text-ink text-[9px] font-bold tabular-nums">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
         </button>
         <button
           onClick={toggleMotion}
