@@ -1,12 +1,13 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { formatEuro, formatGameTime } from "@/lib/gameData";
-import { getLiquidity, getGrowthInfo, getPrivatePreview, getDailyReport } from "@/lib/officeData";
+import { getLiquidity, getGrowthInfo, getPrivatePreview, getPersonnelStats } from "@/lib/officeData";
 import { getOpenItems } from "@/lib/accountingData";
 import { computeCreditLimit } from "@/lib/financingData";
-import { Wallet, Users, Wrench, Trophy, Heart, Clock, Gift } from "lucide-react";
+import { Wallet, Users, Trophy, Heart, Clock, Gift, ArrowRight, AlertTriangle } from "lucide-react";
 
-// Kompakte Unterseite: Finanzen, Personal/Werkstatt, Wachstum, Privatleben.
+// Vier substantielle Übersichtspanels: Finanzen, Personal, Wachstum, Privatleben.
+// Jedes Panel hat klare Hierarchie und handlungsrelevante Informationen.
 export default function OfficeBottom({ state }) {
   const navigate = useNavigate();
   const liquidity = getLiquidity(state);
@@ -14,122 +15,152 @@ export default function OfficeBottom({ state }) {
   const credit = computeCreditLimit(state);
   const growth = getGrowthInfo(state);
   const privatePreview = getPrivatePreview(state);
-  const dailyReport = getDailyReport(state);
+  const personnel = getPersonnelStats(state);
 
-  // Personalbedarf
-  const mechanics = (state.employees || []).filter(e => e.role === "mechanic" && e.employmentStatus === "employed").length;
-  const dispatchers = (state.employees || []).filter(e => (e.role === "dispatcher" || e.role === "dispatcher_senior") && e.employmentStatus === "employed").length;
-  const applicantsByRole = {};
-  for (const a of (state.availableApplicants || [])) {
-    applicantsByRole[a.role] = (applicantsByRole[a.role] || 0) + 1;
-  }
-
-  // Werkstatt-Status
-  const workshopSlots = (state.workshop?.slots || []).length;
-  const workshopOrders = (state.workshop?.maintenanceOrders || []).filter(o => ["planned", "waiting", "in_progress", "interrupted"].includes(o.status)).length;
+  const openItemsTotal = openItems.reduce((s, o) => s + o.remainingCents, 0);
+  const stages = [0, 25000000, 100000000, 500000000];
+  const currentStageIdx = stages.findIndex((s, i) => growth.companyValue >= s && (i === stages.length - 1 || growth.companyValue < stages[i + 1]));
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
       {/* Finanzen */}
-      <div className="glass border border-white/10 rounded-xl p-3">
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground flex items-center gap-1.5">
-            <Wallet className="w-3 h-3" /> Finanzen
-          </h4>
-          <button onClick={() => navigate("/finanzen")} className="text-[10px] text-lime/70 hover:text-lime transition">
-            Details →
-          </button>
-        </div>
-        <div className="space-y-1 text-xs">
-          <div className="flex justify-between"><span className="text-muted-foreground">Firmenbank</span><span className="font-medium tabular-nums">{formatEuro(liquidity.bankBalance)}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Offene Kosten</span><span className={`tabular-nums ${liquidity.openCompanyCosts > 0 ? "text-amber-300" : ""}`}>{formatEuro(liquidity.openCompanyCosts)}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Offene Posten</span><span className={`tabular-nums ${openItems.length > 0 ? "text-amber-300" : ""}`}>{formatEuro(openItems.reduce((s, o) => s + o.remainingCents, 0))}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Kreditlinie</span><span className="text-muted-foreground tabular-nums">{formatEuro(credit.available)}</span></div>
+      <Panel
+        icon={Wallet}
+        title="Finanzen"
+        to="/finanzen"
+        navigate={navigate}
+        alert={liquidity.openCompanyCosts > 0}
+      >
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between">
+            <span className="text-xs text-muted-foreground">Firmenbank</span>
+            <span className="text-lg font-semibold tabular-nums">{formatEuro(liquidity.bankBalance)}</span>
+          </div>
+          <div className="h-px bg-white/5" />
+          <Row label="Offene Kosten" value={formatEuro(liquidity.openCompanyCosts)} tone={liquidity.openCompanyCosts > 0 ? "amber" : "muted"} />
+          <Row label="Offene Posten" value={formatEuro(openItemsTotal)} tone={openItemsTotal > 0 ? "amber" : "muted"} />
+          <Row label="Kreditlinie" value={formatEuro(credit.available)} tone="muted" />
         </div>
         {liquidity.openCompanyCosts > 0 && (
           <button onClick={() => navigate("/finanzen")}
-            className="w-full mt-2 py-1.5 rounded-lg bg-amber-400/10 border border-amber-400/20 text-amber-300 text-[11px] font-medium hover:bg-amber-400/20 transition">
-            Offene Kosten begleichen
+            className="w-full mt-3 py-2 rounded-lg bg-amber-400/10 border border-amber-400/20 text-amber-300 text-xs font-medium hover:bg-amber-400/20 transition flex items-center justify-center gap-1.5">
+            <AlertTriangle className="w-3 h-3" /> Offene Kosten begleichen
           </button>
         )}
-      </div>
+      </Panel>
 
-      {/* Personal & Werkstatt */}
-      <div className="glass border border-white/10 rounded-xl p-3">
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground flex items-center gap-1.5">
-            <Users className="w-3 h-3" /> Personal & Werkstatt
-          </h4>
-          <button onClick={() => navigate("/personal")} className="text-[10px] text-lime/70 hover:text-lime transition">
-            Details →
-          </button>
+      {/* Personal */}
+      <Panel
+        icon={Users}
+        title="Personal"
+        to="/personal"
+        navigate={navigate}
+        alert={personnel.criticalSatisfaction > 0 || personnel.noticeGiven > 0}
+      >
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between">
+            <span className="text-xs text-muted-foreground">Beschäftigte</span>
+            <span className="text-lg font-semibold tabular-nums">{personnel.total}</span>
+          </div>
+          <div className="h-px bg-white/5" />
+          <Row label="Verfügbar" value={`${personnel.present}`} tone="default" />
+          <Row label="Krank / Urlaub" value={`${personnel.sick} / ${personnel.vacation}`} tone={personnel.sick > 0 ? "amber" : "muted"} />
+          <Row label="Kritische Zufriedenheit" value={`${personnel.criticalSatisfaction}`} tone={personnel.criticalSatisfaction > 0 ? "red" : "muted"} />
+          <Row label="Austritte angekündigt" value={`${personnel.noticeGiven}`} tone={personnel.noticeGiven > 0 ? "amber" : "muted"} />
+          <Row label="Bewerber offen" value={`${personnel.applicants}`} tone={personnel.applicants > 0 ? "lime" : "muted"} />
         </div>
-        <div className="space-y-1 text-xs">
-          <div className="flex justify-between"><span className="text-muted-foreground">Disponenten</span><span>{dispatchers} {applicantsByRole.dispatcher ? `(+${applicantsByRole.dispatcher + (applicantsByRole.dispatcher_senior || 0)} Bewerber)` : ""}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Mechaniker</span><span className={mechanics === 0 ? "text-amber-300" : ""}>{mechanics} {applicantsByRole.mechanic ? `(+${applicantsByRole.mechanic} Bewerber)` : ""}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Werkstattplätze</span><span>{workshopSlots} · {workshopOrders} Aufträge</span></div>
-        </div>
-        {mechanics === 0 && applicantsByRole.mechanic > 0 && (
-          <button onClick={() => navigate("/personal")}
-            className="w-full mt-2 py-1.5 rounded-lg bg-coral/10 border border-coral/20 text-coral text-[11px] font-medium hover:bg-coral/20 transition flex items-center justify-center gap-1">
-            <Wrench className="w-3 h-3" /> Mechaniker einstellen
-          </button>
-        )}
-      </div>
+      </Panel>
 
       {/* Wachstum */}
-      <div className="glass border border-white/10 rounded-xl p-3">
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground flex items-center gap-1.5">
-            <Trophy className="w-3 h-3" /> Wachstum
-          </h4>
-          <button onClick={() => navigate("/erfolge")} className="text-[10px] text-lime/70 hover:text-lime transition">
-            Details →
-          </button>
+      <Panel
+        icon={Trophy}
+        title="Unternehmensentwicklung"
+        to="/erfolge"
+        navigate={navigate}
+      >
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between">
+            <span className="text-xs text-muted-foreground">Unternehmenswert</span>
+            <span className="text-lg font-semibold tabular-nums">{formatEuro(growth.companyValue)}</span>
+          </div>
+          <div className="text-xs text-lime font-medium">{growth.stage.name}</div>
+          {/* Stufen-Balken */}
+          <div className="flex gap-1 pt-1">
+            {stages.map((threshold, i) => (
+              <div key={i} className={`flex-1 h-1.5 rounded-full transition ${growth.companyValue >= threshold ? "bg-lime" : "bg-white/10"}`} />
+            ))}
+          </div>
+          <div className="h-px bg-white/5 mt-1" />
+          <Row label="Erfolge" value={`${growth.unlockedAchievements} / ${growth.totalAchievements}`} tone="default" />
+          <Row label="Level" value={`${growth.level.level} · ${growth.level.title}`} tone="muted" />
         </div>
-        <div className="space-y-1 text-xs">
-          <div className="flex justify-between"><span className="text-muted-foreground">Unternehmenswert</span><span className="font-medium tabular-nums">{formatEuro(growth.companyValue)}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Entwicklungsstufe</span><span className="text-lime">{growth.stage.name}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Erfolge</span><span>{growth.unlockedAchievements}/{growth.totalAchievements}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Level</span><span>{growth.level.level} · {growth.level.title}</span></div>
-        </div>
-        <div className="flex gap-1 mt-2">
-          {[0, 25000000, 100000000, 500000000].map((threshold, i) => (
-            <div key={i} className={`flex-1 h-1 rounded-full ${growth.companyValue >= threshold ? "bg-lime" : "bg-white/10"}`} />
-          ))}
-        </div>
-      </div>
+      </Panel>
 
       {/* Privatleben */}
-      <div className="glass border border-white/10 rounded-xl p-3">
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground flex items-center gap-1.5">
-            <Heart className="w-3 h-3" /> Privatleben
-          </h4>
-          <button onClick={() => navigate("/zuhause")} className="text-[10px] text-coral/70 hover:text-coral transition">
-            Details →
-          </button>
-        </div>
-        <div className="space-y-1 text-xs">
-          <div className="flex justify-between"><span className="text-muted-foreground">Belastung</span>
-            <span className={privatePreview.stress >= 80 ? "text-red-300" : privatePreview.stress >= 60 ? "text-amber-300" : "text-lime"}>{privatePreview.stress}/100</span>
+      <Panel
+        icon={Heart}
+        title="Privatleben"
+        to="/zuhause"
+        navigate={navigate}
+        alert={privatePreview.stress >= 80}
+      >
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between">
+            <span className="text-xs text-muted-foreground">Privatkonto</span>
+            <span className="text-lg font-semibold tabular-nums">{formatEuro(privatePreview.privateAccount)}</span>
           </div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Zufriedenheit</span><span>{privatePreview.happiness}/100</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Beziehung</span><span>{privatePreview.relationship}/100</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Privatkonto</span><span className="font-medium tabular-nums">{formatEuro(privatePreview.privateAccount)}</span></div>
+          <div className="h-px bg-white/5" />
+          {/* Belastungs-/Zufriedenheits-Balken */}
+          <div>
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-muted-foreground">Belastung</span>
+              <span className={privatePreview.stress >= 80 ? "text-red-300" : privatePreview.stress >= 60 ? "text-amber-300" : "text-lime"}>{privatePreview.stress}/100</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden">
+              <div className={`h-full rounded-full ${privatePreview.stress >= 80 ? "bg-red-400" : privatePreview.stress >= 60 ? "bg-amber-400" : "bg-lime"}`} style={{ width: `${privatePreview.stress}%` }} />
+            </div>
+          </div>
+          <Row label="Zufriedenheit" value={`${privatePreview.happiness}/100`} tone="default" />
+          <Row label="Beziehung" value={`${privatePreview.relationship}/100`} tone="muted" />
         </div>
         {privatePreview.nextAppointment && (
-          <div className="flex items-center gap-1 text-[10px] text-coral mt-2">
-            <Clock className="w-2.5 h-2.5" /> Nächster Termin: {formatGameTime(privatePreview.nextAppointment.startMin)}
+          <div className="flex items-center gap-1.5 text-[11px] text-coral mt-3 pt-2 border-t border-white/5">
+            <Clock className="w-3 h-3" /> Nächster Termin: {formatGameTime(privatePreview.nextAppointment.startMin)}
           </div>
         )}
         {privatePreview.claimableRewards > 0 && (
           <button onClick={() => navigate("/zuhause")}
-            className="w-full mt-2 py-1.5 rounded-lg bg-coral/10 border border-coral/20 text-coral text-[11px] font-medium hover:bg-coral/20 transition flex items-center justify-center gap-1">
+            className="w-full mt-3 py-2 rounded-lg bg-coral/10 border border-coral/20 text-coral text-xs font-medium hover:bg-coral/20 transition flex items-center justify-center gap-1.5">
             <Gift className="w-3 h-3" /> {privatePreview.claimableRewards} Belohnung(en) abholbar
           </button>
         )}
+      </Panel>
+    </div>
+  );
+}
+
+function Panel({ icon: Icon, title, to, navigate, alert, children }) {
+  return (
+    <div className="glass border border-white/10 rounded-xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-xs uppercase tracking-[0.14em] text-muted-foreground flex items-center gap-1.5">
+          <Icon className={`w-3.5 h-3.5 ${alert ? "text-amber-300" : "text-muted-foreground/70"}`} /> {title}
+        </h4>
+        <button onClick={() => navigate(to)} className="text-[10px] text-lime/70 hover:text-lime transition flex items-center gap-0.5">
+          Details <ArrowRight className="w-2.5 h-2.5" />
+        </button>
       </div>
+      {children}
+    </div>
+  );
+}
+
+function Row({ label, value, tone }) {
+  const toneClass = tone === "red" ? "text-red-300" : tone === "amber" ? "text-amber-300" : tone === "lime" ? "text-lime" : tone === "muted" ? "text-muted-foreground/60" : "text-foreground/80";
+  return (
+    <div className="flex items-center justify-between text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`tabular-nums font-medium ${toneClass}`}>{value}</span>
     </div>
   );
 }

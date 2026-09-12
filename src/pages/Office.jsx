@@ -15,19 +15,19 @@ export default function Office() {
   const [period, setPeriod] = useState("today");
 
   return (
-    <div className="px-4 sm:px-6 lg:px-12 py-4 lg:py-6 max-w-[1600px] mx-auto space-y-4">
+    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-8 max-w-[1600px] mx-auto space-y-6">
       {/* Kopfzeile */}
       <OfficeHeader state={state} period={period} setPeriod={setPeriod} />
 
       {/* Kennzahlen */}
       <OfficeKPIs state={state} period={period} />
 
-      {/* Hauptbereich: Flottenlage + Entscheidungen/Aktivität */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+      {/* Hauptbereich: Betriebsübersicht + Aktionsliste/Aktivität */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
           <FleetSummary state={state} />
         </div>
-        <div className="space-y-3">
+        <div className="space-y-4">
           <DecisionsPanel state={state} />
           <TeamActivity state={state} />
         </div>

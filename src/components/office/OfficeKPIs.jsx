@@ -1,88 +1,122 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { formatEuro } from "@/lib/gameData";
-import { getLiquidity, getOperationalResult, getOrderStats, getFleetStats, getPersonnelStats, getDecisions } from "@/lib/officeData";
-import { Wallet, TrendingUp, Package, Truck, Users, AlertTriangle } from "lucide-react";
+import { getLiquidity, getOperationalResult, getOrderStats, getFleetStats } from "@/lib/officeData";
+import { Wallet, TrendingUp, Package, Truck, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
 
-// Priorisierte Kennzahlenzeile über den vollständigen Bestand.
+// Vier primäre Kennzahlen mit klarer Hierarchie und Kontext.
+// Reduziert von sechs kleinen auf vier substantielle KPI-Kacheln.
 export default function OfficeKPIs({ state, period }) {
   const navigate = useNavigate();
   const liquidity = getLiquidity(state);
   const opResult = getOperationalResult(state, period);
   const orders = getOrderStats(state);
   const fleet = getFleetStats(state);
-  const personnel = getPersonnelStats(state);
-  const decisions = getDecisions(state);
 
   const kpis = [
     {
-      icon: Wallet, label: "Firmenliquidität",
+      icon: Wallet,
+      label: "Firmenliquidität",
       value: formatEuro(liquidity.bankBalance),
-      sub: `Verfügbar: ${formatEuro(liquidity.netAvailable)}`,
-      detail: liquidity.openCompanyCosts > 0 ? `Offen: ${formatEuro(liquidity.openCompanyCosts)}` : null,
-      tone: liquidity.netAvailable < 0 ? "red" : "default",
+      primary: liquidity.netAvailable >= 0,
+      lines: [
+        { label: "Netto verfügbar", value: formatEuro(liquidity.netAvailable), tone: liquidity.netAvailable < 0 ? "red" : "default" },
+        { label: "Offene Kosten", value: formatEuro(liquidity.openCompanyCosts), tone: liquidity.openCompanyCosts > 0 ? "amber" : "muted" },
+      ],
       to: "/finanzen",
     },
     {
-      icon: TrendingUp, label: opResult.hasData ? "Operatives Ergebnis" : "Einzahlungen/Auszahlungen",
+      icon: TrendingUp,
+      label: opResult.hasData ? `Operatives Ergebnis · ${opResult.period.label}` : "Einzahlungen / Auszahlungen",
       value: opResult.hasData ? formatEuro(opResult.result) : "—",
-      sub: opResult.hasData
-        ? `Umsatz ${formatEuro(opResult.revenue)} · Kosten ${formatEuro(opResult.expenses)}`
-        : "Noch keine Vergleichsdaten",
-      tone: opResult.hasData ? (opResult.result >= 0 ? "lime" : "red") : "muted",
+      primary: opResult.hasData && opResult.result >= 0,
+      trend: opResult.hasData ? (opResult.result >= 0 ? "up" : "down") : null,
+      lines: opResult.hasData ? [
+        { label: "Umsatz", value: formatEuro(opResult.revenue), tone: "default" },
+        { label: "Kosten", value: formatEuro(opResult.expenses), tone: "muted" },
+      ] : [
+        { label: "Hinweis", value: "Noch keine Buchungsdaten", tone: "muted" },
+      ],
       to: "/finanzen",
     },
     {
-      icon: Package, label: "Auftragsbestand",
+      icon: Package,
+      label: "Auftragslage",
       value: `${orders.total}`,
-      sub: `${orders.offered} Angebote · ${orders.unassigned} unzugewiesen · ${orders.active} aktiv`,
-      detail: orders.unassigned > 0 ? `${orders.unassigned} wartet auf Disposition` : null,
-      tone: orders.unassigned > 0 ? "amber" : "default",
+      primary: orders.unassigned === 0,
+      lines: [
+        { label: "Angebote offen", value: `${orders.offered}`, tone: orders.offered > 0 ? "default" : "muted" },
+        { label: "Aktiv unterwegs", value: `${orders.active}`, tone: "default" },
+        { label: "Unzugewiesen", value: `${orders.unassigned}`, tone: orders.unassigned > 0 ? "amber" : "muted" },
+      ],
+      alert: orders.unassigned > 0 ? `${orders.unassigned} Auftrag${orders.unassigned > 1 ? "e" : ""} wartet auf Disposition` : null,
       to: "/auftraege",
     },
     {
-      icon: Truck, label: "Flotteneinsatz",
+      icon: Truck,
+      label: "Flotteneinsatz",
       value: `${fleet.total}`,
-      sub: `${fleet.byStatus.free} frei · ${fleet.byStatus.on_trip} unterwegs · ${fleet.byStatus.maintenance} Wartung`,
-      detail: fleet.byOwnership.leased > 0 ? `${fleet.byOwnership.owned} eigene · ${fleet.byOwnership.leased} geleast` : null,
-      tone: fleet.criticalCondition > 0 ? "amber" : "default",
+      primary: fleet.criticalCondition === 0,
+      lines: [
+        { label: "Frei", value: `${fleet.byStatus.free}`, tone: "lime" },
+        { label: "Unterwegs", value: `${fleet.byStatus.on_trip}`, tone: "default" },
+        { label: "Wartung", value: `${fleet.byStatus.maintenance}`, tone: fleet.byStatus.maintenance > 0 ? "sky" : "muted" },
+      ],
+      alert: fleet.criticalCondition > 0 ? `${fleet.criticalCondition} Lkw im kritischen Zustand` : null,
       to: "/fuhrpark",
-    },
-    {
-      icon: Users, label: "Personal",
-      value: `${personnel.total}`,
-      sub: `${personnel.present} verfügbar · ${personnel.sick} krank · ${personnel.vacation} Urlaub`,
-      detail: personnel.noticeGiven > 0 ? `${personnel.noticeGiven} Austritt angekündigt` : null,
-      tone: personnel.criticalSatisfaction > 0 ? "amber" : "default",
-      to: "/personal",
-    },
-    {
-      icon: AlertTriangle, label: "Dringende Entscheidungen",
-      value: `${decisions.length}`,
-      sub: decisions.length > 0 ? decisions[0].title : "Alles ruhig",
-      tone: decisions.length > 0 ? "amber" : "lime",
-      to: null,
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       {kpis.map((kpi, i) => {
         const Icon = kpi.icon;
-        const toneClass = kpi.tone === "red" ? "text-red-300" : kpi.tone === "amber" ? "text-amber-300"
-          : kpi.tone === "lime" ? "text-lime" : kpi.tone === "muted" ? "text-muted-foreground" : "text-foreground";
         return (
           <button
             key={i}
-            onClick={kpi.to ? () => navigate(kpi.to) : undefined}
-            className={`text-left glass border border-white/10 rounded-xl p-3 hover:border-white/20 transition ${kpi.to ? "cursor-pointer" : "cursor-default"}`}
+            onClick={() => navigate(kpi.to)}
+            className="text-left glass border border-white/10 rounded-xl p-4 hover:border-lime/20 transition group"
           >
-            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.12em] text-muted-foreground mb-1.5">
-              <Icon className="w-3 h-3" /> {kpi.label}
+            {/* Kopf */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                <Icon className="w-3.5 h-3.5" /> {kpi.label}
+              </div>
+              {kpi.trend === "up" && <ArrowUpRight className="w-3.5 h-3.5 text-lime" />}
+              {kpi.trend === "down" && <ArrowDownRight className="w-3.5 h-3.5 text-red-300" />}
+              {kpi.trend === null && kpi.primary && <Minus className="w-3.5 h-3.5 text-muted-foreground/30" />}
             </div>
-            <div className={`text-lg lg:text-xl font-medium tabular-nums ${toneClass}`}>{kpi.value}</div>
-            <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{kpi.sub}</div>
-            {kpi.detail && <div className="text-[10px] text-amber-300 mt-0.5">{kpi.detail}</div>}
+
+            {/* Hauptwert */}
+            <div className={`text-2xl lg:text-[28px] font-semibold tabular-nums leading-none mb-3 ${
+              kpi.tone === "red" ? "text-red-300" : kpi.primary ? "text-foreground" : "text-foreground"
+            }`}>
+              {kpi.value}
+            </div>
+
+            {/* Detailzeilen */}
+            <div className="space-y-1.5 border-t border-white/5 pt-2.5">
+              {kpi.lines.map((line, j) => (
+                <div key={j} className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">{line.label}</span>
+                  <span className={`tabular-nums font-medium ${
+                    line.tone === "red" ? "text-red-300" :
+                    line.tone === "amber" ? "text-amber-300" :
+                    line.tone === "lime" ? "text-lime" :
+                    line.tone === "sky" ? "text-sky-300" :
+                    line.tone === "muted" ? "text-muted-foreground/60" :
+                    "text-foreground/80"
+                  }`}>{line.value}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Alert */}
+            {kpi.alert && (
+              <div className="mt-2.5 text-[11px] text-amber-300 bg-amber-500/5 border border-amber-400/15 rounded-lg px-2.5 py-1.5">
+                {kpi.alert}
+              </div>
+            )}
           </button>
         );
       })}
