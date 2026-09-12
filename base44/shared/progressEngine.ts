@@ -7,6 +7,7 @@ import { ACHIEVEMENTS, XP_LEVELS, COMPANY_STAGES, GOAL_TEMPLATES } from "./achie
 import { PERSONNEL_ROLES, PORTRAIT_IDS, DRIVER_COST_PER_DAY, HIRE_FEE } from "./gameRules.ts";
 import { migrateAccounting } from "./accountingEngine.ts";
 import { migrateMail } from "./mailEngine.ts";
+import { migrateTripPhases } from "./driverTimeEngine.ts";
 
 // --- Vermögensberechnungen ---
 
@@ -146,6 +147,7 @@ export function migrateState(state) {
   if (!state.employees) state.employees = [];
 
   // Fahrer um neue Felder erweitern (Beschäftigung, Anwesenheit, Zufriedenheit, Porträt)
+  // Sowie Fahrerzeit-Modell (Regeländerung 16): workMinutesSinceRest, driveMinutesSinceBreak
   let portraitIdx = 0;
   for (const d of (state.drivers || [])) {
     if (d.satisfaction === undefined) d.satisfaction = 70;
@@ -154,6 +156,15 @@ export function migrateState(state) {
     if (!d.attendance) d.attendance = "present";
     if (d.consecutiveLowSatisfactionDays === undefined) d.consecutiveLowSatisfactionDays = 0;
     if (!d.portraitId) d.portraitId = PORTRAIT_IDS[portraitIdx++ % PORTRAIT_IDS.length];
+    // Fahrerzeit-Modell: Zähler initialisieren (alte Spielstände: vollständig erholt)
+    if (d.workMinutesSinceRest === undefined) d.workMinutesSinceRest = 0;
+    if (d.driveMinutesSinceBreak === undefined) d.driveMinutesSinceBreak = 0;
+  }
+
+  // ---------- Trip-Phasen Migration (Regeländerung 16) ----------
+  // Alte Trips mit legs → phases, legacyMode = true
+  for (const trip of (state.trips || [])) {
+    migrateTripPhases(trip);
   }
 
   // Alte Bewerber (nur {id, name}) um Rollen-Felder erweitern

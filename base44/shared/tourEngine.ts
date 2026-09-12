@@ -5,8 +5,12 @@
 
 import {
   CITIES, getDistance, driveMinutes, fuelCents, tollCents, roundCents,
-  LOAD_MIN, UNLOAD_MIN, MAX_DUTY_MIN, REST_MIN, formatGameTime
+  LOAD_MIN, UNLOAD_MIN, MAX_DUTY_MIN, REST_MIN, WORK_BUDGET_MIN, formatGameTime
 } from "./gameRules.ts";
+import {
+  buildPhases, buildWorkSteps, buildEmptyWorkSteps,
+  computeFinalCounters, resetCounters, needsRest,
+} from "./driverTimeEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 
@@ -55,40 +59,18 @@ export function earliestAvailable(state, vehicle, driver) {
 
 // ---------- Deployment-Planung ----------
 
-// Plant einen einzelnen Einsatz (Leerfahrt + Laden + Fahren + Entladen) für einen Auftrag.
-// startCity ist der aktuelle Ort des Fahrzeugs.
-export function buildDeployment(state, order, vehicle, startCity, earliestStart) {
-  let t = earliestStart;
-  const legs = [];
-  let totalKm = 0;
-  let dutyMin = 0;
+// Plant einen einzelnen Einsatz mit phasenbasierter Fahrerzeitplanung.
+// Zerlegt Leerfahrt → Laden → Fahren → Entladen in Abschnitte mit Pausen/Ruhe.
+// counters: {workMin, driveMin} — aktuelle Fahrerzähler (werden fortgeschrieben).
+export function buildDeployment(state, order, vehicle, startCity, earliestStart, counters) {
+  const workSteps = buildWorkSteps(startCity, order);
+  const result = buildPhases(workSteps, counters || { workMin: 0, driveMin: 0 }, earliestStart);
 
-  // Leerfahrt zum Abholort, falls nötig
-  if (startCity !== order.fromCity) {
-    const d = getDistance(startCity, order.fromCity);
-    const dur = driveMinutes(d);
-    legs.push({ type: "empty", fromCity: startCity, toCity: order.fromCity, distanceKm: d, durationMin: dur, startMin: t, endMin: t + dur });
-    t += dur; totalKm += d; dutyMin += dur;
-  }
-
-  // Laden
-  legs.push({ type: "load", fromCity: order.fromCity, toCity: order.fromCity, distanceKm: 0, durationMin: LOAD_MIN, startMin: t, endMin: t + LOAD_MIN });
-  t += LOAD_MIN; dutyMin += LOAD_MIN;
-
-  // Beladene Fahrt
-  const d = getDistance(order.fromCity, order.toCity);
-  const dur = driveMinutes(d);
-  legs.push({ type: "drive", fromCity: order.fromCity, toCity: order.toCity, distanceKm: d, durationMin: dur, startMin: t, endMin: t + dur });
-  t += dur; totalKm += d; dutyMin += dur;
-
-  // Entladen
-  legs.push({ type: "unload", fromCity: order.toCity, toCity: order.toCity, distanceKm: 0, durationMin: UNLOAD_MIN, startMin: t, endMin: t + UNLOAD_MIN });
-  t += UNLOAD_MIN; dutyMin += UNLOAD_MIN;
-
+  const totalKm = workSteps.reduce((s, step) => s + (step.distanceKm || 0), 0);
+  const emptyKm = startCity !== order.fromCity ? getDistance(startCity, order.fromCity) : 0;
+  const loadedKm = getDistance(order.fromCity, order.toCity);
   const fuel = fuelCents(totalKm, vehicle.consumptionPer100km);
   const toll = tollCents(totalKm);
-  const emptyKm = startCity !== order.fromCity ? getDistance(startCity, order.fromCity) : 0;
-  const loadedKm = d;
 
   return {
     orderId: order.id,
@@ -99,32 +81,30 @@ export function buildDeployment(state, order, vehicle, startCity, earliestStart)
     fromCity: order.fromCity,
     toCity: order.toCity,
     emptyFromCity: startCity !== order.fromCity ? startCity : null,
-    legs,
+    phases: result.phases,
     emptyKm,
     loadedKm,
     totalKm,
-    dutyMin,
-    durationMin: t - earliestStart,
+    durationMin: result.endMin - earliestStart,
     startMin: earliestStart,
-    endMin: t,
-    restEndMin: t + REST_MIN,
+    endMin: result.endMin,
+    finalWorkMin: result.finalWorkMin,
+    finalDriveMin: result.finalDriveMin,
     fuelCents: fuel,
     tollCents: toll,
     variableCostCents: fuel + toll,
     paymentCents: order.paymentCents,
     contributionCents: order.paymentCents - fuel - toll,
     deliveryDeadlineMin: order.deliveryDeadlineMin,
-    deadlineBufferMin: order.deliveryDeadlineMin - t,
+    deadlineBufferMin: order.deliveryDeadlineMin - result.endMin,
   };
 }
 
-// Plant eine Leerfahrt als eigenen Einsatz (z. B. um an einen Abholort zu kommen).
-export function buildEmptyDeployment(state, fromCity, toCity, vehicle, earliestStart) {
-  let t = earliestStart;
+// Plant eine Leerfahrt als eigenen Einsatz mit phasenbasierter Fahrerzeitplanung.
+export function buildEmptyDeployment(state, fromCity, toCity, vehicle, earliestStart, counters) {
+  const workSteps = buildEmptyWorkSteps(fromCity, toCity);
+  const result = buildPhases(workSteps, counters || { workMin: 0, driveMin: 0 }, earliestStart);
   const d = getDistance(fromCity, toCity);
-  const dur = driveMinutes(d);
-  const legs = [{ type: "empty_drive", fromCity, toCity, distanceKm: d, durationMin: dur, startMin: t, endMin: t + dur }];
-  t += dur;
   const fuel = fuelCents(d, vehicle.consumptionPer100km);
   const toll = tollCents(d);
   return {
@@ -136,15 +116,15 @@ export function buildEmptyDeployment(state, fromCity, toCity, vehicle, earliestS
     fromCity,
     toCity,
     emptyFromCity: fromCity,
-    legs,
+    phases: result.phases,
     emptyKm: d,
     loadedKm: 0,
     totalKm: d,
-    dutyMin: dur,
-    durationMin: t - earliestStart,
+    durationMin: result.endMin - earliestStart,
     startMin: earliestStart,
-    endMin: t,
-    restEndMin: t + REST_MIN,
+    endMin: result.endMin,
+    finalWorkMin: result.finalWorkMin,
+    finalDriveMin: result.finalDriveMin,
     fuelCents: fuel,
     tollCents: toll,
     variableCostCents: fuel + toll,
@@ -175,10 +155,16 @@ export function buildTourPlan(state, opts) {
   let currentCity = vehicle.locationCity;
   let t = earliestStart;
   const deployments = [];
-  const acceptedOrderIds = []; // Aufträge, die bei Bestätigung angenommen werden müssen
+  const acceptedOrderIds = [];
   let totalKm = 0, emptyKm = 0, loadedKm = 0;
   let totalFuel = 0, totalToll = 0, totalPayment = 0;
   let minBuffer = Infinity;
+
+  // Fahrerzähler über alle Einsätze hinweg fortführen
+  let counters = {
+    workMin: driver.workMinutesSinceRest || 0,
+    driveMin: driver.driveMinutesSinceBreak || 0,
+  };
 
   for (const orderId of orderIds) {
     const order = state.orders.find(o => o.id === orderId);
@@ -190,11 +176,8 @@ export function buildTourPlan(state, opts) {
       return { error: "Überladung: " + order.tons + " t überschreiten Kapazität von " + vehicle.capacityTons + " t." };
     }
 
-    const dep = buildDeployment(state, order, vehicle, currentCity, t);
-    if (dep.dutyMin > MAX_DUTY_MIN) {
-      const h = Math.floor(dep.dutyMin / 60), mm = dep.dutyMin % 60;
-      return { error: "Einsatzdauer für " + order.customer + " (" + h + " h " + mm + " min) überschreitet die 8-Stunden-Grenze." };
-    }
+    const dep = buildDeployment(state, order, vehicle, currentCity, t, counters);
+    // Kein MAX_DUTY_MIN-Ablehnungsgrund mehr — lange Aufträge sind mit Pausen ausführbar
     if (dep.endMin > order.deliveryDeadlineMin) {
       return { error: "Lieferung von " + order.customer + " würde die Lieferfrist überschreiten (Ankunft " + formatGameTime(dep.endMin) + ", Frist " + formatGameTime(order.deliveryDeadlineMin) + ")." };
     }
@@ -210,26 +193,29 @@ export function buildTourPlan(state, opts) {
     if (dep.deadlineBufferMin !== null && dep.deadlineBufferMin < minBuffer) minBuffer = dep.deadlineBufferMin;
 
     currentCity = order.toCity;
-    t = dep.restEndMin; // Nächster Einsatz nach Erholung
+    counters = { workMin: dep.finalWorkMin, driveMin: dep.finalDriveMin };
+    t = dep.endMin; // Keine pauschale Ruhe mehr — Zähler tragen fort
   }
 
   // Optionale gewünschte Rückkehr
   let returnDeployment = null;
   if (desiredEndCity && currentCity !== desiredEndCity) {
-    const dep = buildEmptyDeployment(state, currentCity, desiredEndCity, vehicle, t);
-    if (dep.dutyMin > MAX_DUTY_MIN) {
-      const h = Math.floor(dep.dutyMin / 60), mm = dep.dutyMin % 60;
-      return { error: "Rückkehrfahrt (" + h + " h " + mm + " min) überschreitet die 8-Stunden-Grenze." };
-    }
+    const dep = buildEmptyDeployment(state, currentCity, desiredEndCity, vehicle, t, counters);
     returnDeployment = dep;
     totalKm += dep.totalKm; emptyKm += dep.emptyKm;
     totalFuel += dep.fuelCents; totalToll += dep.tollCents;
-    t = dep.restEndMin;
+    counters = { workMin: dep.finalWorkMin, driveMin: dep.finalDriveMin };
+    t = dep.endMin;
   }
 
   const lastDeliveryEnd = deployments.length > 0 ? deployments[deployments.length - 1].endMin : earliestStart;
   const tourEndMin = returnDeployment ? returnDeployment.endMin : lastDeliveryEnd;
-  const driverFreeMin = returnDeployment ? returnDeployment.restEndMin : (deployments.length > 0 ? deployments[deployments.length - 1].restEndMin : earliestStart);
+
+  // Nach letzter Lieferung: Ruhezeit nur wenn Arbeitsbudget erschöpft
+  let driverFreeMin = t;
+  if (counters.workMin >= WORK_BUDGET_MIN) {
+    driverFreeMin = t + REST_MIN;
+  }
 
   if (latestReturnMin && tourEndMin > latestReturnMin) {
     return { error: "Tour endet zu spät (" + formatGameTime(tourEndMin) + "), späteste Rückkehr " + formatGameTime(latestReturnMin) + "." };
@@ -382,14 +368,15 @@ export function confirmTour(state, params) {
 
   // 5. Starte den ersten Einsatz – sofort oder geplant für die Zukunft
   const firstDep = tour.deployments[0];
+  let firstTripId = null;
   if (firstDep.startMin <= state.gameTime) {
     const startResult = startDeployment(state, tour, firstDep, 0);
     firstDep.tripId = startResult.tripId;
     firstDep.status = "active";
     firstDep.actualStartMin = state.gameTime;
     tour.currentDepIndex = 0;
+    firstTripId = startResult.tripId;
   } else {
-    // Zukünftiger Start – processTours startet bei Erreichen des Zeitpunkts
     firstDep.status = "planned";
     tour.currentDepIndex = 0;
   }
@@ -398,7 +385,7 @@ export function confirmTour(state, params) {
     ok: true,
     tourId,
     acceptedOrderIds: plan.acceptedOrderIds,
-    firstTripId: startResult.tripId,
+    firstTripId,
     totalContributionCents: plan.totalContributionCents,
     totalKm: plan.totalKm,
     emptyKm: plan.emptyKm,
@@ -407,43 +394,19 @@ export function confirmTour(state, params) {
 }
 
 // Startet einen einzelnen Einsatz innerhalb einer Tour.
-// Berechnet Beine und Kosten zum tatsächlichen Startzeitpunkt neu.
+// Nutzt die vorausberechneten Phasen aus buildDeployment, ggf. zeitlich verschoben.
 function startDeployment(state, tour, dep, depIndex) {
   const vehicle = state.vehicles.find(v => v.id === tour.vehicleId);
   const driver = state.drivers.find(d => d.id === tour.driverId);
   if (!vehicle || !driver) throw new Error("Fahrzeug oder Fahrer nicht gefunden.");
 
-  // Beine neu berechnen ab aktuellem Zeitpunkt und Ort
-  let t = state.gameTime;
-  const legs = [];
-  let totalKm = 0;
-  const startCity = vehicle.locationCity;
-
-  if (dep.orderId) {
-    const order = state.orders.find(o => o.id === dep.orderId);
-    if (startCity !== order.fromCity) {
-      const d = getDistance(startCity, order.fromCity);
-      const dur = driveMinutes(d);
-      legs.push({ type: "empty", fromCity: startCity, toCity: order.fromCity, distanceKm: d, durationMin: dur, startMin: t, endMin: t + dur });
-      t += dur; totalKm += d;
-    }
-    legs.push({ type: "load", fromCity: order.fromCity, toCity: order.fromCity, distanceKm: 0, durationMin: LOAD_MIN, startMin: t, endMin: t + LOAD_MIN });
-    t += LOAD_MIN;
-    const d = getDistance(order.fromCity, order.toCity);
-    const dur = driveMinutes(d);
-    legs.push({ type: "drive", fromCity: order.fromCity, toCity: order.toCity, distanceKm: d, durationMin: dur, startMin: t, endMin: t + dur });
-    t += dur; totalKm += d;
-    legs.push({ type: "unload", fromCity: order.toCity, toCity: order.toCity, distanceKm: 0, durationMin: UNLOAD_MIN, startMin: t, endMin: t + UNLOAD_MIN });
-    t += UNLOAD_MIN;
-  } else {
-    const d = getDistance(startCity, dep.toCity);
-    const dur = driveMinutes(d);
-    legs.push({ type: "empty_drive", fromCity: startCity, toCity: dep.toCity, distanceKm: d, durationMin: dur, startMin: t, endMin: t + dur });
-    t += dur; totalKm += d;
-  }
-
-  const fuel = fuelCents(totalKm, vehicle.consumptionPer100km);
-  const toll = tollCents(totalKm);
+  // Phasen aus dem Deployment übernehmen, bei zeitlicher Abweichung verschieben
+  const timeShift = state.gameTime - dep.startMin;
+  const phases = dep.phases.map(p => ({
+    ...p,
+    startMin: p.startMin + timeShift,
+    endMin: p.endMin + timeShift,
+  }));
 
   const tripId = uid(state, "t");
   const trip = {
@@ -453,20 +416,22 @@ function startDeployment(state, tour, dep, depIndex) {
     tourId: tour.id,
     vehicleId: vehicle.id,
     driverId: driver.id,
-    legs,
-    currentLeg: 0,
+    phases,
+    currentPhase: 0,
     startMin: state.gameTime,
-    endMin: t,
+    endMin: phases.length > 0 ? phases[phases.length - 1].endMin : state.gameTime,
     status: "in_progress",
     paymentCents: dep.paymentCents,
-    fuelCents: fuel,
-    tollCents: toll,
-    totalKm,
+    fuelCents: dep.fuelCents,
+    tollCents: dep.tollCents,
+    totalKm: dep.totalKm,
+    drivenKm: 0,
     depIndex,
   };
 
-  addBooking(state, state.gameTime, "Kraftstoff: " + (dep.customer || "Leerfahrt"), -fuel, "company", "fuel:" + tripId);
-  addBooking(state, state.gameTime, "Maut: " + (dep.customer || "Leerfahrt"), -toll, "company", "toll:" + tripId);
+  // Kraftstoff und Maut einmal beim Start buchen (nicht pro Pause-Block)
+  addBooking(state, state.gameTime, "Kraftstoff: " + (dep.customer || "Leerfahrt"), -dep.fuelCents, "company", "fuel:" + tripId);
+  addBooking(state, state.gameTime, "Maut: " + (dep.customer || "Leerfahrt"), -dep.tollCents, "company", "toll:" + tripId);
 
   state.trips.push(trip);
   vehicle.status = "on_trip";
@@ -578,9 +543,10 @@ export function processTours(state, m, log) {
       continue;
     }
 
-    // Ort-Konsistenz prüfen
-    if (vehicle.locationCity !== nextDep.dep.legs[0].fromCity) {
-      tour.pauseReason = "Fahrzeug ist nicht am erwarteten Ort (" + nextDep.dep.legs[0].fromCity + ", aktuell " + vehicle.locationCity + ").";
+    // Ort-Konsistenz prüfen (erste Phase gibt den Startort an)
+    const firstPhase = nextDep.dep.phases[0];
+    if (firstPhase && vehicle.locationCity !== firstPhase.fromCity) {
+      tour.pauseReason = "Fahrzeug ist nicht am erwarteten Ort (" + firstPhase.fromCity + ", aktuell " + vehicle.locationCity + ").";
       log.push({ type: "tour_paused", tour: tour.id, reason: tour.pauseReason });
       continue;
     }

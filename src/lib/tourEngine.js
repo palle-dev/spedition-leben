@@ -4,8 +4,11 @@
 
 import {
   CITIES, getDistance, driveMinutes, fuelEur as _fe, tollEur as _te,
-  LOAD_MIN, UNLOAD_MIN, MAX_DUTY_MIN, REST_MIN, formatGameTime
+  LOAD_MIN, UNLOAD_MIN, MAX_DUTY_MIN, REST_MIN, WORK_BUDGET_MIN, formatGameTime
 } from "@/lib/gameData";
+import {
+  buildPhases, buildWorkSteps, buildEmptyWorkSteps, computeFinalCounters,
+} from "@/lib/driverTimeEngine";
 
 // Cent-basierte Berechnung (gameData.js hat Euro-Funktionen, wir brauchen Cent)
 function fuelCents(km, consumptionPer100km) {
@@ -37,93 +40,43 @@ export function earliestAvailable(state, vehicle, driver) {
   return t;
 }
 
-// Plant einen einzelnen Einsatz.
-function buildDeployment(state, order, vehicle, startCity, earliestStart) {
-  let t = earliestStart;
-  const legs = [];
-  let totalKm = 0;
-  let dutyMin = 0;
-
-  if (startCity !== order.fromCity) {
-    const d = getDistance(startCity, order.fromCity);
-    const dur = driveMinutes(d);
-    legs.push({ type: "empty", fromCity: startCity, toCity: order.fromCity, distanceKm: d, durationMin: dur, startMin: t, endMin: t + dur });
-    t += dur; totalKm += d; dutyMin += dur;
-  }
-  legs.push({ type: "load", fromCity: order.fromCity, toCity: order.fromCity, distanceKm: 0, durationMin: LOAD_MIN, startMin: t, endMin: t + LOAD_MIN });
-  t += LOAD_MIN; dutyMin += LOAD_MIN;
-  const d = getDistance(order.fromCity, order.toCity);
-  const dur = driveMinutes(d);
-  legs.push({ type: "drive", fromCity: order.fromCity, toCity: order.toCity, distanceKm: d, durationMin: dur, startMin: t, endMin: t + dur });
-  t += dur; totalKm += d; dutyMin += dur;
-  legs.push({ type: "unload", fromCity: order.toCity, toCity: order.toCity, distanceKm: 0, durationMin: UNLOAD_MIN, startMin: t, endMin: t + UNLOAD_MIN });
-  t += UNLOAD_MIN; dutyMin += UNLOAD_MIN;
-
+// Plant einen einzelnen Einsatz mit phasenbasierter Fahrerzeitplanung.
+function buildDeployment(state, order, vehicle, startCity, earliestStart, counters) {
+  const workSteps = buildWorkSteps(startCity, order);
+  const result = buildPhases(workSteps, counters || { workMin: 0, driveMin: 0 }, earliestStart);
+  const totalKm = workSteps.reduce((s, step) => s + (step.distanceKm || 0), 0);
+  const emptyKm = startCity !== order.fromCity ? getDistance(startCity, order.fromCity) : 0;
+  const loadedKm = getDistance(order.fromCity, order.toCity);
   const fuel = fuelCents(totalKm, vehicle.consumptionPer100km);
   const toll = tollCents(totalKm);
-  const emptyKm = startCity !== order.fromCity ? getDistance(startCity, order.fromCity) : 0;
-
   return {
-    orderId: order.id,
-    orderStatus: order.status,
-    customer: order.customer,
-    cargo: order.cargo,
-    tons: order.tons,
-    fromCity: order.fromCity,
-    toCity: order.toCity,
+    orderId: order.id, orderStatus: order.status, customer: order.customer, cargo: order.cargo, tons: order.tons,
+    fromCity: order.fromCity, toCity: order.toCity,
     emptyFromCity: startCity !== order.fromCity ? startCity : null,
-    legs,
-    emptyKm,
-    loadedKm: d,
-    totalKm,
-    dutyMin,
-    durationMin: t - earliestStart,
-    startMin: earliestStart,
-    endMin: t,
-    restEndMin: t + REST_MIN,
-    fuelCents: fuel,
-    tollCents: toll,
-    variableCostCents: fuel + toll,
-    paymentCents: order.paymentCents,
-    contributionCents: order.paymentCents - fuel - toll,
-    deliveryDeadlineMin: order.deliveryDeadlineMin,
-    deadlineBufferMin: order.deliveryDeadlineMin - t,
+    phases: result.phases, emptyKm, loadedKm, totalKm,
+    durationMin: result.endMin - earliestStart, startMin: earliestStart, endMin: result.endMin,
+    finalWorkMin: result.finalWorkMin, finalDriveMin: result.finalDriveMin,
+    fuelCents: fuel, tollCents: toll, variableCostCents: fuel + toll,
+    paymentCents: order.paymentCents, contributionCents: order.paymentCents - fuel - toll,
+    deliveryDeadlineMin: order.deliveryDeadlineMin, deadlineBufferMin: order.deliveryDeadlineMin - result.endMin,
   };
 }
 
-function buildEmptyDeployment(state, fromCity, toCity, vehicle, earliestStart) {
-  let t = earliestStart;
+function buildEmptyDeployment(state, fromCity, toCity, vehicle, earliestStart, counters) {
+  const workSteps = buildEmptyWorkSteps(fromCity, toCity);
+  const result = buildPhases(workSteps, counters || { workMin: 0, driveMin: 0 }, earliestStart);
   const d = getDistance(fromCity, toCity);
-  const dur = driveMinutes(d);
-  const legs = [{ type: "empty_drive", fromCity, toCity, distanceKm: d, durationMin: dur, startMin: t, endMin: t + dur }];
-  t += dur;
   const fuel = fuelCents(d, vehicle.consumptionPer100km);
   const toll = tollCents(d);
   return {
-    orderId: null,
-    orderStatus: null,
-    customer: "Leerfahrt",
-    cargo: null,
-    tons: 0,
-    fromCity,
-    toCity,
-    emptyFromCity: fromCity,
-    legs,
-    emptyKm: d,
-    loadedKm: 0,
-    totalKm: d,
-    dutyMin: dur,
-    durationMin: t - earliestStart,
-    startMin: earliestStart,
-    endMin: t,
-    restEndMin: t + REST_MIN,
-    fuelCents: fuel,
-    tollCents: toll,
-    variableCostCents: fuel + toll,
-    paymentCents: 0,
-    contributionCents: -(fuel + toll),
-    deliveryDeadlineMin: null,
-    deadlineBufferMin: null,
+    orderId: null, orderStatus: null, customer: "Leerfahrt", cargo: null, tons: 0,
+    fromCity, toCity, emptyFromCity: fromCity,
+    phases: result.phases, emptyKm: d, loadedKm: 0, totalKm: d,
+    durationMin: result.endMin - earliestStart, startMin: earliestStart, endMin: result.endMin,
+    finalWorkMin: result.finalWorkMin, finalDriveMin: result.finalDriveMin,
+    fuelCents: fuel, tollCents: toll, variableCostCents: fuel + toll,
+    paymentCents: 0, contributionCents: -(fuel + toll),
+    deliveryDeadlineMin: null, deadlineBufferMin: null,
   };
 }
 
@@ -146,6 +99,11 @@ export function buildTourPlan(state, opts) {
   let totalFuel = 0, totalToll = 0, totalPayment = 0;
   let minBuffer = Infinity;
 
+  let counters = {
+    workMin: driver.workMinutesSinceRest || 0,
+    driveMin: driver.driveMinutesSinceBreak || 0,
+  };
+
   for (const orderId of orderIds) {
     const order = state.orders.find(o => o.id === orderId);
     if (!order) return { error: "Auftrag nicht gefunden: " + orderId };
@@ -156,11 +114,7 @@ export function buildTourPlan(state, opts) {
       return { error: "Überladung: " + order.tons + " t überschreiten Kapazität von " + vehicle.capacityTons + " t." };
     }
 
-    const dep = buildDeployment(state, order, vehicle, currentCity, t);
-    if (dep.dutyMin > MAX_DUTY_MIN) {
-      const h = Math.floor(dep.dutyMin / 60), mm = dep.dutyMin % 60;
-      return { error: "Einsatzdauer für " + order.customer + " (" + h + " h " + mm + " min) überschreitet die 8-Stunden-Grenze." };
-    }
+    const dep = buildDeployment(state, order, vehicle, currentCity, t, counters);
     if (dep.endMin > order.deliveryDeadlineMin) {
       return { error: "Lieferung von " + order.customer + " würde die Lieferfrist überschreiten (Ankunft " + formatGameTime(dep.endMin) + ", Frist " + formatGameTime(order.deliveryDeadlineMin) + ")." };
     }
@@ -174,25 +128,26 @@ export function buildTourPlan(state, opts) {
     totalFuel += dep.fuelCents; totalToll += dep.tollCents; totalPayment += dep.paymentCents;
     if (dep.deadlineBufferMin !== null && dep.deadlineBufferMin < minBuffer) minBuffer = dep.deadlineBufferMin;
     currentCity = order.toCity;
-    t = dep.restEndMin;
+    counters = { workMin: dep.finalWorkMin, driveMin: dep.finalDriveMin };
+    t = dep.endMin;
   }
 
   let returnDeployment = null;
   if (desiredEndCity && currentCity !== desiredEndCity) {
-    const dep = buildEmptyDeployment(state, currentCity, desiredEndCity, vehicle, t);
-    if (dep.dutyMin > MAX_DUTY_MIN) {
-      const h = Math.floor(dep.dutyMin / 60), mm = dep.dutyMin % 60;
-      return { error: "Rückkehrfahrt (" + h + " h " + mm + " min) überschreitet die 8-Stunden-Grenze." };
-    }
+    const dep = buildEmptyDeployment(state, currentCity, desiredEndCity, vehicle, t, counters);
     returnDeployment = dep;
     totalKm += dep.totalKm; emptyKm += dep.emptyKm;
     totalFuel += dep.fuelCents; totalToll += dep.tollCents;
-    t = dep.restEndMin;
+    counters = { workMin: dep.finalWorkMin, driveMin: dep.finalDriveMin };
+    t = dep.endMin;
   }
 
   const lastDeliveryEnd = deployments.length > 0 ? deployments[deployments.length - 1].endMin : earliestStart;
   const tourEndMin = returnDeployment ? returnDeployment.endMin : lastDeliveryEnd;
-  const driverFreeMin = returnDeployment ? returnDeployment.restEndMin : (deployments.length > 0 ? deployments[deployments.length - 1].restEndMin : earliestStart);
+  let driverFreeMin = t;
+  if (counters.workMin >= WORK_BUDGET_MIN) {
+    driverFreeMin = t + REST_MIN;
+  }
 
   if (latestReturnMin && tourEndMin > latestReturnMin) {
     return { error: "Tour endet zu spät (" + formatGameTime(tourEndMin) + "), späteste Rückkehr " + formatGameTime(latestReturnMin) + "." };

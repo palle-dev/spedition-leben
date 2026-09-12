@@ -37,8 +37,15 @@ export const TOLL_PER_KM = 0.20; // €
 export const AVG_SPEED = 60; // km/h
 export const LOAD_MIN = 60;
 export const UNLOAD_MIN = 60;
-export const MAX_DUTY_MIN = 480; // 8 Stunden zusammenhängender Einsatz
-export const REST_MIN = 720; // 12 Stunden Erholung
+// Alte pauschale Grenze pro Einzelauftrag — DURCH REGELÄNDERUNG 16 ERSETZT.
+// WORK_BUDGET_MIN gilt zwischen vollständigen Ruhezeiten, nicht pro Auftrag.
+export const MAX_DUTY_MIN = 480; // Veraltet — nicht mehr als Ablehnungsgrund verwenden
+export const REST_MIN = 720; // 12 Stunden vollständige Ruhezeit
+
+// ---------- Einheitliches Fahrerzeitmodell (Regeländerung 16) ----------
+export const WORK_BUDGET_MIN = 480;   // Arbeitsbudget zwischen vollständigen Ruhezeiten
+export const DRIVE_BUDGET_MIN = 270;   // Lenkzeit seit qualifizierter Fahrpause/Ruhe
+export const BREAK_MIN = 45;            // Kurze Fahrpause (setzt Lenkzeit zurück)
 export const DRIVER_COST_PER_DAY = 10000; // Cent
 export const BRANCH_COST_PER_DAY = 10000; // Cent
 export const PRIVATE_WITHDRAWAL_PER_DAY = 10000; // Cent

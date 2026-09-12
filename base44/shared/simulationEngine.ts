@@ -6,7 +6,7 @@ import {
   CITIES, getDistance, mulberry32, INVITATION_TEMPLATES, DRIVER_APPLICANT_POOL,
   CARGO_TYPES, CUSTOMER_NAMES, STANDARD_TRUCK,
   dayOf, clockOf, formatGameTime, driveMinutes, fuelCents, tollCents,
-  LOAD_MIN, UNLOAD_MIN, MAX_DUTY_MIN, REST_MIN,
+  LOAD_MIN, UNLOAD_MIN, MAX_DUTY_MIN, REST_MIN, WORK_BUDGET_MIN,
   DRIVER_COST_PER_DAY, BRANCH_COST_PER_DAY, PRIVATE_WITHDRAWAL_PER_DAY, PRIVATE_LIVING_PER_DAY,
   VEHICLE_PRICE, HIRE_FEE, MAINTENANCE_COST, MAINTENANCE_DURATION,
   INVITATION_COST, STRESS_MAINT_THRESHOLD, MAINT_STRESS_FACTOR,
@@ -17,6 +17,10 @@ import {
   buildTourPlan, confirmTour as doConfirmTour, cancelTour as doCancelTour,
   processTours, onTripCompleted, findReturnLoads, suggestTours
 } from "./tourEngine.ts";
+import {
+  buildPhases, buildWorkSteps, buildEmptyWorkSteps,
+  computeFinalCounters, resetCounters, needsRest, migrateTripPhases,
+} from "./driverTimeEngine.ts";
 import { checkAchievements, migrateState } from "./progressEngine.ts";
 import { ACHIEVEMENTS, GOAL_TEMPLATES } from "./achievementCatalog.ts";
 import {
@@ -197,6 +201,8 @@ export function createInitialState(names) {
     d.employmentStatus = "employed";
     d.attendance = "present";
     d.consecutiveLowSatisfactionDays = 0;
+    d.workMinutesSinceRest = 0;
+    d.driveMinutesSinceBreak = 0;
   }
   state.orders = initialOffers(state);
   // Buchhaltung initialisieren und Eröffnungsbuchung erstellen
@@ -389,7 +395,7 @@ function earliestEventAfter(state, t, maxMin) {
   let best = null;
   const cand = (m) => { if (m > t && m <= maxMin) { if (best === null || m < best) best = m; } };
   for (const trip of state.trips) {
-    if (trip.status === "in_progress" && trip.currentLeg < trip.legs.length) cand(trip.legs[trip.currentLeg].endMin);
+    if (trip.status === "in_progress" && trip.currentPhase < (trip.phases || []).length) cand(trip.phases[trip.currentPhase].endMin);
   }
   for (const a of state.appointments) {
     if (a.status === "pending") cand(a.decisionDeadline);
@@ -429,12 +435,39 @@ function completeTrip(state, trip, m, log) {
   trip.endMin = m;
   const vehicle = state.vehicles.find(v => v.id === trip.vehicleId);
   const driver = state.drivers.find(d => d.id === trip.driverId);
-  const finalCity = trip.legs[trip.legs.length - 1].toCity;
+
+  // Endstadt aus letzter Fahr-Phase ableiten
+  let finalCity = vehicle.locationCity;
+  const phases = trip.phases || [];
+  for (let i = phases.length - 1; i >= 0; i--) {
+    if (phases[i].type === "empty_drive" || phases[i].type === "loaded_drive") {
+      finalCity = phases[i].toCity; break;
+    }
+  }
+
   vehicle.status = "free"; vehicle.tripId = null; vehicle.locationCity = finalCity;
   vehicle.condition = Math.max(0, vehicle.condition - 1);
-  driver.status = "resting"; driver.restUntil = m + REST_MIN; driver.locationCity = finalCity;
+  driver.locationCity = finalCity;
+
+  // Fahrer-Zähler aktualisieren (neues Fahrerzeitmodell)
+  if (trip.legacyMode) {
+    // Alter Trip: pauschale 12h Ruhe wie bisher
+    driver.status = "resting"; driver.restUntil = m + REST_MIN;
+    driver.workMinutesSinceRest = 0; driver.driveMinutesSinceBreak = 0;
+  } else {
+    // Neues Modell: Zähler aus Phasen ableiten, Ruhe nur bei erschöpftem Budget
+    const counters = computeFinalCounters(phases);
+    driver.workMinutesSinceRest = counters.workMin;
+    driver.driveMinutesSinceBreak = counters.driveMin;
+    if (driver.workMinutesSinceRest >= WORK_BUDGET_MIN) {
+      driver.status = "resting"; driver.restUntil = m + REST_MIN;
+      driver.workMinutesSinceRest = 0; driver.driveMinutesSinceBreak = 0;
+    } else {
+      driver.status = "free"; driver.restUntil = null;
+    }
+  }
+
   if (trip.type === "empty") {
-    // Tour-Verknüpfung prüfen
     onTripCompleted(state, trip, m, log);
     log.push({ type: "emptytrip_completed", trip: trip.id, vehicle: vehicle.id, driver: driver.id, atCity: finalCity });
     return;
@@ -455,20 +488,26 @@ function completeTrip(state, trip, m, log) {
   if (newAchs.length) log.push({ type: "achievements_unlocked", achievements: newAchs, atMin: m });
   if (state.tutorial.active && state.tutorial.step === 2) state.tutorial.step = 3;
   log.push({ type: "delivery", trip: trip.id, order: order.id, onTime, paymentCents: payment });
-  // Tour-Verknüpfung: Deployment als abgeschlossen markieren
   onTripCompleted(state, trip, m, log);
-  // Fahrer-Lieferbericht an GF postfach
   generateDriverDeliveryReport(state, driver, trip, order, m);
 }
 function processEventsAt(state, m, log) {
   // Spielzeit auf Ereigniszeit aktualisieren (startDeployment nutzt state.gameTime)
   state.gameTime = m;
-  // 1. Lieferabschlüsse (vor Fristprüfung)
+  // 1. Phasenabschlüsse (Fahrt, Pause, Ruhe, Laden, Entladen)
   for (const trip of state.trips) {
-    if (trip.status === "in_progress" && trip.currentLeg < trip.legs.length && trip.legs[trip.currentLeg].endMin === m) {
-      trip.currentLeg++;
-      log.push({ type: "leg_end", trip: trip.id, legType: trip.legs[trip.currentLeg - 1].type, endMin: m });
-      if (trip.currentLeg >= trip.legs.length) completeTrip(state, trip, m, log);
+    if (trip.status !== "in_progress") continue;
+    const phases = trip.phases || [];
+    if (trip.currentPhase >= phases.length) continue;
+    const phase = phases[trip.currentPhase];
+    if (phase.endMin !== m) continue;
+    trip.currentPhase++;
+    if (phase.type === "empty_drive" || phase.type === "loaded_drive") {
+      trip.drivenKm = (trip.drivenKm || 0) + (phase.distanceKm || 0);
+    }
+    log.push({ type: "phase_end", trip: trip.id, phaseType: phase.type, endMin: m });
+    if (trip.currentPhase >= phases.length) {
+      completeTrip(state, trip, m, log);
     }
   }
   // 2. Termine
@@ -575,24 +614,14 @@ function advanceTo(state, targetMin, log) {
 
 // ---------- Dispositionsplanung ----------
 function planTrip(state, order, vehicle, driver) {
-  let t = state.gameTime;
-  const legs = [];
-  let totalKm = 0;
-  if (vehicle.locationCity !== order.fromCity) {
-    const d = getDistance(vehicle.locationCity, order.fromCity);
-    const dur = driveMinutes(d);
-    legs.push({ type: "empty", fromCity: vehicle.locationCity, toCity: order.fromCity, distanceKm: d, durationMin: dur, startMin: t, endMin: t + dur });
-    t += dur; totalKm += d;
-  }
-  legs.push({ type: "load", fromCity: order.fromCity, toCity: order.fromCity, distanceKm: 0, durationMin: LOAD_MIN, startMin: t, endMin: t + LOAD_MIN });
-  t += LOAD_MIN;
-  const d = getDistance(order.fromCity, order.toCity);
-  const dur = driveMinutes(d);
-  legs.push({ type: "drive", fromCity: order.fromCity, toCity: order.toCity, distanceKm: d, durationMin: dur, startMin: t, endMin: t + dur });
-  t += dur; totalKm += d;
-  legs.push({ type: "unload", fromCity: order.toCity, toCity: order.toCity, distanceKm: 0, durationMin: UNLOAD_MIN, startMin: t, endMin: t + UNLOAD_MIN });
-  t += UNLOAD_MIN;
-  return { legs, totalKm, totalDuration: t - state.gameTime, endMin: t };
+  const workSteps = buildWorkSteps(vehicle.locationCity, order);
+  const counters = {
+    workMin: driver.workMinutesSinceRest || 0,
+    driveMin: driver.driveMinutesSinceBreak || 0,
+  };
+  const result = buildPhases(workSteps, counters, state.gameTime);
+  const totalKm = workSteps.reduce((s, step) => s + (step.distanceKm || 0), 0);
+  return { phases: result.phases, totalKm, totalDuration: result.endMin - state.gameTime, endMin: result.endMin };
 }
 
 function refreshApplicants(state) {
@@ -887,10 +916,7 @@ export function applyCommand(state, command, params) {
       if (v.locationCity !== d.locationCity) throw new Error("Fahrer und Lkw befinden sich an unterschiedlichen Orten.");
       if (o.tons > v.capacityTons) throw new Error("Überladung: " + o.tons + " t überschreiten Kapazität von " + v.capacityTons + " t.");
       const plan = planTrip(state, o, v, d);
-      if (plan.totalDuration > MAX_DUTY_MIN) {
-        const h = Math.floor(plan.totalDuration / 60), mm = plan.totalDuration % 60;
-        throw new Error("Einsatzdauer (" + h + " h " + mm + " min) überschreitet die 8-Stunden-Grenze.");
-      }
+      // Kein MAX_DUTY_MIN-Ablehnungsgrund mehr — lange Aufträge sind mit Pausen/Ruhe ausführbar
       const fuel = fuelCents(plan.totalKm, v.consumptionPer100km);
       const toll = tollCents(plan.totalKm);
       const totalCost = fuel + toll;
@@ -899,8 +925,9 @@ export function applyCommand(state, command, params) {
       addBooking(state, state.gameTime, "Maut: " + o.customer, -toll, "company", "toll:" + o.id);
       const trip = {
         id: uid(state, "t"), type: "loaded", orderId: o.id, vehicleId: v.id, driverId: d.id,
-        legs: plan.legs, currentLeg: 0, startMin: state.gameTime, endMin: plan.endMin,
-        status: "in_progress", paymentCents: o.paymentCents, fuelCents: fuel, tollCents: toll, totalKm: plan.totalKm
+        phases: plan.phases, currentPhase: 0, startMin: state.gameTime, endMin: plan.endMin,
+        status: "in_progress", paymentCents: o.paymentCents, fuelCents: fuel, tollCents: toll,
+        totalKm: plan.totalKm, drivenKm: 0,
       };
       state.trips.push(trip);
       v.status = "on_trip"; v.tripId = trip.id;
@@ -911,7 +938,7 @@ export function applyCommand(state, command, params) {
       o.history.push({ type: "planned", min: state.gameTime, actor: "player", actorName: state.private.playerName, details: { vehicleId: v.id, driverId: d.id, startMin: state.gameTime, endMin: plan.endMin, fuelCents: fuel, tollCents: toll } });
       o.history.push({ type: "started", min: state.gameTime, actor: "player", actorName: state.private.playerName, details: { tripId: trip.id, vehicleId: v.id, driverId: d.id } });
       if (state.tutorial.active && state.tutorial.step === 1) state.tutorial.step = 2;
-      result = { ok: true, tripId: trip.id, fuelCents: fuel, tollCents: toll, totalKm: plan.totalKm, endMin: plan.endMin, legs: plan.legs };
+      result = { ok: true, tripId: trip.id, fuelCents: fuel, tollCents: toll, totalKm: plan.totalKm, endMin: plan.endMin, phases: plan.phases };
       break;
     }
 
@@ -927,9 +954,10 @@ export function applyCommand(state, command, params) {
       if (v.locationCity !== d.locationCity) throw new Error("Fahrer und Lkw befinden sich an unterschiedlichen Orten.");
       if (v.locationCity !== p.fromCity) throw new Error("Fahrzeug und Fahrer müssen am Abfahrtsort sein.");
       if (!p.fromCity || !p.toCity || p.fromCity === p.toCity) throw new Error("Start und Ziel müssen zwei verschiedene Städte sein.");
+      const workSteps = buildEmptyWorkSteps(p.fromCity, p.toCity);
+      const counters = { workMin: d.workMinutesSinceRest || 0, driveMin: d.driveMinutesSinceBreak || 0 };
+      const phaseResult = buildPhases(workSteps, counters, state.gameTime);
       const dist = getDistance(p.fromCity, p.toCity);
-      const dur = driveMinutes(dist);
-      if (dur > MAX_DUTY_MIN) throw new Error("Fahrt überschreitet die 8-Stunden-Grenze.");
       const fuel = fuelCents(dist, v.consumptionPer100km);
       const toll = tollCents(dist);
       if (state.company.accountCents < fuel + toll) throw new Error("Firmenkonto reicht für Kraftstoff und Maut nicht aus.");
@@ -937,9 +965,8 @@ export function applyCommand(state, command, params) {
       addBooking(state, state.gameTime, "Maut (Leerfahrt)", -toll, "company", "emptytoll");
       const trip = {
         id: uid(state, "t"), type: "empty", orderId: null, vehicleId: v.id, driverId: d.id,
-        legs: [{ type: "empty_drive", fromCity: p.fromCity, toCity: p.toCity, distanceKm: dist, durationMin: dur, startMin: state.gameTime, endMin: state.gameTime + dur }],
-        currentLeg: 0, startMin: state.gameTime, endMin: state.gameTime + dur,
-        status: "in_progress", paymentCents: 0, fuelCents: fuel, tollCents: toll, totalKm: dist
+        phases: phaseResult.phases, currentPhase: 0, startMin: state.gameTime, endMin: phaseResult.endMin,
+        status: "in_progress", paymentCents: 0, fuelCents: fuel, tollCents: toll, totalKm: dist, drivenKm: 0,
       };
       state.trips.push(trip);
       v.status = "on_trip"; v.tripId = trip.id;
