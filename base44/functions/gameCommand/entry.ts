@@ -17,6 +17,7 @@ export default async function (req) {
     const body = await req.json();
     const { stateId, action_id, expected_revision, command, params } = body || {};
     const S = base44.asServiceRole.entities.GameState;
+    const SU = base44.entities.GameState; // nutzerspezifisch – stamped created_by_id automatisch
 
     // ---- Neues Spiel ----
     if (command === "newGame") {
@@ -28,7 +29,8 @@ export default async function (req) {
         }
       }
       const init = createInitialState(params || {});
-      const rec = await S.create({
+      // Nutzerbezogen anlegen, damit created_by_id korrekt gesetzt wird.
+      const rec = await SU.create({
         state: init.state, revision: 1,
         last_action_id: action_id || null,
         last_result: { ok: true, command: "newGame" },
