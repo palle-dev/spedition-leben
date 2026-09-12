@@ -7,10 +7,10 @@ import {
 import { vehicleDisplayName, driverDisplayName, driverInitials, driverAvatarClass } from "@/lib/displayHelpers";
 import { Truck, Users, Play, ArrowLeft, AlertTriangle, Package, MapPin, Clock, Fuel, CreditCard, ArrowRight, CheckCircle2 } from "lucide-react";
 
-export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChange }) {
+export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChange, preselectedVehicleId }) {
   const { state, send, showToast } = useGame();
   const order = state.orders.find(o => o.id === orderId);
-  const [vehicleId, setVehicleId] = useState("");
+  const [vehicleId, setVehicleId] = useState(preselectedVehicleId || "");
   const [driverId, setDriverId] = useState("");
   const [starting, setStarting] = useState(false);
 
@@ -98,7 +98,18 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
     finally { setStarting(false); }
   }
 
-  if (!order) return <div className="text-sm text-muted-foreground">Auftrag nicht gefunden.</div>;
+  if (!order) return (
+    <div className="space-y-3">
+      <button onClick={onBack} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition">
+        <ArrowLeft className="w-3.5 h-3.5" /> Zurück zur Auftragsliste
+      </button>
+      <div className="glass border border-white/10 rounded-xl p-5 text-center">
+        <Package className="w-7 h-7 text-muted-foreground/40 mx-auto mb-2" />
+        <p className="text-sm text-muted-foreground">Auftrag nicht mehr verfügbar.</p>
+        <p className="text-xs text-muted-foreground/60 mt-1">Wähle einen anderen Auftrag aus der Liste.</p>
+      </div>
+    </div>
+  );
 
   const buffer = plan ? order.deliveryDeadlineMin - plan.endMin : null;
 

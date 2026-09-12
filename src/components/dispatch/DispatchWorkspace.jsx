@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import { vehicleDisplayName, driverDisplayName } from "@/lib/displayHelpers";
 import { formatGameTime, formatEuro, CITIES, getDistance, driveMinutes, fuelEur, tollEur, MAX_DUTY_MIN } from "@/lib/gameData";
@@ -8,7 +9,7 @@ import DispatchPlanner from "./DispatchPlanner";
 import TourPlanner from "./TourPlanner";
 import DispatchAssistant from "./DispatchAssistant";
 import DispatchActiveTours from "./DispatchActiveTours";
-import { Truck, Users, Package, ArrowRight, Play, AlertTriangle, Sparkles, Route } from "lucide-react";
+import { Truck, Users, Package, ArrowRight, Play, AlertTriangle, Sparkles, Route, X } from "lucide-react";
 
 export default function DispatchWorkspace({
   activeTab, setActiveTab,
@@ -17,7 +18,7 @@ export default function DispatchWorkspace({
   selectedVehicleId, onSelectVehicle,
   onShowOnMap, onShowVehicle,
   onPlanRoute,
-  search, routeData
+  search, onResetSearch, routeData
 }) {
   const { state, send, showToast } = useGame();
   const [emptyMode, setEmptyMode] = useState(false);
@@ -29,7 +30,8 @@ export default function DispatchWorkspace({
   const [tourOrderId, setTourOrderId] = useState(null);
 
   const running = state.trips.filter(t => t.status === "in_progress");
-  const accepted = state.orders.filter(o => o.status === "angenommen" && !state.trips.some(t => t.orderId === o.id && t.status === "in_progress"));
+  const allAccepted = state.orders.filter(o => o.status === "angenommen");
+  const accepted = allAccepted.filter(o => !state.trips.some(t => t.orderId === o.id && t.status === "in_progress"));
   const activeTours = (state.tours || []).filter(t => t.status === "active");
   const searchLower = (search || "").toLowerCase();
 
@@ -95,6 +97,7 @@ export default function DispatchWorkspace({
               onBack={() => onPlanOrder(null)}
               onStarted={(r) => { onPlanOrder(null); onStarted?.(r); }}
               onPlanChange={onPlanChange}
+              preselectedVehicleId={selectedVehicleId}
             />
           ) : emptyMode ? (
             <EmptyTripPlanner
@@ -107,11 +110,36 @@ export default function DispatchWorkspace({
             />
           ) : (
             <div className="space-y-3">
-              {filteredOrders.length === 0 ? (
+              {accepted.length === 0 ? (
                 <div className="glass border border-white/10 rounded-xl p-5 text-center">
                   <Package className="w-7 h-7 text-muted-foreground/40 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">Keine Aufträge warten auf Zuweisung.</p>
-                  {running.length > 0 && <p className="text-xs text-muted-foreground/60 mt-1">Laufende Touren im Tab „Touren“.</p>}
+                  {allAccepted.length === 0 ? (
+                    <>
+                      <p className="text-sm text-muted-foreground">Noch kein Auftrag zur Planung.</p>
+                      <Link to="/auftraege" className="inline-flex items-center gap-1.5 mt-3 px-3 py-2 rounded-lg bg-lime/10 border border-lime/30 text-lime text-xs font-medium hover:border-lime/50 transition">
+                        <Package className="w-3.5 h-3.5" /> Auftragsmarkt öffnen
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-muted-foreground">Alle angenommenen Aufträge sind verplant.</p>
+                      <div className="flex items-center justify-center gap-2 mt-3">
+                        <button onClick={() => setActiveTab("touren")} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-surface-2 border border-white/10 text-foreground text-xs font-medium hover:border-white/20 transition">
+                          <Truck className="w-3.5 h-3.5" /> Touren ansehen
+                        </button>
+                        <Link to="/auftraege" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-lime/10 border border-lime/30 text-lime text-xs font-medium hover:border-lime/50 transition">
+                          <Package className="w-3.5 h-3.5" /> Auftragsmarkt
+                        </Link>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : filteredOrders.length === 0 ? (
+                <div className="glass border border-white/10 rounded-xl p-5 text-center">
+                  <p className="text-sm text-muted-foreground">Keine passenden Aufträge.</p>
+                  <button onClick={onResetSearch} className="inline-flex items-center gap-1.5 mt-3 px-3 py-2 rounded-lg bg-surface-2 border border-white/10 text-foreground text-xs font-medium hover:border-white/20 transition">
+                    <X className="w-3.5 h-3.5" /> Suche zurücksetzen
+                  </button>
                 </div>
               ) : (
                 filteredOrders.map(o => (
@@ -224,6 +252,28 @@ export default function DispatchWorkspace({
                 </button>
               );
             })}
+            {/* Auftrag zuweisen-Aktion für ausgewähltes freies Fahrzeug */}
+            {selectedVehicleId && (() => {
+              const sv = state.vehicles.find(x => x.id === selectedVehicleId);
+              if (!sv || sv.status !== "free") return null;
+              return (
+                <div className="mt-3 p-3 rounded-xl border border-lime/30 bg-lime/5">
+                  <div className="text-xs text-muted-foreground mb-2">{vehicleDisplayName(sv)} in {sv.locationCity} zuweisen</div>
+                  {accepted.length === 0 ? (
+                    <Link to="/auftraege" className="w-full flex items-center justify-center gap-1.5 rounded-lg py-2.5 bg-lime/10 border border-lime/30 text-lime text-xs font-medium hover:border-lime/50 transition">
+                      <Package className="w-3.5 h-3.5" /> Kein Auftrag – Auftragsmarkt
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() => { if (accepted.length === 1) onPlanOrder(accepted[0].id); else setActiveTab("auftraege"); }}
+                      className="w-full flex items-center justify-center gap-1.5 rounded-lg py-2.5 bg-lime text-ink text-xs font-semibold hover:brightness-110 transition active:scale-95"
+                    >
+                      <Route className="w-3.5 h-3.5" /> {accepted.length === 1 ? "Auftrag planen" : `${accepted.length} Aufträge wählen`}
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>

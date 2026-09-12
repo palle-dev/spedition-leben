@@ -3,12 +3,12 @@ import { useGame } from "@/lib/gameContext";
 import { loadRouteGeometries, buildPlanRouteGeoJSON } from "@/lib/geoData";
 import DispatchMap from "@/components/dispatch/DispatchMap";
 import DispatchWorkspace from "@/components/dispatch/DispatchWorkspace";
-import { Navigation, Truck, Home, Route as RouteIcon, Map, List, Search, X } from "lucide-react";
+import { Navigation, Truck, Home, Route as RouteIcon, Map, List, Search, X, Plus, Package } from "lucide-react";
 
 export default function Dispatch() {
   const { state } = useGame();
   const [routeData, setRouteData] = useState(null);
-  const [activeTab, setActiveTab] = useState("touren");
+  const [activeTab, setActiveTab] = useState(() => state.orders.some(o => o.status === "angenommen" && !state.trips.some(t => t.orderId === o.id && t.status === "in_progress")) ? "auftraege" : "touren");
   const [selectedTripId, setSelectedTripId] = useState(null);
   const [planningOrderId, setPlanningOrderId] = useState(null);
   const [selectedVehicleId, setSelectedVehicleId] = useState(null);
@@ -26,6 +26,7 @@ export default function Dispatch() {
   // Trip aus URL-Parameter auswählen (von Büro "Zur Disposition")
   const urlParams = new URLSearchParams(window.location.search);
   const tripParam = urlParams.get("trip");
+  const orderParam = urlParams.get("order");
   useEffect(() => {
     if (tripParam) {
       setSelectedTripId(tripParam);
@@ -34,8 +35,23 @@ export default function Dispatch() {
     }
   }, [tripParam]);
 
+  useEffect(() => {
+    if (!orderParam) return;
+    const ord = state.orders.find(o => o.id === orderParam);
+    if (ord && ord.status === "angenommen") {
+      setPlanningOrderId(orderParam);
+      setActiveTab("auftraege");
+      setSelectedTripId(null);
+    } else {
+      setPlanningOrderId(null);
+      setActiveTab("auftraege");
+    }
+    if (window.innerWidth < 1024) setMobileView("list");
+  }, [orderParam]);
+
   const runningCount = state.trips.filter(t => t.status === "in_progress").length;
-  const acceptedCount = state.orders.filter(o => o.status === "angenommen" && !state.trips.some(t => t.orderId === o.id && t.status === "in_progress")).length;
+  const acceptedOrders = state.orders.filter(o => o.status === "angenommen" && !state.trips.some(t => t.orderId === o.id && t.status === "in_progress"));
+  const acceptedCount = acceptedOrders.length;
 
   function handleSelectTrip(tripId) {
     setSelectedTripId(tripId);
@@ -81,6 +97,24 @@ export default function Dispatch() {
     ));
   }
 
+  function handlePlanClick() {
+    if (acceptedOrders.length === 1) {
+      setPlanningOrderId(acceptedOrders[0].id);
+    } else {
+      setPlanningOrderId(null);
+    }
+    setActiveTab("auftraege");
+    setSelectedTripId(null);
+    if (window.innerWidth < 1024) setMobileView("list");
+  }
+
+  function handleZuzuweisenClick() {
+    setPlanningOrderId(null);
+    setActiveTab("auftraege");
+    setSelectedTripId(null);
+    if (window.innerWidth < 1024) setMobileView("list");
+  }
+
   function handleStarted(result) {
     setPlanningOrderId(null);
     setPlanRoute(null);
@@ -96,14 +130,40 @@ export default function Dispatch() {
   return (
     <div className="h-full flex flex-col min-h-0 overflow-hidden">
       {/* Werkzeugleiste */}
-      <div className="flex items-center gap-2 lg:gap-3 px-3 lg:px-4 py-2 border-b border-white/10 shrink-0 min-h-[44px]">
+      <div className="flex items-center gap-2 lg:gap-3 px-3 lg:px-4 py-2 border-b border-white/10 shrink-0 min-h-[44px] flex-wrap">
         <div className="flex items-center gap-2 shrink-0">
           <Navigation className="w-4 h-4 text-lime" />
           <span className="text-sm font-medium">Disposition</span>
         </div>
 
+        {/* Primär: Auftrag planen */}
+        <button
+          onClick={handlePlanClick}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-lime text-ink text-xs font-semibold hover:brightness-110 transition active:scale-95 shrink-0"
+        >
+          <Plus className="w-3.5 h-3.5" /> Auftrag planen
+        </button>
+
+        {/* Zähler als Buttons */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            onClick={() => { setActiveTab("touren"); setSelectedTripId(null); if (window.innerWidth < 1024) setMobileView("list"); }}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-surface-2/50 border border-white/10 text-[11px] text-muted-foreground hover:text-foreground hover:border-white/20 transition"
+          >
+            <Truck className="w-3.5 h-3.5" /> {runningCount} unterwegs
+          </button>
+          <button
+            onClick={handleZuzuweisenClick}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-[11px] transition ${
+              acceptedCount > 0 ? "bg-lime/10 border-lime/30 text-lime hover:border-lime/50" : "bg-surface-2/50 border-white/10 text-muted-foreground hover:border-white/20"
+            }`}
+          >
+            <Package className="w-3.5 h-3.5" /> {acceptedCount} zuzuweisen
+          </button>
+        </div>
+
         {/* Suche */}
-        <div className="flex-1 min-w-0 max-w-xs">
+        <div className="flex-1 min-w-0 max-w-xs ml-auto lg:ml-0">
           {searchOpen ? (
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -116,7 +176,7 @@ export default function Dispatch() {
                 className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-surface-2 border border-white/10 text-xs text-foreground focus:border-lime/50 outline-none"
               />
               {search && (
-                <button onClick={() => { setSearch(""); setSearchOpen(false); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                   <X className="w-3 h-3" />
                 </button>
               )}
@@ -128,15 +188,8 @@ export default function Dispatch() {
           )}
         </div>
 
-        {/* Zähler */}
-        <div className="hidden sm:flex items-center gap-2 text-[11px] text-muted-foreground shrink-0">
-          <span className="flex items-center gap-1"><Truck className="w-3.5 h-3.5" /> {runningCount} unterwegs</span>
-          <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
-          <span>{acceptedCount} zuzuweisen</span>
-        </div>
-
         {/* Mobil: Karte/Liste-Umschalter */}
-        <div className="lg:hidden flex gap-1 bg-ink/60 border border-white/10 rounded-full p-0.5 shrink-0 ml-auto">
+        <div className="lg:hidden flex gap-1 bg-ink/60 border border-white/10 rounded-full p-0.5 shrink-0">
           <button onClick={() => setMobileView("map")} className={`px-3 py-1.5 rounded-full text-xs font-medium transition min-h-[36px] ${isMapVisible ? "bg-lime text-ink" : "text-muted-foreground"}`}>
             <Map className="w-3.5 h-3.5" />
           </button>
@@ -173,7 +226,7 @@ export default function Dispatch() {
         </div>
 
         {/* Arbeitsbereich */}
-        <div className={`min-h-0 flex flex-col ${mobileView === "map" ? "hidden" : "flex-1"} lg:flex-none lg:w-[380px] xl:w-[400px] lg:shrink-0 border-t lg:border-t-0 lg:border-l border-white/10 bg-ink/95 backdrop-blur-xl`}>
+        <div className={`min-h-0 flex flex-col ${mobileView === "map" ? "hidden" : "flex-1"} lg:flex lg:flex-none lg:w-[380px] xl:w-[400px] lg:shrink-0 border-t lg:border-t-0 lg:border-l border-white/10 bg-ink/95 backdrop-blur-xl`}>
           <DispatchWorkspace
             activeTab={activeTab}
             setActiveTab={setActiveTab}
@@ -189,6 +242,7 @@ export default function Dispatch() {
             onShowVehicle={(vehicleId) => { setFocusAction({ type: "vehicle", vehicleId }); if (window.innerWidth < 1024) setMobileView("map"); }}
             onPlanRoute={(geojson) => setPlanRoute(geojson)}
             search={search}
+            onResetSearch={() => setSearch("")}
             routeData={routeData}
           />
         </div>

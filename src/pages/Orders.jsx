@@ -1,11 +1,13 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime, CITIES } from "@/lib/gameData";
 import StatusBadge from "@/components/ui/StatusBadge";
-import { Check, X, MapPin, Clock, Package, ArrowRight } from "lucide-react";
+import { Check, X, MapPin, Clock, Package, ArrowRight, Route as RouteIcon } from "lucide-react";
 
 export default function Orders() {
   const { state, send, showToast } = useGame();
+  const navigate = useNavigate();
   const [busyId, setBusyId] = useState(null);
   const [filterCity, setFilterCity] = useState("");
   const [sortBy, setSortBy] = useState("deadline");
@@ -99,10 +101,16 @@ export default function Orders() {
                     </div>
                   </div>
                   {o.status === "angenommen" && (
-                    <button onClick={() => cancel(o)} disabled={busyId === o.id}
-                      className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-2 bg-red-500/15 border border-red-400/30 text-red-200 text-xs hover:bg-red-500/25 disabled:opacity-50 transition active:scale-95">
-                      <X className="w-3.5 h-3.5" /> Stornieren
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button onClick={() => navigate(`/disposition?order=${o.id}`)}
+                        className="flex items-center gap-1.5 rounded-lg px-3 py-2 bg-lime text-ink text-xs font-semibold hover:brightness-110 transition active:scale-95">
+                        <RouteIcon className="w-3.5 h-3.5" /> Planen
+                      </button>
+                      <button onClick={() => cancel(o)} disabled={busyId === o.id}
+                        className="flex items-center gap-1.5 rounded-lg px-3 py-2 bg-red-500/15 border border-red-400/30 text-red-200 text-xs hover:bg-red-500/25 disabled:opacity-50 transition active:scale-95">
+                        <X className="w-3.5 h-3.5" /> Stornieren
+                      </button>
+                    </div>
                   )}
                 </div>
               );
