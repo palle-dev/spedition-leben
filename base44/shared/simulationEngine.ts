@@ -95,6 +95,13 @@ import {
   evaluateWorkshopAutomation, updateAutomationProfile, getWorkshopStatus,
   getWorkshopEventTimes, WORKSHOP_SLOT_PRICE,
 } from "./workshopEngine.ts";
+import {
+  migratePersonnelMarket, initStartApplicants, generatePersonnelWave,
+  scheduleDemandWave, expireApplicants, isRegularWaveTime,
+  getNextRegularWaveTime, postJob, closeJobPosting, fulfillPosting,
+  toggleWatchlist, getPersonnelMarketStatus, computeRoleTargets,
+  countAvailableByRole,
+} from "./personnelMarketEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -246,7 +253,7 @@ export function createInitialState(names) {
       hasSportCar: false, hasBoat: false, hasVilla: false, tripsCompleted: 0,
     },
     employees: [],
-    availableApplicants: makeInitialApplicants(),
+    availableApplicants: [],
     hiredApplicantNames: [],
     portraitAssignments: {},
     leisureUsedDay: 0,
@@ -301,6 +308,9 @@ export function createInitialState(names) {
   // Werkstatt initialisieren (Auftrag 27)
   state.workshop = { slots: [], maintenanceOrders: [], automationProfile: null };
   migrateWorkshop(state);
+  // Personalmarkt initialisieren und Start-Pool erzeugen (Auftrag 29)
+  migratePersonnelMarket(state);
+  initStartApplicants(state);
   return { state };
 }
 
@@ -495,6 +505,13 @@ function earliestEventAfter(state, t, maxMin) {
   }
   // Werkstatt-Ereignisse (Auftrag 27)
   for (const wt of getWorkshopEventTimes(state, t, maxMin)) cand(wt);
+  // Personalmarkt-Wellen (Auftrag 29): regulär 08:00/14:00, bedarfsbezogen
+  {
+    const nextReg = getNextRegularWaveTime(t);
+    if (nextReg <= maxMin) cand(nextReg);
+    const nextDemand = state.personnelMarket?.nextDemandWaveMin;
+    if (nextDemand && nextDemand > t && nextDemand <= maxMin) cand(nextDemand);
+  }
   return best;
 }
 function completeTrip(state, trip, m, log) {
@@ -710,6 +727,15 @@ function processEventsAt(state, m, log) {
   // Auftrag 27: Werkstatt-Verarbeitung und Automatik
   processWorkshop(state, m, log);
   evaluateWorkshopAutomation(state, m, log);
+  // Auftrag 29: Personalmarkt-Wellen und Ablauf
+  if (isRegularWaveTime(m)) {
+    generatePersonnelWave(state, m, log, false);
+  }
+  if (state.personnelMarket?.nextDemandWaveMin === m) {
+    generatePersonnelWave(state, m, log, true);
+    state.personnelMarket.nextDemandWaveMin = null;
+  }
+  expireApplicants(state, m, log);
   // 4b. Monatswechsel (Abschreibung, Periodenabschluss)
   if (m % MONTH_MIN === 0 && m > 0) {
     calculateDepreciation(state, m);
@@ -1039,6 +1065,7 @@ export function applyCommand(state, command, params) {
   migrateRewards(state);
   migratePurchases(state);
   migrateWorkshop(state);
+  migratePersonnelMarket(state);
   const p = params || {};
   let result;
   switch (command) {
@@ -1366,7 +1393,12 @@ export function applyCommand(state, command, params) {
       state.drivers.push(d);
       state.hiredApplicantNames.push(app.name);
       state.availableApplicants = state.availableApplicants.filter(a => a.id !== app.id);
-      refreshApplicants(state);
+      // Offene Stelle erfuellen und bedarfsbezogene Welle ausloesen (Auftrag 29)
+      fulfillPosting(state, "driver", app.id);
+      scheduleDemandWave(state, state.gameTime);
+      if (state.personnelMarket) {
+        state.personnelMarket.stats.applicantsHired = (state.personnelMarket.stats.applicantsHired || 0) + 1;
+      }
       result = { ok: true, driverId: d.id };
       break;
     }
@@ -1419,7 +1451,14 @@ export function applyCommand(state, command, params) {
       }
       state.hiredApplicantNames.push(app.name + ":" + app.role);
       state.availableApplicants = state.availableApplicants.filter(a => a.id !== app.id);
-      refreshApplicants(state);
+      // Offene Stelle erfuellen (Auftrag 29)
+      fulfillPosting(state, role, app.id);
+      // Bedarfsbezogene Welle ausloesen (Auftrag 29)
+      scheduleDemandWave(state, state.gameTime);
+      // Statistik
+      if (state.personnelMarket) {
+        state.personnelMarket.stats.applicantsHired = (state.personnelMarket.stats.applicantsHired || 0) + 1;
+      }
       // Einfuehrungsnachricht an GF
       const newHire = role === "driver"
         ? state.drivers[state.drivers.length - 1]
@@ -2247,6 +2286,33 @@ export function applyCommand(state, command, params) {
 
     case "getWorkshopStatus": {
       result = getWorkshopStatus(state);
+      break;
+    }
+
+    // ---------- Personalmarkt (Auftrag 29) ----------
+
+    case "postJob": {
+      ensureNotBlocked(state);
+      const r = postJob(state, p);
+      result = r;
+      break;
+    }
+
+    case "closeJobPosting": {
+      ensureNotBlocked(state);
+      const r = closeJobPosting(state, p.postingId);
+      result = r;
+      break;
+    }
+
+    case "getPersonnelMarketStatus": {
+      result = getPersonnelMarketStatus(state);
+      break;
+    }
+
+    case "toggleApplicantWatchlist": {
+      const r = toggleWatchlist(state, p.applicantId);
+      result = r;
       break;
     }
 

@@ -44,7 +44,8 @@ export function driverAvatarClass(d) {
 export function roleLabel(role) {
   const labels = {
     driver: "Fahrer", dispatcher: "Disponent", dispatcher_senior: "Erf. Disponent",
-    cleaner: "Reinigungskraft", mechanic: "Werkstattmitarbeiter", accountant: "Buchhalter/Buchhalterin",
+    cleaner: "Reinigungskraft", mechanic: "Werkstattmitarbeiter",
+    accountant: "Buchhalter/Buchhalterin", accountant_senior: "Erf. Buchhaltungskraft",
   };
   return labels[role] || role;
 }
@@ -54,6 +55,7 @@ export function roleIconName(role) {
   const icons = {
     driver: "Truck", dispatcher: "Headset", dispatcher_senior: "Headset",
     cleaner: "Sparkles", mechanic: "Wrench", accountant: "Calculator",
+    accountant_senior: "Calculator",
   };
   return icons[role] || "User";
 }

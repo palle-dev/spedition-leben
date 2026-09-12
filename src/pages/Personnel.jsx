@@ -8,11 +8,14 @@ import DispatcherSetup from "@/components/personnel/DispatcherSetup";
 import TerminationDialog from "@/components/personnel/TerminationDialog";
 import AbsenceTab from "@/components/personnel/AbsenceTab";
 import ServicesTab from "@/components/personnel/ServicesTab";
+import ApplicantBrowser from "@/components/personnel/ApplicantBrowser";
+import JobPostingPanel from "@/components/personnel/JobPostingPanel";
 import { UserPlus, Users, MapPin, Clock, Truck, Headset, Sparkles, Wrench, Calculator, Settings, Check, X, AlertCircle, Briefcase, LogOut, RotateCcw } from "lucide-react";
 
 const ROLE_ICON = {
   driver: Truck, dispatcher: Headset, dispatcher_senior: Headset,
   cleaner: Sparkles, mechanic: Wrench, accountant: Calculator,
+  accountant_senior: Calculator,
 };
 
 export default function Personnel() {
@@ -22,6 +25,8 @@ export default function Personnel() {
   const [setupEmp, setSetupEmp] = useState(null);
   const [managePerson, setManagePerson] = useState(null); // { id, kind, name }
   const [terminatePerson, setTerminatePerson] = useState(null); // { id, kind, name }
+  const [jobPostingOpen, setJobPostingOpen] = useState(false);
+  const [jobPrefill, setJobPrefill] = useState(null);
 
   const openCompany = state.openCosts.some(o => o.account === "company");
   const drivers = state.drivers || [];
@@ -63,7 +68,7 @@ export default function Personnel() {
   const roleOrder = ["dispatcher", "dispatcher_senior", "driver", "cleaner", "mechanic", "accountant"];
 
   return (
-    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-5xl mx-auto space-y-5">
+    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-7xl mx-auto space-y-5">
       {/* Header */}
       <div className="flex items-end justify-between flex-wrap gap-3">
         <div>
@@ -134,38 +139,12 @@ export default function Personnel() {
         </div>
       )}
 
-      {/* Einstellen Tab */}
+      {/* Einstellen Tab – Bewerbermarkt (Auftrag 29) */}
       {tab === "hire" && (
-        <div className="space-y-5">
-          {roleOrder.map(role => {
-            const apps = applicantsByRole[role];
-            if (!apps || apps.length === 0) return null;
-            const roleDef = PERSONNEL_ROLES[role];
-            const Icon = ROLE_ICON[role] || Users;
-            return (
-              <div key={role}>
-                <h2 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground mb-3 flex items-center gap-1.5">
-                  <Icon className="w-3.5 h-3.5" /> {roleLabel(role)}
-                </h2>
-                <div className="grid md:grid-cols-2 gap-3">
-                  {apps.map(app => (
-                    <ApplicantCard
-                      key={app.id}
-                      app={app}
-                      onHire={() => hire(app)}
-                      busy={busyId === app.id}
-                      disabled={openCompany || state.company.accountCents < (app.hireFeeCents || roleDef?.hireFeeCents || 0)}
-                      dailyCosts={dailyCosts}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-          {applicants.length === 0 && (
-            <div className="text-sm text-muted-foreground text-center py-8">Aktuell keine Bewerber verfügbar.</div>
-          )}
-        </div>
+        <ApplicantBrowser
+          onPostJob={() => { setJobPrefill(null); setJobPostingOpen(true); }}
+          dailyCosts={dailyCosts}
+        />
       )}
 
       {/* Abwesenheiten Tab (Auftrag 25) */}
@@ -263,6 +242,13 @@ export default function Personnel() {
           />
         )}
       </Drawer>
+
+      {/* Stellen-Ausschreibung (Auftrag 29) */}
+      <JobPostingPanel
+        open={jobPostingOpen}
+        onClose={() => setJobPostingOpen(false)}
+        prefill={jobPrefill}
+      />
     </div>
   );
 }
