@@ -8,6 +8,9 @@
     "state": {
       "type": "object"
     },
+    "owner_id": {
+      "type": "string"
+    },
     "last_action_id": {
       "type": "string"
     },
@@ -20,7 +23,7 @@
   },
   "rls": {
     "read": {
-      "created_by_id": "{{user.id}}"
+      "data.owner_id": "{{user.id}}"
     },
     "create": false,
     "update": false,
