@@ -42,7 +42,7 @@ import { detectIntent, processStaffTasks, getQuickReplies, getIntentByType } fro
 import {
   takeLoan, earlyRepayLoan, leaseTruck, returnLeasedTruck, buyoutLeasedTruck,
   earlyTerminateLease, processFinancingEvents, getFinancingDueEvents,
-  isLeasingOverdueBlocked, computeCreditLimit,
+  isLeasingOverdueBlocked, computeCreditLimit, checkFinancingAccess,
 } from "./financingEngine.ts";
 import {
   processReportSchedules, generateDriverDeliveryReport,
@@ -1737,7 +1737,13 @@ export function applyCommand(state, command, params) {
 
     case "takeLoan": {
       ensureNotBlocked(state);
-      const r = takeLoan(state, { amountCents: p.amountCents, termMonths: p.termMonths });
+      const r = takeLoan(state, { amountCents: p.amountCents, termMonths: p.termMonths, clearArrears: p.clearArrears });
+      result = r;
+      break;
+    }
+
+    case "previewFinancing": {
+      const r = checkFinancingAccess(state, { type: p.financingType, offerId: p.offerId, amountCents: p.amountCents, termMonths: p.termMonths, provisionCity: p.provisionCity, clearArrears: p.clearArrears });
       result = r;
       break;
     }
@@ -1756,7 +1762,7 @@ export function applyCommand(state, command, params) {
 
     case "leaseTruck": {
       ensureNotBlocked(state);
-      const r = leaseTruck(state, { provisionCity: p.provisionCity });
+      const r = leaseTruck(state, { provisionCity: p.provisionCity, offerId: p.offerId });
       result = r;
       break;
     }

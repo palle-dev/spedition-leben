@@ -16,6 +16,23 @@ export const LOAN_TERMS = [12, 24, 36];
 export const DAY_MIN = 1440;
 
 export const LEASING_OFFERS = {
+  // Variante A – Flexibler Einstieg (0 € Sonderzahlung, 900 €/Monat)
+  standard_flex: {
+    id: "standard_flex",
+    vehicleType: "Standard-Lkw",
+    capacityTons: 12,
+    consumptionPer100km: 28,
+    termMonths: 24,
+    specialPaymentCents: 0,                    // 0 €
+    monthlyRateCents: 90000,                   // 900 €
+    includedKm: 240000,
+    mileageRatePerKmCents: 10,                  // 0,10 €/km
+    buyoutPriceCents: 1500000,                  // 15.000 €
+    minConditionAtReturn: 70,
+    conditionPenaltyPerPointCents: 5000,        // 50 €/Punkt
+    returnLocationCity: "Hamburg",
+  },
+  // Variante B – Niedrigere laufende Rate (1.500 € Sonderzahlung, 800 €/Monat)
   standard: {
     id: "standard",
     vehicleType: "Standard-Lkw",
@@ -32,6 +49,11 @@ export const LEASING_OFFERS = {
     returnLocationCity: "Hamburg",
   },
 };
+
+export const FINANCING_ACCESS_VERSION = "growth_access_v2";
+export const SEVERE_OVERDUE_DAYS = 30;
+export const BASE_CREDIT_LIMIT_CENTS = 10000000;    // 100.000 € Grundrahmen
+export const EQUITY_GROWTH_THRESHOLD_CENTS = 16500000; // 165.000 €
 
 export const LEASING_OVERDUE_GRACE_DAYS = 7;
 export const LEASING_OVERDUE_PENALTY_CENTS = 4000;    // 40 € je 24h
@@ -66,12 +88,11 @@ export function computeOperatingCashFlow30(state) {
 
 export function computeCreditLimit(state) {
   const E = computeEquity(state);
-  const CF30 = computeOperatingCashFlow30(state);
-  // Gesamtobergrenze = min(1M€, max(0, min(50K€, E/3)) + 0,5 × max(0, E - 165K€) + 6 × max(0, CF30))
-  const part1 = Math.min(5000000, Math.max(0, Math.floor(E / 3)));
-  const part2 = Math.floor(0.5 * Math.max(0, E - 16500000));
-  const part3 = 6 * Math.max(0, CF30);
-  const totalLimit = Math.min(LOAN_MAX_TOTAL_CENTS, Math.max(0, part1 + part2 + part3));
+  // Gesamtobergrenze = min(1M€, 100K€ + 0,5 × max(0, E - 165K€))
+  // Kein E/3-Abzug, kein CF30-Abzug, keine pauschale Bonitätsreduzierung.
+  const growthComponent = Math.floor(0.5 * Math.max(0, E - EQUITY_GROWTH_THRESHOLD_CENTS));
+  const totalLimit = Math.min(LOAN_MAX_TOTAL_CENTS, BASE_CREDIT_LIMIT_CENTS + growthComponent);
+  // Genutzter Rahmen = gesamte ausstehende Darlehenstilgung (inkl. überfälliger Tilgung genau einmal)
   const outstanding = (state.loans || [])
     .filter(l => l.status === "active")
     .reduce((s, l) => s + (l.remainingPrincipalCents || 0) + (l.overduePrincipalCents || 0), 0);
@@ -80,7 +101,6 @@ export function computeCreditLimit(state) {
     totalLimit: Math.floor(totalLimit / 100) * 100,
     available: Math.floor(available / 100) * 100,
     equity: E,
-    cashFlow30: CF30,
     outstanding,
   };
 }
@@ -105,34 +125,143 @@ export function generateLoanSchedule(principalCents, termMonths, interestRateMon
   return schedule;
 }
 
+// ---------- Schwere Rückstände (Auftrag 22) ----------
+// Schwerer Leasingrückstand: mindestens eine fällige Rate mit offenem Rest seit 30+ Spieltagen.
+export function getSevereLeasingArrears(state) {
+  const arrears = [];
+  for (const contract of (state.leasingContracts || [])) {
+    if (contract.status !== "active" && contract.status !== "ending") continue;
+    if ((contract.overdueRatesCents || 0) > 0 && contract.overdueSinceMin) {
+      const daysOverdue = Math.floor((state.gameTime - contract.overdueSinceMin) / DAY_MIN);
+      if (daysOverdue >= SEVERE_OVERDUE_DAYS) {
+        arrears.push({
+          type: "leasing", contractId: contract.id,
+          overdueCents: contract.overdueRatesCents,
+          overdueSinceMin: contract.overdueSinceMin, daysOverdue,
+        });
+      }
+    }
+  }
+  return arrears;
+}
+
+// Schwerer Kreditrückstand: fällige Rate mit offenem Rest seit 30+ Spieltagen.
+export function getSevereLoanArrears(state) {
+  const arrears = [];
+  for (const loan of (state.loans || [])) {
+    if (loan.status !== "active") continue;
+    const totalOverdue = (loan.overduePrincipalCents || 0) + (loan.overdueInterestCents || 0);
+    if (totalOverdue > 0 && loan.overdueSinceMin) {
+      const daysOverdue = Math.floor((state.gameTime - loan.overdueSinceMin) / DAY_MIN);
+      if (daysOverdue >= SEVERE_OVERDUE_DAYS) {
+        arrears.push({
+          type: "loan", loanId: loan.id,
+          overduePrincipalCents: loan.overduePrincipalCents || 0,
+          overdueInterestCents: loan.overdueInterestCents || 0,
+          overdueCents: totalOverdue, overdueSinceMin: loan.overdueSinceMin, daysOverdue,
+        });
+      }
+    }
+  }
+  return arrears;
+}
+
+export function getSevereFinancingArrears(state) {
+  return [...getSevereLeasingArrears(state), ...getSevereLoanArrears(state)];
+}
+
+// ---------- Zentrale Zulassungsprüfung (Auftrag 22) ----------
+// Gibt { allowed, blockingReasons, notices, terms, immediateCashRequired, netEffect } zurück.
+// blockingReasons sperren die Aktion; notices sind Hinweise, die nicht sperren.
+export function checkFinancingAccess(state, options) {
+  const blockingReasons = [];
+  const notices = [];
+  const o = options || {};
+
+  if (o.type === "leasing") {
+    const offer = LEASING_OFFERS[o.offerId] || LEASING_OFFERS.standard_flex;
+    const immediateCashRequired = offer.specialPaymentCents;
+
+    // Harte Ausschlussgründe
+    const severeArrears = getSevereLeasingArrears(state);
+    if (severeArrears.length > 0) {
+      for (const a of severeArrears) {
+        blockingReasons.push(`Schwerer Leasingrückstand: Vertrag ${a.contractId}, offen ${(a.overdueCents / 100).toFixed(0)} €, seit ${a.daysOverdue} Tagen überfällig.`);
+      }
+    }
+    if (immediateCashRequired > 0 && state.company.accountCents < immediateCashRequired) {
+      blockingReasons.push(`Sofortzahlung ${(immediateCashRequired / 100).toFixed(0)} € nicht verfügbar (Firmenbank: ${(state.company.accountCents / 100).toFixed(0)} €).`);
+    }
+
+    // Hinweise (nicht sperrend)
+    const provCity = o.provisionCity || offer.returnLocationCity;
+    const hasFreeDriver = (state.drivers || []).some(d =>
+      d.locationCity === provCity && (d.status === "free" || d.status === "resting") && d.employmentStatus === "employed");
+    if (!hasFreeDriver) {
+      notices.push(`Kein freier Fahrer am Bereitstellungsort ${provCity} – Fahrzeug kann erst nach Einstellung disponiert werden.`);
+    }
+    notices.push("In dieser Vorschau sind noch nicht angenommene zukünftige Aufträge nicht enthalten.");
+
+    return {
+      allowed: blockingReasons.length === 0,
+      blockingReasons, notices,
+      terms: { version: FINANCING_ACCESS_VERSION, offerId: offer.id, ...offer },
+      immediateCashRequired,
+    };
+  }
+
+  if (o.type === "loan") {
+    const amountCents = Math.floor((o.amountCents || 0) / 100) * 100;
+    const termMonths = o.termMonths || 24;
+    const limit = computeCreditLimit(state);
+    const severeArrears = getSevereFinancingArrears(state);
+    const clearArrears = !!o.clearArrears;
+
+    // Harte Ausschlussgründe
+    if (amountCents < LOAN_MIN_CENTS) blockingReasons.push("Mindestbetrag 5.000 €.");
+    if (!LOAN_TERMS.includes(termMonths)) blockingReasons.push("Laufzeit muss 12, 24 oder 36 Monate sein.");
+    if (amountCents > limit.available) {
+      blockingReasons.push(`Übersteigt verfügbaren Kreditrahmen (${(limit.available / 100).toFixed(0)} €).`);
+    }
+
+    // Bei schweren Rückständen: Kredit nur zur Begleichung zulässig
+    if (severeArrears.length > 0 && !clearArrears) {
+      const totalArrears = severeArrears.reduce((s, a) => s + a.overdueCents, 0);
+      blockingReasons.push(`Schwerer Finanzierungsrückstand (${(totalArrears / 100).toFixed(0)} €). Kredit aufnehmen und Rückstände begleichen?`);
+    }
+
+    // Hinweise
+    notices.push("In dieser Vorschau sind noch nicht angenommene zukünftige Aufträge nicht enthalten.");
+    if (severeArrears.length > 0 && clearArrears) {
+      notices.push("Kredit wird zur Begleichung schwerer Rückstände verwendet.");
+    }
+
+    const fee = Math.round(amountCents * LOAN_FEE_RATE);
+    const netPayout = amountCents - fee;
+    return {
+      allowed: blockingReasons.length === 0,
+      blockingReasons, notices,
+      terms: { version: FINANCING_ACCESS_VERSION, amountCents, termMonths, interestRate: LOAN_INTEREST_RATE_MONTHLY, feeRate: LOAN_FEE_RATE },
+      immediateCashRequired: 0,
+      netEffect: { gross: amountCents, fee, netPayout, bankAfter: state.company.accountCents + netPayout },
+      limit,
+      severeArrears,
+    };
+  }
+
+  return { allowed: false, blockingReasons: ["Unbekannte Finanzierungsart"], notices };
+}
+
 // ---------- Kredit aufnehmen ----------
-export function takeLoan(state, { amountCents, termMonths }) {
+export function takeLoan(state, { amountCents, termMonths, clearArrears }) {
   amountCents = Math.floor(amountCents / 100) * 100;
-  if (amountCents < LOAN_MIN_CENTS) throw new Error("Mindestbetrag 5.000 €.");
-  if (!LOAN_TERMS.includes(termMonths)) throw new Error("Laufzeit muss 12, 24 oder 36 Monate sein.");
-  const limit = computeCreditLimit(state);
-  if (amountCents > limit.available)
-    throw new Error("Kreditrahmen reicht nicht. Verfügbar: " + (limit.available / 100).toFixed(0) + " €.");
-  if ((state.loans || []).some(l => l.status === "defaulted"))
-    throw new Error("Es bestehen Finanzierungsausfälle. Neue Kreditaufnahme gesperrt.");
+  termMonths = termMonths || 24;
+  const access = checkFinancingAccess(state, { type: "loan", amountCents, termMonths, clearArrears });
+  if (!access.allowed) throw new Error(access.blockingReasons.join(" "));
 
   const fee = Math.round(amountCents * LOAN_FEE_RATE);
   const netPayout = amountCents - fee;
   const schedule = generateLoanSchedule(amountCents, termMonths, LOAN_INTEREST_RATE_MONTHLY);
-
-  // Liquiditätsprüfung: 90 Tage / erste drei Raten
-  const firstThreeRates = schedule.slice(0, Math.min(3, schedule.length)).reduce((s, r) => s + r.totalCents, 0);
-  const dailyCosts = (state.drivers.length * 10000
-    + (state.employees || []).filter(e => e.employmentStatus === "employed").reduce((s, e) => s + e.costPerDayCents, 0)
-    + state.branches.length * 10000 + 10000);
-  const projected90 = dailyCosts * 90;
-  const expectedRevenue = state.trips.filter(t => t.status === "in_progress").reduce((s, t) => s + t.paymentCents, 0);
-  const openItems = (state.accounting?.openItems || []).filter(o => o.remainingCents > 0).reduce((s, o) => s + o.remainingCents, 0);
-  const leasingDue90 = computeLeasingDue90(state);
-  const totalObligations = firstThreeRates + projected90 + openItems + leasingDue90;
-  const totalAvailable = state.company.accountCents + netPayout + expectedRevenue;
-  if (totalAvailable < totalObligations)
-    throw new Error("Liquiditätsprüfung fehlgeschlagen: Verpflichtungen (" + (totalObligations / 100).toFixed(0) + " €) übersteigen verfügbare Mittel (" + (totalAvailable / 100).toFixed(0) + " €).");
 
   // Buchung: Bank +netPayout, Finanzierungskosten +fee, Darlehen +amountCents
   postJournal(state, {
@@ -153,11 +282,17 @@ export function takeLoan(state, { amountCents, termMonths }) {
     schedule, payments: [],
     remainingPrincipalCents: amountCents,
     accruedInterestCents: 0, interestFraction: 0, lastAccrualMin: state.gameTime,
-    overduePrincipalCents: 0, overdueInterestCents: 0,
+    overduePrincipalCents: 0, overdueInterestCents: 0, overdueSinceMin: null,
     status: "active", nextDueMin: state.gameTime + 30 * DAY_MIN, paidInstallments: 0,
   };
   state.loans = state.loans || [];
   state.loans.push(loan);
+
+  // Bei clearArrears: schwere Rückstände aus der nun erhöhten Bank begleichen
+  let clearedArrears = null;
+  if (clearArrears && access.severeArrears.length > 0) {
+    clearedArrears = settleSevereArrears(state, access.severeArrears);
+  }
 
   deliverMessage(state, {
     fromId: "system", toId: "player",
@@ -167,7 +302,56 @@ export function takeLoan(state, { amountCents, termMonths }) {
     linkedRefs: { type: "loan", id: loanId }, dedupKey: `loan_signed:${loanId}`,
   });
 
-  return { ok: true, loanId, principalCents: amountCents, feeCents: fee, netPayout, schedule };
+  return { ok: true, loanId, principalCents: amountCents, feeCents: fee, netPayout, schedule, clearedArrears };
+}
+
+// Begleicht schwere Rückstände aus der aktuellen Firmenbank.
+// Tilgungsanteil reduziert Resttilgung; Zinsanteil gleicht Zinsforderung aus.
+function settleSevereArrears(state, severeArrears) {
+  const cleared = [];
+  for (const a of severeArrears) {
+    if (a.type === "leasing") {
+      const contract = (state.leasingContracts || []).find(c => c.id === a.contractId);
+      if (!contract) continue;
+      const pay = Math.min(state.company.accountCents, contract.overdueRatesCents);
+      if (pay <= 0) continue;
+      contract.overdueRatesCents -= pay;
+      postJournal(state, {
+        text: "Leasingrückstand beglichen: " + contract.id,
+        type: "leasing_arrears_clear", gameTime: state.gameTime, actor: "player", vehicleId: contract.vehicleId,
+        lines: [{ account: "2120", debit: pay }, { account: "1000", credit: pay }],
+      });
+      if (contract.overdueRatesCents <= 0) contract.overdueSinceMin = null;
+      cleared.push({ type: "leasing", contractId: contract.id, paidCents: pay });
+    } else if (a.type === "loan") {
+      const loan = (state.loans || []).find(l => l.id === a.loanId);
+      if (!loan) continue;
+      let remaining = state.company.accountCents;
+      if (remaining <= 0) continue;
+      const payInterest = Math.min(remaining, loan.overdueInterestCents || 0);
+      remaining -= payInterest;
+      const payPrincipal = Math.min(remaining, loan.overduePrincipalCents || 0);
+      remaining -= payPrincipal;
+      const totalPaid = payInterest + payPrincipal;
+      if (totalPaid <= 0) continue;
+      loan.overdueInterestCents -= payInterest;
+      loan.overduePrincipalCents -= payPrincipal;
+      loan.remainingPrincipalCents -= payPrincipal;
+      const lines = [];
+      if (payInterest > 0) lines.push({ account: "2230", debit: payInterest });
+      if (payPrincipal > 0) lines.push({ account: "2210", debit: payPrincipal });
+      lines.push({ account: "1000", credit: totalPaid });
+      postJournal(state, {
+        text: "Kreditrückstand beglichen: " + loan.id,
+        type: "loan_arrears_clear", gameTime: state.gameTime, actor: "player", lines,
+      });
+      if ((loan.overdueInterestCents || 0) <= 0 && (loan.overduePrincipalCents || 0) <= 0) {
+        loan.overdueSinceMin = null;
+      }
+      cleared.push({ type: "loan", loanId: loan.id, paidInterestCents: payInterest, paidPrincipalCents: payPrincipal });
+    }
+  }
+  return cleared;
 }
 
 // ---------- Zinsabgrenzung ----------
@@ -208,6 +392,9 @@ export function processLoanPayment(state, loan, m, log) {
   loan.accruedInterestCents -= interestPaid;
   loan.remainingPrincipalCents -= principalPaid;
 
+  if (remainingInterest > 0 || remainingPrincipal > 0) {
+    if (!loan.overdueSinceMin) loan.overdueSinceMin = m;
+  }
   if (remainingInterest > 0) loan.overdueInterestCents = (loan.overdueInterestCents || 0) + remainingInterest;
   if (remainingPrincipal > 0) {
     loan.overduePrincipalCents = (loan.overduePrincipalCents || 0) + remainingPrincipal;
@@ -236,6 +423,10 @@ export function processLoanPayment(state, loan, m, log) {
   });
   loan.paidInstallments++;
 
+  // Überfällige Beträge vollständig beglichen → overdueSinceMin zurücksetzen
+  if ((loan.overdueInterestCents || 0) <= 0 && (loan.overduePrincipalCents || 0) <= 0) {
+    loan.overdueSinceMin = null;
+  }
   if (loan.paidInstallments < loan.termMonths) {
     loan.nextDueMin = loan.firstPaymentMin + loan.paidInstallments * 30 * DAY_MIN;
   } else {
@@ -337,34 +528,20 @@ export function earlyRepayLoan(state, { loanId, amountCents }) {
 }
 
 // ---------- Leasing ----------
-export function getLeasingOffer() { return LEASING_OFFERS.standard; }
+export function getLeasingOffer(offerId) {
+  return LEASING_OFFERS[offerId] || LEASING_OFFERS.standard_flex;
+}
+export function getAllLeasingOffers() {
+  return [LEASING_OFFERS.standard_flex, LEASING_OFFERS.standard];
+}
 
-export function leaseTruck(state, { provisionCity } = {}) {
-  const offer = getLeasingOffer();
+export function leaseTruck(state, { provisionCity, offerId } = {}) {
+  const offer = getLeasingOffer(offerId);
+  const access = checkFinancingAccess(state, { type: "leasing", offerId: offer.id, provisionCity });
+  if (!access.allowed) throw new Error(access.blockingReasons.join(" "));
+
   if (!provisionCity) provisionCity = offer.returnLocationCity;
-  if ((state.loans || []).some(l => l.status === "defaulted"))
-    throw new Error("Es bestehen Finanzierungsausfälle. Neue Verträge gesperrt.");
-  if (state.company.accountCents < offer.specialPaymentCents)
-    throw new Error("Firmenkonto reicht für die Sonderzahlung (" + (offer.specialPaymentCents / 100).toFixed(0) + " €) nicht aus.");
-
-  // 1. Unternehmenssubstanzprüfung (Auftrag 21): E >= 0 erforderlich.
-  const E = computeEquity(state);
-  if (E < 0)
-    throw new Error("Unternehmenssubstanz nicht ausreichend: Eigenkapital ist negativ (" + (E / 100).toFixed(0) + " €). Eigene Fahrzeugbuchwerte und bestehende Schulden sind berücksichtigt.");
-
-  // Liquiditätsprüfung 90 Tage
-  const dailyCosts = (state.drivers.length * 10000
-    + (state.employees || []).filter(e => e.employmentStatus === "employed").reduce((s, e) => s + e.costPerDayCents, 0)
-    + state.branches.length * 10000 + 10000);
-  const projected90 = dailyCosts * 90;
-  const expectedRevenue = state.trips.filter(t => t.status === "in_progress").reduce((s, t) => s + t.paymentCents, 0);
-  const openItems = (state.accounting?.openItems || []).filter(o => o.remainingCents > 0).reduce((s, o) => s + o.remainingCents, 0);
-  const firstThreeRates = 3 * offer.monthlyRateCents;
-  const existingLeasingDue90 = computeLeasingDue90(state);
-  const totalObligations = offer.specialPaymentCents + firstThreeRates + projected90 + openItems + existingLeasingDue90;
-  const totalAvailable = state.company.accountCents - offer.specialPaymentCents + expectedRevenue;
-  if (totalAvailable < totalObligations)
-    throw new Error("Liquiditätsprüfung fehlgeschlagen: Verpflichtungen (" + (totalObligations / 100).toFixed(0) + " €) übersteigen verfügbare Mittel (" + (totalAvailable / 100).toFixed(0) + " €).");
+  const startMin = state.gameTime;
 
   const vehicleId = uid(state, "v");
   const vehicle = {
@@ -379,10 +556,10 @@ export function leaseTruck(state, { provisionCity } = {}) {
   state.vehicles.push(vehicle);
 
   const contractId = uid(state, "lease");
-  const startMin = state.gameTime;
   const endMin = startMin + offer.termMonths * 30 * DAY_MIN;
   const contract = {
     id: contractId, vehicleId, vehicleType: offer.vehicleType,
+    offerId: offer.id,
     startMin, endMin, termMonths: offer.termMonths,
     specialPaymentCents: offer.specialPaymentCents, monthlyRateCents: offer.monthlyRateCents,
     includedKm: offer.includedKm, mileageRatePerKmCents: offer.mileageRatePerKmCents,
@@ -391,7 +568,7 @@ export function leaseTruck(state, { provisionCity } = {}) {
     minConditionAtReturn: offer.minConditionAtReturn,
     conditionPenaltyPerPointCents: offer.conditionPenaltyPerPointCents,
     prepaidLeasingCents: offer.specialPaymentCents,
-    prepaidResolutionPerMonthCents: Math.floor(offer.specialPaymentCents / offer.termMonths),
+    prepaidResolutionPerMonthCents: offer.specialPaymentCents > 0 ? Math.floor(offer.specialPaymentCents / offer.termMonths) : 0,
     payments: [], startOdometerKm: 0, status: "active",
     nextRateDueMin: startMin + 30 * DAY_MIN, paidRates: 0,
     overdueRatesCents: 0, overdueSinceMin: null,
@@ -402,22 +579,24 @@ export function leaseTruck(state, { provisionCity } = {}) {
   state.leasingContracts = state.leasingContracts || [];
   state.leasingContracts.push(contract);
 
-  // Buchung: Vorausbezahlte Leasingkosten +, Bank -
-  postJournal(state, {
-    text: "Leasing-Sonderzahlung: " + offer.vehicleType,
-    type: "leasing_provision", gameTime: state.gameTime, actor: "player", vehicleId,
-    lines: [{ account: "1300", debit: offer.specialPaymentCents }, { account: "1000", credit: offer.specialPaymentCents }],
-  });
+  // Sonderzahlung nur bei Variante B buchen (Variante A: 0 €)
+  if (offer.specialPaymentCents > 0) {
+    postJournal(state, {
+      text: "Leasing-Sonderzahlung: " + offer.vehicleType,
+      type: "leasing_provision", gameTime: state.gameTime, actor: "player", vehicleId,
+      lines: [{ account: "1300", debit: offer.specialPaymentCents }, { account: "1000", credit: offer.specialPaymentCents }],
+    });
+  }
 
   deliverMessage(state, {
     fromId: "system", toId: "player",
     subject: "Leasingvertrag abgeschlossen",
-    body: `Ein Leasingvertrag für einen ${offer.vehicleType} wurde abgeschlossen.\nVertragsnummer: ${contractId}\nSonderzahlung: ${(offer.specialPaymentCents / 100).toFixed(2)} €\nMonatliche Rate: ${(offer.monthlyRateCents / 100).toFixed(2)} €\nLaufzeit: ${offer.termMonths} Monate\nInklusive Kilometer: ${offer.includedKm.toLocaleString("de-DE")} km\nKaufoption: ${(offer.buyoutPriceCents / 100).toFixed(2)} €\nRückgabeort: ${offer.returnLocationCity}\n\nDas Fahrzeug steht ab sofort in ${provisionCity} zur Verfügung.`,
+    body: `Ein Leasingvertrag für einen ${offer.vehicleType} wurde abgeschlossen.\nVertragsnummer: ${contractId}\nVariante: ${offer.id === "standard_flex" ? "A (Flexibler Einstieg)" : "B (Niedrigere Rate)"}\nSonderzahlung: ${(offer.specialPaymentCents / 100).toFixed(2)} €\nMonatliche Rate: ${(offer.monthlyRateCents / 100).toFixed(2)} €\nLaufzeit: ${offer.termMonths} Monate\nInklusive Kilometer: ${offer.includedKm.toLocaleString("de-DE")} km\nKaufoption: ${(offer.buyoutPriceCents / 100).toFixed(2)} €\nRückgabeort: ${offer.returnLocationCity}\n\nDas Fahrzeug steht ab sofort in ${provisionCity} zur Verfügung.`,
     gameTime: state.gameTime, category: "financing", priority: "normal",
     linkedRefs: { type: "leasing", id: contractId }, dedupKey: `lease_signed:${contractId}`,
   });
 
-  return { ok: true, contractId, vehicleId, specialPaymentCents: offer.specialPaymentCents, monthlyRateCents: offer.monthlyRateCents, endMin };
+  return { ok: true, contractId, vehicleId, offerId: offer.id, specialPaymentCents: offer.specialPaymentCents, monthlyRateCents: offer.monthlyRateCents, endMin };
 }
 
 // ---------- Leasingrate ----------
@@ -793,5 +972,19 @@ export function migrateFinancing(state) {
     if (!v.ownership_type) v.ownership_type = "owned";
     if (v.odometerKm === undefined) v.odometerKm = 0;
     if (!v.leasingContractId) v.leasingContractId = null;
+  }
+  // Auftrag 22: overdueSinceMin für bestehende Kredite initialisieren
+  for (const loan of state.loans) {
+    if (loan.overdueSinceMin === undefined) {
+      const hasOverdue = (loan.overduePrincipalCents || 0) > 0 || (loan.overdueInterestCents || 0) > 0;
+      loan.overdueSinceMin = hasOverdue ? (loan.nextDueMin || loan.lastAccrualMin || state.gameTime) : null;
+    }
+  }
+  // Angebot-ID für bestehende Leasingverträge ergänzen
+  for (const contract of state.leasingContracts) {
+    if (!contract.offerId) {
+      // Alte Verträge mit Sonderzahlung → Variante B, ohne → Variante A
+      contract.offerId = contract.specialPaymentCents > 0 ? "standard" : "standard_flex";
+    }
   }
 }
