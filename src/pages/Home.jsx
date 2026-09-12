@@ -4,12 +4,18 @@ import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime, dayOf } from "@/lib/gameData";
 import { motion } from "framer-motion";
 import { heroStagger, heroItem, EASE } from "@/lib/motion";
-import { Heart, Clock, Check, X, Footprints, Zap, Smile, MapPin, ArrowRight } from "lucide-react";
+import { Heart, Clock, Check, X, Footprints, Zap, Smile, MapPin, ArrowRight, Gift, ShoppingBag, Home as HomeIcon, Target, Activity } from "lucide-react";
+import RewardsSection from "@/components/home/RewardsSection";
+import PurchaseCatalog from "@/components/home/PurchaseCatalog";
+import PossessionsSection from "@/components/home/PossessionsSection";
+import ActivityPanel from "@/components/home/ActivityPanel";
+import GoalsPanel from "@/components/home/GoalsPanel";
 
 export default function Home() {
   const { state, send, showToast } = useGame();
   const navigate = useNavigate();
   const [busyKey, setBusyKey] = useState(null);
+  const [privateTab, setPrivateTab] = useState("activities");
   const p = state.private;
 
   const pendingInvites = state.appointments.filter(
@@ -181,6 +187,45 @@ export default function Home() {
             Finanzen ansehen <ArrowRight className="w-3 h-3" />
           </button>
         </div>
+      </div>
+
+      {/* Belohnungen & Privatleben Tabs (Auftrag 26) */}
+      <div className="mt-8 lg:mt-10 pt-6 border-t border-white/10">
+        <div className="flex flex-wrap gap-2 mb-5">
+          {[
+            { id: "activities", label: "Aktivitäten", icon: Activity },
+            { id: "rewards", label: "Belohnungen", icon: Gift },
+            { id: "purchases", label: "Anschaffungen", icon: ShoppingBag },
+            { id: "possessions", label: "Besitz", icon: HomeIcon },
+            { id: "goals", label: "Lebensziele", icon: Target },
+          ].map(t => {
+            const Icon = t.icon;
+            const availableRewards = Object.values(state.private?.rewards?.claims || {}).filter(c => c.status === "available").length;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setPrivateTab(t.id)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition ${
+                  privateTab === t.id
+                    ? "bg-coral/15 border-coral/30 text-coral"
+                    : "border-white/10 text-muted-foreground hover:text-foreground hover:border-white/20"
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {t.label}
+                {t.id === "rewards" && availableRewards > 0 && (
+                  <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-lime/20 text-lime text-[9px] font-semibold">{availableRewards}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {privateTab === "activities" && <ActivityPanel state={state} send={send} showToast={showToast} />}
+        {privateTab === "rewards" && <RewardsSection state={state} send={send} showToast={showToast} />}
+        {privateTab === "purchases" && <PurchaseCatalog state={state} send={send} showToast={showToast} />}
+        {privateTab === "possessions" && <PossessionsSection state={state} send={send} showToast={showToast} />}
+        {privateTab === "goals" && <GoalsPanel state={state} send={send} showToast={showToast} />}
       </div>
     </div>
   );

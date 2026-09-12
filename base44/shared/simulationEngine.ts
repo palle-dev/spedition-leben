@@ -77,6 +77,18 @@ import {
   processDailyCleaningDecay, processTempStaffBilling, computeCleaningNeed,
   getBranchCleanliness, applyCleaningEffect, SERVICE_PROVIDERS,
 } from "./serviceEngine.ts";
+import {
+  migrateRewards, checkRewardClaims, claimReward, claimAllRewards,
+  equipCosmetic, unequipCosmetic, findVoucherForActivity, reserveVoucher,
+  consumeVoucher, releaseVoucher, REWARDS, REWARD_SLOTS, SLOT_LABELS,
+  getAvailableClaims, getClaimedRewards, getEquippedCosmetics, getVouchers,
+} from "./rewardEngine.ts";
+import {
+  migratePurchases, buyPurchase, sellPurchase, startPrivateActivity,
+  cancelPrivateActivity, processDailyMaintenance, updateOwnershipStats,
+  PURCHASE_CATALOG, BASIC_ACTIVITIES, getActivityOptions, getActivePurchases,
+  getActiveHome, checkPurchaseConditions,
+} from "./purchaseEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -275,6 +287,10 @@ export function createInitialState(names) {
     b.cleanliness = 85;
     b.lastCleaningDay = 0;
   }
+  // Belohnungen und Anschaffungen initialisieren (Auftrag 26)
+  state.private.rewards = { claims: {}, cosmetics: {}, vouchers: [] };
+  for (const slot of REWARD_SLOTS) state.private.rewards.cosmetics[slot] = null;
+  state.private.purchases = { items: [], activeHomeId: null };
   return { state };
 }
 
@@ -596,9 +612,14 @@ function processEventsAt(state, m, log) {
           state.private.happiness = clamp(state.private.happiness + 5, 0, 100);
           state.stats.promisesKept = (state.stats.promisesKept || 0) + 1;
         } else if (a.type === "leisure") {
-          state.private.stress = clamp(state.private.stress - 8, 0, 100);
-          state.private.happiness = clamp(state.private.happiness + 2, 0, 100);
-          state.stats.leisureCount = (state.stats.leisureCount || 0) + 1;
+          // Aktivitaetsspezifische Effekte aus dem Termin anwenden (Auftrag 26)
+          const dStress = a.stressDelta !== undefined ? a.stressDelta : -8;
+          const dHappy = a.happinessDelta !== undefined ? a.happinessDelta : 2;
+          state.private.stress = clamp(state.private.stress + dStress, 0, 100);
+          state.private.happiness = clamp(state.private.happiness + dHappy, 0, 100);
+          if (a.contactDelta) {
+            state.private.relationship = clamp(state.private.relationship + a.contactDelta, 0, 100);
+          }
           const st = a.subtype || "walk";
           if (!(state.stats.leisureTypes || []).includes(st)) state.stats.leisureTypes.push(st);
         }
@@ -667,6 +688,8 @@ function processEventsAt(state, m, log) {
     maybeGenerateSickness(state, m);
     processVacationDayConsumption(state, m);
     processDailyCleaningDecay(state, m);
+    // Auftrag 26: Taeglicher Unterhalt fuer Anschaffungen
+    processDailyMaintenance(state, m);
   }
   // Auftrag 25: Krankheitsgenesung und Dienstleistungsverarbeitung bei jedem Ereignis
   processSicknessRecovery(state, m);
@@ -698,6 +721,8 @@ function processEventsAt(state, m, log) {
   // 7. Erfolgsprüfung nach jedem Ereignis
   const newAchs = checkAchievements(state, m);
   if (newAchs.length) log.push({ type: "achievements_unlocked", achievements: newAchs, atMin: m });
+  // 7b. Belohnungsansprueche pruefen (Auftrag 26)
+  checkRewardClaims(state);
 }
 function advanceTo(state, targetMin, log) {
   let t = state.gameTime;
@@ -996,6 +1021,8 @@ export function applyCommand(state, command, params) {
   migrateState(state);
   migrateAbsences(state);
   migrateServices(state);
+  migrateRewards(state);
+  migratePurchases(state);
   const p = params || {};
   let result;
   switch (command) {
@@ -1504,18 +1531,96 @@ export function applyCommand(state, command, params) {
     }
 
     case "startLeisure": {
+      // Abwaertskompatibel: startet einen Spaziergang ueber die neue Aktivitaets-Engine
+      const r = startPrivateActivity(state, { activityType: "walk" });
+      result = r;
+      break;
+    }
+
+    // ---------- Private Aktivitaeten (Auftrag 26) ----------
+
+    case "startPrivateActivity": {
+      const r = startPrivateActivity(state, {
+        activityType: p.activityType,
+        voucherId: p.voucherId || null,
+        itemId: p.itemId || null,
+      });
+      result = r;
+      break;
+    }
+
+    case "cancelPrivateActivity": {
+      const r = cancelPrivateActivity(state, { appointmentId: p.appointmentId });
+      result = r;
+      break;
+    }
+
+    case "getActivityOptions": {
+      result = { ok: true, activities: getActivityOptions(state) };
+      break;
+    }
+
+    // ---------- Belohnungen (Auftrag 26) ----------
+
+    case "claimReward": {
+      const r = claimReward(state, { rewardId: p.rewardId });
+      result = r;
+      break;
+    }
+
+    case "claimAllRewards": {
+      const r = claimAllRewards(state);
+      result = r;
+      break;
+    }
+
+    case "equipCosmetic": {
+      const r = equipCosmetic(state, { rewardId: p.rewardId });
+      result = r;
+      break;
+    }
+
+    case "unequipCosmetic": {
+      const r = unequipCosmetic(state, { slot: p.slot });
+      result = r;
+      break;
+    }
+
+    case "getRewardCatalog": {
+      result = { ok: true, rewards: REWARDS, slots: REWARD_SLOTS, slotLabels: SLOT_LABELS,
+        claims: state.private?.rewards?.claims || {},
+        cosmetics: state.private?.rewards?.cosmetics || {},
+        vouchers: state.private?.rewards?.vouchers || [] };
+      break;
+    }
+
+    // ---------- Anschaffungen (Auftrag 26) ----------
+
+    case "buyPurchase": {
       ensureNotBlocked(state);
-      const day = dayOf(state.gameTime);
-      if (state.leisureUsedDay === day) throw new Error("Du hast heute schon eine Freizeitaktivität geplant.");
-      const start = state.gameTime, end = state.gameTime + 120;
-      for (const a of state.appointments) {
-        if (["pending", "accepted", "active"].includes(a.status) && a.startMin < end && a.endMin > start)
-          throw new Error("Die Freizeitaktivität überschneidet sich mit einem Termin.");
-      }
-      const ap = { id: uid(state, "ap"), type: "leisure", subtype: "walk", label: "Spaziergang", startMin: start, endMin: end, status: "active", effectsApplied: false };
-      state.appointments.push(ap);
-      state.leisureUsedDay = day;
-      result = { ok: true, appointmentId: ap.id };
+      const r = buyPurchase(state, { catalogId: p.catalogId });
+      result = r;
+      break;
+    }
+
+    case "sellPurchase": {
+      ensureNotBlocked(state);
+      const r = sellPurchase(state, { itemId: p.itemId });
+      result = r;
+      break;
+    }
+
+    case "getPurchaseCatalog": {
+      result = { ok: true, catalog: PURCHASE_CATALOG, items: state.private?.purchases?.items || [],
+        activeHomeId: state.private?.purchases?.activeHomeId || null };
+      break;
+    }
+
+    case "previewPurchase": {
+      const entry = PURCHASE_CATALOG.find(p2 => p2.id === p.catalogId);
+      if (!entry) throw new Error("Unbekannter Katalogeintrag.");
+      const check = checkPurchaseConditions(state, entry);
+      result = { ok: true, ...check, entry };
       break;
     }
 
@@ -2091,5 +2196,7 @@ export function applyCommand(state, command, params) {
   // Erfolgsprüfung nach jedem Befehl (idempotent)
   const finalAchs = checkAchievements(state, state.gameTime);
   if (finalAchs.length && !result.newAchievements) result.newAchievements = finalAchs;
+  // Belohnungsansprueche nach Erfolgsprüfung aktualisieren (Auftrag 26)
+  checkRewardClaims(state);
   return { state, result };
 }

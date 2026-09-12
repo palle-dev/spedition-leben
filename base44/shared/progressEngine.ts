@@ -13,6 +13,10 @@ import { migrateTermination } from "./terminationEngine.ts";
 import { migrateMarket } from "./marketEngine.ts";
 import { migrateTimeControl } from "./timeControlEngine.ts";
 import { migrateEvents } from "./eventLog.ts";
+import { migrateAbsences } from "./absenceEngine.ts";
+import { migrateServices } from "./serviceEngine.ts";
+import { migrateRewards } from "./rewardEngine.ts";
+import { migratePurchases } from "./purchaseEngine.ts";
 import { getVehicleBookValue, MONTH_MIN } from "./accountingEngine.ts";
 import { VEHICLE_REFERENCE_PRICE } from "./gameRules.ts";
 
@@ -251,6 +255,14 @@ export function migrateState(state) {
 
   // ---------- Ereignisprotokoll-Migration (Auftrag 23) ----------
   migrateEvents(state);
+
+  // ---------- Abwesenheits- & Dienstleistungs-Migration (Auftrag 25) ----------
+  migrateAbsences(state);
+  migrateServices(state);
+
+  // ---------- Belohnungs- & Anschaffungs-Migration (Auftrag 26) ----------
+  migrateRewards(state);
+  migratePurchases(state);
 
   return state;
 }

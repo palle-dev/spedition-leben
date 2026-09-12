@@ -65,6 +65,66 @@ export function eventToToast(ev) {
         eventSeq: ev.seq,
       };
 
+    case "reward_available":
+      return {
+        id: ev.id,
+        kind: "success",
+        icon: "bell",
+        title: "Neue Belohnung verfügbar",
+        body: `${d.rewardTitle || "Belohnung"} wurde freigeschaltet. Im Privatleben abholbar.`,
+        action: { label: "Abholen", targetType: "home", targetId: null },
+        duration: 8000,
+        eventSeq: ev.seq,
+      };
+
+    case "reward_claimed":
+      return {
+        id: ev.id,
+        kind: "success",
+        icon: "check",
+        title: "Belohnung abgeholt",
+        body: d.rewardType === "voucher"
+          ? `Gutschein wurde abgeholt und ist im Aktivitätsbereich nutzbar.`
+          : `${d.slot || "Kosmetik"} wurde abgeholt und kann ausgerüstet werden.`,
+        action: { label: "Ansehen", targetType: "home", targetId: null },
+        duration: 6000,
+        eventSeq: ev.seq,
+      };
+
+    case "purchase_completed":
+      return {
+        id: ev.id,
+        kind: "success",
+        icon: "package",
+        title: "Anschaffung gekauft",
+        body: `${d.name || "Gegenstand"} für ${formatEuro(d.priceCents || 0)} gekauft.`,
+        action: { label: "Besitz ansehen", targetType: "home", targetId: null },
+        duration: 6000,
+        eventSeq: ev.seq,
+      };
+
+    case "purchase_sold":
+      return {
+        id: ev.id,
+        kind: "info",
+        icon: "package",
+        title: "Gegenstand verkauft",
+        body: `${d.name || "Gegenstand"} für ${formatEuro(d.salePriceCents || 0)} verkauft.`,
+        duration: 5000,
+        eventSeq: ev.seq,
+      };
+
+    case "private_activity_started":
+      return {
+        id: ev.id,
+        kind: "info",
+        icon: "calendar",
+        title: "Aktivität gestartet",
+        body: `${d.label || "Aktivität"} gestartet${d.voucherUsed ? " mit Gutschein" : ""}.`,
+        duration: 5000,
+        eventSeq: ev.seq,
+      };
+
     default:
       return null;
   }
