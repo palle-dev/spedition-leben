@@ -234,17 +234,22 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
         </div>
       )}
 
-      {/* Start button */}
-      <button
-        onClick={start}
-        disabled={!canStart || starting}
-        className="w-full flex items-center justify-center gap-2 bg-lime text-ink rounded-lg py-3 font-semibold text-sm hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition active:scale-[0.98]"
-      >
-        {starting ? <><span className="w-4 h-4 border-2 border-ink/30 border-t-ink rounded-full animate-spin" /> Startet…</> : <><Play className="w-4 h-4" /> Transport starten</>}
-      </button>
-      {!canStart && !validation && plan && (
-        <div className="text-xs text-muted-foreground text-center">Wähle Lkw und Fahrer, um zu starten.</div>
-      )}
+      {/* Start button – sticky im Sichtbereich */}
+      <div className="sticky bottom-0 -mx-3 px-3 pb-3 pt-4 mt-4 bg-gradient-to-t from-ink via-ink/95 to-transparent">
+        <button
+          onClick={start}
+          disabled={!canStart || starting}
+          className="w-full flex items-center justify-center gap-2 bg-lime text-ink rounded-lg py-3 font-semibold text-sm hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition active:scale-[0.98]"
+        >
+          {starting ? <><span className="w-4 h-4 border-2 border-ink/30 border-t-ink rounded-full animate-spin" /> Startet…</> : <><Play className="w-4 h-4" /> Transport starten</>}
+        </button>
+        {!canStart && !validation && plan && (
+          <div className="text-xs text-muted-foreground text-center mt-2">Wähle Lkw und Fahrer, um zu starten.</div>
+        )}
+        {validation && (
+          <div className="text-xs text-amber-300 text-center mt-2">{validation}</div>
+        )}
+      </div>
     </div>
   );
 }

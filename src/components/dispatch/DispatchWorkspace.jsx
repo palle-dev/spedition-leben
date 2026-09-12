@@ -7,11 +7,12 @@ import DispatchTourList from "./DispatchTourList";
 import DispatchTourDetails from "./DispatchTourDetails";
 import DispatchPlanner from "./DispatchPlanner";
 import TourPlanner from "./TourPlanner";
-import DispatchAssistant from "./DispatchAssistant";
 import DispatchActiveTours from "./DispatchActiveTours";
-import DispatcherSuggestions from "./DispatcherSuggestions";
-import { Truck, Users, Package, ArrowRight, Play, AlertTriangle, Sparkles, Route, X, Headset } from "lucide-react";
+import DispatcherPanel from "./DispatcherPanel";
+import { Truck, Users, Package, ArrowRight, Play, AlertTriangle, Route, X, Headset } from "lucide-react";
 
+// Vier gleichrangige Bereiche: Aufträge, Touren, Flotte, Disponenten.
+// Tour-Planung und Assistent sind in den fachlichen Kontext integriert.
 export default function DispatchWorkspace({
   activeTab, setActiveTab,
   selectedTripId, onSelectTrip,
@@ -34,12 +35,9 @@ export default function DispatchWorkspace({
   const allAccepted = state.orders.filter(o => o.status === "angenommen");
   const accepted = allAccepted.filter(o => !state.trips.some(t => t.orderId === o.id && t.status === "in_progress"));
   const activeTours = (state.tours || []).filter(t => t.status === "active");
+  const dispatchers = (state.employees || []).filter(e => (e.role === "dispatcher" || e.role === "dispatcher_senior") && e.employmentStatus === "employed");
+  const pendingSuggestions = dispatchers.reduce((sum, emp) => sum + (emp.suggestions || []).filter(s => s.status === "pending").length, 0);
   const searchLower = (search || "").toLowerCase();
-
-  // Offene Disponenten-Vorschläge zählen
-  const pendingSuggestions = (state.employees || [])
-    .filter(e => (e.role === "dispatcher" || e.role === "dispatcher_senior") && e.employmentStatus === "employed")
-    .reduce((sum, emp) => sum + (emp.suggestions || []).filter(s => s.status === "pending").length, 0);
 
   const filteredTrips = running.filter(t => {
     if (!searchLower) return true;
@@ -67,36 +65,17 @@ export default function DispatchWorkspace({
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      {/* Tab bar */}
+      {/* Tab bar – vier Bereiche */}
       <div className="flex border-b border-white/10 shrink-0 px-2 pt-1">
-        <TabButton active={activeTab === "touren"} onClick={() => setActiveTab("touren")} label="Touren" count={running.length} icon={Truck} />
         <TabButton active={activeTab === "auftraege"} onClick={() => setActiveTab("auftraege")} label="Aufträge" count={accepted.length} icon={Package} />
-        <TabButton active={activeTab === "tour"} onClick={() => setActiveTab("tour")} label="Tour" icon={Route} />
-        <TabButton active={activeTab === "vorschlaege"} onClick={() => setActiveTab("vorschlaege")} label="Vorschläge" count={pendingSuggestions} icon={Headset} />
-        <TabButton active={activeTab === "assistent"} onClick={() => setActiveTab("assistent")} label="Assistent" icon={Sparkles} />
+        <TabButton active={activeTab === "touren"} onClick={() => setActiveTab("touren")} label="Touren" count={running.length} icon={Truck} />
         <TabButton active={activeTab === "flotte"} onClick={() => setActiveTab("flotte")} label="Flotte" count={state.vehicles.length} icon={Users} />
+        <TabButton active={activeTab === "disponenten"} onClick={() => setActiveTab("disponenten")} label="Disponenten" count={pendingSuggestions} icon={Headset} />
       </div>
 
-      {/* Tab content */}
+      {/* Tab content – scrollbar */}
       <div className="flex-1 min-h-0 overflow-y-auto p-3">
-        {activeTab === "touren" && (
-          selectedTripId && running.find(t => t.id === selectedTripId) ? (
-            <DispatchTourDetails
-              trip={running.find(t => t.id === selectedTripId)}
-              state={state}
-              routeData={routeData}
-              onBack={() => onSelectTrip(null)}
-              onShowOnMap={() => onShowOnMap?.(selectedTripId)}
-              onShowVehicle={() => onShowVehicle?.(running.find(t => t.id === selectedTripId)?.vehicleId)}
-            />
-          ) : (
-            <div className="space-y-3">
-              <DispatchActiveTours tours={activeTours} state={state} onSelectTrip={onSelectTrip} />
-              <DispatchTourList trips={filteredTrips} state={state} selectedTripId={selectedTripId} onSelectTrip={onSelectTrip} />
-            </div>
-          )
-        )}
-
+        {/* ---------- Aufträge ---------- */}
         {activeTab === "auftraege" && (
           planningOrderId ? (
             <DispatchPlanner
@@ -105,6 +84,14 @@ export default function DispatchWorkspace({
               onStarted={(r) => { onPlanOrder(null); onStarted?.(r); }}
               onPlanChange={onPlanChange}
               preselectedVehicleId={selectedVehicleId}
+            />
+          ) : tourOrderId ? (
+            <TourPlanner
+              primaryOrderId={tourOrderId}
+              routeData={routeData}
+              onBack={() => { setTourOrderId(null); onPlanRoute?.(null); }}
+              onConfirmed={(r) => { setTourOrderId(null); onPlanRoute?.(null); onStarted?.(r); }}
+              onPlanRoute={onPlanRoute}
             />
           ) : emptyMode ? (
             <EmptyTripPlanner
@@ -150,10 +137,9 @@ export default function DispatchWorkspace({
                 </div>
               ) : (
                 filteredOrders.map(o => (
-                  <button
+                  <div
                     key={o.id}
-                    onClick={() => onPlanOrder(o.id)}
-                    className="w-full text-left rounded-xl p-3 border border-white/10 hover:border-lime/30 bg-surface/30 transition active:scale-[0.99]"
+                    className="rounded-xl p-3 border border-white/10 hover:border-lime/30 bg-surface/30 transition"
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium truncate">{o.customer}</span>
@@ -165,7 +151,21 @@ export default function DispatchWorkspace({
                       </span>
                       <span>Frist: {formatGameTime(o.deliveryDeadlineMin)}</span>
                     </div>
-                  </button>
+                    <div className="flex gap-2 mt-2.5">
+                      <button
+                        onClick={() => onPlanOrder(o.id)}
+                        className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 bg-lime text-ink text-xs font-semibold hover:brightness-110 transition active:scale-95"
+                      >
+                        <Play className="w-3.5 h-3.5" /> Planen
+                      </button>
+                      <button
+                        onClick={() => { setTourOrderId(o.id); onPlanRoute?.(null); }}
+                        className="flex items-center justify-center gap-1.5 rounded-lg py-2 px-3 border border-white/10 text-foreground/80 hover:text-foreground hover:border-white/20 text-xs font-medium transition active:scale-95"
+                      >
+                        <Route className="w-3.5 h-3.5" /> Tour planen
+                      </button>
+                    </div>
+                  </div>
                 ))
               )}
               <button
@@ -178,59 +178,26 @@ export default function DispatchWorkspace({
           )
         )}
 
-        {activeTab === "tour" && (
-          tourOrderId ? (
-            <TourPlanner
-              primaryOrderId={tourOrderId}
+        {/* ---------- Touren ---------- */}
+        {activeTab === "touren" && (
+          selectedTripId && running.find(t => t.id === selectedTripId) ? (
+            <DispatchTourDetails
+              trip={running.find(t => t.id === selectedTripId)}
+              state={state}
               routeData={routeData}
-              onBack={() => { setTourOrderId(null); onPlanRoute?.(null); }}
-              onConfirmed={(r) => { setTourOrderId(null); onPlanRoute?.(null); onStarted?.(r); }}
-              onPlanRoute={onPlanRoute}
+              onBack={() => onSelectTrip(null)}
+              onShowOnMap={() => onShowOnMap?.(selectedTripId)}
+              onShowVehicle={() => onShowVehicle?.(running.find(t => t.id === selectedTripId)?.vehicleId)}
             />
           ) : (
             <div className="space-y-3">
-              <div className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground">Hin- und Rücktour planen</div>
-              <div className="text-xs text-muted-foreground/70 bg-surface-2/50 rounded-lg px-3 py-2.5 border border-white/5">
-                Wähle einen Hinauftrag. Der Assistent sucht dann Rückladungen am Zielort und prüft Erholung, Fristen und Liquidität.
-              </div>
-              {(state.orders.filter(o => o.status === "offered" || o.status === "angenommen")).length === 0 ? (
-                <div className="text-xs text-muted-foreground text-center py-4">Keine Aufträge verfügbar.</div>
-              ) : (
-                (state.orders.filter(o => o.status === "offered" || o.status === "angenommen")).map(o => (
-                  <button
-                    key={o.id}
-                    onClick={() => setTourOrderId(o.id)}
-                    className="w-full text-left rounded-xl p-3 border border-white/10 hover:border-lime/30 bg-surface/30 transition active:scale-[0.99]"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium truncate">{o.customer}</span>
-                      <span className="text-lime text-xs font-medium tabular-nums shrink-0">{formatEuro(o.paymentCents)}</span>
-                    </div>
-                    <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        {o.fromCity} <ArrowRight className="w-3 h-3" /> {o.toCity} · {o.tons} t
-                      </span>
-                      <span className={o.status === "offered" ? "text-amber-300" : "text-lime"}>{o.status === "offered" ? "Offen" : "Angenommen"}</span>
-                    </div>
-                  </button>
-                ))
-              )}
+              <DispatchActiveTours tours={activeTours} state={state} onSelectTrip={onSelectTrip} />
+              <DispatchTourList trips={filteredTrips} state={state} selectedTripId={selectedTripId} onSelectTrip={onSelectTrip} />
             </div>
           )
         )}
 
-        {activeTab === "vorschlaege" && (
-          <DispatcherSuggestions />
-        )}
-
-        {activeTab === "assistent" && (
-          <DispatchAssistant
-            routeData={routeData}
-            onPlanRoute={onPlanRoute}
-            onConfirmTour={(r) => { onStarted?.(r); }}
-          />
-        )}
-
+        {/* ---------- Flotte ---------- */}
         {activeTab === "flotte" && (
           <div className="space-y-2">
             {filteredVehicles.map(v => {
@@ -263,7 +230,6 @@ export default function DispatchWorkspace({
                 </button>
               );
             })}
-            {/* Auftrag zuweisen-Aktion für ausgewähltes freies Fahrzeug */}
             {selectedVehicleId && (() => {
               const sv = state.vehicles.find(x => x.id === selectedVehicleId);
               if (!sv || sv.status !== "free") return null;
@@ -287,6 +253,9 @@ export default function DispatchWorkspace({
             })()}
           </div>
         )}
+
+        {/* ---------- Disponenten ---------- */}
+        {activeTab === "disponenten" && <DispatcherPanel />}
       </div>
     </div>
   );
@@ -320,7 +289,6 @@ function StatusDot({ status }) {
 
 function EmptyTripPlanner({ state, onBack, from, setFrom, to, setTo, vehicleId, setVehicleId, driverId, setDriverId, starting, setStarting, send, showToast }) {
   const vehicle = state.vehicles.find(v => v.id === vehicleId);
-  const driver = state.drivers.find(d => d.id === driverId);
   const freeVehicles = state.vehicles.filter(v => v.status === "free");
   const freeDrivers = state.drivers.filter(d => d.status === "free" && (!d.restUntil || d.restUntil <= state.gameTime));
 
@@ -329,7 +297,7 @@ function EmptyTripPlanner({ state, onBack, from, setFrom, to, setTo, vehicleId, 
   const fuel = vehicle ? fuelEur(dist, vehicle.consumptionPer100km) : 0;
   const toll = tollEur(dist);
   const tooLong = dur > MAX_DUTY_MIN;
-  const canStart = vehicle && driver && from !== to && !tooLong && vehicle.locationCity === from && vehicle.locationCity === driver.locationCity;
+  const canStart = vehicle && driverId && from !== to && !tooLong && vehicle.locationCity === from && vehicle.locationCity === state.drivers.find(d => d.id === driverId)?.locationCity;
 
   async function start() {
     if (!canStart) return;
@@ -381,9 +349,6 @@ function EmptyTripPlanner({ state, onBack, from, setFrom, to, setTo, vehicleId, 
       >
         {starting ? "Startet…" : <><Play className="w-4 h-4" /> Leerfahrt starten</>}
       </button>
-      {vehicleId && driverId && vehicle?.locationCity !== driver?.locationCity && (
-        <div className="text-xs text-amber-300 text-center">Fahrer und Lkw sind an verschiedenen Orten.</div>
-      )}
     </div>
   );
 }

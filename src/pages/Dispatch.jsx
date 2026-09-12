@@ -202,7 +202,7 @@ export default function Dispatch() {
       {/* Karte + Arbeitsbereich */}
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
         {/* Karte */}
-        <div className={`min-h-0 relative ${mobileView === "list" ? "hidden" : "flex-1"} lg:block lg:flex-1`}>
+        <div className={`min-h-0 min-w-0 relative ${mobileView === "list" ? "hidden" : "flex-1"} lg:block lg:flex-1`}>
           <DispatchMap
             routeData={routeData}
             selectedTripId={selectedTripId}
