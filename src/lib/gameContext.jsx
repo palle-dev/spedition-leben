@@ -302,11 +302,19 @@ export function GameProvider({ children }) {
     if (!idRef.current) return;
     setAutomationBusy(true);
     try {
-      await send("enableAutomation", {});
-      setAutomationEnabled(true);
-      showToast("Zeitautomatik aktiviert – das Spiel läuft im Hintergrund weiter.", "success");
-    } catch (e) {
-      showToast("Automatik konnte nicht aktiviert werden: " + e.message, "error");
+      let lastError = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          await send("enableAutomation", {});
+          setAutomationEnabled(true);
+          showToast("Zeitautomatik aktiviert – das Spiel läuft im Hintergrund weiter.", "success");
+          return;
+        } catch (e) {
+          lastError = e;
+          await new Promise(r => setTimeout(r, 50));
+        }
+      }
+      showToast("Automatik konnte nicht aktiviert werden: " + (lastError?.message || "Unbekannt"), "error");
     } finally {
       setAutomationBusy(false);
     }
