@@ -269,5 +269,8 @@ export function migrateState(state) {
   // ---------- Werkstatt-Migration (Auftrag 27) ----------
   migrateWorkshop(state);
 
+  // ---------- Personalmarkt-Migration (Auftrag 29) ----------
+  migratePersonnelMarket(state);
+
   return state;
 }

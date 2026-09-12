@@ -3,7 +3,7 @@
 // Trennung: gameRules (statische Daten) · simulationEngine (Regeln/Zustand) · gameRepository (Speicherung via Backend-Funktion).
 
 import {
-  CITIES, getDistance, mulberry32, INVITATION_TEMPLATES, DRIVER_APPLICANT_POOL,
+  CITIES, getDistance, mulberry32, INVITATION_TEMPLATES,
   CARGO_TYPES, CUSTOMER_NAMES, STANDARD_TRUCK,
   dayOf, clockOf, formatGameTime, driveMinutes, fuelCents, tollCents,
   LOAD_MIN, UNLOAD_MIN, MAX_DUTY_MIN, REST_MIN, WORK_BUDGET_MIN,
@@ -312,48 +312,6 @@ export function createInitialState(names) {
   migratePersonnelMarket(state);
   initStartApplicants(state);
   return { state };
-}
-
-// Erzeugt Bewerber für alle Rollen ab Spielbeginn.
-// Mindestens zwei Disponenten (180 € und 260 € Variante).
-function makeInitialApplicants() {
-  const apps = [];
-  let idNum = 1;
-  // Fahrer-Bewerber (bestehende 3) – Porträts passend zum Geschlecht
-  apps.push({ id: "a" + (idNum++), name: "Greta Möller", role: "driver",
-    hireFeeCents: PERSONNEL_ROLES.driver.hireFeeCents, costPerDayCents: DRIVER_COST_PER_DAY,
-    capacity: 0, portraitId: "p09" });
-  apps.push({ id: "a" + (idNum++), name: "Tobias Brandt", role: "driver",
-    hireFeeCents: PERSONNEL_ROLES.driver.hireFeeCents, costPerDayCents: DRIVER_COST_PER_DAY,
-    capacity: 0, portraitId: "p06" });
-  apps.push({ id: "a" + (idNum++), name: "Stefan Kloth", role: "driver",
-    hireFeeCents: PERSONNEL_ROLES.driver.hireFeeCents, costPerDayCents: DRIVER_COST_PER_DAY,
-    capacity: 0, portraitId: "p10" });
-  // Disponent (180 €/Tag, Kapazität 6)
-  apps.push({ id: "a" + (idNum++), name: "Helena Voss", role: "dispatcher",
-    hireFeeCents: PERSONNEL_ROLES.dispatcher.hireFeeCents, costPerDayCents: PERSONNEL_ROLES.dispatcher.costPerDayCents,
-    capacity: 6, portraitId: "p04" });
-  // Erfahrener Disponent (260 €/Tag, Kapazität 12)
-  apps.push({ id: "a" + (idNum++), name: "Rüdiger Mai", role: "dispatcher_senior",
-    hireFeeCents: PERSONNEL_ROLES.dispatcher_senior.hireFeeCents, costPerDayCents: PERSONNEL_ROLES.dispatcher_senior.costPerDayCents,
-    capacity: 12, portraitId: "p05" });
-  // Reinigungskraft
-  apps.push({ id: "a" + (idNum++), name: "Tanja Hennig", role: "cleaner",
-    hireFeeCents: PERSONNEL_ROLES.cleaner.hireFeeCents, costPerDayCents: PERSONNEL_ROLES.cleaner.costPerDayCents,
-    capacity: 4, portraitId: "p07" });
-  // Werkstattmitarbeiter
-  apps.push({ id: "a" + (idNum++), name: "Manfred Brod", role: "mechanic",
-    hireFeeCents: PERSONNEL_ROLES.mechanic.hireFeeCents, costPerDayCents: PERSONNEL_ROLES.mechanic.costPerDayCents,
-    capacity: 1, portraitId: "p08" });
-  // Buchhalter
-  apps.push({ id: "a" + (idNum++), name: "Veit Karger", role: "accountant",
-    hireFeeCents: PERSONNEL_ROLES.accountant.hireFeeCents, costPerDayCents: PERSONNEL_ROLES.accountant.costPerDayCents,
-    capacity: 40, portraitId: "p12" });
-  // Erfahrene Buchhaltungskraft
-  apps.push({ id: "a" + (idNum++), name: "Christine Aal", role: "accountant_senior",
-    hireFeeCents: PERSONNEL_ROLES.accountant_senior.hireFeeCents, costPerDayCents: PERSONNEL_ROLES.accountant_senior.costPerDayCents,
-    capacity: 80, portraitId: "p11" });
-  return apps;
 }
 
 // ---------- Tagesabrechnung ----------
@@ -787,22 +745,6 @@ function planTrip(state, order, vehicle, driver) {
   const result = buildPhases(workSteps, counters, state.gameTime);
   const totalKm = workSteps.reduce((s, step) => s + (step.distanceKm || 0), 0);
   return { phases: result.phases, totalKm, totalDuration: result.endMin - state.gameTime, endMin: result.endMin };
-}
-
-function refreshApplicants(state) {
-  while (state.availableApplicants.length < 3) {
-    const pool = DRIVER_APPLICANT_POOL.filter(n =>
-      !state.hiredApplicantNames.some(h => h.startsWith(n + ":")) && !state.availableApplicants.some(a => a.name === n));
-    if (pool.length === 0) break;
-    const name = pool[Math.floor(nextRng(state) * pool.length)];
-    const portraitIdx = state.idCounter % 12;
-    state.availableApplicants.push({
-      id: uid(state, "a"), name, role: "driver",
-      hireFeeCents: PERSONNEL_ROLES.driver.hireFeeCents,
-      costPerDayCents: DRIVER_COST_PER_DAY,
-      capacity: 0, portraitId: PORTRAIT_IDS[portraitIdx],
-    });
-  }
 }
 
 // ---------- Angestellten-Verarbeitung ----------
