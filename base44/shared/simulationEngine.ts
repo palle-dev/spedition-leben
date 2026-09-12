@@ -53,6 +53,9 @@ import {
   processEmployeeExit, processReleaseAfterTrip, getTerminationExitEvents,
   isActivelyEmployed, findPerson,
 } from "./terminationEngine.ts";
+import {
+  generateMarketWave, migrateMarket, fillInitialMarket, getMarketStats,
+} from "./marketEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -130,7 +133,13 @@ function initialOffers(state) {
   const mk = (customer, fromCity, toCity, cargo, tons, paymentEur, acceptMin, deliveryMin) => ({
     id: uid(state, "o"), customer, fromCity, toCity, cargo, tons,
     paymentCents: paymentEur * 100, acceptDeadlineMin: acceptMin, deliveryDeadlineMin: deliveryMin,
-    status: "offered", acceptedAtMin: null, startedAtMin: null, deliveredAtMin: null, paidCents: null
+    status: "offered", acceptedAtMin: null, startedAtMin: null, deliveredAtMin: null, paidCents: null,
+    offerType: "normal", customerId: null, shipmentId: null,
+    earliestPickupMin: 480, latestLoadStartMin: acceptMin,
+    publishedAtMin: 480, paymentTermsDays: 0, paymentDueMin: null,
+    relationFactor: 1.0, feasible: true, source: "initial",
+    acceptedById: null, acceptedByName: null,
+    plannedById: null, plannedByName: null, history: [],
   });
   return [
     mk("Hanse Handelskontor", "Hamburg", "Bremen", "Stückgut", 8, 650, 600, 1080),       // Tutorial
@@ -215,6 +224,9 @@ export function createInitialState(names) {
     d.driveMinutesSinceBreak = 0;
   }
   state.orders = initialOffers(state);
+  // Markt-Engine initialisieren und auf Zielbestand auffüllen (Auftrag 19)
+  migrateMarket(state);
+  fillInitialMarket(state);
   // Buchhaltung initialisieren und Eröffnungsbuchung erstellen
   initAccounting(state);
   const _assetCents = state.vehicles.reduce((s, v) => s + v.bookValueCents, 0);
@@ -305,39 +317,7 @@ function doWithdrawal(state, min) {
   state.private.accountCents += PRIVATE_WITHDRAWAL_PER_DAY;
   return { done: true };
 }
-function makeOffer(state, midnight) {
-  let from = CITIES[Math.floor(nextRng(state) * CITIES.length)];
-  let to = CITIES[Math.floor(nextRng(state) * CITIES.length)];
-  while (to === from) to = CITIES[Math.floor(nextRng(state) * CITIES.length)];
-  const dist = getDistance(from, to);
-  const tons = 4 + Math.floor(nextRng(state) * 9);
-  const cargo = CARGO_TYPES[Math.floor(nextRng(state) * CARGO_TYPES.length)];
-  const customer = CUSTOMER_NAMES[Math.floor(nextRng(state) * CUSTOMER_NAMES.length)];
-  const paymentEur = Math.max(200, Math.round(dist * tons * 0.70 / 5) * 5);
-  const acceptDeadline = midnight + (6 + Math.floor(nextRng(state) * 7)) * 60;
-  const deliveryDeadline = acceptDeadline + (8 + Math.floor(nextRng(state) * 17)) * 60;
-  return {
-    id: uid(state, "o"), customer, fromCity: from, toCity: to, cargo, tons,
-    paymentCents: paymentEur * 100, acceptDeadlineMin: acceptDeadline, deliveryDeadlineMin: deliveryDeadline,
-    status: "offered", acceptedAtMin: null, startedAtMin: null, deliveredAtMin: null, paidCents: null
-  };
-}
-function generateDailyOrders(state, day, midnight) {
-  const n = 2 + Math.floor(nextRng(state) * 2); // 2–3 neue Angebote
-  for (let k = 0; k < n; k++) state.orders.push(makeOffer(state, midnight));
-  // Abgelaufene Angebote archivieren
-  for (const o of state.orders) {
-    if (o.status === "offered" && o.acceptDeadlineMin <= state.gameTime) o.status = "expired";
-  }
-  // Aktive Angebotsliste begrenzen: älteste abgelaufene entfernen
-  const offered = state.orders.filter(o => o.status === "offered");
-  if (offered.length > 14) {
-    const expired = state.orders.filter(o => o.status === "expired");
-    expired.sort((a, b) => a.acceptDeadlineMin - b.acceptDeadlineMin);
-    const removeIds = new Set(expired.slice(0, expired.length).map(o => o.id));
-    state.orders = state.orders.filter(o => !(o.status === "expired" && removeIds.has(o.id)) && !(o.status === "offered" && false));
-  }
-}
+// Alt-Generator entfernt – durch marketEngine.ts ersetzt (Auftrag 19).
 function maybeGenerateInvitation(state, day, midnight) {
   if (day <= 1) return;
   const busy = state.appointments.some(a =>
@@ -388,7 +368,6 @@ function doDailyAccounting(state, midnight) {
   log.push({ cause: "Private Entnahme", done: w.done, reason: w.reason });
   const l = payCost(state, "private", PRIVATE_LIVING_PER_DAY, "Lebenshaltung", "living", midnight);
   log.push({ cause: "Lebenshaltung", paid: l.paid, unpaid: l.unpaid });
-  generateDailyOrders(state, day, midnight);
   maybeGenerateInvitation(state, day, midnight);
   // Balance-Serie: Zufriedenheit >=70 und Belastung <=40 am Tagesabschluss
   if (state.private.happiness >= 70 && state.private.stress <= 40) {
@@ -414,6 +393,7 @@ function earliestEventAfter(state, t, maxMin) {
     else if (a.status === "active") cand(a.endMin);
   }
   cand(Math.floor(t / 1440) * 1440 + 1440); // nächste Mitternacht
+  cand(Math.floor(t / 60) * 60 + 60); // nächste Marktwelle (volle Stunde)
   cand(Math.floor(t / MONTH_MIN) * MONTH_MIN + MONTH_MIN); // nächste Monatsgrenze
   for (const o of state.orders) { if (o.status === "offered") cand(o.acceptDeadlineMin); }
   if (!state.tutorialInviteCreated) cand(720);
@@ -607,6 +587,10 @@ function processEventsAt(state, m, log) {
   }
   // 5. Angebotsablauf
   for (const o of state.orders) { if (o.status === "offered" && o.acceptDeadlineMin === m) { o.status = "expired"; log.push({ type: "order_expired", order: o.id }); } }
+  // 5b. Marktwelle zu jeder vollen Spielstunde (Auftrag 19)
+  if (m % 60 === 0) {
+    generateMarketWave(state, m, log);
+  }
   // 6. Tutorial-Einladung erscheint
   if (m === 720 && !state.tutorialInviteCreated) {
     state.tutorialInviteCreated = true;

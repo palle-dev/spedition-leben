@@ -119,6 +119,96 @@ export const CUSTOMER_NAMES = [
   "Alsterwerk", "Prien Paketdienst", "Eldena Export"
 ];
 
+// ---------- Kundenprofile (Auftrag 19) ----------
+// Stabile fiktive Unternehmen mit Versanddepots und bevorzugten Relationen.
+// Ein Kundendepot muss am Abholort existieren; kein Kunde versendet aus jeder Stadt.
+export const CUSTOMER_PROFILES = [
+  { id: "c01", name: "Hanse Handelskontor", industry: "Handel", contact: "Frau Brandt",
+    depots: ["Hamburg"],
+    preferredRelations: [["Hamburg","Bremen"],["Hamburg","Hannover"],["Hamburg","Lübeck"]],
+    cargoTypes: ["Stückgut","Verpackungsmaterial"] },
+  { id: "c02", name: "Norddeutsche Feinkost", industry: "Lebensmittel", contact: "Herr Petersen",
+    depots: ["Hamburg"],
+    preferredRelations: [["Hamburg","Hannover"],["Hamburg","Berlin"],["Hamburg","Bremen"]],
+    cargoTypes: ["Lebensmittel","Getränke"] },
+  { id: "c03", name: "Ostsee Frischlief", industry: "Getränke", contact: "Frau Jansen",
+    depots: ["Rostock","Kiel"],
+    preferredRelations: [["Rostock","Hamburg"],["Kiel","Hamburg"],["Rostock","Lübeck"]],
+    cargoTypes: ["Getränke","Lebensmittel"] },
+  { id: "c04", name: "Weser Handel", industry: "Möbel", contact: "Herr Meyer",
+    depots: ["Bremen"],
+    preferredRelations: [["Bremen","Hamburg"],["Bremen","Hannover"],["Bremen","Berlin"]],
+    cargoTypes: ["Möbel","Stückgut"] },
+  { id: "c05", name: "Hauptstadt-Express", industry: "Elektronik", contact: "Frau Schwarz",
+    depots: ["Berlin"],
+    preferredRelations: [["Berlin","Hamburg"],["Berlin","Hannover"],["Berlin","Magdeburg"]],
+    cargoTypes: ["Elektronik","Stückgut"] },
+  { id: "c06", name: "Ostsee-Vertrieb", industry: "Textilien", contact: "Herr Lange",
+    depots: ["Rostock"],
+    preferredRelations: [["Rostock","Hamburg"],["Rostock","Berlin"],["Rostock","Hannover"]],
+    cargoTypes: ["Textilien","Verpackungsmaterial"] },
+  { id: "c07", name: "Elbe-Logistik", industry: "Bauteile", contact: "Herr Wagner",
+    depots: ["Hamburg","Magdeburg"],
+    preferredRelations: [["Hamburg","Magdeburg"],["Magdeburg","Berlin"],["Hamburg","Berlin"]],
+    cargoTypes: ["Bauteile","Baustoffe"] },
+  { id: "c08", name: "Schleswig-Spedition", industry: "Verpackung", contact: "Frau Hansen",
+    depots: ["Lübeck"],
+    preferredRelations: [["Lübeck","Hamburg"],["Lübeck","Bremen"],["Lübeck","Kiel"]],
+    cargoTypes: ["Verpackungsmaterial","Stückgut"] },
+  { id: "c09", name: "Nordwind Transport", industry: "Baustoffe", contact: "Herr Storm",
+    depots: ["Hannover"],
+    preferredRelations: [["Hannover","Hamburg"],["Hannover","Berlin"],["Hannover","Magdeburg"]],
+    cargoTypes: ["Baustoffe","Bauteile"] },
+  { id: "c10", name: "Salzstein GmbH", industry: "Stückgut", contact: "Frau Keller",
+    depots: ["Magdeburg"],
+    preferredRelations: [["Magdeburg","Hannover"],["Magdeburg","Berlin"],["Magdeburg","Hamburg"]],
+    cargoTypes: ["Stückgut","Maschinenteile"] },
+  { id: "c11", name: "Müller & Söhne", industry: "Maschinenteile", contact: "Herr Müller",
+    depots: ["Hannover","Bremen"],
+    preferredRelations: [["Hannover","Hamburg"],["Bremen","Berlin"],["Hannover","Magdeburg"]],
+    cargoTypes: ["Maschinenteile","Bauteile"] },
+  { id: "c12", name: "Havel-Spedition", industry: "Lebensmittel", contact: "Frau Weber",
+    depots: ["Berlin"],
+    preferredRelations: [["Berlin","Magdeburg"],["Berlin","Hamburg"],["Berlin","Hannover"]],
+    cargoTypes: ["Lebensmittel","Getränke"] },
+  { id: "c13", name: "Alsterwerk", industry: "Maschinenteile", contact: "Herr Becker",
+    depots: ["Hamburg"],
+    preferredRelations: [["Hamburg","Berlin"],["Hamburg","Kiel"],["Hamburg","Magdeburg"]],
+    cargoTypes: ["Maschinenteile","Elektronik"] },
+  { id: "c14", name: "Prien Paketdienst", industry: "Stückgut", contact: "Frau Stahl",
+    depots: ["Lübeck","Kiel"],
+    preferredRelations: [["Lübeck","Hamburg"],["Kiel","Bremen"],["Lübeck","Hannover"]],
+    cargoTypes: ["Stückgut","Verpackungsmaterial"] },
+  { id: "c15", name: "Eldena Export", industry: "Getränke", contact: "Herr Greif",
+    depots: ["Rostock"],
+    preferredRelations: [["Rostock","Lübeck"],["Rostock","Hannover"],["Rostock","Berlin"]],
+    cargoTypes: ["Getränke","Lebensmittel"] },
+];
+
+// ---------- Marktkonstanten (Auftrag 19) ----------
+export const MARKET_VERSION = 2;
+export const MARKET_WAVE_INTERVAL = 60; // Minuten: jede volle Stunde
+
+// Preisformel: Grundpreis = 125 € + 2,10 € × km + 6 € × Tonnen
+export const PRICE_BASE_CENTS = 12500;
+export const PRICE_PER_KM_CENTS = 210;
+export const PRICE_PER_TON_CENTS = 600;
+export const EXPRESS_FACTOR = 1.25;
+export const RELATION_FACTOR_MIN = 0.90;
+export const RELATION_FACTOR_MAX = 1.10;
+
+// Annahmefristen in Stunden
+export const NORMAL_ACCEPT_HOURS = [6, 12];
+export const EXPRESS_ACCEPT_HOURS = [1, 3];
+export const ADVANCE_ACCEPT_HOURS = [12, 24];
+
+// Lieferpuffer in Stunden
+export const NORMAL_BUFFER_HOURS = [2, 6];
+export const EXPRESS_BUFFER_HOURS = [0.5, 1];
+
+// Zahlungsziele in Spieltagen
+export const PAYMENT_TERMS_DAYS = [0, 3, 7];
+
 // Mindestens fünf eigene Vorlagen für wiederkehrende private Einladungen.
 export const INVITATION_TEMPLATES = [
   { id: "t1", text: "Mara lädt dich zu einem gemeinsamen Abendessen ein. Sie hat extra deinen Lieblingstisch reserviert." },

@@ -10,6 +10,7 @@ import { migrateMail } from "./mailEngine.ts";
 import { migrateTripPhases } from "./driverTimeEngine.ts";
 import { migrateFinancing } from "./financingEngine.ts";
 import { migrateTermination } from "./terminationEngine.ts";
+import { migrateMarket } from "./marketEngine.ts";
 
 // --- Vermögensberechnungen ---
 
@@ -227,6 +228,9 @@ export function migrateState(state) {
 
   // ---------- Kündigungs-Migration (Auftrag 18) ----------
   migrateTermination(state);
+
+  // ---------- Markt-Migration (Auftrag 19) ----------
+  migrateMarket(state);
 
   return state;
 }
