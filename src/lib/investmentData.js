@@ -101,8 +101,8 @@ export function getDepotSummary(state, depotId) {
   positions.sort((a, b) => b.marketValueCents - a.marketValueCents);
 
   const reservedCents = (depot.orders || [])
-    .filter(o => o.status === "open" || o.status === "partially_filled")
-    .reduce((s, o) => s + (o.side === "buy" ? o.reservedCents - o.filledGrossCents : 0), 0);
+    .filter(o => o.status === "open" || o.status === "partially_filled" || o.status === "pending_stop" || o.status === "active_stop")
+    .reduce((s, o) => s + (o.side === "buy" ? o.reservedCents : 0), 0);
   const freeSettlement = depot.settlementCents - reservedCents;
   const totalValue = depot.settlementCents + marketValueCents;
 
@@ -115,7 +115,7 @@ export function getDepotSummary(state, depotId) {
     totalValueCents: totalValue,
     realizedPnlCents: depot.realizedPnlCents || 0,
     positions,
-    openOrderCount: (depot.orders || []).filter(o => o.status === "open" || o.status === "partially_filled").length,
+    openOrderCount: (depot.orders || []).filter(o => o.status === "open" || o.status === "partially_filled" || o.status === "pending_stop" || o.status === "active_stop").length,
     transfers: (depot.transfers || []).slice(-10).reverse(),
   };
 }

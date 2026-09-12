@@ -5,6 +5,11 @@
 
 import { mulberry32 } from "./gameRules.ts";
 import { postJournal } from "./accountingEngine.ts";
+import { processStopOrders, placeAdvancedOrder } from "./investmentAdvancedOrders.ts";
+import { processDividends, processSplits } from "./investmentCorporate.ts";
+import { processStaking, stakePosition, unstakePosition, getStakingStatus } from "./investmentStaking.ts";
+import { processSavingsPlans, createSavingsPlan, cancelSavingsPlan, pauseSavingsPlan, resumeSavingsPlan } from "./investmentSavings.ts";
+import { recordDepotSnapshot, getPerformanceOverview } from "./investmentPerformance.ts";
 
 // ---------- Instrumente ----------
 type InstrumentDef = {
@@ -81,7 +86,7 @@ const ORDERS_MAX = 200;
 const FILLS_MAX = 500;
 
 // ---------- Hilfsfunktionen ----------
-function uid(state, prefix) {
+export function uid(state, prefix) {
   state.idCounter = (state.idCounter || 100) + 1;
   return prefix + "_" + state.idCounter;
 }
@@ -127,12 +132,12 @@ function isCryptoTickMin(min) {
 function roundCents(v) { return Math.round(v); }
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
-function roundQty(qty, type) {
+export function roundQty(qty, type) {
   const precision = type === "crypto" ? CRYPTO_QTY_PRECISION : STOCK_QTY_PRECISION;
   return Math.floor(qty / precision) * precision;
 }
 
-function computeFee(type, grossCents) {
+export function computeFee(type, grossCents) {
   if (grossCents <= 0) return 0;
   const rate = type === "crypto" ? CRYPTO_FEE_RATE : STOCK_FEE_RATE;
   const minCents = type === "crypto" ? CRYPTO_FEE_MIN_CENTS : STOCK_FEE_MIN_CENTS;
@@ -299,9 +304,20 @@ export function processMarketTick(state, min, log) {
   }
   m.lastTickMin = min;
 
+  // Stop-Orders verarbeiten (vor regulären Orders, da Stop-Auslösung neue Market-Orders erzeugt)
+  processStopOrders(state, min, log);
   // Orders verarbeiten
   processExpiringOrders(state, min, log);
   processOpenOrders(state, min, log);
+  // Dividenden und Splits verarbeiten
+  processDividends(state, min, log);
+  processSplits(state, min, log);
+  // Staking-Vergütung verarbeiten
+  processStaking(state, min, log);
+  // Sparpläne verarbeiten
+  processSavingsPlans(state, min, log);
+  // Performance-Snapshot aufzeichnen
+  recordDepotSnapshot(state, min);
 
   log.push({ type: "investment_tick", min, stockOpen, cryptoOpen });
 }
@@ -322,6 +338,24 @@ export function getInvestmentEventTimes(state, t, maxMin) {
     for (const o of depot.orders) {
       if (o.status === "open" || o.status === "partially_filled") {
         if (o.expireMin && o.expireMin > t && o.expireMin <= maxMin) times.push(o.expireMin);
+      }
+    }
+    // Sparplan-Ausführungszeiten
+    for (const plan of (depot.savingsPlans || [])) {
+      if (plan.status === "active" && plan.nextExecuteMin > t && plan.nextExecuteMin <= maxMin) {
+        times.push(plan.nextExecuteMin);
+      }
+    }
+    // Dividenden-Zahlungszeiten
+    for (const c of (depot.dividendClaims || [])) {
+      if (!c.paid && c.payMin > t && c.payMin <= maxMin) times.push(c.payMin);
+    }
+    // Unstaking-Freigabezeiten
+    for (const [instId, pos] of Object.entries(depot.positions)) {
+      for (const s of (pos.staking || [])) {
+        if (s.status === "unstaking" && s.releaseMin > t && s.releaseMin <= maxMin) {
+          times.push(s.releaseMin);
+        }
       }
     }
   }
@@ -375,12 +409,12 @@ export function withdrawFromDepot(state, { depotId, amountCents }) {
   return { ok: true, settlementCents: depot.settlementCents };
 }
 
-function getFreeSettlement(state, depotId) {
+export function getFreeSettlement(state, depotId) {
   const depot = getDepot(state, depotId);
   if (!depot) return 0;
   const reserved = (depot.orders || [])
-    .filter(o => o.status === "open" || o.status === "partially_filled")
-    .reduce((s, o) => s + (o.side === "buy" ? o.reservedCents - o.filledGrossCents : 0), 0);
+    .filter(o => o.status === "open" || o.status === "partially_filled" || o.status === "pending_stop" || o.status === "active_stop")
+    .reduce((s, o) => s + (o.side === "buy" ? o.reservedCents : 0), 0);
   return depot.settlementCents - reserved;
 }
 
@@ -396,6 +430,15 @@ export function placeOrder(state, p) {
   const isCrypto = def.type === "crypto";
   const side = p.side;  // "buy" | "sell"
   const orderType = p.orderType;  // "market" | "limit"
+
+  // Pflichtkostensperre (I16): Neue Käufe blockiert bei offenen betrieblichen Kosten
+  if (side === "buy" && p.depotId === "company" && !p.closePosition) {
+    const hasOpenCompanyCosts = (state.openCosts || []).some(o => o.account === "company" && o.amountCents > 0);
+    const hasOpenItems = (state.accounting?.openItems || []).some(o => o.remainingCents > 0);
+    if (hasOpenCompanyCosts || hasOpenItems) {
+      throw new Error("Es gibt offene betriebliche Kosten. Bitte bezahle diese zuerst, bevor du neue Investment-Käufe tätigst.");
+    }
+  }
 
   // Mengen-/Budgetvalidierung
   let qty = p.qty || null;
@@ -456,6 +499,15 @@ export function placeOrder(state, p) {
   }
   // GTC: kein Ablauf
 
+  // OCO-Partner verknüpfen
+  let ocoPartnerId = null;
+  if (p.ocoWith) {
+    const partner = depot.orders.find(o => o.id === p.ocoWith);
+    if (!partner) throw new Error("OCO-Partner nicht gefunden.");
+    if (partner.status !== "open" && partner.status !== "partially_filled" && partner.status !== "pending_stop") throw new Error("OCO-Partner nicht mehr offen.");
+    ocoPartnerId = partner.id;
+  }
+
   const order = {
     id: uid(state, "io"),
     depotId: p.depotId,
@@ -468,15 +520,26 @@ export function placeOrder(state, p) {
     feeCents: 0,
     limitCents,
     stopCents: null,
+    trailingPercent: null,
+    trailingHighCents: null,
+    activatedAtMin: null,
     reservedCents,
     reservedQty,
     status: "open",
     timeInForce: p.timeInForce || "GTC",
     expireMin,
     closePosition: p.closePosition || false,
+    ocoPartnerId,
     createdAtMin: state.gameTime,
     rejectReason: null,
   };
+
+  // OCO-Verknüpfung bidirektional
+  if (ocoPartnerId) {
+    const partner = depot.orders.find(o => o.id === ocoPartnerId);
+    if (partner) partner.ocoPartnerId = order.id;
+  }
+
   depot.orders.push(order);
   if (depot.orders.length > ORDERS_MAX) depot.orders = depot.orders.slice(-ORDERS_MAX);
 
@@ -490,10 +553,18 @@ function nextSessionEnd(state, type) {
     const midnight = Math.floor(state.gameTime / 1440) * 1440 + 1440;
     return midnight;
   }
-  // Aktien: nächste Sitzungsende (17:00)
+  // Aktien: nächste Sitzungsende (17:00) an einem Handelstag (Mo-Fr)
+  const day = Math.floor(state.gameTime / 1440);
   const clock = state.gameTime % 1440;
-  if (clock < 1020) return Math.floor(state.gameTime / 1440) * 1440 + 1020;
-  return Math.floor(state.gameTime / 1440) * 1440 + 1440 + 1020;  // nächster Tag 17:00
+  // Wenn heute Handelstag und Sitzung noch läuft: heute 17:00
+  if (day % 7 < 5 && clock < 1020) {
+    return day * 1440 + 1020;
+  }
+  // Sonst: nächste 17:00 an einem Handelstag (überspringt Wochenende)
+  let testDay = day;
+  if (clock >= 1020 || day % 7 >= 5) testDay++;
+  while (testDay % 7 >= 5) testDay++;
+  return testDay * 1440 + 1020;
 }
 
 export function cancelOrder(state, { orderId }) {
@@ -502,15 +573,16 @@ export function cancelOrder(state, { orderId }) {
     if (!depot) continue;
     const o = depot.orders.find(x => x.id === orderId);
     if (!o) continue;
-    if (o.status !== "open" && o.status !== "partially_filled") throw new Error("Order kann nicht storniert werden.");
+    if (o.status !== "open" && o.status !== "partially_filled" && o.status !== "pending_stop" && o.status !== "active_stop") throw new Error("Order kann nicht storniert werden.");
     o.status = "cancelled";
+    // OCO-Partner ebenfalls stornieren
+    if (o.ocoPartnerId) {
+      cancelOcoPartnerLocal(state, o, state.gameTime);
+    }
     // Reserve freigeben
     if (o.side === "buy") {
-      // reservedCents wird bei Teilausführung anteilig freigegeben
-      const remainingReserve = o.reservedCents - o.filledGrossCents - o.feeCents;
-      // settlement wurde bei order placement nicht abgezogen, nur getrackt via reservedCents
-      // Die Reserve war nur eine Schattenreservierung; settlement bleibt unverändert
-      // (freie Liquidität = settlement - sum reserved)
+      // reservedCents wird durch Status-Wechsel automatisch freigegeben
+      // (getFreeSettlement zählt nur open/partially_filled/pending_stop/active_stop)
     } else {
       const pos = depot.positions[o.instrumentId];
       if (pos) pos.availableQty += (o.qty - o.filledQty);
@@ -538,20 +610,26 @@ function tryExecuteOrder(state, order, min) {
 
   // Preisprüfung
   let execPrice;
-  if (order.orderType === "market") {
+  // Aktive Stop-Orders verhalten sich wie Market oder Limit
+  const effectiveOrderType = order.status === "active_stop"
+    ? (order.orderType === "stop_limit" ? "limit" : "market")
+    : order.orderType;
+
+  if (effectiveOrderType === "market") {
     execPrice = order.side === "buy" ? quote.ask : quote.bid;
-    // Preisabweichungsgrenze prüfen
-    const refPrice = order.side === "buy" ? quote.ask : quote.bid;
-    const deviation = MARKET_PRICE_DEVIATION[def.type];
-    if (order.side === "buy") {
-      const maxPrice = Math.ceil(quote.ask * (1 + deviation));
-      if (execPrice > maxPrice) {
-        order.status = "cancelled";
-        order.rejectReason = "Preisabweichung überschritten";
-        return { filled: false, reason: "Preisabweichung überschritten" };
+    // Preisabweichungsgrenze prüfen (nur für normale Market-Orders, nicht für Stop-Auslösung)
+    if (order.orderType === "market") {
+      const deviation = MARKET_PRICE_DEVIATION[def.type];
+      if (order.side === "buy") {
+        const maxPrice = Math.ceil(quote.ask * (1 + deviation));
+        if (execPrice > maxPrice) {
+          order.status = "cancelled";
+          order.rejectReason = "Preisabweichung überschritten";
+          return { filled: false, reason: "Preisabweichung überschritten" };
+        }
       }
     }
-  } else if (order.orderType === "limit") {
+  } else if (effectiveOrderType === "limit") {
     if (order.side === "buy") {
       if (quote.ask > order.limitCents) return { filled: false, reason: "Limit nicht erreicht" };
       execPrice = Math.min(quote.ask, order.limitCents);  // zum besseren Preis
@@ -607,6 +685,10 @@ function tryExecuteOrder(state, order, min) {
   // Status aktualisieren
   if (order.filledQty >= order.qty) {
     order.status = "filled";
+    // Bei OCO: Partner stornieren bei vollständiger Ausführung
+    if (order.ocoPartnerId) {
+      cancelOcoPartnerLocal(state, order, min);
+    }
   } else {
     order.status = "partially_filled";
   }
@@ -705,8 +787,10 @@ function processExpiringOrders(state, min, log) {
     const depot = getDepot(state, depotId);
     if (!depot) continue;
     for (const o of depot.orders) {
-      if ((o.status === "open" || o.status === "partially_filled") && o.expireMin && o.expireMin <= min) {
+      if ((o.status === "open" || o.status === "partially_filled" || o.status === "pending_stop" || o.status === "active_stop") && o.expireMin && o.expireMin <= min) {
         o.status = "expired";
+        // OCO-Partner ebenfalls stornieren
+        if (o.ocoPartnerId) cancelOcoPartnerLocal(state, o, min);
         // Reserve freigeben
         if (o.side === "sell") {
           const pos = depot.positions[o.instrumentId];
@@ -724,12 +808,34 @@ function processOpenOrders(state, min, log) {
     if (!depot) continue;
     // Stabile Priorität: Annahmezeit + ID
     const openOrders = depot.orders
-      .filter(o => o.status === "open" || o.status === "partially_filled")
+      .filter(o => o.status === "open" || o.status === "partially_filled" || o.status === "active_stop")
       .sort((a, b) => a.createdAtMin - b.createdAtMin || a.id.localeCompare(b.id));
     for (const o of openOrders) {
       const result = tryExecuteOrder(state, o, min);
       if (result.filled) {
+        // Bei OCO: Partner stornieren wenn vollständig gefüllt
+        if (o.filledQty >= o.qty && o.ocoPartnerId) {
+          cancelOcoPartnerLocal(state, o, min);
+        }
         log.push({ type: "investment_fill", orderId: o.id, depotId, ...result });
+      }
+    }
+  }
+}
+
+function cancelOcoPartnerLocal(state, filledOrder, min) {
+  for (const depotId of ["company", "private"]) {
+    const depot = getDepot(state, depotId);
+    if (!depot) continue;
+    const partner = depot.orders.find(o => o.id === filledOrder.ocoPartnerId);
+    if (!partner) continue;
+    if (partner.status === "open" || partner.status === "partially_filled" || partner.status === "pending_stop" || partner.status === "active_stop") {
+      partner.status = "cancelled";
+      partner.cancelledByOco = filledOrder.id;
+      partner.cancelledAtMin = min;
+      if (partner.side === "sell") {
+        const pos = depot.positions[partner.instrumentId];
+        if (pos) pos.availableQty += (partner.qty - partner.filledQty);
       }
     }
   }
@@ -794,7 +900,7 @@ function summarizeDepot(state, depotId) {
     totalValueCents: totalValue,
     realizedPnlCents: depot.realizedPnlCents,
     positions,
-    openOrderCount: (depot.orders || []).filter(o => o.status === "open" || o.status === "partially_filled").length,
+    openOrderCount: (depot.orders || []).filter(o => o.status === "open" || o.status === "partially_filled" || o.status === "pending_stop" || o.status === "active_stop").length,
   };
 }
 
@@ -885,6 +991,24 @@ export function handleInvestmentCommand(state, command, p) {
       return placeOrder(state, p);
     case "cancelInvestmentOrder":
       return cancelOrder(state, p);
+    case "placeAdvancedOrder":
+      return placeAdvancedOrder(state, p);
+    case "stakePosition":
+      return stakePosition(state, p);
+    case "unstakePosition":
+      return unstakePosition(state, p);
+    case "getStakingStatus":
+      return { ok: true, staking: getStakingStatus(state, p.depotId, p.instrumentId) };
+    case "createSavingsPlan":
+      return createSavingsPlan(state, p);
+    case "cancelSavingsPlan":
+      return cancelSavingsPlan(state, p);
+    case "pauseSavingsPlan":
+      return pauseSavingsPlan(state, p);
+    case "resumeSavingsPlan":
+      return resumeSavingsPlan(state, p);
+    case "getInvestmentPerformance":
+      return { ok: true, performance: getPerformanceOverview(state, p.depotId) };
     default:
       return null;
   }
