@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime, PERSONNEL_ROLES, ROLE_LABELS } from "@/lib/gameData";
-import { roleLabel, satisfactionLabel, attendanceLabel, workModeLabel, vehicleDisplayName } from "@/lib/displayHelpers";
+import { roleLabel, satisfactionLabel, attendanceLabel, workModeLabel, vehicleDisplayName, employmentStatusLabel } from "@/lib/displayHelpers";
 import Portrait from "@/components/ui/Portrait";
 import Drawer from "@/components/ui/Drawer";
 import DispatcherSetup from "@/components/personnel/DispatcherSetup";
-import { UserPlus, Users, MapPin, Clock, Truck, Headset, Sparkles, Wrench, Calculator, Settings, Check, X, AlertCircle, Briefcase } from "lucide-react";
+import TerminationDialog from "@/components/personnel/TerminationDialog";
+import { UserPlus, Users, MapPin, Clock, Truck, Headset, Sparkles, Wrench, Calculator, Settings, Check, X, AlertCircle, Briefcase, LogOut, RotateCcw } from "lucide-react";
 
 const ROLE_ICON = {
   driver: Truck, dispatcher: Headset, dispatcher_senior: Headset,
@@ -17,6 +18,8 @@ export default function Personnel() {
   const [tab, setTab] = useState("team");
   const [busyId, setBusyId] = useState(null);
   const [setupEmp, setSetupEmp] = useState(null);
+  const [managePerson, setManagePerson] = useState(null); // { id, kind, name }
+  const [terminatePerson, setTerminatePerson] = useState(null); // { id, kind, name }
 
   const openCompany = state.openCosts.some(o => o.account === "company");
   const drivers = state.drivers || [];
@@ -84,6 +87,7 @@ export default function Personnel() {
         {[
           { id: "team", label: "Team", icon: Users },
           { id: "hire", label: "Einstellen", icon: UserPlus },
+          { id: "former", label: "Ehemalige", icon: Briefcase },
           { id: "absence", label: "Abwesenheiten", icon: Clock },
           { id: "services", label: "Dienstleistungen", icon: Briefcase },
         ].map(t => (
@@ -107,7 +111,7 @@ export default function Personnel() {
             <div>
               <h2 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground mb-3">Fahrer</h2>
               <div className="grid md:grid-cols-2 gap-3">
-                {drivers.map(d => <DriverCard key={d.id} driver={d} />)}
+                {drivers.map(d => <DriverCard key={d.id} driver={d} onManage={setManagePerson} />)}
               </div>
             </div>
           )}
@@ -117,7 +121,7 @@ export default function Personnel() {
               <h2 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground mb-3">Angestellte</h2>
               <div className="grid md:grid-cols-2 gap-3">
                 {employees.map(emp => (
-                  <EmployeeCard key={emp.id} employee={emp} state={state} onSetup={() => setSetupEmp(emp)} />
+                  <EmployeeCard key={emp.id} employee={emp} state={state} onSetup={() => setSetupEmp(emp)} onManage={setManagePerson} />
                 ))}
               </div>
             </div>
@@ -186,6 +190,38 @@ export default function Personnel() {
         </div>
       )}
 
+      {/* Ehemalige Tab */}
+      {tab === "former" && (
+        <div className="space-y-5">
+          {(() => {
+            const formerDrivers = drivers.filter(d => d.employmentStatus === "former");
+            const formerEmps = employees.filter(e => e.employmentStatus === "former");
+            const total = formerDrivers.length + formerEmps.length;
+            if (total === 0) return <div className="text-sm text-muted-foreground text-center py-8">Keine ehemaligen Mitarbeiter.</div>;
+            return (
+              <>
+                {formerDrivers.length > 0 && (
+                  <div>
+                    <h2 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground mb-3">Ehemalige Fahrer</h2>
+                    <div className="grid md:grid-cols-2 gap-3">
+                      {formerDrivers.map(d => <FormerCard key={d.id} person={d} roleLabel="Fahrer" />)}
+                    </div>
+                  </div>
+                )}
+                {formerEmps.length > 0 && (
+                  <div>
+                    <h2 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground mb-3">Ehemalige Angestellte</h2>
+                    <div className="grid md:grid-cols-2 gap-3">
+                      {formerEmps.map(e => <FormerCard key={e.id} person={e} roleLabel={roleLabel(e.role)} />)}
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </div>
+      )}
+
       {/* Dispatcher Setup Drawer */}
       <Drawer
         open={!!setupEmp}
@@ -196,19 +232,65 @@ export default function Personnel() {
       >
         {setupEmp && <DispatcherSetup employee={setupEmp} onClose={() => setSetupEmp(null)} />}
       </Drawer>
+
+      {/* Verwalten Drawer */}
+      <Drawer
+        open={!!managePerson}
+        onClose={() => setManagePerson(null)}
+        title="Mitarbeiter verwalten"
+        kicker={managePerson?.name}
+        maxWidth="max-w-md"
+      >
+        {managePerson && (
+          <PersonnelDetail
+            personId={managePerson.id}
+            kind={managePerson.kind}
+            onSetupDispatcher={() => {
+              const emp = employees.find(e => e.id === managePerson.id);
+              setManagePerson(null);
+              if (emp) setSetupEmp(emp);
+            }}
+            onTerminate={() => {
+              setTerminatePerson({ id: managePerson.id, kind: managePerson.kind, name: managePerson.name });
+              setManagePerson(null);
+            }}
+          />
+        )}
+      </Drawer>
+
+      {/* Kündigungs-Dialog Drawer */}
+      <Drawer
+        open={!!terminatePerson}
+        onClose={() => setTerminatePerson(null)}
+        title="Arbeitsverhältnis beenden"
+        kicker={terminatePerson?.name}
+        maxWidth="max-w-md"
+      >
+        {terminatePerson && (
+          <TerminationDialog
+            personId={terminatePerson.id}
+            personName={terminatePerson.name}
+            kind={terminatePerson.kind}
+            onClose={() => setTerminatePerson(null)}
+          />
+        )}
+      </Drawer>
     </div>
   );
 }
 
-function DriverCard({ driver }) {
+function DriverCard({ driver, onManage }) {
   const sat = satisfactionLabel(driver.satisfaction);
   const att = attendanceLabel(driver.attendance);
+  const empStat = employmentStatusLabel(driver.employmentStatus);
   const statusLabel = {
     free: { label: "Bereit", color: "text-lime", dot: "bg-lime" },
     on_trip: { label: "Unterwegs", color: "text-amber-300", dot: "bg-amber-300" },
     resting: { label: "Erholung", color: "text-sky-300", dot: "bg-sky-300" },
     maintenance: { label: "Wartung", color: "text-violet-300", dot: "bg-violet-300" },
+    former: { label: "Ehemalig", color: "text-muted-foreground", dot: "bg-muted-foreground" },
   }[driver.status] || { label: driver.status, color: "text-muted-foreground", dot: "bg-muted-foreground" };
+  const noticed = driver.employmentStatus === "notice_given";
 
   return (
     <div className="glass border border-white/10 rounded-xl p-4">
@@ -217,13 +299,18 @@ function DriverCard({ driver }) {
         <div className="flex-1 min-w-0">
           <div className="font-medium truncate">{driver.name}</div>
           <div className="text-[10px] text-muted-foreground mt-0.5">Fahrer · seit Tag {driver.employedDay}</div>
-          <div className="flex items-center gap-3 mt-2 text-[10px]">
+          <div className="flex items-center gap-3 mt-2 text-[10px] flex-wrap">
             <span className={`flex items-center gap-1 ${statusLabel.color}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${statusLabel.dot}`} /> {statusLabel.label}
             </span>
             <span className={`flex items-center gap-1 ${sat.color}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${sat.dot}`} /> {sat.label}
             </span>
+            {noticed && (
+              <span className={`flex items-center gap-1 ${empStat.color}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${empStat.dot}`} /> {empStat.label}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -238,18 +325,29 @@ function DriverCard({ driver }) {
       {driver.restUntil && (
         <div className="text-[10px] text-sky-300 mt-2">Erholung bis {formatGameTime(driver.restUntil)}</div>
       )}
+      {noticed && (
+        <div className="text-[10px] text-amber-300 mt-2">Austritt am {formatGameTime(driver.exitMin)}</div>
+      )}
+      <button
+        onClick={() => onManage({ id: driver.id, kind: "driver", name: driver.name })}
+        className="w-full flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium border border-white/10 text-foreground hover:border-lime/30 hover:text-lime transition mt-3"
+      >
+        <Settings className="w-3.5 h-3.5" /> Verwalten
+      </button>
     </div>
   );
 }
 
-function EmployeeCard({ employee, state, onSetup }) {
+function EmployeeCard({ employee, state, onSetup, onManage }) {
   const Icon = ROLE_ICON[employee.role] || Users;
   const sat = satisfactionLabel(employee.satisfaction);
   const att = attendanceLabel(employee.attendance);
+  const empStat = employmentStatusLabel(employee.employmentStatus);
   const isDispatcher = employee.role === "dispatcher" || employee.role === "dispatcher_senior";
   const wm = workModeLabel(employee.workMode);
   const assignedVehicles = (employee.assignedVehicleIds || []).map(vid => state.vehicles.find(v => v.id === vid)).filter(Boolean);
   const pendingSuggestions = (employee.suggestions || []).filter(s => s.status === "pending");
+  const noticed = employee.employmentStatus === "notice_given";
 
   return (
     <div className="glass border border-white/10 rounded-xl p-4">
@@ -260,13 +358,18 @@ function EmployeeCard({ employee, state, onSetup }) {
           <div className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
             <Icon className="w-3 h-3" /> {roleLabel(employee.role)} · seit Tag {employee.employedDay}
           </div>
-          <div className="flex items-center gap-3 mt-2 text-[10px]">
+          <div className="flex items-center gap-3 mt-2 text-[10px] flex-wrap">
             <span className={`flex items-center gap-1 ${att.color}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${att.dot}`} /> {att.label}
             </span>
             <span className={`flex items-center gap-1 ${sat.color}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${sat.dot}`} /> {sat.label}
             </span>
+            {noticed && (
+              <span className={`flex items-center gap-1 ${empStat.color}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${empStat.dot}`} /> {empStat.label}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -280,8 +383,12 @@ function EmployeeCard({ employee, state, onSetup }) {
         </div>
       </div>
 
+      {noticed && (
+        <div className="text-[10px] text-amber-300 mt-2">Austritt am {formatGameTime(employee.exitMin)}</div>
+      )}
+
       {/* Disponent-spezifisch */}
-      {isDispatcher && (
+      {isDispatcher && !noticed && (
         <div className="mt-3 pt-3 border-t border-white/5 space-y-2">
           <div className="flex items-center justify-between text-[10px]">
             <span className="text-muted-foreground">Arbeitsweise</span>
@@ -304,6 +411,13 @@ function EmployeeCard({ employee, state, onSetup }) {
           </button>
         </div>
       )}
+
+      <button
+        onClick={() => onManage({ id: employee.id, kind: "employee", name: employee.name })}
+        className={`w-full flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium border border-white/10 text-foreground hover:border-lime/30 hover:text-lime transition ${isDispatcher && !noticed ? "mt-2" : "mt-3"}`}
+      >
+        <Settings className="w-3.5 h-3.5" /> Verwalten
+      </button>
     </div>
   );
 }
@@ -356,6 +470,112 @@ function EmptyTeam() {
       <Users className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
       <div className="text-sm text-muted-foreground">Noch kein Personal eingestellt.</div>
       <div className="text-xs text-muted-foreground/60 mt-1">Wechsle zum Tab „Einstellen“, um Bewerber zu sehen.</div>
+    </div>
+  );
+}
+
+function FormerCard({ person, roleLabel: rl }) {
+  return (
+    <div className="glass border border-white/5 rounded-xl p-4 opacity-75">
+      <div className="flex items-start gap-3">
+        <Portrait portraitId={person.portraitId} name={person.name} size="md" />
+        <div className="flex-1 min-w-0">
+          <div className="font-medium truncate">{person.name}</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">{rl} · ausgeschieden</div>
+          {person.actualExitMin && (
+            <div className="text-[10px] text-muted-foreground/70 mt-1">Austritt am {formatGameTime(person.actualExitMin)}</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PersonnelDetail({ personId, kind, onSetupDispatcher, onTerminate }) {
+  const { state } = useGame();
+  const person = kind === "driver"
+    ? (state.drivers || []).find(d => d.id === personId)
+    : (state.employees || []).find(e => e.id === personId);
+  if (!person) return <div className="text-sm text-muted-foreground text-center py-4">Person nicht gefunden.</div>;
+
+  const Icon = ROLE_ICON[person.role || "driver"] || Users;
+  const empStat = employmentStatusLabel(person.employmentStatus);
+  const att = attendanceLabel(person.attendance);
+  const isDispatcher = kind === "employee" && (person.role === "dispatcher" || person.role === "dispatcher_senior");
+  const noticed = person.employmentStatus === "notice_given";
+  const former = person.employmentStatus === "former";
+
+  return (
+    <div className="space-y-4">
+      {/* Kopf */}
+      <div className="flex items-start gap-3 p-3 rounded-lg bg-surface-2/50 border border-white/5">
+        <Portrait portraitId={person.portraitId} name={person.name} size="lg" />
+        <div className="flex-1 min-w-0">
+          <div className="font-medium truncate">{person.name}</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+            <Icon className="w-3 h-3" /> {kind === "driver" ? "Fahrer" : roleLabel(person.role)} · seit Tag {person.employedDay}
+          </div>
+          <div className="flex items-center gap-3 mt-2 text-[10px] flex-wrap">
+            <span className={`flex items-center gap-1 ${empStat.color}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${empStat.dot}`} /> {empStat.label}
+            </span>
+            {!former && (
+              <span className={`flex items-center gap-1 ${att.color}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${att.dot}`} /> {att.label}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Details */}
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="flex items-center gap-1.5 text-muted-foreground p-2 rounded-lg bg-surface-2/30 border border-white/5">
+          <MapPin className="w-3 h-3 text-foreground/40" /> {person.locationCity}
+        </div>
+        <div className="flex items-center gap-1.5 text-muted-foreground p-2 rounded-lg bg-surface-2/30 border border-white/5">
+          <Clock className="w-3 h-3 text-foreground/40" /> {formatEuro(person.costPerDayCents)}/Tag
+        </div>
+      </div>
+
+      {/* Austritt angekündigt */}
+      {noticed && (
+        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-400/20 space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-amber-300">
+            <AlertCircle className="w-4 h-4" /> Austritt am {formatGameTime(person.exitMin)}
+          </div>
+          <div className="text-[10px] text-muted-foreground">
+            Ablauf: {person.exitMode === "garden_leave" ? "Freistellung" : "Weiterarbeit bis Fristende"}
+          </div>
+        </div>
+      )}
+
+      {/* Aktionen */}
+      {!former && (
+        <div className="space-y-2 pt-2">
+          {isDispatcher && !noticed && (
+            <button
+              onClick={onSetupDispatcher}
+              className="w-full flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-sm font-medium border border-white/10 text-foreground hover:border-lime/30 hover:text-lime transition"
+            >
+              <Settings className="w-4 h-4" /> Einrichtung ändern
+            </button>
+          )}
+          <button
+            onClick={onTerminate}
+            className="w-full flex items-center justify-center gap-2 rounded-lg py-2.5 bg-coral/80 text-ink text-sm font-semibold hover:brightness-110 transition active:scale-[0.98]"
+          >
+            {noticed ? <><AlertCircle className="w-4 h-4" /> Austritt ansehen</> : <><LogOut className="w-4 h-4" /> Arbeitsverhältnis beenden</>}
+          </button>
+        </div>
+      )}
+
+      {former && (
+        <div className="text-xs text-muted-foreground text-center py-2">
+          Diese Person hat das Unternehmen verlassen.
+          Historische Touren, Buchungen und Nachrichten bleiben erhalten.
+        </div>
+      )}
     </div>
   );
 }

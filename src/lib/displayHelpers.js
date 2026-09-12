@@ -75,6 +75,16 @@ export function attendanceLabel(att) {
   return labels[att] || { label: att || "—", color: "text-muted-foreground", dot: "bg-muted-foreground" };
 }
 
+// Beschäftigungsstatus-Label
+export function employmentStatusLabel(status) {
+  const labels = {
+    employed: { label: "Aktiv", color: "text-lime", dot: "bg-lime" },
+    notice_given: { label: "Austritt angekündigt", color: "text-amber-300", dot: "bg-amber-300" },
+    former: { label: "Ehemalig", color: "text-muted-foreground", dot: "bg-muted-foreground" },
+  };
+  return labels[status] || { label: status || "—", color: "text-muted-foreground", dot: "bg-muted-foreground" };
+}
+
 // Arbeitsweise-Label für Disponenten
 export function workModeLabel(mode) {
   const labels = {

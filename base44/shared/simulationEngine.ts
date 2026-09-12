@@ -11,7 +11,7 @@ import {
   VEHICLE_PRICE, HIRE_FEE, MAINTENANCE_COST, MAINTENANCE_DURATION,
   INVITATION_COST, STRESS_MAINT_THRESHOLD, MAINT_STRESS_FACTOR,
   PERSONNEL_ROLES, SERVICE_START_MIN, SERVICE_END_MIN, SERVICE_INTERVAL_MIN,
-  APPLICANT_NAMES, PORTRAIT_IDS
+  APPLICANT_NAMES, PORTRAIT_IDS, NOTICE_PERIOD_MIN
 } from "./gameRules.ts";
 import {
   buildTourPlan, confirmTour as doConfirmTour, cancelTour as doCancelTour,
@@ -48,6 +48,11 @@ import {
   generateEmployeeIntroduction, onOrderAccepted, onTourConfirmed,
   onEmployeeHired, onMaintenanceCompleted, resetDailyStats,
 } from "./mailReports.ts";
+import {
+  previewTermination, terminateEmployee, cancelTermination,
+  processEmployeeExit, processReleaseAfterTrip, getTerminationExitEvents,
+  isActivelyEmployed, findPerson,
+} from "./terminationEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -361,6 +366,7 @@ function doDailyAccounting(state, midnight) {
   resetDailyStats(state, midnight);
   const drivers = [...state.drivers].sort((a, b) => (a.id < b.id ? -1 : 1));
   for (const d of drivers) {
+    if (!isActivelyEmployed(d)) continue;
     const r = payCost(state, "company", DRIVER_COST_PER_DAY, "Fahrerlohn: " + d.name, d.id, midnight);
     log.push({ cause: "Fahrerlohn", driver: d.name, paid: r.paid, unpaid: r.unpaid });
   }
@@ -370,7 +376,7 @@ function doDailyAccounting(state, midnight) {
   }
   // Löhne für alle Angestellten (nicht fahrende Rollen) – rollenspezifische Konten
   for (const emp of (state.employees || [])) {
-    if (emp.employmentStatus !== "employed") continue;
+    if (!isActivelyEmployed(emp)) continue;
     const causeLabel = emp.role === "dispatcher" || emp.role === "dispatcher_senior" ? "Disposition"
       : emp.role === "cleaner" || emp.role === "mechanic" ? "Reinigung und Werkstatt"
       : emp.role === "accountant" || emp.role === "accountant_senior" ? "Buchhaltung"
@@ -435,6 +441,8 @@ function earliestEventAfter(state, t, maxMin) {
   }
   // Finanzierungs-Fälligkeiten (Kredite, Leasing) – Auftrag 17
   for (const dueMin of getFinancingDueEvents(state, t, maxMin)) cand(dueMin);
+  // Kündigungs-Austritte (Auftrag 18)
+  for (const dueMin of getTerminationExitEvents(state, t, maxMin)) cand(dueMin);
   return best;
 }
 function completeTrip(state, trip, m, log) {
@@ -583,6 +591,10 @@ function processEventsAt(state, m, log) {
   processStaffTasks(state, m, log);
   // 3e. Finanzierung (Kredite, Leasing) – Auftrag 17
   processFinancingEvents(state, m, log);
+  // 3e.2 Freistellung nach Trip-Ende (Auftrag 18)
+  processReleaseAfterTrip(state, m, log);
+  // 3e.3 Tatsächlicher Austritt bei Fristende (Auftrag 18)
+  processEmployeeExit(state, m, log);
   // 4. Tagesabrechnung (Mitternacht)
   if (m % 1440 === 0 && m > 0) {
     const dlog = doDailyAccounting(state, m);
@@ -657,7 +669,7 @@ function refreshApplicants(state) {
 // Reinigung, Werkstatt, Buchhaltung folgen in Etappe 2.
 function processEmployees(state, m, log) {
   for (const emp of (state.employees || [])) {
-    if (emp.employmentStatus !== "employed") continue;
+    if (!isActivelyEmployed(emp)) continue;
     if (emp.attendance !== "present") continue;
     if (emp.role === "dispatcher" || emp.role === "dispatcher_senior") {
       processDispatcher(state, emp, m, log);
@@ -814,7 +826,7 @@ function triggerDispatcherPlanning(state, m, log) {
   if (clock < SERVICE_START_MIN || clock > SERVICE_END_MIN) return;
   if (clock % SERVICE_INTERVAL_MIN === 0) return; // Bereits durch processEmployees abgedeckt
   for (const emp of (state.employees || [])) {
-    if (emp.employmentStatus !== "employed") continue;
+    if (!isActivelyEmployed(emp)) continue;
     if (emp.attendance !== "present") continue;
     if (emp.role !== "dispatcher" && emp.role !== "dispatcher_senior") continue;
     if (emp.workMode !== "autonomous" && emp.workMode !== "dispatch_accepted") continue;
@@ -922,6 +934,8 @@ export function applyCommand(state, command, params) {
       if (!d) throw new Error("Fahrer nicht gefunden.");
       if (v.status !== "free") throw new Error("Fahrzeug ist nicht frei.");
       if (d.status !== "free") throw new Error("Fahrer ist nicht frei.");
+      if (!isActivelyEmployed(d)) throw new Error("Dieser Fahrer ist nicht mehr aktiv beschäftigt.");
+      if (d.attendance === "released") throw new Error("Dieser Fahrer wurde freigestellt und ist nicht für neue Touren verfügbar.");
       if (v.condition < 20) throw new Error("Fahrzeugzustand zu schlecht für einen Einsatz (unter 20). Wartung erforderlich.");
       if (d.restUntil !== null && d.restUntil > state.gameTime) throw new Error("Fahrer ist noch in der Erholung (bis " + formatGameTime(d.restUntil) + ").");
       if (isLeasingOverdueBlocked(state, v.id)) throw new Error("Leasingrückstand: Neue Touren mit diesem Fahrzeug sind gesperrt.");
@@ -1095,6 +1109,28 @@ export function applyCommand(state, command, params) {
         ? state.drivers[state.drivers.length - 1]
         : (state.employees || []).find(e => e.name === app.name && e.role === role);
       if (newHire) onEmployeeHired(state, newHire, state.gameTime);
+      break;
+    }
+
+    // ---------- Kündigung (Auftrag 18) ----------
+
+    case "previewTermination": {
+      const r = previewTermination(state, p.personId);
+      result = r;
+      break;
+    }
+
+    case "terminateEmployee": {
+      ensureNotBlocked(state);
+      const r = terminateEmployee(state, { personId: p.personId, mode: p.mode });
+      result = r;
+      break;
+    }
+
+    case "cancelTermination": {
+      ensureNotBlocked(state);
+      const r = cancelTermination(state, { personId: p.personId });
+      result = r;
       break;
     }
 

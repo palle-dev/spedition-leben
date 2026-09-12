@@ -58,6 +58,9 @@ export const INVITATION_COST = 6000; // Cent
 export const STRESS_MAINT_THRESHOLD = 80;
 export const MAINT_STRESS_FACTOR = 1.25;
 
+// Kündigungsfrist (Auftrag 18): 7 Spieltage = 10.080 Minuten
+export const NOTICE_PERIOD_MIN = 10080;
+
 export const STANDARD_TRUCK = {
   type: "Standard-Lkw",
   capacityTons: 12,
