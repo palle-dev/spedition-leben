@@ -9,7 +9,8 @@ import DispatchPlanner from "./DispatchPlanner";
 import TourPlanner from "./TourPlanner";
 import DispatchAssistant from "./DispatchAssistant";
 import DispatchActiveTours from "./DispatchActiveTours";
-import { Truck, Users, Package, ArrowRight, Play, AlertTriangle, Sparkles, Route, X } from "lucide-react";
+import DispatcherSuggestions from "./DispatcherSuggestions";
+import { Truck, Users, Package, ArrowRight, Play, AlertTriangle, Sparkles, Route, X, Headset } from "lucide-react";
 
 export default function DispatchWorkspace({
   activeTab, setActiveTab,
@@ -34,6 +35,11 @@ export default function DispatchWorkspace({
   const accepted = allAccepted.filter(o => !state.trips.some(t => t.orderId === o.id && t.status === "in_progress"));
   const activeTours = (state.tours || []).filter(t => t.status === "active");
   const searchLower = (search || "").toLowerCase();
+
+  // Offene Disponenten-Vorschläge zählen
+  const pendingSuggestions = (state.employees || [])
+    .filter(e => (e.role === "dispatcher" || e.role === "dispatcher_senior") && e.employmentStatus === "employed")
+    .reduce((sum, emp) => sum + (emp.suggestions || []).filter(s => s.status === "pending").length, 0);
 
   const filteredTrips = running.filter(t => {
     if (!searchLower) return true;
@@ -66,6 +72,7 @@ export default function DispatchWorkspace({
         <TabButton active={activeTab === "touren"} onClick={() => setActiveTab("touren")} label="Touren" count={running.length} icon={Truck} />
         <TabButton active={activeTab === "auftraege"} onClick={() => setActiveTab("auftraege")} label="Aufträge" count={accepted.length} icon={Package} />
         <TabButton active={activeTab === "tour"} onClick={() => setActiveTab("tour")} label="Tour" icon={Route} />
+        <TabButton active={activeTab === "vorschlaege"} onClick={() => setActiveTab("vorschlaege")} label="Vorschläge" count={pendingSuggestions} icon={Headset} />
         <TabButton active={activeTab === "assistent"} onClick={() => setActiveTab("assistent")} label="Assistent" icon={Sparkles} />
         <TabButton active={activeTab === "flotte"} onClick={() => setActiveTab("flotte")} label="Flotte" count={state.vehicles.length} icon={Users} />
       </div>
@@ -210,6 +217,10 @@ export default function DispatchWorkspace({
               )}
             </div>
           )
+        )}
+
+        {activeTab === "vorschlaege" && (
+          <DispatcherSuggestions />
         )}
 
         {activeTab === "assistent" && (

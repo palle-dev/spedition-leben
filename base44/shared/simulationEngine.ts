@@ -129,7 +129,7 @@ export function createInitialState(names) {
       hasSportCar: false, hasBoat: false, hasVilla: false, tripsCompleted: 0,
     },
     employees: [],
-    availableApplicants: makeInitialApplicants(state),
+    availableApplicants: makeInitialApplicants(),
     hiredApplicantNames: [],
     portraitAssignments: {},
     leisureUsedDay: 0,
@@ -152,7 +152,7 @@ export function createInitialState(names) {
 
 // Erzeugt Bewerber für alle Rollen ab Spielbeginn.
 // Mindestens zwei Disponenten (180 € und 260 € Variante).
-function makeInitialApplicants(state) {
+function makeInitialApplicants() {
   const apps = [];
   let idNum = 1;
   // Fahrer-Bewerber (bestehende 3) – Porträts passend zum Geschlecht
@@ -485,10 +485,16 @@ function planTrip(state, order, vehicle, driver) {
 function refreshApplicants(state) {
   while (state.availableApplicants.length < 3) {
     const pool = DRIVER_APPLICANT_POOL.filter(n =>
-      !state.hiredApplicantNames.includes(n) && !state.availableApplicants.some(a => a.name === n));
+      !state.hiredApplicantNames.some(h => h.startsWith(n + ":")) && !state.availableApplicants.some(a => a.name === n));
     if (pool.length === 0) break;
     const name = pool[Math.floor(nextRng(state) * pool.length)];
-    state.availableApplicants.push({ id: uid(state, "a"), name });
+    const portraitIdx = state.idCounter % 12;
+    state.availableApplicants.push({
+      id: uid(state, "a"), name, role: "driver",
+      hireFeeCents: PERSONNEL_ROLES.driver.hireFeeCents,
+      costPerDayCents: DRIVER_COST_PER_DAY,
+      capacity: 0, portraitId: PORTRAIT_IDS[portraitIdx],
+    });
   }
 }
 
