@@ -37,6 +37,14 @@ export const UNLOAD_MIN = 60;
 export const MAX_DUTY_MIN = 480;
 export const FUEL_PRICE = 1.70;
 export const TOLL_PER_KM = 0.20;
+// Gespiegelte Spielwerte (Spiegel von base44/shared/gameRules.ts) für die Darstellung.
+export const VEHICLE_PRICE_EUR = 30000;
+export const HIRE_FEE_EUR = 500;
+export const DRIVER_COST_PER_DAY_EUR = 100;
+export const BRANCH_COST_PER_DAY_EUR = 100;
+export const MAINTENANCE_EUR = 1500;
+export const PRIVATE_WITHDRAWAL_EUR = 100;
+export const PRIVATE_LIVING_EUR = 30;
 export function driveMinutes(km) { return Math.ceil((km / AVG_SPEED) * 60); }
 export function fuelEur(km, consumption) { return Math.round(km * consumption / 100 * FUEL_PRICE * 100) / 100; }
 export function tollEur(km) { return Math.round(km * TOLL_PER_KM * 100) / 100; }

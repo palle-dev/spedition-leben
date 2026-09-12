@@ -42,7 +42,7 @@ module.exports = {
   				foreground: 'hsl(var(--destructive-foreground))'
   			},
   			border: 'hsl(var(--border))',
-			office: { DEFAULT: 'hsl(var(--office))', light: 'hsl(var(--office-2))' },
+			office: { DEFAULT: 'hsl(var(--office))', light: 'hsl(var(--office-2))', '2': 'hsl(var(--office-2))' },
 			wood: { DEFAULT: 'hsl(var(--wood))', light: 'hsl(var(--wood-light))' },
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
