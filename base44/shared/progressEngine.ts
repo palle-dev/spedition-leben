@@ -12,6 +12,7 @@ import { migrateFinancing } from "./financingEngine.ts";
 import { migrateTermination } from "./terminationEngine.ts";
 import { migrateMarket } from "./marketEngine.ts";
 import { migrateTimeControl } from "./timeControlEngine.ts";
+import { migrateEvents } from "./eventLog.ts";
 import { getVehicleBookValue, MONTH_MIN } from "./accountingEngine.ts";
 import { VEHICLE_REFERENCE_PRICE } from "./gameRules.ts";
 
@@ -247,6 +248,9 @@ export function migrateState(state) {
 
   // ---------- Zeitsteuerungs-Migration (Auftrag 20) ----------
   migrateTimeControl(state);
+
+  // ---------- Ereignisprotokoll-Migration (Auftrag 23) ----------
+  migrateEvents(state);
 
   return state;
 }

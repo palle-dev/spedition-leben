@@ -60,6 +60,10 @@ import {
 import {
   enableAutomation, pauseAutomation, syncToTarget, computeTargetGameMinute,
 } from "./timeControlEngine.ts";
+import {
+  initEvents, migrateEvents, pushEvent, markEventSeen, markAllEventsSeen,
+  getRecentEvents, getUnseenEventCount,
+} from "./eventLog.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -490,6 +494,21 @@ function completeTrip(state, trip, m, log) {
   if (newAchs.length) log.push({ type: "achievements_unlocked", achievements: newAchs, atMin: m });
   if (state.tutorial.active && state.tutorial.step === 2) state.tutorial.step = 3;
   log.push({ type: "delivery", trip: trip.id, order: order.id, onTime, paymentCents: payment });
+  // Dauerhaftes Lieferungs-Ereignis
+  pushEvent(state, {
+    type: "delivery_completed",
+    gameTime: m, isSystem: true,
+    driverId: driver.id, vehicleId: vehicle.id,
+    orderIds: [order.id], tourId: trip.tourId || null,
+    details: {
+      customer: order.customer, fromCity: order.fromCity, toCity: order.toCity,
+      cargo: order.cargo, tons: order.tons,
+      onTime, paymentCents: payment,
+      contributionCents: payment - trip.fuelCents - trip.tollCents,
+      tripId: trip.id,
+    },
+    dedupKey: "delivery_completed:" + trip.id,
+  });
   onTripCompleted(state, trip, m, log);
   generateDriverDeliveryReport(state, driver, trip, order, m);
 }
@@ -567,6 +586,31 @@ function processEventsAt(state, m, log) {
   }
   // 3b. Tour-automatische Folge-Einsätze starten (nach Erholung, vor Tagesabrechnung)
   processTours(state, m, log);
+  // 3b.1 Tour-Start-Ereignisse aus Log in dauerhaftes Ereignisprotokoll übernehmen
+  for (const le of log) {
+    if (le.type === "tour_deployment_started" && le.atMin === m) {
+      const tour = (state.tours || []).find(t => t.id === le.tour);
+      const vehicle = state.vehicles.find(v => v.id === tour?.vehicleId);
+      const driver = state.drivers.find(d => d.id === tour?.driverId);
+      const dep = tour?.deployments?.find(d => d.id === le.deployment);
+      const order = dep?.orderId ? state.orders.find(o => o.id === dep.orderId) : null;
+      pushEvent(state, {
+        type: "tour_started",
+        gameTime: m, isSystem: true,
+        tourId: le.tour, vehicleId: tour?.vehicleId, driverId: tour?.driverId,
+        orderIds: dep?.orderId ? [dep.orderId] : [],
+        details: {
+          vehicleLabel: vehicle ? "Lkw " + String(parseInt(String(vehicle.id).replace(/[^0-9]/g, ""), 10) || 1).padStart(2, "0") : tour?.vehicleId,
+          driverName: driver?.name,
+          customer: order?.customer || dep?.customer,
+          fromCity: order?.fromCity || dep?.fromCity,
+          toCity: order?.toCity || dep?.toCity,
+          tripId: le.trip,
+        },
+        dedupKey: "tour_started:" + le.trip,
+      });
+    }
+  }
   // 3b.2 Ereignisgesteuerte Dispositionsplanung (außerhalb des regulären Diensttakts)
   triggerDispatcherPlanning(state, m, log);
   // 3c. Angestellte verarbeiten (Disponenten, Reinigung, etc.) an Dienstzeitpunkten
@@ -762,21 +806,60 @@ function processDispatcher(state, emp, m, log) {
       usedVehicleIds.add(sug.vehicleId);
       sug.orderIds.forEach(oid => usedOrderIds.add(oid));
       planned++;
-      // Auftragsmetadaten aktualisieren
+      const vehicle = state.vehicles.find(v => v.id === sug.vehicleId);
+      const driver = state.drivers.find(d => d.id === sug.driverId);
+      // Auftragsmetadaten aktualisieren und Annahme-Ereignisse erzeugen
+      const newlyAccepted = r.acceptedOrderIds || [];
       for (const oid of sug.orderIds) {
         const o = state.orders.find(x => x.id === oid);
         if (!o) continue;
+        // Bei neu angenommenen Aufträgen: acceptedById setzen und Mail erzeugen
+        if (newlyAccepted.includes(oid)) {
+          o.acceptedById = emp.id; o.acceptedByName = emp.name;
+          o.history = o.history || [];
+          o.history.push({ type: "accepted", min: m, actor: emp.id, actorName: emp.name });
+          onOrderAccepted(state, o, emp.id, m);
+          pushEvent(state, {
+            type: "order_accepted_by_dispatcher",
+            gameTime: m, employeeId: emp.id, employeeName: emp.name, portraitId: emp.portraitId,
+            orderIds: [oid], tourId: r.tourId, vehicleId: sug.vehicleId, driverId: sug.driverId,
+            details: {
+              customer: o.customer, fromCity: o.fromCity, toCity: o.toCity,
+              cargo: o.cargo, tons: o.tons, paymentCents: o.paymentCents,
+              deliveryDeadlineMin: o.deliveryDeadlineMin,
+            },
+            dedupKey: "order_accepted:" + oid + ":" + emp.id,
+          });
+        }
         o.plannedById = emp.id; o.plannedByName = emp.name;
         o.history = o.history || [];
         o.history.push({ type: "planned", min: m, actor: emp.id, actorName: emp.name, details: { vehicleId: sug.vehicleId, driverId: sug.driverId } });
       }
+      // Planungs-Ereignis erzeugen
+      const primaryOrder = state.orders.find(x => x.id === sug.orderIds[0]);
+      pushEvent(state, {
+        type: "tour_planned_by_dispatcher",
+        gameTime: m, employeeId: emp.id, employeeName: emp.name, portraitId: emp.portraitId,
+        orderIds: sug.orderIds, tourId: r.tourId, vehicleId: sug.vehicleId, driverId: sug.driverId,
+        details: {
+          vehicleLabel: vehicle ? "Lkw " + String(parseInt(String(vehicle.id).replace(/[^0-9]/g, ""), 10) || 1).padStart(2, "0") : sug.vehicleId,
+          driverName: driver ? driver.name : sug.driverId,
+          startMin: m, endMin: r.endMin || m,
+          totalContributionCents: sug.plan.totalContributionCents,
+          totalKm: sug.plan.totalKm,
+          customer: primaryOrder?.customer,
+          fromCity: primaryOrder?.fromCity,
+          toCity: primaryOrder?.toCity,
+          paymentCents: primaryOrder?.paymentCents,
+        },
+        dedupKey: "tour_planned:" + r.tourId + ":" + emp.id,
+      });
       // Tagesstatistik
       emp.dailyStats = emp.dailyStats || { day: dayOf(m), offersChecked: 0, ordersAccepted: 0, ordersPlanned: 0, toursStarted: 0 };
       if (emp.dailyStats.day !== dayOf(m)) emp.dailyStats = { day: dayOf(m), offersChecked: 0, ordersAccepted: 0, ordersPlanned: 0, toursStarted: 0 };
       if (acceptNew) {
-        for (const oid of sug.orderIds) {
-          const o = state.orders.find(x => x.id === oid);
-          if (o && o.acceptedById === emp.id) emp.dailyStats.ordersAccepted = (emp.dailyStats.ordersAccepted || 0) + 1;
+        for (const oid of newlyAccepted) {
+          emp.dailyStats.ordersAccepted = (emp.dailyStats.ordersAccepted || 0) + 1;
         }
       }
       emp.dailyStats.ordersPlanned = (emp.dailyStats.ordersPlanned || 0) + 1;
@@ -1812,6 +1895,26 @@ export function applyCommand(state, command, params) {
       const tc = state.timeControl;
       const targetMin = computeTargetGameMinute(tc, p.serverNowMs || Date.now());
       result = { ok: true, timeControl: tc, targetGameMinute: targetMin, gameTime: state.gameTime };
+      break;
+    }
+
+    // ---------- Ereignisprotokoll (Auftrag 23) ----------
+
+    case "markEventSeen": {
+      markEventSeen(state, p.eventId);
+      result = { ok: true };
+      break;
+    }
+
+    case "markAllEventsSeen": {
+      markAllEventsSeen(state);
+      result = { ok: true };
+      break;
+    }
+
+    case "getRecentEvents": {
+      const events = getRecentEvents(state, p.limit || 50, p.typeFilter || null);
+      result = { ok: true, events, unseenCount: getUnseenEventCount(state) };
       break;
     }
 

@@ -6,14 +6,15 @@ import ShellHeader from "@/components/game/ShellHeader";
 import ShellDock from "@/components/game/ShellDock";
 import Tutorial from "@/components/Tutorial";
 import StartScreen from "@/pages/Start";
-import { AlertTriangle, CheckCircle2, Info } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Info, WifiOff } from "lucide-react";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { EASE } from "@/lib/motion";
 import { formatGameTime } from "@/lib/gameData";
 import EventOverlay from "@/components/EventOverlay";
+import ToastStack from "@/components/notifications/ToastStack";
 
 export default function GameShell() {
-  const { state, loading, toast, motionEnabled, overlay, dismissOverlay } = useGame();
+  const { state, loading, toast, motionEnabled, overlay, dismissOverlay, toasts, dismissToast, connectionState } = useGame();
   const location = useLocation();
 
   if (loading) return <LoadingScreen />;
@@ -29,6 +30,12 @@ export default function GameShell() {
         <SceneBackground scene={scene} motionEnabled={motionEnabled} />
         <div className="relative z-10 flex flex-col h-full min-h-0">
           <ShellHeader />
+          {connectionState === "reconnecting" && (
+            <div className="relative z-20 bg-amber-500/10 border-b border-amber-500/30 px-4 lg:px-12 py-1.5 text-xs text-amber-300 flex items-center gap-2 shrink-0">
+              <WifiOff className="w-3.5 h-3.5 shrink-0 animate-pulse" />
+              Verbindung wird wiederhergestellt… (Spielzeit: {formatGameTime(state.gameTime)})
+            </div>
+          )}
           {blocked && (
             <div className="relative z-20 bg-coral/10 border-b border-coral/30 px-4 lg:px-12 py-2 text-sm text-coral flex items-center gap-2 shrink-0">
               <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -41,6 +48,7 @@ export default function GameShell() {
           <ShellDock />
         </div>
         {state.tutorial.active && <Tutorial />}
+        <ToastStack toasts={toasts} onDismiss={dismissToast} />
         <AnimatePresence>
           {toast && <ToastView key={toast.id} toast={toast} />}
         </AnimatePresence>

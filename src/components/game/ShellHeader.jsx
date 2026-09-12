@@ -1,20 +1,24 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import MoneyText from "@/components/MoneyText";
 import FernwerkSignet from "@/components/brand/FernwerkSignet";
 import AutomationControl from "@/components/game/AutomationControl";
+import NotificationCenter from "@/components/notifications/NotificationCenter";
 import { Building2, Heart, Sparkles, Mail as MailIcon } from "lucide-react";
 import { getMailboxStats } from "@/lib/mailData";
+import { getAllNotifications } from "@/lib/eventLogClient";
 
 // Obere Statusleiste: FERNWERK-Marke, Welt-Umschaltung, beide Konten, Bewegungs-Toggle.
 export default function ShellHeader() {
-  const { state, motionEnabled, toggleMotion } = useGame();
+  const { state, motionEnabled, toggleMotion, unseenCount, markAllEventsSeen } = useGame();
   const navigate = useNavigate();
   const location = useLocation();
   const isHome = location.pathname === "/zuhause";
   const mailStats = state?.mail ? getMailboxStats(state) : null;
   const unreadCount = mailStats?.unread || 0;
+  const notifications = useMemo(() => getAllNotifications(state, 50), [state?.events]);
+  const totalUnseen = unseenCount + unreadCount;
 
   return (
     <header className="relative z-20 flex items-center gap-3 lg:gap-6 px-4 lg:px-12 h-14 lg:h-16 border-b border-white/10 backdrop-blur-md bg-ink/60 shrink-0">
@@ -56,6 +60,11 @@ export default function ShellHeader() {
           <div className="text-[9px] lg:text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Privat</div>
           <MoneyText value={state.private.accountCents} className="text-sm lg:text-lg font-medium tracking-tight text-foreground group-hover:text-coral transition-colors" accentOnFlash="text-coral" />
         </button>
+        <NotificationCenter
+          notifications={notifications}
+          unseenCount={totalUnseen}
+          onMarkAllSeen={markAllEventsSeen}
+        />
         <button
           onClick={() => navigate("/postfach")}
           className="relative w-9 h-9 grid place-items-center rounded-full border border-white/10 bg-white/5 text-muted-foreground hover:text-lime transition shrink-0"

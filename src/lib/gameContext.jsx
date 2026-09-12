@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { gameCommand } from "@/lib/gameClient";
+import { base44 } from "@/api/base44Client";
+import { eventToToast, eventToNotification } from "@/lib/eventNotifications";
+import { getUnseenEventCount } from "@/lib/eventLogClient";
 
 const GameContext = createContext(null);
 
@@ -34,6 +37,16 @@ export function GameProvider({ children }) {
   const [automationEnabled, setAutomationEnabled] = useState(false);
   const [automationBusy, setAutomationBusy] = useState(false);
   const pollRef = useRef(null);
+  // ---- Live-Dienst (Auftrag 23) ----
+  const [toasts, setToasts] = useState([]);
+  const [unseenCount, setUnseenCount] = useState(0);
+  const [connectionState, setConnectionState] = useState("connected");
+  const seenEventIdsRef = useRef(new Set());
+  const lastEventSeqRef = useRef(0);
+  const isInitialLoadRef = useRef(true);
+  const subscriptionRef = useRef(null);
+  const syncFailCountRef = useRef(0);
+  const syncInFlightRef = useRef(false);
   const dismissOverlay = useCallback(() => {
     setOverlay(null);
     // Nächste ausstehende Auszeichnung anzeigen, falls vorhanden
@@ -77,6 +90,26 @@ export function GameProvider({ children }) {
     setTimeout(() => setToast(null), 4200);
   }, []);
 
+  // ---- Toast-Verwaltung (Auftrag 23) ----
+  const dismissToast = useCallback((id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  const markAllEventsSeen = useCallback(async () => {
+    if (!idRef.current) return;
+    try {
+      await gameCommand({
+        stateId: idRef.current,
+        action_id: (crypto.randomUUID ? crypto.randomUUID() : "seen_" + Date.now()),
+        expected_revision: revRef.current,
+        command: "markAllEventsSeen",
+        params: {},
+      });
+      // Lokalen Zähler sofort aktualisieren
+      setUnseenCount(0);
+    } catch (e) { /* Silent fail – wird beim nächsten Sync korrigiert */ }
+  }, []);
+
   const applyLoaded = useCallback((data) => {
     setState(data.state);
     setRevision(data.revision);
@@ -87,6 +120,39 @@ export function GameProvider({ children }) {
     stateRef.current = data.state;
     setAutomationEnabled(!!data.state?.timeControl?.enabled);
     prevAchievementsRef.current = new Set((data.state?.achievements || []).filter(a => a.unlocked).map(a => a.id));
+
+    // ---- Neue Ereignisse erkennen und Toasts anzeigen (Auftrag 23) ----
+    const events = data.state?.events || [];
+    if (isInitialLoadRef.current) {
+      // Erster Laden: alle vorhandenen Ereignisse als gesehen markieren, keine Toasts
+      for (const ev of events) {
+        seenEventIdsRef.current.add(ev.id);
+        if (ev.seq > lastEventSeqRef.current) lastEventSeqRef.current = ev.seq;
+      }
+      isInitialLoadRef.current = false;
+    } else {
+      // Folge-Update: nur neue Ereignisse anzeigen
+      const newEvents = events.filter(ev =>
+        !seenEventIdsRef.current.has(ev.id) && ev.seq > lastEventSeqRef.current
+      );
+      if (newEvents.length > 0) {
+        const newToasts = [];
+        for (const ev of newEvents) {
+          const toast = eventToToast(ev);
+          if (toast) newToasts.push(toast);
+          seenEventIdsRef.current.add(ev.id);
+          if (ev.seq > lastEventSeqRef.current) lastEventSeqRef.current = ev.seq;
+        }
+        if (newToasts.length > 0) {
+          setToasts(prev => {
+            // Max 20 Toasts im Speicher, nur 3 sichtbar
+            const combined = [...prev, ...newToasts];
+            return combined.slice(-20);
+          });
+        }
+      }
+    }
+    setUnseenCount(getUnseenEventCount(data.state));
   }, []);
 
   const reload = useCallback(async () => {
@@ -208,6 +274,9 @@ export function GameProvider({ children }) {
   // ---- Zeitautomatik ----
   const syncAutomation = useCallback(async () => {
     if (!idRef.current) return;
+    // Nur ein gleichzeitiger Sync pro Spielstand (Auftrag 23)
+    if (syncInFlightRef.current) return;
+    syncInFlightRef.current = true;
     try {
       const action_id = (crypto.randomUUID ? crypto.randomUUID() : "sync_" + Date.now());
       const data = await gameCommand({
@@ -217,7 +286,16 @@ export function GameProvider({ children }) {
       if (data.conflict) { await reload(); return; }
       if (data.error) return;
       applyLoaded(data);
-    } catch (e) { /* Silent fail for polling */ }
+      // Verbindung erfolgreich
+      syncFailCountRef.current = 0;
+      setConnectionState("connected");
+    } catch (e) {
+      // Verbindungsstatus verfolgen
+      syncFailCountRef.current++;
+      if (syncFailCountRef.current >= 2) setConnectionState("reconnecting");
+    } finally {
+      syncInFlightRef.current = false;
+    }
   }, [applyLoaded, reload]);
 
   const enableAutomation = useCallback(async () => {
@@ -248,16 +326,52 @@ export function GameProvider({ children }) {
     }
   }, [send, showToast]);
 
-  // Polling: alle 2 Sekunden syncen, wenn Automatik aktiv.
+  // Polling: jede Sekunde syncen, wenn Automatik aktiv (Auftrag 23).
+  // Der 5-Minuten-Scheduler ist Offline-Backup; aktiver Spieler bekommt ~1s-Takt.
   useEffect(() => {
     if (!automationEnabled) {
       if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
       return;
     }
     syncAutomation();
-    pollRef.current = setInterval(syncAutomation, 2000);
+    pollRef.current = setInterval(syncAutomation, 1000);
     return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
   }, [automationEnabled, syncAutomation]);
+
+  // ---- Echtzeit-Subscription für GameState-Änderungen (Auftrag 23) ----
+  // Subscribe zu GameState-Entity: bei Änderung sofortigen Sync anstoßen.
+  // Polling bleibt als belastbarer Fallback aktiv.
+  useEffect(() => {
+    if (!stateId) return;
+    let unsub = null;
+    try {
+      unsub = base44.entities.GameState.subscribe((event) => {
+        // Nur reagieren wenn es unser Spielstand ist
+        if (event?.id === stateId || event?.data?.id === stateId) {
+          // Sofortigen Sync anstoßen (debounced durch syncInFlightRef)
+          syncAutomation();
+        }
+      });
+      subscriptionRef.current = unsub;
+    } catch (e) {
+      // Subscription nicht verfügbar – Polling ist ausreichend
+    }
+    return () => {
+      if (unsub) { try { unsub(); } catch (e) {} }
+      subscriptionRef.current = null;
+    };
+  }, [stateId, syncAutomation]);
+
+  // ---- Bei Spielstandwechsel: Event-Tracking zurücksetzen ----
+  useEffect(() => {
+    if (stateId) {
+      isInitialLoadRef.current = true;
+      seenEventIdsRef.current = new Set();
+      lastEventSeqRef.current = 0;
+      setToasts([]);
+      setUnseenCount(0);
+    }
+  }, [stateId]);
 
   const newGame = useCallback(async (names) => {
     setBusy(true);
@@ -280,6 +394,12 @@ export function GameProvider({ children }) {
     applyLoaded(data);
   }, [applyLoaded]);
 
-  const value = { state, revision, stateId, loading, busy, toast, showToast, send, newGame, listGames, loadGame, reload, motionEnabled, toggleMotion, overlay, dismissOverlay, automationEnabled, automationBusy, enableAutomation, pauseAutomation };
+  const value = {
+    state, revision, stateId, loading, busy, toast, showToast, send, newGame, listGames, loadGame, reload,
+    motionEnabled, toggleMotion, overlay, dismissOverlay,
+    automationEnabled, automationBusy, enableAutomation, pauseAutomation,
+    // Live-Dienst (Auftrag 23)
+    toasts, dismissToast, unseenCount, markAllEventsSeen, connectionState,
+  };
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }
