@@ -1,7 +1,7 @@
 import React from "react";
 import { useGame } from "@/lib/gameContext";
-import { formatGameTime, euroSigned, formatEuro } from "@/lib/gameData";
-import { BookOpen, Truck, Heart, Trophy, Package } from "lucide-react";
+import { formatGameTime, euroSigned } from "@/lib/gameData";
+import { BookOpen, Truck, Heart, Trophy, Package, Euro } from "lucide-react";
 
 export default function Journal() {
   const { state } = useGame();
@@ -26,19 +26,19 @@ export default function Journal() {
   const recent = events.slice(0, 60);
 
   return (
-    <div className="space-y-4 max-w-3xl">
+    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-3xl mx-auto space-y-4">
       <div>
-        <h1 className="text-2xl font-display text-amber-200 flex items-center gap-2"><BookOpen className="w-6 h-6" /> Ereignisjournal</h1>
-        <p className="text-amber-100/60 text-sm">Chronologischer Verlauf von Buchungen, Fahrten, Terminen und Meilensteinen.</p>
+        <h1 className="text-2xl lg:text-3xl font-medium tracking-tight flex items-center gap-2"><BookOpen className="w-6 h-6 text-lime/70" /> Ereignisjournal</h1>
+        <p className="text-sm text-muted-foreground mt-1">Chronologischer Verlauf von Buchungen, Fahrten, Terminen und Meilensteinen.</p>
       </div>
-      {recent.length === 0 ? <div className="text-sm text-amber-100/40">Noch keine Ereignisse.</div> : (
-        <div className="space-y-1">
+      {recent.length === 0 ? <div className="text-sm text-muted-foreground/50">Noch keine Ereignisse.</div> : (
+        <div className="space-y-0.5">
           {recent.map((e, i) => (
-            <div key={i} className="text-sm flex items-center gap-3 border-b border-wood/10 py-1.5">
-              <span className="text-amber-100/40 text-xs font-mono w-28 shrink-0">{formatGameTime(e.min)}</span>
+            <div key={i} className="flex items-center gap-3 border-b border-white/5 py-2.5">
+              <span className="text-muted-foreground/50 text-xs tabular-nums w-28 shrink-0">{formatGameTime(e.min)}</span>
               <IconFor kind={e.icon} />
-              <span className="text-amber-100/80 flex-1">{e.text}</span>
-              {e.amount != null && <span className={`font-mono ${e.amount >= 0 ? "text-emerald-300" : "text-red-300"}`}>{euroSigned(e.amount)}</span>}
+              <span className="text-foreground/80 flex-1 text-sm">{e.text}</span>
+              {e.amount != null && <span className={`tabular-nums text-sm shrink-0 ${e.amount >= 0 ? "text-lime" : "text-red-300"}`}>{euroSigned(e.amount)}</span>}
             </div>
           ))}
         </div>
@@ -54,10 +54,10 @@ function labelOf(a) {
   return "Termin";
 }
 function IconFor({ kind }) {
-  const cls = "w-4 h-4 shrink-0 text-amber-300/70";
-  if (kind === "truck") return <Truck className={cls} />;
-  if (kind === "heart") return <Heart className={cls} />;
-  if (kind === "trophy") return <Trophy className={cls} />;
-  if (kind === "package") return <Package className={cls} />;
-  return <span className="text-amber-300/70">€</span>;
+  const cls = "w-4 h-4 shrink-0";
+  if (kind === "truck") return <Truck className={`${cls} text-lime/70`} />;
+  if (kind === "heart") return <Heart className={`${cls} text-coral/70`} />;
+  if (kind === "trophy") return <Trophy className={`${cls} text-amber-300`} />;
+  if (kind === "package") return <Package className={`${cls} text-foreground/50`} />;
+  return <Euro className={`${cls} text-lime/70`} />;
 }

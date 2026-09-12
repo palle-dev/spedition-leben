@@ -1,100 +1,169 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
-    --office: 222 30% 14%;
-    --office-2: 222 24% 20%;
-    --wood: 28 45% 38%;
-    --wood-light: 30 50% 55%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
-    --font-heading: ui-sans-serif, system-ui, sans-serif;
-    --font-body: ui-sans-serif, system-ui, sans-serif;
-    --font-display: ui-sans-serif, system-ui, sans-serif;
-    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Shadcn tokens — dunkle, atmosphärische Palette */
+    --background: 190 21% 5%;
+    --foreground: 68 31% 95%;
+    --card: 191 21% 10%;
+    --card-foreground: 68 31% 95%;
+    --popover: 191 21% 10%;
+    --popover-foreground: 68 31% 95%;
+    --primary: 79 94% 75%;
+    --primary-foreground: 190 21% 5%;
+    --secondary: 190 15% 14%;
+    --secondary-foreground: 68 31% 95%;
+    --muted: 190 15% 14%;
+    --muted-foreground: 150 6% 74%;
+    --accent: 190 15% 18%;
+    --accent-foreground: 68 31% 95%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 68 31% 95%;
+    --border: 0 0% 100%;
+    --input: 190 15% 14%;
+    --ring: 79 94% 75%;
+
+    /* Spiel-Tokens */
+    --ink: 190 21% 5%;
+    --surface: 191 21% 10%;
+    --surface-2: 190 15% 14%;
+    --text: 68 31% 95%;
+    --muted-text: 150 6% 74%;
+    --lime: 79 94% 75%;
+    --coral: 15 100% 81%;
+    --line: 0 0% 100%;
+
+    /* Kompatibilität mit älteren Klassen */
+    --office: 190 21% 5%;
+    --office-2: 191 21% 10%;
+    --wood: 28 35% 30%;
+
+    --radius: 0.75rem;
+    --font-heading: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-body: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+    --sidebar-background: 191 21% 10%;
+    --sidebar-foreground: 68 31% 95%;
+    --sidebar-primary: 79 94% 75%;
+    --sidebar-primary-foreground: 190 21% 5%;
+    --sidebar-accent: 190 15% 18%;
+    --sidebar-accent-foreground: 68 31% 95%;
+    --sidebar-border: 0 0% 100%;
+    --sidebar-ring: 79 94% 75%;
   }
 
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --office: 222 30% 14%;
-    --office-2: 222 24% 20%;
-    --wood: 28 45% 38%;
-    --wood-light: 30 50% 55%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --background: 190 21% 5%;
+    --foreground: 68 31% 95%;
+    --card: 191 21% 10%;
+    --card-foreground: 68 31% 95%;
+    --popover: 191 21% 10%;
+    --popover-foreground: 68 31% 95%;
+    --primary: 79 94% 75%;
+    --primary-foreground: 190 21% 5%;
+    --secondary: 190 15% 14%;
+    --secondary-foreground: 68 31% 95%;
+    --muted: 190 15% 14%;
+    --muted-foreground: 150 6% 74%;
+    --accent: 190 15% 18%;
+    --accent-foreground: 68 31% 95%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 68 31% 95%;
+    --border: 0 0% 100%;
+    --input: 190 15% 14%;
+    --ring: 79 94% 75%;
+    --ink: 190 21% 5%;
+    --surface: 191 21% 10%;
+    --surface-2: 190 15% 14%;
+    --text: 68 31% 95%;
+    --muted-text: 150 6% 74%;
+    --lime: 79 94% 75%;
+    --coral: 15 100% 81%;
+    --line: 0 0% 100%;
+    --office: 190 21% 5%;
+    --office-2: 191 21% 10%;
+    --wood: 28 35% 30%;
+    --sidebar-background: 191 21% 10%;
+    --sidebar-foreground: 68 31% 95%;
+    --sidebar-primary: 79 94% 75%;
+    --sidebar-primary-foreground: 190 21% 5%;
+    --sidebar-accent: 190 15% 18%;
+    --sidebar-accent-foreground: 68 31% 95%;
+    --sidebar-border: 0 0% 100%;
+    --sidebar-ring: 79 94% 75%;
   }
 }
-
-
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border/10 outline-ring/50;
   }
-
   body {
-    @apply bg-office text-amber-50 font-body;
+    @apply bg-ink text-foreground font-body antialiased;
+    font-variant-numeric: tabular-nums;
+  }
+  ::selection {
+    background: hsl(var(--lime) / 0.25);
+    color: hsl(var(--text));
   }
 }
+
+@layer utilities {
+  .shade-office {
+    background:
+      linear-gradient(90deg, rgba(7, 14, 15, 0.88), rgba(7, 14, 15, 0.42) 39%, rgba(7, 14, 15, 0.10) 62%, rgba(7, 14, 15, 0.38)),
+      linear-gradient(0deg, #0b1011 1%, rgba(11, 16, 17, 0.94) 14%, transparent 56%, rgba(9, 14, 15, 0.72));
+  }
+  .shade-home {
+    background:
+      linear-gradient(90deg, rgba(20, 13, 13, 0.86), rgba(13, 11, 11, 0.35) 45%, rgba(13, 11, 11, 0.15)),
+      linear-gradient(0deg, #100f10 1%, rgba(16, 15, 16, 0.90) 14%, transparent 59%, rgba(10, 10, 10, 0.62));
+  }
+  .shade-panel {
+    background: linear-gradient(0deg, rgba(11, 16, 17, 0.92) 1%, rgba(11, 16, 17, 0.55) 40%, transparent 80%);
+  }
+  .glass {
+    background: linear-gradient(150deg, hsl(var(--surface) / 0.92), hsl(var(--ink) / 0.93));
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+  }
+  .glass-coral {
+    background: linear-gradient(150deg, hsl(15 30% 20% / 0.92), hsl(190 21% 8% / 0.94));
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Bewegung reduzieren */
+.no-motion *, .no-motion *::before, .no-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Scrollbar */
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: hsl(var(--text) / 0.12); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--text) / 0.2); }

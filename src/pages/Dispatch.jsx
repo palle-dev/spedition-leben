@@ -1,170 +1,150 @@
 import React, { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
-import { CITIES, getDistance, driveMinutes, fuelEur, tollEur, formatEuro, formatGameTime, LOAD_MIN, UNLOAD_MIN, MAX_DUTY_MIN } from "@/lib/gameData";
-import GameMap from "@/components/GameMap";
-import { Truck, Users, Play, Route, ArrowRight, AlertTriangle } from "lucide-react";
+import { CITIES, getDistance, driveMinutes, fuelEur, tollEur, formatEuro, formatGameTime, MAX_DUTY_MIN } from "@/lib/gameData";
+import DispositionForm from "@/components/DispositionForm";
+import { Truck, Users, Play, ArrowRight, AlertTriangle, MapPin, Clock, Package } from "lucide-react";
 
 export default function Dispatch() {
   const { state, send, showToast } = useGame();
-  const accepted = state.orders.filter(o => o.status === "angenommen");
-  const [orderId, setOrderId] = useState(accepted[0]?.id || null);
-  const [vehicleId, setVehicleId] = useState("");
-  const [driverId, setDriverId] = useState("");
-  const [mode, setMode] = useState("order"); // order | empty
+  const navigate = useNavigate();
+  const accepted = state.orders.filter(o => o.status === "angenommen" && !state.trips.some(t => t.orderId === o.id && t.status === "in_progress"));
+  const [mode, setMode] = useState("order");
+  const [orderId, setOrderId] = useState(accepted[0]?.id || "");
   const [emptyFrom, setEmptyFrom] = useState("Hamburg");
   const [emptyTo, setEmptyTo] = useState("Bremen");
-
-  const order = state.orders.find(o => o.id === orderId);
-  const vehicle = state.vehicles.find(v => v.id === vehicleId);
-  const driver = state.drivers.find(d => d.id === driverId);
-
-  const plan = useMemo(() => {
-    if (mode === "empty") {
-      if (!vehicle || !driver || emptyFrom === emptyTo) return null;
-      const dist = getDistance(emptyFrom, emptyTo);
-      const dur = driveMinutes(dist);
-      return { emptyKm: 0, loadedKm: dist, totalKm: dist, totalDuration: dur, fuel: fuelEur(dist, vehicle.consumptionPer100km), toll: tollEur(dist), legs: [{ type: "Leerfahrt", from: emptyFrom, to: emptyTo, dur }] };
-    }
-    if (!order || !vehicle || !driver) return null;
-    let totalKm = 0, emptyKm = 0, dur = 0;
-    const legs = [];
-    if (vehicle.locationCity !== order.fromCity) {
-      const d = getDistance(vehicle.locationCity, order.fromCity);
-      emptyKm = d; totalKm += d; dur += driveMinutes(d);
-      legs.push({ type: "Leerfahrt", from: vehicle.locationCity, to: order.fromCity, dur: driveMinutes(d) });
-    }
-    legs.push({ type: "Laden", from: order.fromCity, to: order.fromCity, dur: LOAD_MIN }); dur += LOAD_MIN;
-    const d = getDistance(order.fromCity, order.toCity); totalKm += d; dur += driveMinutes(d);
-    legs.push({ type: "Fahrt", from: order.fromCity, to: order.toCity, dur: driveMinutes(d) });
-    legs.push({ type: "Entladen", from: order.toCity, to: order.toCity, dur: UNLOAD_MIN }); dur += UNLOAD_MIN;
-    return { emptyKm, loadedKm: d, totalKm, totalDuration: dur, fuel: fuelEur(totalKm, vehicle.consumptionPer100km), toll: tollEur(totalKm), legs };
-  }, [mode, order, vehicle, driver, emptyFrom, emptyTo]);
-
-  const canStart = mode === "empty"
-    ? vehicle && driver && vehicle.status === "free" && driver.status === "free" && vehicle.locationCity === driver.locationCity && vehicle.locationCity === emptyFrom && emptyFrom !== emptyTo
-    : order && vehicle && driver && vehicle.status === "free" && driver.status === "free" && (!driver.restUntil || driver.restUntil <= state.gameTime) && vehicle.condition >= 20 && vehicle.locationCity === driver.locationCity && order.tons <= vehicle.capacityTons && plan && plan.totalDuration <= MAX_DUTY_MIN;
-
-  async function start() {
-    try {
-      if (mode === "empty") {
-        const r = await send("startEmptyTrip", { fromCity: emptyFrom, toCity: emptyTo, vehicleId, driverId });
-        showToast(`Leerfahrt gestartet – Ankunft ${formatGameTime(r.endMin)}.`, "success");
-      } else {
-        const r = await send("startTransport", { orderId, vehicleId, driverId });
-        showToast(`Transport gestartet – Kraftstoff ${formatEuro(r.fuelCents)}, Maut ${formatEuro(r.tollCents)}.`, "success");
-      }
-      setVehicleId(""); setDriverId("");
-    } catch (e) { showToast(e.message, "error"); }
-  }
+  const [vehicleId, setVehicleId] = useState("");
+  const [driverId, setDriverId] = useState("");
+  const [starting, setStarting] = useState(false);
 
   const freeVehicles = state.vehicles.filter(v => v.status === "free");
   const freeDrivers = state.drivers.filter(d => d.status === "free" && (!d.restUntil || d.restUntil <= state.gameTime));
+  const vehicle = state.vehicles.find(v => v.id === vehicleId);
+  const driver = state.drivers.find(d => d.id === driverId);
+
+  const emptyPlan = useMemo(() => {
+    if (!vehicle || !driver || emptyFrom === emptyTo) return null;
+    const dist = getDistance(emptyFrom, emptyTo);
+    const dur = driveMinutes(dist);
+    return { dist, dur, fuel: fuelEur(dist, vehicle.consumptionPer100km), toll: tollEur(dist) };
+  }, [vehicle, driver, emptyFrom, emptyTo]);
+
+  const canEmpty = vehicle && driver && vehicle.status === "free" && driver.status === "free"
+    && vehicle.locationCity === driver.locationCity && vehicle.locationCity === emptyFrom && emptyFrom !== emptyTo
+    && emptyPlan && emptyPlan.dur <= MAX_DUTY_MIN;
+
+  async function startEmpty() {
+    if (!canEmpty) return;
+    setStarting(true);
+    try {
+      const r = await send("startEmptyTrip", { fromCity: emptyFrom, toCity: emptyTo, vehicleId, driverId });
+      showToast(`Leerfahrt gestartet – Ankunft ${formatGameTime(r.endMin)}.`, "success");
+      setVehicleId(""); setDriverId("");
+    } catch (e) { showToast(e.message, "error"); }
+    finally { setStarting(false); }
+  }
 
   return (
-    <div className="space-y-5 max-w-5xl">
-      <div>
-        <h1 className="text-2xl font-display text-amber-200">Disposition &amp; Karte</h1>
-        <p className="text-amber-100/60 text-sm">Wähle Auftrag, Lkw und Fahrer. Das Backend prüft alle Regeln – der Plan hier ist nur eine Vorschau.</p>
+    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-5xl mx-auto space-y-6">
+      <div className="flex items-end justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-medium tracking-tight">Disposition</h1>
+          <p className="text-sm text-muted-foreground mt-1">Wähle Auftrag, Lkw und Fahrer. Das Backend prüft alle Regeln.</p>
+        </div>
+        <div className="flex gap-1 bg-ink/60 border border-white/10 rounded-full p-1">
+          <button onClick={() => setMode("order")} className={`px-4 py-2 rounded-full text-xs font-medium transition ${mode === "order" ? "bg-lime text-ink" : "text-muted-foreground hover:text-foreground"}`}>Auftragsfahrt</button>
+          <button onClick={() => setMode("empty")} className={`px-4 py-2 rounded-full text-xs font-medium transition ${mode === "empty" ? "bg-lime text-ink" : "text-muted-foreground hover:text-foreground"}`}>Leerfahrt</button>
+        </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4">
+      {mode === "order" ? (
         <div className="space-y-4">
-          <GameMap vehicles={state.vehicles} drivers={state.drivers} highlight={mode === "order" && order ? { from: order.fromCity, to: order.toCity } : { from: emptyFrom, to: emptyTo }} />
-
-          <div className="flex gap-2">
-            <button onClick={() => setMode("order")} className={`px-3 py-1.5 rounded-md text-sm ${mode === "order" ? "bg-amber-500 text-amber-950" : "bg-wood/30 text-amber-100"}`}>Auftragsfahrt</button>
-            <button onClick={() => setMode("empty")} className={`px-3 py-1.5 rounded-md text-sm ${mode === "empty" ? "bg-amber-500 text-amber-950" : "bg-wood/30 text-amber-100"}`}>Bewusste Leerfahrt</button>
-          </div>
-
-          {mode === "order" ? (
-            <div>
-              <label className="text-xs text-amber-100/60">Auftrag (angenommen)</label>
-              <select value={orderId || ""} onChange={e => setOrderId(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-md bg-office border border-wood/40 text-amber-50">
-                {accepted.length === 0 && <option value="">Keine angenommenen Aufträge</option>}
-                {accepted.map(o => <option key={o.id} value={o.id}>{o.customer}: {o.fromCity} → {o.toCity} ({o.tons} t, {formatEuro(o.paymentCents)})</option>)}
-              </select>
+          {accepted.length === 0 ? (
+            <div className="glass border border-white/10 rounded-xl p-6 text-center">
+              <Package className="w-8 h-8 text-muted-foreground/40 mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">Keine angenommenen Aufträge. Nimm zuerst ein Angebot an.</p>
+              <button onClick={() => navigate("/auftraege")} className="mt-4 text-sm text-lime hover:text-lime/80 flex items-center gap-1.5 mx-auto transition">
+                Zu den Aufträgen <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-xs text-amber-100/60">Von</label>
-                <select value={emptyFrom} onChange={e => setEmptyFrom(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-md bg-office border border-wood/40 text-amber-50">
-                  {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+            <>
+              <label className="block">
+                <span className="text-[11px] text-muted-foreground">Auftrag (angenommen)</span>
+                <select value={orderId} onChange={e => setOrderId(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-lg bg-surface-2 border border-white/10 text-foreground text-sm focus:border-lime/50 outline-none">
+                  {accepted.map(o => <option key={o.id} value={o.id}>{o.customer}: {o.fromCity} → {o.toCity} ({o.tons} t, {formatEuro(o.paymentCents)})</option>)}
                 </select>
-              </div>
-              <div>
-                <label className="text-xs text-amber-100/60">Nach</label>
-                <select value={emptyTo} onChange={e => setEmptyTo(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-md bg-office border border-wood/40 text-amber-50">
-                  {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-            </div>
+              </label>
+              {orderId && (
+                <div className="glass border border-white/10 rounded-xl p-5">
+                  <DispositionForm orderId={orderId} onClose={() => navigate("/")} />
+                </div>
+              )}
+            </>
           )}
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs text-amber-100/60 flex items-center gap-1"><Truck className="w-3 h-3" /> Lkw</label>
-              <select value={vehicleId} onChange={e => setVehicleId(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-md bg-office border border-wood/40 text-amber-50">
-                <option value="">– wählen –</option>
-                {freeVehicles.map(v => <option key={v.id} value={v.id}>{v.id} · {v.locationCity} · Zustand {v.condition}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-amber-100/60 flex items-center gap-1"><Users className="w-3 h-3" /> Fahrer</label>
-              <select value={driverId} onChange={e => setDriverId(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-md bg-office border border-wood/40 text-amber-50">
-                <option value="">– wählen –</option>
-                {freeDrivers.map(d => <option key={d.id} value={d.id}>{d.name} · {d.locationCity}</option>)}
-              </select>
-            </div>
+        </div>
+      ) : (
+        <div className="glass border border-white/10 rounded-xl p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <SelectField label="Von" value={emptyFrom} onChange={setEmptyFrom}>
+              {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </SelectField>
+            <SelectField label="Nach" value={emptyTo} onChange={setEmptyTo}>
+              {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </SelectField>
           </div>
-        </div>
-
-        {/* Dispositionsplan */}
-        <div className="bg-office-2/50 border border-wood/30 rounded-lg p-4">
-          <h3 className="font-medium text-amber-200 flex items-center gap-2 mb-3"><Route className="w-4 h-4" /> Dispositionsplan</h3>
-          {!plan ? <Empty text="Wähle Auftrag, Lkw und Fahrer für die Vorschau." /> : (
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                {plan.legs.map((l, i) => (
-                  <div key={i} className="text-sm flex items-center justify-between border border-wood/20 rounded px-2 py-1.5 bg-office/40">
-                    <span className="text-amber-100/80">{l.type}: {l.from} <ArrowRight className="w-3 h-3 inline" /> {l.to}</span>
-                    <span className="text-xs text-amber-100/50">{l.dur} min</span>
-                  </div>
-                ))}
-              </div>
-              <div className="text-sm space-y-1 border-t border-wood/30 pt-3">
-                <Row label="Gesamtdistanz" value={`${plan.totalKm} km`} />
-                <Row label="Einsatzdauer" value={`${Math.floor(plan.totalDuration / 60)} h ${plan.totalDuration % 60} min`} warn={plan.totalDuration > MAX_DUTY_MIN} />
-                <Row label="Kraftstoff" value={formatEuro(plan.fuel * 100)} />
-                <Row label="Maut" value={formatEuro(plan.toll * 100)} />
-                <Row label="Kosten gesamt" value={formatEuro((plan.fuel + plan.toll) * 100)} strong />
-                {mode === "order" && order && <Row label="Vergütung" value={formatEuro(order.paymentCents)} strong />}
-                {mode === "order" && order && <Row label="Beitrag vor Fixkosten" value={formatEuro(order.paymentCents - (plan.fuel + plan.toll) * 100)} accent />}
-              </div>
-              {plan.totalDuration > MAX_DUTY_MIN && (
-                <div className="text-sm text-red-300 flex items-center gap-1.5"><AlertTriangle className="w-4 h-4" /> Einsatz überschreitet 8 Stunden – wird vom Backend abgelehnt.</div>
-              )}
-              <button onClick={start} disabled={!canStart}
-                className="w-full px-4 py-2.5 rounded-md bg-amber-500 text-amber-950 hover:bg-amber-400 disabled:opacity-40 font-semibold flex items-center justify-center gap-2">
-                <Play className="w-4 h-4" /> {mode === "order" ? "Transport starten" : "Leerfahrt starten"}
-              </button>
-              {!canStart && plan && plan.totalDuration <= MAX_DUTY_MIN && (
-                <div className="text-xs text-amber-100/50">Kombination nicht zulässig (Standort, Zustand, Kapazität oder Verfügbarkeit prüfen).</div>
-              )}
+          <div className="grid grid-cols-2 gap-3">
+            <SelectField label="Fahrzeug" icon={Truck} value={vehicleId} onChange={setVehicleId}>
+              <option value="">– wählen –</option>
+              {freeVehicles.map(v => <option key={v.id} value={v.id}>{v.id} · {v.locationCity} · Zustand {v.condition}</option>)}
+            </SelectField>
+            <SelectField label="Fahrer" icon={Users} value={driverId} onChange={setDriverId}>
+              <option value="">– wählen –</option>
+              {freeDrivers.map(d => <option key={d.id} value={d.id}>{d.name} · {d.locationCity}</option>)}
+            </SelectField>
+          </div>
+          {emptyPlan && (
+            <div className="space-y-1.5 border-t border-white/10 pt-4">
+              <Row label="Distanz" value={`${emptyPlan.dist} km`} />
+              <Row label="Dauer" value={`${Math.floor(emptyPlan.dur / 60)} h ${emptyPlan.dur % 60} min`} warn={emptyPlan.dur > MAX_DUTY_MIN} />
+              <Row label="Kraftstoff" value={formatEuro(emptyPlan.fuel * 100)} />
+              <Row label="Maut" value={formatEuro(emptyPlan.toll * 100)} />
+              <Row label="Sofortkosten" value={formatEuro((emptyPlan.fuel + emptyPlan.toll) * 100)} strong />
             </div>
           )}
+          {emptyPlan && emptyPlan.dur > MAX_DUTY_MIN && (
+            <div className="flex items-start gap-2 text-xs text-amber-300 bg-amber-500/10 border border-amber-400/20 rounded-lg px-3 py-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /> Einsatz überschreitet 8 Stunden.
+            </div>
+          )}
+          <button onClick={startEmpty} disabled={!canEmpty || starting}
+            className="w-full flex items-center justify-center gap-2 bg-lime text-ink rounded-lg py-3 font-semibold text-sm hover:brightness-110 disabled:opacity-40 transition active:scale-[0.98]">
+            {starting ? <><span className="w-4 h-4 border-2 border-ink/30 border-t-ink rounded-full animate-spin" /> Startet…</> : <><Play className="w-4 h-4" /> Leerfahrt starten</>}
+          </button>
+          {!canEmpty && emptyPlan && emptyPlan.dur <= MAX_DUTY_MIN && (
+            <div className="text-xs text-muted-foreground text-center">Kombination nicht zulässig (Standort oder Verfügbarkeit prüfen).</div>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
-function Row({ label, value, strong, warn, accent }) {
+function SelectField({ label, icon: Icon, value, onChange, children }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-amber-100/60">{label}</span>
-      <span className={`font-mono ${warn ? "text-red-300" : accent ? "text-emerald-300" : strong ? "text-amber-100 font-semibold" : "text-amber-100/80"}`}>{value}</span>
+    <label className="block">
+      <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">{Icon && <Icon className="w-3.5 h-3.5" />} {label}</span>
+      <select value={value} onChange={e => onChange(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-lg bg-surface-2 border border-white/10 text-foreground text-sm focus:border-lime/50 outline-none">
+        {children}
+      </select>
+    </label>
+  );
+}
+function Row({ label, value, strong, warn }) {
+  return (
+    <div className="flex items-center justify-between text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`tabular-nums ${warn ? "text-red-300" : strong ? "text-foreground font-medium" : "text-foreground/70"}`}>{value}</span>
     </div>
   );
 }
-function Empty({ text }) { return <div className="text-sm text-amber-100/40">{text}</div>; }

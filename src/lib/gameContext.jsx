@@ -18,8 +18,20 @@ export function GameProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(null);
+  const [motionEnabled, setMotionEnabled] = useState(() => {
+    if (typeof window !== "undefined" && window.matchMedia) {
+      return !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    }
+    return true;
+  });
   const revRef = useRef(0);
   const idRef = useRef(null);
+
+  useEffect(() => {
+    document.body.classList.toggle("no-motion", !motionEnabled);
+  }, [motionEnabled]);
+
+  const toggleMotion = useCallback(() => setMotionEnabled(v => !v), []);
 
   const showToast = useCallback((msg, kind = "info") => {
     setToast({ msg, kind, id: Date.now() });
@@ -45,7 +57,6 @@ export function GameProvider({ children }) {
     }
   }, [applyLoaded, showToast]);
 
-  // Initial: vorhandenen Spielstand fortsetzen oder Liste anzeigen.
   useEffect(() => {
     (async () => {
       const savedId = localStorage.getItem(LS_KEY);
@@ -112,6 +123,6 @@ export function GameProvider({ children }) {
     applyLoaded(data);
   }, [applyLoaded]);
 
-  const value = { state, revision, stateId, loading, busy, toast, showToast, send, newGame, listGames, loadGame, reload };
+  const value = { state, revision, stateId, loading, busy, toast, showToast, send, newGame, listGames, loadGame, reload, motionEnabled, toggleMotion };
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }
