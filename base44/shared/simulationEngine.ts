@@ -122,6 +122,19 @@ import {
   hasMaterialEfficiency, hasMentorQualification, hasDgDispatch,
   getEffectiveCapacity, isPersonInTraining,
 } from "./trainingEngine.ts";
+import {
+  migrateDangerousGoods, getDgProfile, getEffectiveLoadMin, getEffectiveUnloadMin,
+  validateDgTransport, isTankClean, chargeDgHandlingFee, recordDgDelivery,
+  processTankCleaning, getTankCleaningEventTimes,
+  processEquipmentJobs, getEquipmentJobEventTimes,
+  processInspectionJobs, getInspectionJobEventTimes,
+  equipVehicleExternal, equipVehicleInternal,
+  bookTankCleaning, buyTankTruck, inspectDgEquipmentExternal,
+  getDgStatus, getDgInspectionDueVehicles,
+  DG_PROFILES, TANK_TRUCK, TANK_TRUCK_LEASING, TANK_CLEANING_PROVIDERS,
+  DG_EQUIP_EXTERNAL_COST_CENTS, DG_EQUIP_INTERNAL_MATERIAL_CENTS,
+  DG_INSPECTION_EXTERNAL_COST_CENTS, TANK_CLEANING_COST_CENTS,
+} from "./dangerousGoodsEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -501,6 +514,10 @@ function earliestEventAfter(state, t, maxMin) {
   }
   // Aus- und Weiterbildung (Auftrag 31): Kursblöcke, Ausbildungen, Ablauf
   for (const tm of getTrainingEventTimes(state, t, maxMin)) cand(tm);
+  // Gefahrgut (Auftrag 32): Tankreinigung, Ausrüstung, Spielprüfung
+  for (const tm of getTankCleaningEventTimes(state, t, maxMin)) cand(tm);
+  for (const tm of getEquipmentJobEventTimes(state, t, maxMin)) cand(tm);
+  for (const tm of getInspectionJobEventTimes(state, t, maxMin)) cand(tm);
   return best;
 }
 function completeTrip(state, trip, m, log) {
@@ -578,6 +595,22 @@ function completeTrip(state, trip, m, log) {
   });
   onTripCompleted(state, trip, m, log);
   generateDriverDeliveryReport(state, driver, trip, order, m);
+  // Auftrag 32: DG-Lieferung statistisch erfassen
+  if (order.isDangerousGoods) {
+    recordDgDelivery(state, order, onTime, m);
+    pushEvent(state, {
+      type: "dg_delivery_completed",
+      gameTime: m, isSystem: true,
+      driverId: driver.id, vehicleId: vehicle.id,
+      orderIds: [order.id],
+      details: {
+        customer: order.customer, fromCity: order.fromCity, toCity: order.toCity,
+        dgClass: order.dgClass, dgTransportType: order.dgTransportType,
+        onTime, paymentCents: payment,
+      },
+      dedupKey: "dg_delivery:" + trip.id,
+    });
+  }
 }
 function processEventsAt(state, m, log) {
   // Spielzeit auf Ereigniszeit aktualisieren (startDeployment nutzt state.gameTime)
@@ -735,6 +768,10 @@ function processEventsAt(state, m, log) {
   // Auftrag 31: Aus- und Weiterbildung – Kursblöcke, Ausbildungen, Ablauf
   processCourseEvents(state, m, log);
   processApprenticeshipEvents(state, m, log);
+  // Auftrag 32: Gefahrgut – Tankreinigung, Ausrüstung, Spielprüfung
+  processTankCleaning(state, m, log);
+  processEquipmentJobs(state, m, log);
+  processInspectionJobs(state, m, log);
   // 4b. Monatswechsel (Abschreibung, Periodenabschluss)
   if (m % MONTH_MIN === 0 && m > 0) {
     calculateDepreciation(state, m);
@@ -887,6 +924,8 @@ function processDispatcher(state, emp, m, log) {
     // Rentabilitätsprüfung: Nur positive Beiträge bei Neuaufträgen
     const newOrderIds = sug.plan.acceptedOrderIds || [];
     if (newOrderIds.length > 0 && sug.plan.totalContributionCents <= 0) continue;
+    // DG-Annahmeprüfung (Auftrag 32): dispo_dg erforderlich
+    if (sug.orderIds.some(oid => state.orders.find(x => x.id === oid)?.isDangerousGoods) && !hasDgDispatch(state, emp.id)) continue;
 
     try {
       const r = doConfirmTour(state, {
@@ -1050,6 +1089,7 @@ export function applyCommand(state, command, params) {
   migrateWorkshop(state);
   migratePersonnelMarket(state);
   migrateTraining(state);
+  migrateDangerousGoods(state);
   const p = params || {};
   let result;
   switch (command) {
@@ -1113,6 +1153,13 @@ export function applyCommand(state, command, params) {
       if (v.locationCity !== d.locationCity) throw new Error("Fahrer und Lkw befinden sich an unterschiedlichen Orten.");
       if (o.tons > v.capacityTons) throw new Error("Überladung: " + o.tons + " t überschreiten Kapazität von " + v.capacityTons + " t.");
       const plan = planTrip(state, o, v, d);
+      // DG-Validierung (Auftrag 32)
+      if (o.isDangerousGoods) {
+        const dgCheck = validateDgTransport(state, o, v, d, plan.endMin);
+        if (!dgCheck.ok) {
+          throw new Error("Gefahrgut-Prüfung fehlgeschlagen: " + dgCheck.errors.map(e => e.reason).join("; "));
+        }
+      }
       // Kein MAX_DUTY_MIN-Ablehnungsgrund mehr — lange Aufträge sind mit Pausen/Ruhe ausführbar
       const fuel = fuelCents(plan.totalKm, v.consumptionPer100km);
       const toll = tollCents(plan.totalKm);
@@ -1130,6 +1177,8 @@ export function applyCommand(state, command, params) {
       v.status = "on_trip"; v.tripId = trip.id;
       d.status = "on_trip";
       o.status = "unterwegs"; o.startedAtMin = state.gameTime;
+      // DG-Abwicklungsgebühr beim Ladungsbeginn (Auftrag 32)
+      if (o.isDangerousGoods) chargeDgHandlingFee(state, o, trip.id);
       o.plannedById = "player"; o.plannedByName = state.private.playerName;
       o.history = o.history || [];
       o.history.push({ type: "planned", min: state.gameTime, actor: "player", actorName: state.private.playerName, details: { vehicleId: v.id, driverId: d.id, startMin: state.gameTime, endMin: plan.endMin, fuelCents: fuel, tollCents: toll } });
@@ -2435,8 +2484,11 @@ export function applyCommand(state, command, params) {
       break;
     }
 
-    default:
+    default: {
+      const dgResult = handleDgCommand(state, command, p);
+      if (dgResult !== null) { result = dgResult; break; }
       throw new Error("Unbekannter Befehl: " + command);
+    }
   }
   // Erfolgsprüfung nach jedem Befehl (idempotent)
   const finalAchs = checkAchievements(state, state.gameTime);

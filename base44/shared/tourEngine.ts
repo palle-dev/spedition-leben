@@ -11,6 +11,10 @@ import {
   buildPhases, buildWorkSteps, buildEmptyWorkSteps,
   computeFinalCounters, resetCounters, needsRest,
 } from "./driverTimeEngine.ts";
+import {
+  getDgProfile, getEffectiveLoadMin, getEffectiveUnloadMin,
+  validateDgTransport, isTankClean, chargeDgHandlingFee,
+} from "./dangerousGoodsEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 
@@ -63,7 +67,16 @@ export function earliestAvailable(state, vehicle, driver) {
 // Zerlegt Leerfahrt → Laden → Fahren → Entladen in Abschnitte mit Pausen/Ruhe.
 // counters: {workMin, driveMin} — aktuelle Fahrerzähler (werden fortgeschrieben).
 export function buildDeployment(state, order, vehicle, startCity, earliestStart, counters) {
+  // DG: erweiterte Lade-/Entladezeiten verwenden (Auftrag 32)
   const workSteps = buildWorkSteps(startCity, order);
+  if (order.isDangerousGoods) {
+    const loadMin = getEffectiveLoadMin(order);
+    const unloadMin = getEffectiveUnloadMin(order);
+    for (const s of workSteps) {
+      if (s.type === "loading") s.durationMin = loadMin;
+      if (s.type === "unloading") s.durationMin = unloadMin;
+    }
+  }
   const result = buildPhases(workSteps, counters || { workMin: 0, driveMin: 0 }, earliestStart);
 
   const totalKm = workSteps.reduce((s, step) => s + (step.distanceKm || 0), 0);
@@ -327,6 +340,26 @@ export function confirmTour(state, params) {
     o.acceptedAtMin = state.gameTime;
   }
 
+  // 3a. DG-Validierung für alle Aufträge der Tour (Auftrag 32)
+  const tourEndMin = plan.tourEndMin;
+  for (const orderId of orderIds) {
+    const o = state.orders.find(x => x.id === orderId);
+    if (!o || !o.isDangerousGoods) continue;
+    const dgCheck = validateDgTransport(state, o, vehicle, driver, tourEndMin);
+    if (!dgCheck.ok) {
+      // Aufträge zurücksetzen
+      for (const aid of plan.acceptedOrderIds) {
+        const ao = state.orders.find(x => x.id === aid);
+        if (ao && ao.status === "angenommen" && ao.acceptedAtMin === state.gameTime) {
+          ao.status = "offered";
+          ao.acceptedAtMin = null;
+        }
+      }
+      const reasons = dgCheck.errors.map(e => e.reason).join("; ");
+      throw new Error("Gefahrgut-Prüfung fehlgeschlagen: " + reasons);
+    }
+  }
+
   // 4. Erstelle die Tourenkette
   const tourId = uid(state, "tour");
   const tour = {
@@ -432,6 +465,14 @@ function startDeployment(state, tour, dep, depIndex) {
   // Kraftstoff und Maut einmal beim Start buchen (nicht pro Pause-Block)
   addBooking(state, state.gameTime, "Kraftstoff: " + (dep.customer || "Leerfahrt"), -dep.fuelCents, "company", "fuel:" + tripId);
   addBooking(state, state.gameTime, "Maut: " + (dep.customer || "Leerfahrt"), -dep.tollCents, "company", "toll:" + tripId);
+
+  // DG-Abwicklungsgebühr beim tatsächlichen Ladungsbeginn (Auftrag 32)
+  if (dep.orderId) {
+    const order = state.orders.find(o => o.id === dep.orderId);
+    if (order && order.isDangerousGoods) {
+      chargeDgHandlingFee(state, order, tripId);
+    }
+  }
 
   state.trips.push(trip);
   vehicle.status = "on_trip";

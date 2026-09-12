@@ -15,6 +15,9 @@ import {
   SERVICE_START_MIN,
 } from "./gameRules.ts";
 import { earliestAvailable } from "./tourEngine.ts";
+import {
+  DG_PROFILES, makeDgOffer, computeDgFleetN,
+} from "./dangerousGoodsEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 
@@ -371,6 +374,50 @@ export function generateMarketWave(state, m, log) {
   state.market.nextWaveMin = m + MARKET_WAVE_INTERVAL;
 
   log.push({ type: "market_wave", atMin: m, n, t, b, o, generated, feasible, expired });
+
+  // ---------- Gefahrgut-Wellen (Auftrag 32) ----------
+  generateDgWave(state, m, log);
+}
+
+// Gefahrgut-Angebote erzeugen, basierend auf verfügbarer Spezialflotte.
+// N_P = Versandstück-Paarungen, N_T = Tank-Paarungen.
+// Ziel: max(4, 4×N_P) Versandstücke, max(3, 4×N_T) Tank.
+// Ohne Paarung: 2 Versandstück-Vorschauen, 1 Tank-Vorschau (Marktvorschau).
+export function generateDgWave(state, m, log) {
+  const { nP, nT } = computeDgFleetN(state);
+
+  const openDg = state.orders.filter(o => o.isDangerousGoods && o.status === "offered");
+  const openVs = openDg.filter(o => o.dgTransportType === "versandstueck").length;
+  const openTk = openDg.filter(o => o.dgTransportType === "tank").length;
+
+  const targetVs = nP > 0 ? Math.max(4, 4 * nP) : 2;
+  const targetTk = nT > 0 ? Math.max(3, 4 * nT) : 1;
+
+  // Begrenzte Nachfüllung pro Welle (max 2 pro Welle)
+  const fillVs = Math.min(2, Math.max(0, targetVs - openVs));
+  const fillTk = Math.min(1, Math.max(0, targetTk - openTk));
+
+  const rng = () => marketRng(state);
+  const vsProfiles = DG_PROFILES.filter(p => p.transportType === "versandstueck");
+  const tkProfiles = DG_PROFILES.filter(p => p.transportType === "tank");
+
+  let dgGenerated = 0;
+  for (let i = 0; i < fillVs; i++) {
+    const profile = vsProfiles[Math.floor(rng() * vsProfiles.length)];
+    const offer = makeDgOffer(state, profile, m, rng);
+    state.orders.push(offer);
+    dgGenerated++;
+  }
+  for (let i = 0; i < fillTk; i++) {
+    const profile = tkProfiles[Math.floor(rng() * tkProfiles.length)];
+    const offer = makeDgOffer(state, profile, m, rng);
+    state.orders.push(offer);
+    dgGenerated++;
+  }
+
+  if (dgGenerated > 0) {
+    log.push({ type: "dg_wave", atMin: m, nP, nT, targetVs, targetTk, openVs, openTk, dgGenerated });
+  }
 }
 
 // ---------- Erstmals Befüllung ----------
