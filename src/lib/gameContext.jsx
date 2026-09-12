@@ -27,8 +27,16 @@ export function GameProvider({ children }) {
   const revRef = useRef(0);
   const idRef = useRef(null);
   const [overlay, setOverlay] = useState(null);
-  const prevMilestonesRef = useRef(new Set());
-  const dismissOverlay = useCallback(() => setOverlay(null), []);
+  const prevAchievementsRef = useRef(new Set());
+  const pendingAchievementsRef = useRef([]);
+  const dismissOverlay = useCallback(() => {
+    setOverlay(null);
+    // Nächste ausstehende Auszeichnung anzeigen, falls vorhanden
+    if (pendingAchievementsRef.current.length > 0) {
+      const next = pendingAchievementsRef.current.shift();
+      setTimeout(() => setOverlay({ type: "achievement", data: next }), 300);
+    }
+  }, []);
 
   useEffect(() => {
     document.body.classList.toggle("no-motion", !motionEnabled);
@@ -48,7 +56,7 @@ export function GameProvider({ children }) {
     setStateId(data.stateId);
     idRef.current = data.stateId;
     if (data.stateId) localStorage.setItem(LS_KEY, data.stateId);
-    prevMilestonesRef.current = new Set((data.state?.milestones || []).filter(m => m.achieved).map(m => m.id));
+    prevAchievementsRef.current = new Set((data.state?.achievements || []).filter(a => a.unlocked).map(a => a.id));
   }, []);
 
   const reload = useCallback(async () => {
@@ -110,10 +118,18 @@ export function GameProvider({ children }) {
           });
         }
       }
-      const newMs = (data.state?.milestones || []).filter(m => m.achieved && !prevMilestonesRef.current.has(m.id));
-      if (newMs.length > 0) {
-        setOverlay({ type: "milestone", data: { name: newMs[0].name, id: newMs[0].id } });
+      // Neue Erfolge erkennen und als Overlay anzeigen
+      const newAchs = (data.state?.achievements || []).filter(a => a.unlocked && !prevAchievementsRef.current.has(a.id));
+      if (newAchs.length > 0) {
+        const ACHIEVEMENT_DEFS = await import("@/lib/achievementCatalog.js").then(m => m.ACHIEVEMENTS).catch(() => []);
+        const achData = newAchs.map(a => {
+          const def = ACHIEVEMENT_DEFS.find(d => d.id === a.id);
+          return { id: a.id, title: def?.title || a.id, xp: def?.xp || 0, category: def?.category || "", desc: def?.desc || "" };
+        });
+        pendingAchievementsRef.current = achData.slice(1);
+        setOverlay({ type: "achievement", data: achData[0] });
       }
+      prevAchievementsRef.current = new Set((data.state?.achievements || []).filter(a => a.unlocked).map(a => a.id));
       if (command === "startTransport" && result?.fuelCents != null) {
         setOverlay({ type: "transportStart", data: { fuelCents: result.fuelCents, tollCents: result.tollCents, endMin: result.endMin } });
       }

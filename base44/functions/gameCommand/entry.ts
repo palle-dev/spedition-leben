@@ -5,6 +5,7 @@
 
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
 import { applyCommand, createInitialState } from "../../shared/simulationEngine.ts";
+import { migrateState } from "../../shared/progressEngine.ts";
 
 // Stabilisierter Hash: sortiert JSON-Schlüssel rekursiv, sodass die
 // Einfügereihenfolge der Schlüssel das Ergebnis nicht beeinflusst.
@@ -65,7 +66,7 @@ export default async function (req) {
       if (!stateId) return Response.json({ error: "stateId erforderlich" }, { status: 400 });
       const rec = await S.get(stateId);
       if (!rec || rec.owner_id !== user.id) return Response.json({ error: "Kein Zugriff auf diesen Spielstand" }, { status: 403 });
-      return Response.json({ state: rec.state, revision: rec.revision, stateId: rec.id });
+      return Response.json({ state: migrateState(rec.state || {}), revision: rec.revision, stateId: rec.id });
     }
 
     // ---- Spielbefehle ----

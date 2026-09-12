@@ -15,6 +15,8 @@ import {
   buildTourPlan, confirmTour as doConfirmTour, cancelTour as doCancelTour,
   processTours, onTripCompleted, findReturnLoads, suggestTours
 } from "./tourEngine.ts";
+import { checkAchievements, migrateState } from "./progressEngine.ts";
+import { ACHIEVEMENTS, GOAL_TEMPLATES } from "./achievementCatalog.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -110,10 +112,20 @@ export function createInitialState(names) {
       { id: "m2", name: "Zehn rechtzeitige Lieferungen", achieved: false, achievedAtMin: null },
       { id: "m3", name: "Vier eigene Lkw", achieved: false, achievedAtMin: null }
     ],
+    achievements: ACHIEVEMENTS.map(a => ({ id: a.id, unlocked: false, unlockedAtMin: null, seen: false })),
+    xp: 0,
+    goals: [],
     processedActions: {},
     tutorial: { active: true, step: 0 },
     lastDailyAccountingMin: 0,
-    stats: { timelyDeliveries: 0, totalDeliveries: 0 },
+    stats: {
+      timelyDeliveries: 0, totalDeliveries: 0, consecutiveTimely: 0, cancelledOrders: 0,
+      totalRevenueCents: 0, maintainedVehicleIds: [], leisureCount: 0, leisureTypes: [],
+      promisesKept: 0, consecutiveBalanceDays: 0, lastBalanceDay: 0,
+      hobbyCounts: {}, friendshipQualities: {}, ownershipCount: 0,
+      homeFurnishingTypes: [], hasHome: false, hasCar: false,
+      hasSportCar: false, hasBoat: false, hasVilla: false, tripsCompleted: 0,
+    },
     availableApplicants: [{ id: "a1", name: "Greta Möller" }, { id: "a2", name: "Tobias Brandt" }, { id: "a3", name: "Stefan Kloth" }],
     hiredApplicantNames: [],
     leisureUsedDay: 0,
@@ -212,6 +224,13 @@ function doDailyAccounting(state, midnight) {
   log.push({ cause: "Lebenshaltung", paid: l.paid, unpaid: l.unpaid });
   generateDailyOrders(state, day, midnight);
   maybeGenerateInvitation(state, day, midnight);
+  // Balance-Serie: Zufriedenheit >=70 und Belastung <=40 am Tagesabschluss
+  if (state.private.happiness >= 70 && state.private.stress <= 40) {
+    state.stats.consecutiveBalanceDays = (state.stats.consecutiveBalanceDays || 0) + 1;
+  } else {
+    state.stats.consecutiveBalanceDays = 0;
+  }
+  state.stats.lastBalanceDay = day;
   state.lastDailyAccountingMin = midnight;
   return log;
 }
@@ -265,8 +284,11 @@ function completeTrip(state, trip, m, log) {
   addBooking(state, m, "Vergütung: " + order.customer, payment, "company", order.id);
   order.paidCents = payment;
   state.stats.totalDeliveries++;
-  if (onTime) state.stats.timelyDeliveries++;
-  checkMilestones(state, m);
+  if (onTime) { state.stats.timelyDeliveries++; state.stats.consecutiveTimely = (state.stats.consecutiveTimely || 0) + 1; }
+  else { state.stats.consecutiveTimely = 0; }
+  state.stats.totalRevenueCents = (state.stats.totalRevenueCents || 0) + payment;
+  const newAchs = checkAchievements(state, m);
+  if (newAchs.length) log.push({ type: "achievements_unlocked", achievements: newAchs, atMin: m });
   if (state.tutorial.active && state.tutorial.step === 2) state.tutorial.step = 3;
   log.push({ type: "delivery", trip: trip.id, order: order.id, onTime, paymentCents: payment });
   // Tour-Verknüpfung: Deployment als abgeschlossen markieren
@@ -309,9 +331,13 @@ function processEventsAt(state, m, log) {
           state.private.relationship = clamp(state.private.relationship + 8, 0, 100);
           state.private.stress = clamp(state.private.stress - 15, 0, 100);
           state.private.happiness = clamp(state.private.happiness + 5, 0, 100);
-        } else if (a.type === "leisure" && a.subtype === "walk") {
+          state.stats.promisesKept = (state.stats.promisesKept || 0) + 1;
+        } else if (a.type === "leisure") {
           state.private.stress = clamp(state.private.stress - 8, 0, 100);
           state.private.happiness = clamp(state.private.happiness + 2, 0, 100);
+          state.stats.leisureCount = (state.stats.leisureCount || 0) + 1;
+          const st = a.subtype || "walk";
+          if (!(state.stats.leisureTypes || []).includes(st)) state.stats.leisureTypes.push(st);
         }
         a.effectsApplied = true;
       }
@@ -320,7 +346,13 @@ function processEventsAt(state, m, log) {
   }
   // 3. Erholung / Wartung
   for (const d of state.drivers) { if (d.status === "resting" && d.restUntil === m) { d.status = "free"; d.restUntil = null; log.push({ type: "rest_end", driver: d.id }); } }
-  for (const v of state.vehicles) { if (v.status === "maintenance" && v.maintenanceUntil === m) { v.status = "free"; v.maintenanceUntil = null; v.condition = 100; log.push({ type: "maintenance_end", vehicle: v.id }); } }
+  for (const v of state.vehicles) {
+    if (v.status === "maintenance" && v.maintenanceUntil === m) {
+      v.status = "free"; v.maintenanceUntil = null; v.condition = 100;
+      if (!(state.stats.maintainedVehicleIds || []).includes(v.id)) state.stats.maintainedVehicleIds.push(v.id);
+      log.push({ type: "maintenance_end", vehicle: v.id });
+    }
+  }
   // 3b. Tour-automatische Folge-Einsätze starten (nach Erholung, vor Tagesabrechnung)
   processTours(state, m, log);
   // 4. Tagesabrechnung (Mitternacht)
@@ -342,6 +374,9 @@ function processEventsAt(state, m, log) {
     state.appointments.push(ap);
     log.push({ type: "invitation_appeared", appointment: ap.id, text: tpl.text });
   }
+  // 7. Erfolgsprüfung nach jedem Ereignis
+  const newAchs = checkAchievements(state, m);
+  if (newAchs.length) log.push({ type: "achievements_unlocked", achievements: newAchs, atMin: m });
 }
 function advanceTo(state, targetMin, log) {
   let t = state.gameTime;
@@ -389,6 +424,7 @@ function refreshApplicants(state) {
 
 // ---------- Befehle ----------
 export function applyCommand(state, command, params) {
+  migrateState(state);
   const p = params || {};
   let result;
   switch (command) {
@@ -424,6 +460,7 @@ export function applyCommand(state, command, params) {
       if (state.company.accountCents < fee) throw new Error("Firmenkonto reicht für die Stornogebühr nicht aus.");
       addBooking(state, state.gameTime, "Stornogebühr: " + o.customer, -fee, "company", "cancel:" + o.id);
       o.status = "storniert";
+      state.stats.cancelledOrders = (state.stats.cancelledOrders || 0) + 1;
       result = { ok: true, feeCents: fee };
       break;
     }
@@ -529,8 +566,8 @@ export function applyCommand(state, command, params) {
         locationCity: "Hamburg", status: "free", tripId: null, maintenanceUntil: null
       };
       state.vehicles.push(v);
-      checkMilestones(state, state.gameTime);
-      result = { ok: true, vehicleId: v.id };
+      const newAchs = checkAchievements(state, state.gameTime);
+      result = { ok: true, vehicleId: v.id, newAchievements: newAchs };
       break;
     }
 
@@ -716,8 +753,45 @@ export function applyCommand(state, command, params) {
       break;
     }
 
+    // ---------- Erfolge & Ziele ----------
+
+    case "attachGoal": {
+      const tpl = GOAL_TEMPLATES.find(t => t.id === p.templateId);
+      if (!tpl) throw new Error("Zielvorlage nicht gefunden.");
+      if ((state.goals || []).length >= 3) throw new Error("Maximal drei Ziele gleichzeitig.");
+      if ((state.goals || []).some(g => g.templateId === p.templateId)) throw new Error("Ziel bereits angeheftet.");
+      const goal = { id: uid(state, "g"), templateId: p.templateId, title: tpl.title, desc: tpl.desc, attachedAtMin: state.gameTime };
+      state.goals.push(goal);
+      result = { ok: true, goalId: goal.id };
+      break;
+    }
+
+    case "removeGoal": {
+      const idx = (state.goals || []).findIndex(g => g.id === p.goalId);
+      if (idx < 0) throw new Error("Ziel nicht gefunden.");
+      state.goals.splice(idx, 1);
+      result = { ok: true };
+      break;
+    }
+
+    case "markAchievementSeen": {
+      const ach = (state.achievements || []).find(a => a.id === p.achievementId);
+      if (ach) ach.seen = true;
+      result = { ok: true };
+      break;
+    }
+
+    case "markAllAchievementsSeen": {
+      for (const a of (state.achievements || [])) a.seen = true;
+      result = { ok: true };
+      break;
+    }
+
     default:
       throw new Error("Unbekannter Befehl: " + command);
   }
+  // Erfolgsprüfung nach jedem Befehl (idempotent)
+  const finalAchs = checkAchievements(state, state.gameTime);
+  if (finalAchs.length && !result.newAchievements) result.newAchievements = finalAchs;
   return { state, result };
 }
