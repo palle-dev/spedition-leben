@@ -6,6 +6,8 @@ import Portrait from "@/components/ui/Portrait";
 import Drawer from "@/components/ui/Drawer";
 import DispatcherSetup from "@/components/personnel/DispatcherSetup";
 import TerminationDialog from "@/components/personnel/TerminationDialog";
+import AbsenceTab from "@/components/personnel/AbsenceTab";
+import ServicesTab from "@/components/personnel/ServicesTab";
 import { UserPlus, Users, MapPin, Clock, Truck, Headset, Sparkles, Wrench, Calculator, Settings, Check, X, AlertCircle, Briefcase, LogOut, RotateCcw } from "lucide-react";
 
 const ROLE_ICON = {
@@ -166,28 +168,14 @@ export default function Personnel() {
         </div>
       )}
 
-      {/* Abwesenheiten Tab (Etappe 2) */}
+      {/* Abwesenheiten Tab (Auftrag 25) */}
       {tab === "absence" && (
-        <div className="space-y-4">
-          <div className="text-sm text-muted-foreground bg-surface-2/50 rounded-lg px-4 py-4 border border-white/5">
-            Krankheit, Urlaub und Vertretung werden in Etappe 2 implementiert.
-            Hier werden künftig Abwesenheitskalender, Urlaubsanträge und Vertretungsorganisation angezeigt.
-          </div>
-          {/* Vorhandene Abwesenheiten anzeigen */}
-          {employees.filter(e => e.attendance !== "present").length === 0 && drivers.filter(d => d.attendance !== "present").length === 0 && (
-            <div className="text-xs text-muted-foreground/70 text-center py-4">Keine Abwesenheiten.</div>
-          )}
-        </div>
+        <AbsenceTab state={state} send={send} showToast={showToast} />
       )}
 
-      {/* Dienstleistungen Tab (Etappe 2) */}
+      {/* Dienstleistungen Tab (Auftrag 25) */}
       {tab === "services" && (
-        <div className="space-y-4">
-          <div className="text-sm text-muted-foreground bg-surface-2/50 rounded-lg px-4 py-4 border border-white/5">
-            Externe Dienstleistungen (Reinigungsservice, Fremdvergabe, Mietfahrzeuge, Betriebsschutz)
-            werden in Etappe 2/3 implementiert.
-          </div>
-        </div>
+        <ServicesTab state={state} send={send} showToast={showToast} />
       )}
 
       {/* Ehemalige Tab */}

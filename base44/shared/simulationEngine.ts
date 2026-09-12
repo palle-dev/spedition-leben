@@ -64,6 +64,19 @@ import {
   initEvents, migrateEvents, pushEvent, markEventSeen, markAllEventsSeen,
   getRecentEvents, getUnseenEventCount,
 } from "./eventLog.ts";
+import {
+  migrateAbsences, requestVacation, approveVacation, rejectVacation,
+  cancelVacation, returnEarlyFromVacation, reportSickness, maybeGenerateSickness,
+  processSicknessRecovery, processVacationDayConsumption, isPersonAvailable,
+  getVacationAvailable, getVacationAccount, accrueVacationDays, detectAbsenceConflicts,
+  getAbsenceCalendar,
+} from "./absenceEngine.ts";
+import {
+  migrateServices, bookCleaning, bookMaintenance, bookTowing, bookTempStaff,
+  bookExternalAccounting, bookRentalTruck, cancelService, processServiceContracts,
+  processDailyCleaningDecay, processTempStaffBilling, computeCleaningNeed,
+  getBranchCleanliness, applyCleaningEffect, SERVICE_PROVIDERS,
+} from "./serviceEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -255,6 +268,13 @@ export function createInitialState(names) {
   }
   // Postfach initialisieren
   initMail(state);
+  // Abwesenheiten und Dienstleistungen initialisieren (Auftrag 25)
+  state.absences = { vacationRequests: [], sicknesses: [] };
+  state.serviceContracts = [];
+  for (const b of state.branches) {
+    b.cleanliness = 85;
+    b.lastCleaningDay = 0;
+  }
   return { state };
 }
 
@@ -434,6 +454,19 @@ function earliestEventAfter(state, t, maxMin) {
   for (const dueMin of getFinancingDueEvents(state, t, maxMin)) cand(dueMin);
   // Kündigungs-Austritte (Auftrag 18)
   for (const dueMin of getTerminationExitEvents(state, t, maxMin)) cand(dueMin);
+  // Dienstleistungsverträge (Auftrag 25)
+  for (const c of (state.serviceContracts || [])) {
+    if (c.status === "planned") cand(c.startMin);
+    if (c.status === "active" || c.status === "planned") cand(c.endMin);
+  }
+  // Krankheitsenden (Auftrag 25)
+  for (const s of (state.absences?.sicknesses || [])) {
+    if (s.status === "active") cand(s.expectedEndMin);
+  }
+  // Urlaubsbeginn und -ende (Auftrag 25)
+  for (const r of (state.absences?.vacationRequests || [])) {
+    if (r.status === "approved") { cand(r.startMin); cand(r.endMin); }
+  }
   return best;
 }
 function completeTrip(state, trip, m, log) {
@@ -630,7 +663,15 @@ function processEventsAt(state, m, log) {
   if (m % 1440 === 0 && m > 0) {
     const dlog = doDailyAccounting(state, m);
     log.push({ type: "daily_accounting", min: m, details: dlog });
+    // Auftrag 25: Krankheitsgenerator, Urlaubsverbrauch, Sauberkeitsverlust
+    maybeGenerateSickness(state, m);
+    processVacationDayConsumption(state, m);
+    processDailyCleaningDecay(state, m);
   }
+  // Auftrag 25: Krankheitsgenesung und Dienstleistungsverarbeitung bei jedem Ereignis
+  processSicknessRecovery(state, m);
+  processServiceContracts(state, m, log);
+  processTempStaffBilling(state, m, log);
   // 4b. Monatswechsel (Abschreibung, Periodenabschluss)
   if (m % MONTH_MIN === 0 && m > 0) {
     calculateDepreciation(state, m);
@@ -953,6 +994,8 @@ function extractTaskParams(body, state, conv) {
 // ---------- Befehle ----------
 export function applyCommand(state, command, params) {
   migrateState(state);
+  migrateAbsences(state);
+  migrateServices(state);
   const p = params || {};
   let result;
   switch (command) {
@@ -1915,6 +1958,130 @@ export function applyCommand(state, command, params) {
     case "getRecentEvents": {
       const events = getRecentEvents(state, p.limit || 50, p.typeFilter || null);
       result = { ok: true, events, unseenCount: getUnseenEventCount(state) };
+      break;
+    }
+
+    // ---------- Abwesenheiten (Auftrag 25) ----------
+
+    case "requestVacation": {
+      ensureNotBlocked(state);
+      const r = requestVacation(state, p);
+      result = r;
+      break;
+    }
+
+    case "approveVacation": {
+      ensureNotBlocked(state);
+      const r = approveVacation(state, { requestId: p.requestId, conflictResolution: p.conflictResolution });
+      result = r;
+      break;
+    }
+
+    case "rejectVacation": {
+      ensureNotBlocked(state);
+      const r = rejectVacation(state, { requestId: p.requestId, reason: p.reason });
+      result = r;
+      break;
+    }
+
+    case "cancelVacation": {
+      ensureNotBlocked(state);
+      const r = cancelVacation(state, { requestId: p.requestId });
+      result = r;
+      break;
+    }
+
+    case "returnEarlyFromVacation": {
+      ensureNotBlocked(state);
+      const r = returnEarlyFromVacation(state, { requestId: p.requestId, returnMin: p.returnMin });
+      result = r;
+      break;
+    }
+
+    case "reportSickness": {
+      ensureNotBlocked(state);
+      const r = reportSickness(state, { personId: p.personId, startMin: p.startMin, expectedDurationDays: p.expectedDurationDays });
+      result = r;
+      break;
+    }
+
+    case "getVacationStatus": {
+      const personId = p.personId;
+      accrueVacationDays(state, personId, state.gameTime);
+      const acct = getVacationAccount(state, personId);
+      const available = getVacationAvailable(state, personId);
+      const reserved = (state.absences?.vacationRequests || []).filter(r => r.personId === personId && r.status === "approved" && r.endMin > state.gameTime);
+      result = { ok: true, account: acct, available, reserved };
+      break;
+    }
+
+    case "getAbsenceCalendar": {
+      const fromMin = p.fromMin || state.gameTime;
+      const toMin = p.toMin || state.gameTime + 30 * 1440;
+      const entries = getAbsenceCalendar(state, fromMin, toMin);
+      result = { ok: true, entries };
+      break;
+    }
+
+    // ---------- Dienstleistungen (Auftrag 25) ----------
+
+    case "bookCleaning": {
+      ensureNotBlocked(state);
+      const r = bookCleaning(state, { branchId: p.branchId, units: p.units, recurring: p.recurring, recurringIntervalDays: p.recurringIntervalDays });
+      addBooking(state, state.gameTime, "Reinigung: " + r.contractId, -r.costCents, "company", r.contractId);
+      result = r;
+      break;
+    }
+
+    case "bookMaintenance": {
+      ensureNotBlocked(state);
+      const r = bookMaintenance(state, { vehicleId: p.vehicleId });
+      addBooking(state, state.gameTime, "Externe Wartung: " + p.vehicleId, -r.costCents, "company", r.contractId);
+      result = r;
+      break;
+    }
+
+    case "bookTowing": {
+      ensureNotBlocked(state);
+      const r = bookTowing(state, { vehicleId: p.vehicleId, targetCity: p.targetCity });
+      addBooking(state, state.gameTime, "Abschleppdienst: " + p.vehicleId, -r.costCents, "company", r.contractId);
+      result = r;
+      break;
+    }
+
+    case "bookTempStaff": {
+      ensureNotBlocked(state);
+      const r = bookTempStaff(state, { type: p.type, substitutesPersonId: p.substitutesPersonId, startMin: p.startMin, blocks: p.blocks });
+      addBooking(state, state.gameTime, "Fremdpersonal: " + r.contractId, -r.totalCostCents, "company", r.contractId);
+      result = r;
+      break;
+    }
+
+    case "bookExternalAccounting": {
+      ensureNotBlocked(state);
+      const r = bookExternalAccounting(state, { startMin: p.startMin });
+      addBooking(state, state.gameTime, "Externe Buchhaltung: " + r.contractId, -r.costCents, "company", r.contractId);
+      result = r;
+      break;
+    }
+
+    case "bookRentalTruck": {
+      ensureNotBlocked(state);
+      const r = bookRentalTruck(state, { provisionCity: p.provisionCity, blocks: p.blocks });
+      addBooking(state, state.gameTime, "Mietfahrzeug: " + r.contractId, -r.totalCostCents, "company", r.contractId);
+      result = r;
+      break;
+    }
+
+    case "cancelService": {
+      ensureNotBlocked(state);
+      const r = cancelService(state, { contractId: p.contractId });
+      result = r;
+      break;
+    }
+
+    case "getServiceCatalog": {
+      result = { ok: true, providers: SERVICE_PROVIDERS, branches: state.branches.map(b => ({ id: b.id, name: b.name, city: b.city, cleanliness: getBranchCleanliness(state, b.id), cleaningNeed: computeCleaningNeed(state, b.id) })) };
       break;
     }
 
