@@ -957,6 +957,30 @@ export function applyCommand(state, command, params) {
   migrateTraining(state);
   migrateDangerousGoods(state);
   if (state.bookings && state.bookings.length > 200) state.bookings = state.bookings.slice(-200);
+  // Historie begrenzen: abgeschlossene Touren, Aufträge und Termine älter als 30 Tage
+  // entfernen. Hält den Zustand kompakt und beschleunigt Laden/Speichern bei langen Spielen.
+  // Aktive/offene Einträge bleiben erhalten; die 30-Tage-Fenster reichen für Trends aus.
+  {
+    const cutoff = state.gameTime - 30 * 1440;
+    if (Array.isArray(state.trips) && state.trips.length > 100) {
+      state.trips = state.trips.filter(t =>
+        t.status === "in_progress" || (t.endMin != null ? t.endMin : t.startMin) > cutoff
+      );
+    }
+    if (Array.isArray(state.orders) && state.orders.length > 100) {
+      state.orders = state.orders.filter(o => {
+        if (o.status === "offered" || o.status === "angenommen" || o.status === "unterwegs") return true;
+        const ref = o.deliveredAtMin || o.acceptDeadlineMin || o.acceptedAtMin || 0;
+        return ref > cutoff;
+      });
+    }
+    if (Array.isArray(state.appointments) && state.appointments.length > 50) {
+      state.appointments = state.appointments.filter(a => {
+        if (a.status === "pending" || a.status === "accepted" || a.status === "active") return true;
+        return (a.endMin || 0) > cutoff;
+      });
+    }
+  }
   const p = params || {};
   let result;
   switch (command) {

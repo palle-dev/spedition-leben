@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getFleetStats, getOrderStats, getVehicleDriver, getVehicleOrder, getVehicleNextEvent } from "@/lib/officeData";
 import { formatGameTime } from "@/lib/gameData";
@@ -9,10 +9,12 @@ import { Truck, ArrowRight, Wrench, AlertTriangle, Clock, Package } from "lucide
 // in einer substantiellen, zusammenhängenden Ansicht.
 export default function FleetSummary({ state }) {
   const navigate = useNavigate();
-  const fleet = getFleetStats(state);
-  const orders = getOrderStats(state);
-
-  const activeVehicles = (state.vehicles || []).filter(v => v.status === "on_trip" && v.tripId);
+  const fleet = useMemo(() => getFleetStats(state), [state]);
+  const orders = useMemo(() => getOrderStats(state), [state]);
+  const activeVehicles = useMemo(
+    () => (state.vehicles || []).filter(v => v.status === "on_trip" && v.tripId),
+    [state]
+  );
   const total = fleet.total || 1;
   const freePct = Math.round((fleet.byStatus.free / total) * 100);
   const tripPct = Math.round((fleet.byStatus.on_trip / total) * 100);

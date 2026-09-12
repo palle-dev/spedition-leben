@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getDecisions } from "@/lib/officeData";
 import { AlertTriangle, ArrowRight, CheckCircle2, Clock, CircleAlert } from "lucide-react";
@@ -7,7 +7,7 @@ import { AlertTriangle, ArrowRight, CheckCircle2, Clock, CircleAlert } from "luc
 // Jede Entscheidung ist eine eigenständige Karte mit Aktion-Button.
 export default function DecisionsPanel({ state }) {
   const navigate = useNavigate();
-  const decisions = getDecisions(state);
+  const decisions = useMemo(() => getDecisions(state), [state]);
 
   const priorityColor = (p) => {
     if (p >= 75) return { border: "border-red-400/20", bg: "bg-red-500/5", text: "text-red-300", dot: "bg-red-400" };

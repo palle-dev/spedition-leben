@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatEuro, formatGameTime } from "@/lib/gameData";
 import { getLiquidity, getGrowthInfo, getPrivatePreview, getPersonnelStats } from "@/lib/officeData";
@@ -10,14 +10,14 @@ import { Wallet, Users, Trophy, Heart, Clock, Gift, ArrowRight, AlertTriangle } 
 // Jedes Panel hat klare Hierarchie und handlungsrelevante Informationen.
 export default function OfficeBottom({ state }) {
   const navigate = useNavigate();
-  const liquidity = getLiquidity(state);
-  const openItems = getOpenItems(state);
-  const credit = computeCreditLimit(state);
-  const growth = getGrowthInfo(state);
-  const privatePreview = getPrivatePreview(state);
-  const personnel = getPersonnelStats(state);
+  const liquidity = useMemo(() => getLiquidity(state), [state]);
+  const openItems = useMemo(() => getOpenItems(state), [state]);
+  const credit = useMemo(() => computeCreditLimit(state), [state]);
+  const growth = useMemo(() => getGrowthInfo(state), [state]);
+  const privatePreview = useMemo(() => getPrivatePreview(state), [state]);
+  const personnel = useMemo(() => getPersonnelStats(state), [state]);
 
-  const openItemsTotal = openItems.reduce((s, o) => s + o.remainingCents, 0);
+  const openItemsTotal = useMemo(() => openItems.reduce((s, o) => s + o.remainingCents, 0), [openItems]);
   const stages = [0, 25000000, 100000000, 500000000];
   const currentStageIdx = stages.findIndex((s, i) => growth.companyValue >= s && (i === stages.length - 1 || growth.companyValue < stages[i + 1]));
 

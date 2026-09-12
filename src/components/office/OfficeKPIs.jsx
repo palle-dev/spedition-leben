@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatEuro } from "@/lib/gameData";
 import { getLiquidity, getOperationalResult, getOrderStats, getFleetStats } from "@/lib/officeData";
@@ -8,10 +8,10 @@ import { Wallet, TrendingUp, Package, Truck, ArrowUpRight, ArrowDownRight, Minus
 // Reduziert von sechs kleinen auf vier substantielle KPI-Kacheln.
 export default function OfficeKPIs({ state, period }) {
   const navigate = useNavigate();
-  const liquidity = getLiquidity(state);
-  const opResult = getOperationalResult(state, period);
-  const orders = getOrderStats(state);
-  const fleet = getFleetStats(state);
+  const liquidity = useMemo(() => getLiquidity(state), [state]);
+  const opResult = useMemo(() => getOperationalResult(state, period), [state, period]);
+  const orders = useMemo(() => getOrderStats(state), [state]);
+  const fleet = useMemo(() => getFleetStats(state), [state]);
 
   const kpis = [
     {
