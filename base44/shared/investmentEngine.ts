@@ -340,7 +340,7 @@ export function depositToDepot(state, { depotId, amountCents }) {
   const bank = depotId === "company" ? state.company.accountCents : state.private.accountCents;
   if (bank < amountCents) throw new Error(`${depotId === "company" ? "Firmenbank" : "Privatbank"} reicht für diese Umbuchung nicht aus.`);
   if (depotId === "company") {
-    state.company.accountCents -= amountCents;
+    // postJournal synchronisiert Konto 1000 mit company.accountCents
     postJournal(state, {
       text: "Einzahlung Verrechnungskonto", type: "investment_transfer", gameTime: state.gameTime,
       lines: [{ account: "1005", debit: amountCents }, { account: "1000", credit: amountCents }],
@@ -362,7 +362,7 @@ export function withdrawFromDepot(state, { depotId, amountCents }) {
   if (free < amountCents) throw new Error(`Freie Depotliquidität reicht nicht aus (verfügbar: ${(free / 100).toFixed(2)} €).`);
   depot.settlementCents -= amountCents;
   if (depotId === "company") {
-    state.company.accountCents += amountCents;
+    // postJournal synchronisiert Konto 1000 mit company.accountCents
     postJournal(state, {
       text: "Rücküberweisung Verrechnungskonto", type: "investment_transfer", gameTime: state.gameTime,
       lines: [{ account: "1000", debit: amountCents }, { account: "1005", credit: amountCents }],
@@ -402,10 +402,14 @@ export function placeOrder(state, p) {
   let budgetCents = p.budgetCents || null;
 
   if (side === "buy" && budgetCents && !qty) {
-    // Budget-Kauf: berechne Menge aus Budget abzüglich Gebühren
+    // Budget-Kauf: Menge so berechnen, dass Budget inkl. Preisabweichung und Gebühr reicht
+    // 1% Sicherheitsmargen für Rundungsdifferenzen bei maxPrice (ceil) und Gebühr
     const ask = inst.currentQuote.ask;
-    const estimatedGross = budgetCents / (1 + (isCrypto ? CRYPTO_FEE_RATE : STOCK_FEE_RATE));
-    qty = estimatedGross / ask;
+    const feeRate = isCrypto ? CRYPTO_FEE_RATE : STOCK_FEE_RATE;
+    const deviation = MARKET_PRICE_DEVIATION[def.type];
+    const effectiveCostPerShare = ask * (1 + deviation) * (1 + feeRate);
+    const safeBudgetCents = Math.floor(budgetCents * 0.99);
+    qty = safeBudgetCents / effectiveCostPerShare;
   }
   if (!qty || qty <= 0) throw new Error("Menge muss positiv sein.");
   qty = roundQty(qty, def.type);
@@ -678,7 +682,7 @@ function applyFill(state, depotId, instrumentId, side, qty, priceCents, feeCents
       const acct = def.type === "crypto" ? "1311" : "1310";
       const gainAcct = realizedPnl >= 0 ? "4300" : "5710";
       const lines = [
-        { account: "1005", debit: proceeds + feeCents },
+        { account: "1005", debit: proceeds },
         { account: acct, credit: costBasis },
       ];
       if (realizedPnl >= 0) {

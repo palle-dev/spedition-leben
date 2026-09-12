@@ -134,6 +134,7 @@ import {
   DG_PROFILES, TANK_TRUCK, TANK_TRUCK_LEASING, TANK_CLEANING_PROVIDERS,
   DG_EQUIP_EXTERNAL_COST_CENTS, DG_EQUIP_INTERNAL_MATERIAL_CENTS,
   DG_INSPECTION_EXTERNAL_COST_CENTS, TANK_CLEANING_COST_CENTS,
+  handleDgCommand,
 } from "./dangerousGoodsEngine.ts";
 import {
   migrateInvestment, processMarketTick, getInvestmentEventTimes,
