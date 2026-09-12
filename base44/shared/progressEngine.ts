@@ -8,13 +8,19 @@ import { PERSONNEL_ROLES, PORTRAIT_IDS, DRIVER_COST_PER_DAY, HIRE_FEE } from "./
 import { migrateAccounting } from "./accountingEngine.ts";
 import { migrateMail } from "./mailEngine.ts";
 import { migrateTripPhases } from "./driverTimeEngine.ts";
+import { migrateFinancing } from "./financingEngine.ts";
 
 // --- Vermögensberechnungen ---
 
 export function computeCompanyValue(state) {
-  const vehicleValue = (state.vehicles || []).reduce((s, v) => s + (v.bookValueCents || 0), 0);
+  const vehicleValue = (state.vehicles || [])
+    .filter(v => (v.ownership_type || "owned") === "owned")
+    .reduce((s, v) => s + (v.bookValueCents || 0), 0);
   const openCompanyCosts = (state.openCosts || []).filter(o => o.account === "company").reduce((s, o) => s + o.amountCents, 0);
-  return (state.company?.accountCents || 0) + vehicleValue - openCompanyCosts;
+  const loanDebt = (state.loans || [])
+    .filter(l => l.status === "active")
+    .reduce((s, l) => s + (l.remainingPrincipalCents || 0) + (l.accruedInterestCents || 0) + (l.overdueInterestCents || 0) + (l.overduePrincipalCents || 0), 0);
+  return (state.company?.accountCents || 0) + vehicleValue - openCompanyCosts - loanDebt;
 }
 
 export function computePrivateNetWorth(state) {
@@ -49,7 +55,7 @@ export function getDevelopmentStage(companyValueCents) {
 // --- Stat-Wert für Ziele ---
 
 export function getStatValue(state, key) {
-  if (key === "vehicleCount") return (state.vehicles || []).length;
+  if (key === "vehicleCount") return (state.vehicles || []).filter(v => (v.ownership_type || "owned") === "owned" && v.status !== "archived").length;
   if (key === "companyValue") return computeCompanyValue(state);
   if (key === "privateNetWorth") return computePrivateNetWorth(state);
   return (state.stats && state.stats[key]) || 0;
@@ -214,6 +220,9 @@ export function migrateState(state) {
 
   // ---------- Postfach-Migration (Auftrag 13) ----------
   migrateMail(state);
+
+  // ---------- Finanzierungs-Migration (Auftrag 17) ----------
+  migrateFinancing(state);
 
   return state;
 }

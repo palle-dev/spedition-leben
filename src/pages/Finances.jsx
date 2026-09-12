@@ -7,9 +7,12 @@ import OpenItemsPanel from "@/components/finance/OpenItemsPanel";
 import ReportsView from "@/components/finance/ReportsView";
 import AssetRegister from "@/components/finance/AssetRegister";
 import AccountingTeam from "@/components/finance/AccountingTeam";
+import FinancingPanel from "@/components/finance/FinancingPanel";
+import { Landmark } from "lucide-react";
 
 const TABS = [
   { id: "overview", label: "Übersicht", icon: LayoutDashboard },
+  { id: "financing", label: "Finanzierung", icon: Landmark },
   { id: "journal", label: "Journal", icon: BookOpen },
   { id: "open", label: "Offene Posten", icon: AlertCircle },
   { id: "reports", label: "Auswertungen", icon: FileText },
@@ -60,6 +63,7 @@ export default function Finances() {
 
       <div className="min-h-[400px]">
         {tab === "overview" && <FinanceOverview state={state} />}
+        {tab === "financing" && <FinancingPanel />}
         {tab === "journal" && <JournalView state={state} />}
         {tab === "open" && <OpenItemsPanel state={state} />}
         {tab === "reports" && <ReportsView state={state} />}

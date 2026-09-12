@@ -50,6 +50,12 @@ export const ACCOUNTS = {
   "5510": { no: "5510", name: "Verluste aus Anlagenverkauf", type: "expense", group: "depreciation" },
   "5600": { no: "5600", name: "Zinsaufwand", type: "expense", group: "finance" },
   "5700": { no: "5700", name: "Auftragsstorno und sonstige Betriebskosten", type: "expense", group: "operations" },
+  // Finanzierung (Auftrag 17)
+  "1300": { no: "1300", name: "Vorausbezahlte Leasingkosten", type: "asset", group: "current_assets" },
+  "2210": { no: "2210", name: "Fällige Kredittilgung", type: "liability", group: "current_liabilities" },
+  "2230": { no: "2230", name: "Zinsverbindlichkeiten", type: "liability", group: "current_liabilities" },
+  "5230": { no: "5230", name: "Leasingaufwand", type: "expense", group: "operations" },
+  "5610": { no: "5610", name: "Finanzierungskosten/Gebühren", type: "expense", group: "finance" },
 };
 
 export const ACCOUNT_LIST = Object.values(ACCOUNTS);
@@ -728,7 +734,7 @@ export function getCashFlow(state, fromMin, toMin) {
       // Klassifizieren
       const otherAccounts = e.lines.filter(x => x.account !== "1000").map(x => x.account);
       const isInvesting = otherAccounts.some(a => ACCOUNTS[a]?.group === "fixed_assets");
-      const isFinancing = otherAccounts.some(a => a === "2010" || a === "2020" || a === "2200");
+      const isFinancing = otherAccounts.some(a => a === "2010" || a === "2020" || a === "2200" || a === "2210" || a === "2230" || a === "5610" || a === "1300");
       if (isInvesting) investing += delta;
       else if (isFinancing) financing += delta;
       else operating += delta;
@@ -759,10 +765,32 @@ export function getLiquidityProjection(state, days) {
       dueLiabilities += item.remainingCents;
     }
   }
-  const projectedBalance = currentBalance + expectedRevenue - dailyTotal * days - dueLiabilities;
+  // Finanzierungs-Verbindlichkeiten (Kredite, Leasing)
+  let financingDue = 0;
+  for (const loan of (state.loans || [])) {
+    if (loan.status !== "active") continue;
+    for (let i = loan.paidInstallments; i < loan.termMonths; i++) {
+      const dueMin = loan.firstPaymentMin + i * 30 * 1440;
+      if (dueMin > endMin) break;
+      if (dueMin > startMin) financingDue += loan.schedule[i]?.totalCents || 0;
+    }
+    financingDue += loan.overduePrincipalCents || 0;
+    financingDue += loan.overdueInterestCents || 0;
+    financingDue += loan.accruedInterestCents || 0;
+  }
+  for (const contract of (state.leasingContracts || [])) {
+    if (contract.status !== "active" && contract.status !== "ending") continue;
+    for (let i = contract.paidRates; i < contract.termMonths; i++) {
+      const dueMin = contract.startMin + i * 30 * 1440;
+      if (dueMin > endMin) break;
+      if (dueMin > startMin) financingDue += contract.monthlyRateCents;
+    }
+    financingDue += contract.overdueRatesCents || 0;
+  }
+  const projectedBalance = currentBalance + expectedRevenue - dailyTotal * days - dueLiabilities - financingDue;
   return {
     currentBalance, expectedRevenue, projectedExpenses: dailyTotal * days,
-    dueLiabilities, projectedBalance, days,
+    dueLiabilities, financingDue, projectedBalance, days,
     dailyBreakdown: { driverWages: dailyDriverWages, employeeWages: dailyEmployeeWages, branchCosts: dailyBranchCosts, withdrawal: dailyWithdrawal },
   };
 }

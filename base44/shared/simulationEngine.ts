@@ -39,6 +39,11 @@ import {
 } from "./mailEngine.ts";
 import { detectIntent, processStaffTasks, getQuickReplies, getIntentByType } from "./mailIntents.ts";
 import {
+  takeLoan, earlyRepayLoan, leaseTruck, returnLeasedTruck, buyoutLeasedTruck,
+  earlyTerminateLease, processFinancingEvents, getFinancingDueEvents,
+  isLeasingOverdueBlocked, computeCreditLimit,
+} from "./financingEngine.ts";
+import {
   processReportSchedules, generateDriverDeliveryReport,
   generateEmployeeIntroduction, onOrderAccepted, onTourConfirmed,
   onEmployeeHired, onMaintenanceCompleted, resetDailyStats,
@@ -428,6 +433,8 @@ function earliestEventAfter(state, t, maxMin) {
   for (const task of (state.mail?.staffTasks || [])) {
     if (task.status === "pending") cand(task.earliestProcessMin);
   }
+  // Finanzierungs-Fälligkeiten (Kredite, Leasing) – Auftrag 17
+  for (const dueMin of getFinancingDueEvents(state, t, maxMin)) cand(dueMin);
   return best;
 }
 function completeTrip(state, trip, m, log) {
@@ -504,6 +511,8 @@ function processEventsAt(state, m, log) {
     trip.currentPhase++;
     if (phase.type === "empty_drive" || phase.type === "loaded_drive") {
       trip.drivenKm = (trip.drivenKm || 0) + (phase.distanceKm || 0);
+      const _veh = state.vehicles.find(v => v.id === trip.vehicleId);
+      if (_veh) _veh.odometerKm = (_veh.odometerKm || 0) + (phase.distanceKm || 0);
     }
     log.push({ type: "phase_end", trip: trip.id, phaseType: phase.type, endMin: m });
     if (trip.currentPhase >= phases.length) {
@@ -572,6 +581,8 @@ function processEventsAt(state, m, log) {
   // 3d. Berichte generieren und Staff-Tasks verarbeiten
   processReportSchedules(state, m, log);
   processStaffTasks(state, m, log);
+  // 3e. Finanzierung (Kredite, Leasing) – Auftrag 17
+  processFinancingEvents(state, m, log);
   // 4. Tagesabrechnung (Mitternacht)
   if (m % 1440 === 0 && m > 0) {
     const dlog = doDailyAccounting(state, m);
@@ -913,6 +924,7 @@ export function applyCommand(state, command, params) {
       if (d.status !== "free") throw new Error("Fahrer ist nicht frei.");
       if (v.condition < 20) throw new Error("Fahrzeugzustand zu schlecht für einen Einsatz (unter 20). Wartung erforderlich.");
       if (d.restUntil !== null && d.restUntil > state.gameTime) throw new Error("Fahrer ist noch in der Erholung (bis " + formatGameTime(d.restUntil) + ").");
+      if (isLeasingOverdueBlocked(state, v.id)) throw new Error("Leasingrückstand: Neue Touren mit diesem Fahrzeug sind gesperrt.");
       if (v.locationCity !== d.locationCity) throw new Error("Fahrer und Lkw befinden sich an unterschiedlichen Orten.");
       if (o.tons > v.capacityTons) throw new Error("Überladung: " + o.tons + " t überschreiten Kapazität von " + v.capacityTons + " t.");
       const plan = planTrip(state, o, v, d);
@@ -1285,6 +1297,7 @@ export function applyCommand(state, command, params) {
 
     case "confirmTour": {
       ensureNotBlocked(state);
+      if (isLeasingOverdueBlocked(state, p.vehicleId)) throw new Error("Leasingrückstand: Neue Touren mit diesem Fahrzeug sind gesperrt.");
       const r = doConfirmTour(state, {
         vehicleId: p.vehicleId,
         driverId: p.driverId,
@@ -1534,6 +1547,55 @@ export function applyCommand(state, command, params) {
     case "exportCorrespondence": {
       const data = exportCorrespondence(state);
       result = { ok: true, export: data };
+      break;
+    }
+
+    // ---------- Finanzierung (Auftrag 17) ----------
+
+    case "takeLoan": {
+      ensureNotBlocked(state);
+      const r = takeLoan(state, { amountCents: p.amountCents, termMonths: p.termMonths });
+      result = r;
+      break;
+    }
+
+    case "earlyRepayLoan": {
+      ensureNotBlocked(state);
+      const r = earlyRepayLoan(state, { loanId: p.loanId, amountCents: p.amountCents });
+      result = r;
+      break;
+    }
+
+    case "getCreditLimit": {
+      result = { ok: true, limit: computeCreditLimit(state) };
+      break;
+    }
+
+    case "leaseTruck": {
+      ensureNotBlocked(state);
+      const r = leaseTruck(state, { provisionCity: p.provisionCity });
+      result = r;
+      break;
+    }
+
+    case "returnLeasedTruck": {
+      ensureNotBlocked(state);
+      const r = returnLeasedTruck(state, { contractId: p.contractId });
+      result = r;
+      break;
+    }
+
+    case "buyoutLeasedTruck": {
+      ensureNotBlocked(state);
+      const r = buyoutLeasedTruck(state, { contractId: p.contractId });
+      result = r;
+      break;
+    }
+
+    case "earlyTerminateLease": {
+      ensureNotBlocked(state);
+      const r = earlyTerminateLease(state, { contractId: p.contractId });
+      result = r;
       break;
     }
 
