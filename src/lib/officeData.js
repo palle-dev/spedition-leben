@@ -509,3 +509,58 @@ export function getDailyReport(state) {
     onTime: deliveries.filter(o => o.deliveredAtMin <= o.deliveryDeadlineMin).length,
   };
 }
+
+// ---------- Trends (30 Tage) ----------
+
+// Täglicher Umsatz aus gelieferten Aufträgen der letzten `days` Tage.
+export function getRevenueTrend(state, days = 30) {
+  const today = Math.floor(state.gameTime / 1440);
+  const buckets = new Array(days).fill(0);
+  for (const o of (state.orders || [])) {
+    if (o.status === "geliefert" && o.deliveredAtMin != null && o.paidCents) {
+      const dayIdx = Math.floor(o.deliveredAtMin / 1440);
+      const offset = dayIdx - (today - days + 1);
+      if (offset >= 0 && offset < days) buckets[offset] += o.paidCents;
+    }
+  }
+  return buckets.map((cents, i) => {
+    const day = today - days + 1 + i;
+    return { day: day + 1, label: "T" + (day + 1), cents };
+  });
+}
+
+// Tägliche Flottenauslastung: Anteil der Fahrzeuge auf Tour am gesamten Flottenbestand.
+export function getFleetUtilizationTrend(state, days = 30) {
+  const today = Math.floor(state.gameTime / 1440);
+  const trips = state.trips || [];
+  const vehicles = state.vehicles || [];
+  const out = [];
+  for (let i = 0; i < days; i++) {
+    const dayStart = (today - days + 1 + i) * 1440;
+    const dayEnd = dayStart + 1440;
+    let total = 0;
+    let active = 0;
+    for (const v of vehicles) {
+      if (v.status === "archived") continue;
+      const acquired = v.acquiredAtMin != null ? v.acquiredAtMin : 0;
+      if (acquired > dayEnd) continue;
+      if (v.soldAtMin != null && v.soldAtMin <= dayStart) continue;
+      total++;
+      const onTrip = trips.some(t =>
+        t.vehicleId === v.id &&
+        t.startMin < dayEnd &&
+        (t.endMin != null ? t.endMin : t.startMin) > dayStart
+      );
+      if (onTrip) active++;
+    }
+    const day = today - days + 1 + i;
+    out.push({
+      day: day + 1,
+      label: "T" + (day + 1),
+      percent: total > 0 ? Math.round((active / total) * 100) : 0,
+      active,
+      total,
+    });
+  }
+  return out;
+}
