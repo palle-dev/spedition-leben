@@ -70,7 +70,7 @@ export default function ToastStack({ toasts, onDismiss }) {
 
   return (
     <div
-      className="fixed top-20 right-4 z-50 flex flex-col gap-2 max-w-sm w-[calc(100%-2rem)] sm:w-96"
+      className="fixed bottom-4 left-4 z-50 flex flex-col gap-2 max-w-sm w-[calc(100%-2rem)] sm:w-96"
       onMouseEnter={pauseAll}
       onMouseLeave={resumeAll}
       onFocus={pauseAll}
@@ -83,9 +83,9 @@ export default function ToastStack({ toasts, onDismiss }) {
         {overflow > 0 && (
           <motion.div
             key="overflow"
-            initial={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            exit={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.2, ease: EASE }}
             className="glass border border-white/10 rounded-xl px-4 py-2 text-xs text-muted-foreground flex items-center gap-2"
           >
@@ -99,9 +99,9 @@ export default function ToastStack({ toasts, onDismiss }) {
             <motion.div
               key={t.id}
               layout
-              initial={{ opacity: 0, x: 40, scale: 0.95 }}
+              initial={{ opacity: 0, x: -40, scale: 0.95 }}
               animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 40, scale: 0.9 }}
+              exit={{ opacity: 0, x: -40, scale: 0.9 }}
               transition={{ duration: 0.3, ease: EASE }}
               className={`glass border rounded-xl px-4 py-3 shadow-2xl backdrop-blur-lg ${KIND_STYLES[t.kind] || KIND_STYLES.info}`}
             >
