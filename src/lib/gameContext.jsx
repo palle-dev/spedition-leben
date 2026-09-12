@@ -323,11 +323,13 @@ export function GameProvider({ children }) {
   const pauseAutomation = useCallback(async (reason) => {
     if (!idRef.current) return;
     setAutomationBusy(true);
+    // Sofort Polling stoppen, um Entity-Read-Limit zu entlasten.
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     try {
-      // Während aktiver Automatik ändert sich die Revision sekündlich durch den Polling-Sync.
-      // Bei Konflikt: frische Revision laden und erneut versuchen (bis zu 3 Versuche).
+      // Während aktiver Automatik ändert sich die Revision durch den Polling-Sync.
+      // Bei Konflikt: frische Revision laden und erneut versuchen (bis zu 2 Versuche).
       let lastError = null;
-      for (let attempt = 0; attempt < 3; attempt++) {
+      for (let attempt = 0; attempt < 2; attempt++) {
         try {
           await send("pauseAutomation", { reason: reason || "user" });
           setAutomationEnabled(false);
@@ -336,7 +338,7 @@ export function GameProvider({ children }) {
         } catch (e) {
           lastError = e;
           // send() hat bereits reload() ausgeführt – kurze Pause, dann erneut versuchen.
-          await new Promise(r => setTimeout(r, 50));
+          await new Promise(r => setTimeout(r, 100));
         }
       }
       showToast("Automatik konnte nicht pausiert werden: " + (lastError?.message || "Unbekannt"), "error");
@@ -345,15 +347,16 @@ export function GameProvider({ children }) {
     }
   }, [send, showToast]);
 
-  // Polling: jede Sekunde syncen, wenn Automatik aktiv (Auftrag 23).
-  // Der 5-Minuten-Scheduler ist Offline-Backup; aktiver Spieler bekommt ~1s-Takt.
+  // Polling: alle 3 Sekunden syncen, wenn Automatik aktiv (Auftrag 23).
+  // Echtzeit-Subscription sorgt für sofortige Updates; Polling ist Fallback.
+  // Längerer Intervall schont das Entity-Read-Limit der Plattform.
   useEffect(() => {
     if (!automationEnabled) {
       if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
       return;
     }
     syncAutomation();
-    pollRef.current = setInterval(syncAutomation, 1000);
+    pollRef.current = setInterval(syncAutomation, 3000);
     return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
   }, [automationEnabled, syncAutomation]);
 
