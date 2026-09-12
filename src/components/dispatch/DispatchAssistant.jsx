@@ -6,7 +6,7 @@ import { suggestTours, buildTourPlan } from "@/lib/tourEngine";
 import { buildTourRouteGeoJSON } from "@/lib/geoData";
 import { ArrowLeft, ArrowRight, Truck, Users, Package, MapPin, Clock, Fuel, CreditCard, CheckCircle2, AlertTriangle, Search, Sparkles, Route, Zap } from "lucide-react";
 
-export default function DispatchAssistant({ onPlanRoute, onConfirmTour }) {
+export default function DispatchAssistant({ routeData, onPlanRoute, onConfirmTour }) {
   const { state, send, showToast } = useGame();
   const [mode, setMode] = useState("balanced");
   const [horizon, setHorizon] = useState(48);

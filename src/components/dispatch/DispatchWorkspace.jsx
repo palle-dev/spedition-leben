@@ -143,6 +143,7 @@ export default function DispatchWorkspace({
           tourOrderId ? (
             <TourPlanner
               primaryOrderId={tourOrderId}
+              routeData={routeData}
               onBack={() => { setTourOrderId(null); onPlanRoute?.(null); }}
               onConfirmed={(r) => { setTourOrderId(null); onPlanRoute?.(null); onStarted?.(r); }}
               onPlanRoute={onPlanRoute}
@@ -181,6 +182,7 @@ export default function DispatchWorkspace({
 
         {activeTab === "assistent" && (
           <DispatchAssistant
+            routeData={routeData}
             onPlanRoute={onPlanRoute}
             onConfirmTour={(r) => { onStarted?.(r); }}
           />

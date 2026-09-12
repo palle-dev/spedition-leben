@@ -35,6 +35,7 @@ export const AVG_SPEED = 60;
 export const LOAD_MIN = 60;
 export const UNLOAD_MIN = 60;
 export const MAX_DUTY_MIN = 480;
+export const REST_MIN = 480;
 export const FUEL_PRICE = 1.70;
 export const TOLL_PER_KM = 0.20;
 // Gespiegelte Spielwerte (Spiegel von base44/shared/gameRules.ts) für die Darstellung.

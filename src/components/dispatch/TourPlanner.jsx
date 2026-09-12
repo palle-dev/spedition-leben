@@ -6,7 +6,7 @@ import { buildTourPlan, findReturnLoads } from "@/lib/tourEngine";
 import { buildTourRouteGeoJSON } from "@/lib/geoData";
 import { ArrowLeft, ArrowRight, ArrowDown, Truck, Users, Package, MapPin, Clock, Fuel, CreditCard, CheckCircle2, AlertTriangle, Search, Plus, Route } from "lucide-react";
 
-export default function TourPlanner({ primaryOrderId, onBack, onConfirmed, onPlanRoute }) {
+export default function TourPlanner({ primaryOrderId, routeData, onBack, onConfirmed, onPlanRoute }) {
   const { state, send, showToast } = useGame();
   const [vehicleId, setVehicleId] = useState("");
   const [driverId, setDriverId] = useState("");
@@ -56,7 +56,7 @@ export default function TourPlanner({ primaryOrderId, onBack, onConfirmed, onPla
   // Update map preview
   useEffect(() => {
     if (plan && plan.ok && onPlanRoute) {
-      onPlanRoute(buildTourRouteGeoJSON(plan, null));
+      onPlanRoute(buildTourRouteGeoJSON(plan, routeData));
     }
   }, [plan]);
 
