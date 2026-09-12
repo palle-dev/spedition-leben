@@ -71,65 +71,71 @@ export default function Fleet() {
           </div>
         )}
       </div>
-      {openCompany && <div className="text-sm text-red-300 bg-red-500/10 border border-red-400/20 rounded-lg px-4 py-2.5">Solange betriebliche Pflichtkosten offen sind, ist kein Fahrzeugkauf möglich.</div>}
-      {stressed && <div className="text-sm text-amber-300 bg-amber-500/10 border border-amber-400/20 rounded-lg px-4 py-2.5">Deine Belastung ist hoch (≥ 80): Wartung kostet 25 % mehr ({formatEuro(maintCost)}).</div>}
+      {tab === "workshop" ? (
+        <WorkshopSection state={state} send={send} showToast={showToast} />
+      ) : (
+        <>
+          {openCompany && <div className="text-sm text-red-300 bg-red-500/10 border border-red-400/20 rounded-lg px-4 py-2.5">Solange betriebliche Pflichtkosten offen sind, ist kein Fahrzeugkauf möglich.</div>}
+          {stressed && <div className="text-sm text-amber-300 bg-amber-500/10 border border-amber-400/20 rounded-lg px-4 py-2.5">Deine Belastung ist hoch (≥ 80): Wartung kostet 25 % mehr ({formatEuro(maintCost)}).</div>}
 
-      <div className="grid md:grid-cols-2 gap-3">
-        {activeVehicles.map(v => {
-          const trip = v.tripId ? state.trips.find(t => t.id === v.tripId) : null;
-          const canMaint = v.status === "free" && v.condition < 100;
-          const isLeased = (v.ownership_type || "owned") === "leased";
-          const isOwned = !isLeased;
-          const bookValue = isOwned ? getVehicleBookValue(state, v.id) : 0;
-          const dealerOffer = isOwned ? computeDealerOffer(v, state.gameTime) : 0;
-          const hasValidOffer = v.saleOffer && v.saleOffer.validUntilMin >= state.gameTime;
-          return (
-            <div key={v.id} className={`glass border rounded-xl p-4 hover:border-lime/20 transition ${v.markedForSale ? "border-amber-400/30" : "border-white/10"}`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 font-medium">
-                  <Truck className="w-4 h-4 text-lime/70" /> {vehicleDisplayName(v)}
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${isLeased ? "bg-sky-400/15 text-sky-300" : "bg-lime/15 text-lime"}`}>{ownershipLabel(v)}</span>
-                  {v.markedForSale && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-300">Vorgemerkt</span>}
+          <div className="grid md:grid-cols-2 gap-3">
+            {activeVehicles.map(v => {
+              const trip = v.tripId ? state.trips.find(t => t.id === v.tripId) : null;
+              const canMaint = v.status === "free" && v.condition < 100;
+              const isLeased = (v.ownership_type || "owned") === "leased";
+              const isOwned = !isLeased;
+              const bookValue = isOwned ? getVehicleBookValue(state, v.id) : 0;
+              const dealerOffer = isOwned ? computeDealerOffer(v, state.gameTime) : 0;
+              const hasValidOffer = v.saleOffer && v.saleOffer.validUntilMin >= state.gameTime;
+              return (
+                <div key={v.id} className={`glass border rounded-xl p-4 hover:border-lime/20 transition ${v.markedForSale ? "border-amber-400/30" : "border-white/10"}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 font-medium">
+                      <Truck className="w-4 h-4 text-lime/70" /> {vehicleDisplayName(v)}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${isLeased ? "bg-sky-400/15 text-sky-300" : "bg-lime/15 text-lime"}`}>{ownershipLabel(v)}</span>
+                      {v.markedForSale && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-300">Vorgemerkt</span>}
+                    </div>
+                    <StatusBadge status={v.status} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm mt-3">
+                    <Info icon={MapPin} label="Standort" value={v.locationCity} />
+                    <Info icon={Gauge} label="Zustand" value={`${v.condition}/100`} />
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-2">
+                    {isLeased
+                      ? `Geleast · km ${(v.odometerKm || 0).toLocaleString("de-DE")}`
+                      : `Buchwert ${formatEuro(bookValue)} · Markt ${formatEuro(dealerOffer)}`} · 12 t · 28 L/100km
+                  </div>
+                  {trip && <div className="text-xs text-amber-300 mt-1">Unterwegs bis {formatGameTime(trip.endMin)}</div>}
+                  {v.status === "maintenance" && <div className="text-xs text-sky-300 mt-1">Wartung bis {formatGameTime(v.maintenanceUntil)}</div>}
+                  {hasValidOffer && <div className="text-xs text-lime mt-1">Angebot: {formatEuro(v.saleOffer.priceCents)} bis {formatGameTime(v.saleOffer.validUntilMin)}</div>}
+                  <div className="mt-3 flex gap-2">
+                    <button onClick={() => maintain(v)} disabled={!canMaint || busyId === v.id || state.company.accountCents < maintCost}
+                      className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2.5 bg-white/5 border border-white/10 text-sm hover:bg-white/10 disabled:opacity-40 transition active:scale-[0.98]">
+                      {busyId === v.id ? <span className="w-4 h-4 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" /> : <><Wrench className="w-4 h-4" /> Schnellwartung</>}
+                    </button>
+                    {isOwned && (
+                      <button onClick={() => setSellVehicle(v)}
+                        className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2.5 bg-white/5 border border-white/10 text-sm hover:bg-white/10 transition active:scale-[0.98]">
+                        <TrendingUp className="w-4 h-4" /> Verkaufen
+                      </button>
+                    )}
+                    {isLeased && (
+                      <button onClick={() => navigate("/finanzen")}
+                        className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2.5 bg-white/5 border border-white/10 text-sm hover:bg-white/10 transition active:scale-[0.98]">
+                        <FileCheck className="w-4 h-4" /> Vertrag
+                      </button>
+                    )}
+                  </div>
+                  {!canMaint && v.status === "free" && v.condition >= 100 && <div className="text-xs text-muted-foreground/50 mt-1.5 text-center">Zustand bereits 100</div>}
                 </div>
-                <StatusBadge status={v.status} />
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-sm mt-3">
-                <Info icon={MapPin} label="Standort" value={v.locationCity} />
-                <Info icon={Gauge} label="Zustand" value={`${v.condition}/100`} />
-              </div>
-              <div className="text-xs text-muted-foreground mt-2">
-                {isLeased
-                  ? `Geleast · km ${(v.odometerKm || 0).toLocaleString("de-DE")}`
-                  : `Buchwert ${formatEuro(bookValue)} · Markt ${formatEuro(dealerOffer)}`} · 12 t · 28 L/100km
-              </div>
-              {trip && <div className="text-xs text-amber-300 mt-1">Unterwegs bis {formatGameTime(trip.endMin)}</div>}
-              {v.status === "maintenance" && <div className="text-xs text-sky-300 mt-1">Wartung bis {formatGameTime(v.maintenanceUntil)}</div>}
-              {hasValidOffer && <div className="text-xs text-lime mt-1">Angebot: {formatEuro(v.saleOffer.priceCents)} bis {formatGameTime(v.saleOffer.validUntilMin)}</div>}
-              <div className="mt-3 flex gap-2">
-                <button onClick={() => maintain(v)} disabled={!canMaint || busyId === v.id || state.company.accountCents < maintCost}
-                  className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2.5 bg-white/5 border border-white/10 text-sm hover:bg-white/10 disabled:opacity-40 transition active:scale-[0.98]">
-                  {busyId === v.id ? <span className="w-4 h-4 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" /> : <><Wrench className="w-4 h-4" /> Wartung</>}
-                </button>
-                {isOwned && (
-                  <button onClick={() => setSellVehicle(v)}
-                    className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2.5 bg-white/5 border border-white/10 text-sm hover:bg-white/10 transition active:scale-[0.98]">
-                    <TrendingUp className="w-4 h-4" /> Verkaufen
-                  </button>
-                )}
-                {isLeased && (
-                  <button onClick={() => navigate("/finanzen")}
-                    className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2.5 bg-white/5 border border-white/10 text-sm hover:bg-white/10 transition active:scale-[0.98]">
-                    <FileCheck className="w-4 h-4" /> Vertrag
-                  </button>
-                )}
-              </div>
-              {!canMaint && v.status === "free" && v.condition >= 100 && <div className="text-xs text-muted-foreground/50 mt-1.5 text-center">Zustand bereits 100</div>}
-            </div>
-          );
-        })}
-      </div>
+              );
+            })}
+          </div>
 
-      {sellVehicle && <SellVehicleDialog vehicle={sellVehicle} onClose={() => setSellVehicle(null)} />}
+          {sellVehicle && <SellVehicleDialog vehicle={sellVehicle} onClose={() => setSellVehicle(null)} />}
+        </>
+      )}
     </div>
   );
 }
