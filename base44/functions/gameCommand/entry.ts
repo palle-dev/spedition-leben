@@ -31,7 +31,7 @@ export default async function (req) {
     if (command === "newGame") {
       // Idempotenz: gleiche action_id liefert vorhandenes Ergebnis, kein Duplikat.
       if (action_id) {
-        const existing = await S.filter({ created_by_id: user.id, last_action_id: action_id }, "-created_date", 1);
+        const existing = await S.filter({ owner_id: user.id, last_action_id: action_id }, "-created_date", 1);
         if (existing && existing.length) {
           return Response.json({ state: existing[0].state, revision: existing[0].revision, stateId: existing[0].id, result: existing[0].last_result || { ok: true, command: "newGame" } });
         }
@@ -40,7 +40,7 @@ export default async function (req) {
       // Service-Rolle legt an (RLS sperrt direkte Client-Schreibzugriffe).
       // Eigentümer wird explizit auf den angemeldeten Nutzer gesetzt.
       const rec = await S.create({
-        state: init.state, revision: 1, created_by_id: user.id,
+        state: init.state, revision: 1, owner_id: user.id,
         last_action_id: action_id || null,
         last_result: { ok: true, command: "newGame" },
         last_command_hash: hash({ command, params: params || {} })
@@ -50,7 +50,7 @@ export default async function (req) {
 
     // ---- Spielstände auflisten ----
     if (command === "list") {
-      const list = await S.filter({ created_by_id: user.id }, "-created_date", 50);
+      const list = await S.filter({ owner_id: user.id }, "-created_date", 50);
       return Response.json({
         games: list.map(r => ({
           id: r.id, revision: r.revision, created_date: r.created_date,
@@ -64,7 +64,7 @@ export default async function (req) {
     if (command === "load") {
       if (!stateId) return Response.json({ error: "stateId erforderlich" }, { status: 400 });
       const rec = await S.get(stateId);
-      if (!rec || rec.created_by_id !== user.id) return Response.json({ error: "Kein Zugriff auf diesen Spielstand" }, { status: 403 });
+      if (!rec || rec.owner_id !== user.id) return Response.json({ error: "Kein Zugriff auf diesen Spielstand" }, { status: 403 });
       return Response.json({ state: rec.state, revision: rec.revision, stateId: rec.id });
     }
 
@@ -73,7 +73,7 @@ export default async function (req) {
       return Response.json({ error: "action_id, stateId und expected_revision erforderlich" }, { status: 400 });
     }
     const rec = await S.get(stateId);
-    if (!rec || rec.created_by_id !== user.id) {
+    if (!rec || rec.owner_id !== user.id) {
       return Response.json({ error: "Kein Zugriff auf diesen Spielstand" }, { status: 403 });
     }
     const state = rec.state || {};
@@ -112,7 +112,7 @@ export default async function (req) {
 
     // Atomares bedingtes Update: nur wenn Eigentümer und bisherige Revision noch stimmen.
     const upd = await S.updateMany(
-      { id: stateId, created_by_id: user.id, revision: expected_revision },
+      { id: stateId, owner_id: user.id, revision: expected_revision },
       { $set: { state: newState, revision: newRev, last_action_id: action_id, last_result: result, last_command_hash: cmdHash } }
     );
 
