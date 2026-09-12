@@ -1,0 +1,645 @@
+// Simulations-Engine für "Spedition & Leben".
+// Reine Spielregeln und Zustandsänderungen – keine Auth, keine Speicherung.
+// Trennung: gameRules (statische Daten) · simulationEngine (Regeln/Zustand) · gameRepository (Speicherung via Backend-Funktion).
+
+import {
+  CITIES, getDistance, mulberry32, INVITATION_TEMPLATES, DRIVER_APPLICANT_POOL,
+  CARGO_TYPES, CUSTOMER_NAMES, STANDARD_TRUCK,
+  dayOf, clockOf, formatGameTime, driveMinutes, fuelCents, tollCents,
+  LOAD_MIN, UNLOAD_MIN, MAX_DUTY_MIN, REST_MIN,
+  DRIVER_COST_PER_DAY, BRANCH_COST_PER_DAY, PRIVATE_WITHDRAWAL_PER_DAY, PRIVATE_LIVING_PER_DAY,
+  VEHICLE_PRICE, HIRE_FEE, MAINTENANCE_COST, MAINTENANCE_DURATION,
+  INVITATION_COST, STRESS_MAINT_THRESHOLD, MAINT_STRESS_FACTOR
+} from "./gameRules.ts";
+
+// ---------- Hilfsfunktionen ----------
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+function uid(state, prefix) { state.idCounter = (state.idCounter || 100) + 1; return prefix + "_" + state.idCounter; }
+function nextRng(state) {
+  const r = mulberry32(state.rngSeed >>> 0);
+  const v = r();
+  state.rngSeed = (Math.floor(v * 4294967296)) >>> 0;
+  return v;
+}
+function addBooking(state, min, cause, amountCents, account, refId) {
+  state.bookings.push({ min, cause, amountCents, account, refId });
+  if (account === "company") state.company.accountCents += amountCents;
+  else if (account === "private") state.private.accountCents += amountCents;
+}
+function isPlayerBlocked(state) {
+  return state.appointments.some(a => a.status === "active");
+}
+function nextBlockEnd(state) {
+  let end = null;
+  for (const a of state.appointments) {
+    if (a.status === "active" && (end === null || a.endMin < end)) end = a.endMin;
+  }
+  return end;
+}
+function ensureNotBlocked(state) {
+  if (isPlayerBlocked(state)) {
+    throw new Error("Du bist derzeit mit einer privaten Aktivität beschäftigt. Operative Aktionen sind bis " + formatGameTime(nextBlockEnd(state)) + " gesperrt.");
+  }
+}
+function checkMilestones(state, min) {
+  const set = (id, cond) => {
+    const m = state.milestones.find(x => x.id === id);
+    if (m && !m.achieved && cond) { m.achieved = true; m.achievedAtMin = min; }
+  };
+  set("m1", state.stats.totalDeliveries >= 1);
+  set("m2", state.stats.timelyDeliveries >= 10);
+  set("m3", state.vehicles.length >= 4);
+}
+
+// ---------- Initialzustand ----------
+function initialOffers(state) {
+  const mk = (customer, fromCity, toCity, cargo, tons, paymentEur, acceptMin, deliveryMin) => ({
+    id: uid(state, "o"), customer, fromCity, toCity, cargo, tons,
+    paymentCents: paymentEur * 100, acceptDeadlineMin: acceptMin, deliveryDeadlineMin: deliveryMin,
+    status: "offered", acceptedAtMin: null, startedAtMin: null, deliveredAtMin: null, paidCents: null
+  });
+  return [
+    mk("Hanse Handelskontor", "Hamburg", "Bremen", "Stückgut", 8, 650, 600, 1080),       // Tutorial
+    mk("Norddeutsche Feinkost", "Hamburg", "Hannover", "Lebensmittel", 10, 900, 720, 1320),
+    mk("Ostsee Frischlief", "Hamburg", "Kiel", "Getränke", 6, 450, 660, 960),
+    mk("Weser Handel", "Bremen", "Hamburg", "Möbel", 10, 700, 840, 2160),                 // Rückladung
+    mk("Hauptstadt-Express", "Hamburg", "Berlin", "Elektronik", 12, 1800, 960, 2520),
+    mk("Ostsee-Vertrieb", "Rostock", "Hamburg", "Textilien", 8, 1200, 1080, 2640),
+    mk("Elbe-Logistik", "Hamburg", "Magdeburg", "Bauteile", 9, 1100, 900, 1920),
+    mk("Schleswig-Spedition", "Lübeck", "Hamburg", "Verpackungsmaterial", 7, 600, 780, 1920)
+  ];
+}
+
+export function createInitialState(names) {
+  const p = names || {};
+  const state = {
+    gameTime: 480, // Tag 1, 08:00
+    rngSeed: 1234567,
+    idCounter: 100,
+    company: { name: p.companyName || "Nordlicht Transport GmbH", accountCents: 7500000 },
+    private: {
+      playerName: p.playerName || "Spieler",
+      partnerName: p.partnerName || "Mara",
+      accountCents: 750000,
+      stress: 30, happiness: 60, relationship: 60,
+      residence: "Wohnung in Hamburg"
+    },
+    branches: [{ id: "b1", name: "Hauptniederlassung Hamburg", city: "Hamburg", costPerDayCents: BRANCH_COST_PER_DAY }],
+    vehicles: [1, 2, 3].map(i => ({
+      id: "v" + i, branchId: "b1", type: STANDARD_TRUCK.type, capacityTons: 12,
+      consumptionPer100km: 28, bookValueCents: STANDARD_TRUCK.bookValueCents,
+      condition: 85, locationCity: "Hamburg", status: "free", tripId: null, maintenanceUntil: null
+    })),
+    drivers: [
+      { id: "d1", name: "Klaus Werner", branchId: "b1", costPerDayCents: DRIVER_COST_PER_DAY, locationCity: "Hamburg", status: "free", restUntil: null, employedDay: 1 },
+      { id: "d2", name: "Petra Süß", branchId: "b1", costPerDayCents: DRIVER_COST_PER_DAY, locationCity: "Hamburg", status: "free", restUntil: null, employedDay: 1 },
+      { id: "d3", name: "Helmut Fuchs", branchId: "b1", costPerDayCents: DRIVER_COST_PER_DAY, locationCity: "Hamburg", status: "free", restUntil: null, employedDay: 1 }
+    ],
+    orders: [],
+    trips: [],
+    appointments: [],
+    bookings: [],
+    openCosts: [],
+    milestones: [
+      { id: "m1", name: "Erste Lieferung", achieved: false, achievedAtMin: null },
+      { id: "m2", name: "Zehn rechtzeitige Lieferungen", achieved: false, achievedAtMin: null },
+      { id: "m3", name: "Vier eigene Lkw", achieved: false, achievedAtMin: null }
+    ],
+    processedActions: {},
+    tutorial: { active: true, step: 0 },
+    lastDailyAccountingMin: 0,
+    stats: { timelyDeliveries: 0, totalDeliveries: 0 },
+    availableApplicants: [{ id: "a1", name: "Greta Möller" }, { id: "a2", name: "Tobias Brandt" }, { id: "a3", name: "Stefan Kloth" }],
+    hiredApplicantNames: [],
+    leisureUsedDay: 0,
+    tutorialInviteCreated: false,
+    lastInvitationTemplateId: null
+  };
+  state.orders = initialOffers(state);
+  return { state };
+}
+
+// ---------- Tagesabrechnung ----------
+function payCost(state, account, amountCents, cause, refId, min) {
+  const bal = account === "company" ? state.company.accountCents : state.private.accountCents;
+  const paid = Math.min(bal, amountCents);
+  const unpaid = amountCents - paid;
+  if (paid > 0) addBooking(state, min, cause, -paid, account, refId);
+  if (unpaid > 0) state.openCosts.push({ id: uid(state, "oc"), account, cause, amountCents: unpaid, refId, createdAtMin: min });
+  return { paid, unpaid };
+}
+function doWithdrawal(state, min) {
+  if (state.openCosts.some(o => o.account === "company")) return { done: false, reason: "offene betriebliche Kosten" };
+  if (state.company.accountCents < PRIVATE_WITHDRAWAL_PER_DAY) return { done: false, reason: "Firma kann Entnahme nach Tageskosten nicht bezahlen" };
+  addBooking(state, min, "Private Entnahme", -PRIVATE_WITHDRAWAL_PER_DAY, "company", "withdrawal");
+  addBooking(state, min, "Private Entnahme", +PRIVATE_WITHDRAWAL_PER_DAY, "private", "withdrawal");
+  return { done: true };
+}
+function makeOffer(state, midnight) {
+  let from = CITIES[Math.floor(nextRng(state) * CITIES.length)];
+  let to = CITIES[Math.floor(nextRng(state) * CITIES.length)];
+  while (to === from) to = CITIES[Math.floor(nextRng(state) * CITIES.length)];
+  const dist = getDistance(from, to);
+  const tons = 4 + Math.floor(nextRng(state) * 9);
+  const cargo = CARGO_TYPES[Math.floor(nextRng(state) * CARGO_TYPES.length)];
+  const customer = CUSTOMER_NAMES[Math.floor(nextRng(state) * CUSTOMER_NAMES.length)];
+  const paymentEur = Math.max(200, Math.round(dist * tons * 0.70 / 5) * 5);
+  const acceptDeadline = midnight + (6 + Math.floor(nextRng(state) * 7)) * 60;
+  const deliveryDeadline = acceptDeadline + (8 + Math.floor(nextRng(state) * 17)) * 60;
+  return {
+    id: uid(state, "o"), customer, fromCity: from, toCity: to, cargo, tons,
+    paymentCents: paymentEur * 100, acceptDeadlineMin: acceptDeadline, deliveryDeadlineMin: deliveryDeadline,
+    status: "offered", acceptedAtMin: null, startedAtMin: null, deliveredAtMin: null, paidCents: null
+  };
+}
+function generateDailyOrders(state, day, midnight) {
+  const n = 2 + Math.floor(nextRng(state) * 2); // 2–3 neue Angebote
+  for (let k = 0; k < n; k++) state.orders.push(makeOffer(state, midnight));
+  // Abgelaufene Angebote archivieren
+  for (const o of state.orders) {
+    if (o.status === "offered" && o.acceptDeadlineMin <= state.gameTime) o.status = "expired";
+  }
+  // Aktive Angebotsliste begrenzen: älteste abgelaufene entfernen
+  const offered = state.orders.filter(o => o.status === "offered");
+  if (offered.length > 14) {
+    const expired = state.orders.filter(o => o.status === "expired");
+    expired.sort((a, b) => a.acceptDeadlineMin - b.acceptDeadlineMin);
+    const removeIds = new Set(expired.slice(0, expired.length).map(o => o.id));
+    state.orders = state.orders.filter(o => !(o.status === "expired" && removeIds.has(o.id)) && !(o.status === "offered" && false));
+  }
+}
+function maybeGenerateInvitation(state, day, midnight) {
+  if (day <= 1) return;
+  const busy = state.appointments.some(a =>
+    (a.type === "invitation" && ["pending", "accepted", "active"].includes(a.status)) ||
+    (a.type === "invitation_ersatz" && ["accepted", "active"].includes(a.status))
+  );
+  if (busy) return;
+  if (nextRng(state) < 0.5) {
+    let tpl;
+    do { tpl = INVITATION_TEMPLATES[Math.floor(nextRng(state) * INVITATION_TEMPLATES.length)]; }
+    while (tpl.id === state.lastInvitationTemplateId && INVITATION_TEMPLATES.length > 1);
+    state.lastInvitationTemplateId = tpl.id;
+    const appear = midnight + 720;
+    const deadline = midnight + 1080;
+    state.appointments.push({
+      id: uid(state, "ap"), type: "invitation", templateId: tpl.id, text: tpl.text,
+      appearMin: appear, decisionDeadline: deadline, startMin: deadline, endMin: midnight + 1260,
+      status: "pending", costCents: INVITATION_COST, effectsApplied: false, tutorial: false
+    });
+  }
+}
+function doDailyAccounting(state, midnight) {
+  const day = dayOf(midnight);
+  const log = [];
+  const drivers = [...state.drivers].sort((a, b) => (a.id < b.id ? -1 : 1));
+  for (const d of drivers) {
+    const r = payCost(state, "company", DRIVER_COST_PER_DAY, "Fahrerlohn: " + d.name, d.id, midnight);
+    log.push({ cause: "Fahrerlohn", driver: d.name, paid: r.paid, unpaid: r.unpaid });
+  }
+  for (const b of state.branches) {
+    const r = payCost(state, "company", BRANCH_COST_PER_DAY, "Standort: " + b.name, b.id, midnight);
+    log.push({ cause: "Standort", branch: b.name, paid: r.paid, unpaid: r.unpaid });
+  }
+  const w = doWithdrawal(state, midnight);
+  log.push({ cause: "Private Entnahme", done: w.done, reason: w.reason });
+  const l = payCost(state, "private", PRIVATE_LIVING_PER_DAY, "Lebenshaltung", "living", midnight);
+  log.push({ cause: "Lebenshaltung", paid: l.paid, unpaid: l.unpaid });
+  generateDailyOrders(state, day, midnight);
+  maybeGenerateInvitation(state, day, midnight);
+  state.lastDailyAccountingMin = midnight;
+  return log;
+}
+
+// ---------- Zeitverarbeitung ----------
+function earliestEventAfter(state, t, maxMin) {
+  let best = null;
+  const cand = (m) => { if (m > t && m <= maxMin) { if (best === null || m < best) best = m; } };
+  for (const trip of state.trips) {
+    if (trip.status === "in_progress" && trip.currentLeg < trip.legs.length) cand(trip.legs[trip.currentLeg].endMin);
+  }
+  for (const a of state.appointments) {
+    if (a.status === "pending") cand(a.decisionDeadline);
+    else if (a.status === "accepted") { cand(a.startMin); cand(a.endMin); }
+    else if (a.status === "active") cand(a.endMin);
+  }
+  cand(Math.floor(t / 1440) * 1440 + 1440); // nächste Mitternacht
+  for (const o of state.orders) { if (o.status === "offered") cand(o.acceptDeadlineMin); }
+  if (!state.tutorialInviteCreated) cand(720);
+  for (const d of state.drivers) { if (d.status === "resting" && d.restUntil !== null) cand(d.restUntil); }
+  for (const v of state.vehicles) { if (v.status === "maintenance" && v.maintenanceUntil !== null) cand(v.maintenanceUntil); }
+  return best;
+}
+function completeTrip(state, trip, m, log) {
+  trip.status = "completed";
+  trip.endMin = m;
+  const vehicle = state.vehicles.find(v => v.id === trip.vehicleId);
+  const driver = state.drivers.find(d => d.id === trip.driverId);
+  const finalCity = trip.legs[trip.legs.length - 1].toCity;
+  vehicle.status = "free"; vehicle.tripId = null; vehicle.locationCity = finalCity;
+  vehicle.condition = Math.max(0, vehicle.condition - 1);
+  driver.status = "resting"; driver.restUntil = m + REST_MIN; driver.locationCity = finalCity;
+  if (trip.type === "empty") {
+    log.push({ type: "emptytrip_completed", trip: trip.id, vehicle: vehicle.id, driver: driver.id, atCity: finalCity });
+    return;
+  }
+  const order = state.orders.find(o => o.id === trip.orderId);
+  order.status = "geliefert"; order.deliveredAtMin = m;
+  const onTime = m <= order.deliveryDeadlineMin;
+  const payment = onTime ? trip.paymentCents : Math.round(trip.paymentCents * 0.9);
+  addBooking(state, m, "Vergütung: " + order.customer, payment, "company", order.id);
+  order.paidCents = payment;
+  state.stats.totalDeliveries++;
+  if (onTime) state.stats.timelyDeliveries++;
+  checkMilestones(state, m);
+  if (state.tutorial.active && state.tutorial.step === 2) state.tutorial.step = 3;
+  log.push({ type: "delivery", trip: trip.id, order: order.id, onTime, paymentCents: payment });
+}
+function processEventsAt(state, m, log) {
+  // 1. Lieferabschlüsse (vor Fristprüfung)
+  for (const trip of state.trips) {
+    if (trip.status === "in_progress" && trip.currentLeg < trip.legs.length && trip.legs[trip.currentLeg].endMin === m) {
+      trip.currentLeg++;
+      log.push({ type: "leg_end", trip: trip.id, legType: trip.legs[trip.currentLeg - 1].type, endMin: m });
+      if (trip.currentLeg >= trip.legs.length) completeTrip(state, trip, m, log);
+    }
+  }
+  // 2. Termine
+  for (const a of state.appointments) {
+    if (a.status === "pending" && a.decisionDeadline === m) {
+      a.status = "missed";
+      state.private.relationship = clamp(state.private.relationship - 5, 0, 100);
+      log.push({ type: "invitation_missed", appointment: a.id });
+    } else if (a.status === "accepted" && a.startMin === m) {
+      if (a.type === "invitation_ersatz") {
+        if (state.private.accountCents >= a.costCents) {
+          addBooking(state, a.startMin, "Freizeitabend (Ersatztermin)", -a.costCents, "private", a.id);
+          a.costApplied = true; a.status = "active";
+          log.push({ type: "ersatz_started", appointment: a.id });
+        } else {
+          a.status = "missed";
+          state.private.relationship = clamp(state.private.relationship - 5, 0, 100);
+          log.push({ type: "ersatz_missed", appointment: a.id });
+        }
+      } else {
+        a.status = "active";
+        log.push({ type: "appointment_started", appointment: a.id });
+      }
+    } else if (a.status === "active" && a.endMin === m) {
+      a.status = "done";
+      if (!a.effectsApplied) {
+        if (a.type === "invitation" || a.type === "invitation_ersatz") {
+          state.private.relationship = clamp(state.private.relationship + 8, 0, 100);
+          state.private.stress = clamp(state.private.stress - 15, 0, 100);
+          state.private.happiness = clamp(state.private.happiness + 5, 0, 100);
+        } else if (a.type === "leisure" && a.subtype === "walk") {
+          state.private.stress = clamp(state.private.stress - 8, 0, 100);
+          state.private.happiness = clamp(state.private.happiness + 2, 0, 100);
+        }
+        a.effectsApplied = true;
+      }
+      log.push({ type: "appointment_done", appointment: a.id });
+    }
+  }
+  // 3. Erholung / Wartung
+  for (const d of state.drivers) { if (d.status === "resting" && d.restUntil === m) { d.status = "free"; d.restUntil = null; log.push({ type: "rest_end", driver: d.id }); } }
+  for (const v of state.vehicles) { if (v.status === "maintenance" && v.maintenanceUntil === m) { v.status = "free"; v.maintenanceUntil = null; v.condition = 100; log.push({ type: "maintenance_end", vehicle: v.id }); } }
+  // 4. Tagesabrechnung (Mitternacht)
+  if (m % 1440 === 0 && m > 0) {
+    const dlog = doDailyAccounting(state, m);
+    log.push({ type: "daily_accounting", min: m, details: dlog });
+  }
+  // 5. Angebotsablauf
+  for (const o of state.orders) { if (o.status === "offered" && o.acceptDeadlineMin === m) { o.status = "expired"; log.push({ type: "order_expired", order: o.id }); } }
+  // 6. Tutorial-Einladung erscheint
+  if (m === 720 && !state.tutorialInviteCreated) {
+    state.tutorialInviteCreated = true;
+    const tpl = INVITATION_TEMPLATES[0];
+    const ap = {
+      id: uid(state, "ap"), type: "invitation", templateId: tpl.id, text: tpl.text,
+      appearMin: 720, decisionDeadline: 1080, startMin: 1080, endMin: 1260,
+      status: "pending", costCents: INVITATION_COST, effectsApplied: false, tutorial: true
+    };
+    state.appointments.push(ap);
+    log.push({ type: "invitation_appeared", appointment: ap.id, text: tpl.text });
+  }
+}
+function advanceTo(state, targetMin, log) {
+  let t = state.gameTime;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const next = earliestEventAfter(state, t, targetMin);
+    if (next === null) break;
+    processEventsAt(state, next, log);
+    t = next;
+  }
+  state.gameTime = targetMin;
+}
+
+// ---------- Dispositionsplanung ----------
+function planTrip(state, order, vehicle, driver) {
+  let t = state.gameTime;
+  const legs = [];
+  let totalKm = 0;
+  if (vehicle.locationCity !== order.fromCity) {
+    const d = getDistance(vehicle.locationCity, order.fromCity);
+    const dur = driveMinutes(d);
+    legs.push({ type: "empty", fromCity: vehicle.locationCity, toCity: order.fromCity, distanceKm: d, durationMin: dur, startMin: t, endMin: t + dur });
+    t += dur; totalKm += d;
+  }
+  legs.push({ type: "load", fromCity: order.fromCity, toCity: order.fromCity, distanceKm: 0, durationMin: LOAD_MIN, startMin: t, endMin: t + LOAD_MIN });
+  t += LOAD_MIN;
+  const d = getDistance(order.fromCity, order.toCity);
+  const dur = driveMinutes(d);
+  legs.push({ type: "drive", fromCity: order.fromCity, toCity: order.toCity, distanceKm: d, durationMin: dur, startMin: t, endMin: t + dur });
+  t += dur; totalKm += d;
+  legs.push({ type: "unload", fromCity: order.toCity, toCity: order.toCity, distanceKm: 0, durationMin: UNLOAD_MIN, startMin: t, endMin: t + UNLOAD_MIN });
+  t += UNLOAD_MIN;
+  return { legs, totalKm, totalDuration: t - state.gameTime, endMin: t };
+}
+
+function refreshApplicants(state) {
+  while (state.availableApplicants.length < 3) {
+    const pool = DRIVER_APPLICANT_POOL.filter(n =>
+      !state.hiredApplicantNames.includes(n) && !state.availableApplicants.some(a => a.name === n));
+    if (pool.length === 0) break;
+    const name = pool[Math.floor(nextRng(state) * pool.length)];
+    state.availableApplicants.push({ id: uid(state, "a"), name });
+  }
+}
+
+// ---------- Befehle ----------
+export function applyCommand(state, command, params) {
+  const p = params || {};
+  let result;
+  switch (command) {
+
+    case "setNames": {
+      if (p.companyName) state.company.name = p.companyName;
+      if (p.playerName) state.private.playerName = p.playerName;
+      if (p.partnerName) state.private.partnerName = p.partnerName;
+      result = { ok: true };
+      break;
+    }
+
+    case "acceptOrder": {
+      ensureNotBlocked(state);
+      const o = state.orders.find(x => x.id === p.orderId);
+      if (!o) throw new Error("Auftrag nicht gefunden.");
+      if (o.status !== "offered") throw new Error("Auftrag ist nicht mehr verfügbar.");
+      if (o.acceptDeadlineMin <= state.gameTime) throw new Error("Die Annahmefrist ist abgelaufen.");
+      o.status = "angenommen"; o.acceptedAtMin = state.gameTime;
+      if (state.tutorial.active && state.tutorial.step === 0) state.tutorial.step = 1;
+      result = { ok: true, orderId: o.id };
+      break;
+    }
+
+    case "cancelOrder": {
+      ensureNotBlocked(state);
+      const o = state.orders.find(x => x.id === p.orderId);
+      if (!o) throw new Error("Auftrag nicht gefunden.");
+      if (o.status !== "angenommen") throw new Error("Nur angenommene, nicht gestartete Aufträge können storniert werden.");
+      const trip = state.trips.find(t => t.orderId === o.id && t.status === "in_progress");
+      if (trip) throw new Error("Laufende Fahrten können nicht storniert werden.");
+      const fee = Math.round(o.paymentCents * 0.1);
+      if (state.company.accountCents < fee) throw new Error("Firmenkonto reicht für die Stornogebühr nicht aus.");
+      addBooking(state, state.gameTime, "Stornogebühr: " + o.customer, -fee, "company", "cancel:" + o.id);
+      o.status = "storniert";
+      result = { ok: true, feeCents: fee };
+      break;
+    }
+
+    case "startTransport": {
+      ensureNotBlocked(state);
+      const o = state.orders.find(x => x.id === p.orderId);
+      if (!o) throw new Error("Auftrag nicht gefunden.");
+      if (o.status !== "angenommen") throw new Error("Auftrag muss zuerst angenommen werden.");
+      if (state.trips.some(t => t.orderId === o.id && t.status === "in_progress")) throw new Error("Für diesen Auftrag läuft bereits eine Fahrt.");
+      const v = state.vehicles.find(x => x.id === p.vehicleId);
+      if (!v) throw new Error("Fahrzeug nicht gefunden.");
+      const d = state.drivers.find(x => x.id === p.driverId);
+      if (!d) throw new Error("Fahrer nicht gefunden.");
+      if (v.status !== "free") throw new Error("Fahrzeug ist nicht frei.");
+      if (d.status !== "free") throw new Error("Fahrer ist nicht frei.");
+      if (v.condition < 20) throw new Error("Fahrzeugzustand zu schlecht für einen Einsatz (unter 20). Wartung erforderlich.");
+      if (d.restUntil !== null && d.restUntil > state.gameTime) throw new Error("Fahrer ist noch in der Erholung (bis " + formatGameTime(d.restUntil) + ").");
+      if (v.locationCity !== d.locationCity) throw new Error("Fahrer und Lkw befinden sich an unterschiedlichen Orten.");
+      if (o.tons > v.capacityTons) throw new Error("Überladung: " + o.tons + " t überschreiten Kapazität von " + v.capacityTons + " t.");
+      const plan = planTrip(state, o, v, d);
+      if (plan.totalDuration > MAX_DUTY_MIN) {
+        const h = Math.floor(plan.totalDuration / 60), mm = plan.totalDuration % 60;
+        throw new Error("Einsatzdauer (" + h + " h " + mm + " min) überschreitet die 8-Stunden-Grenze.");
+      }
+      const fuel = fuelCents(plan.totalKm, v.consumptionPer100km);
+      const toll = tollCents(plan.totalKm);
+      const totalCost = fuel + toll;
+      if (state.company.accountCents < totalCost) throw new Error("Firmenkonto reicht für Kraftstoff und Maut (" + (totalCost / 100).toFixed(2) + " €) nicht aus.");
+      addBooking(state, state.gameTime, "Kraftstoff: " + o.customer, -fuel, "company", "fuel:" + o.id);
+      addBooking(state, state.gameTime, "Maut: " + o.customer, -toll, "company", "toll:" + o.id);
+      const trip = {
+        id: uid(state, "t"), type: "loaded", orderId: o.id, vehicleId: v.id, driverId: d.id,
+        legs: plan.legs, currentLeg: 0, startMin: state.gameTime, endMin: plan.endMin,
+        status: "in_progress", paymentCents: o.paymentCents, fuelCents: fuel, tollCents: toll, totalKm: plan.totalKm
+      };
+      state.trips.push(trip);
+      v.status = "on_trip"; v.tripId = trip.id;
+      d.status = "on_trip";
+      o.status = "unterwegs"; o.startedAtMin = state.gameTime;
+      if (state.tutorial.active && state.tutorial.step === 1) state.tutorial.step = 2;
+      result = { ok: true, tripId: trip.id, fuelCents: fuel, tollCents: toll, totalKm: plan.totalKm, endMin: plan.endMin, legs: plan.legs };
+      break;
+    }
+
+    case "startEmptyTrip": {
+      ensureNotBlocked(state);
+      const v = state.vehicles.find(x => x.id === p.vehicleId);
+      const d = state.drivers.find(x => x.id === p.driverId);
+      if (!v || !d) throw new Error("Fahrzeug oder Fahrer nicht gefunden.");
+      if (v.status !== "free") throw new Error("Fahrzeug ist nicht frei.");
+      if (d.status !== "free") throw new Error("Fahrer ist nicht frei.");
+      if (v.condition < 20) throw new Error("Fahrzeugzustand zu schlecht für einen Einsatz.");
+      if (d.restUntil !== null && d.restUntil > state.gameTime) throw new Error("Fahrer ist noch in der Erholung.");
+      if (v.locationCity !== d.locationCity) throw new Error("Fahrer und Lkw befinden sich an unterschiedlichen Orten.");
+      if (v.locationCity !== p.fromCity) throw new Error("Fahrzeug und Fahrer müssen am Abfahrtsort sein.");
+      if (!p.fromCity || !p.toCity || p.fromCity === p.toCity) throw new Error("Start und Ziel müssen zwei verschiedene Städte sein.");
+      const dist = getDistance(p.fromCity, p.toCity);
+      const dur = driveMinutes(dist);
+      if (dur > MAX_DUTY_MIN) throw new Error("Fahrt überschreitet die 8-Stunden-Grenze.");
+      const fuel = fuelCents(dist, v.consumptionPer100km);
+      const toll = tollCents(dist);
+      if (state.company.accountCents < fuel + toll) throw new Error("Firmenkonto reicht für Kraftstoff und Maut nicht aus.");
+      addBooking(state, state.gameTime, "Kraftstoff (Leerfahrt)", -fuel, "company", "emptyfuel");
+      addBooking(state, state.gameTime, "Maut (Leerfahrt)", -toll, "company", "emptytoll");
+      const trip = {
+        id: uid(state, "t"), type: "empty", orderId: null, vehicleId: v.id, driverId: d.id,
+        legs: [{ type: "empty_drive", fromCity: p.fromCity, toCity: p.toCity, distanceKm: dist, durationMin: dur, startMin: state.gameTime, endMin: state.gameTime + dur }],
+        currentLeg: 0, startMin: state.gameTime, endMin: state.gameTime + dur,
+        status: "in_progress", paymentCents: 0, fuelCents: fuel, tollCents: toll, totalKm: dist
+      };
+      state.trips.push(trip);
+      v.status = "on_trip"; v.tripId = trip.id;
+      d.status = "on_trip";
+      result = { ok: true, tripId: trip.id, fuelCents: fuel, tollCents: toll, totalKm: dist, endMin: trip.endMin };
+      break;
+    }
+
+    case "maintainVehicle": {
+      ensureNotBlocked(state);
+      const v = state.vehicles.find(x => x.id === p.vehicleId);
+      if (!v) throw new Error("Fahrzeug nicht gefunden.");
+      if (v.status !== "free") throw new Error("Wartung ist nur für freie Fahrzeuge möglich.");
+      if (v.condition >= 100) throw new Error("Fahrzeug ist bereits in bestem Zustand.");
+      let cost = MAINTENANCE_COST;
+      const stressed = state.private.stress >= STRESS_MAINT_THRESHOLD;
+      if (stressed) cost = Math.round(cost * MAINT_STRESS_FACTOR);
+      if (state.company.accountCents < cost) throw new Error("Firmenkonto reicht für die Wartung (" + (cost / 100).toFixed(2) + " €) nicht aus.");
+      addBooking(state, state.gameTime, "Wartung: " + v.id, -cost, "company", "maintain:" + v.id);
+      v.status = "maintenance"; v.maintenanceUntil = state.gameTime + MAINTENANCE_DURATION;
+      result = { ok: true, vehicleId: v.id, costCents: cost, stressed, until: v.maintenanceUntil };
+      break;
+    }
+
+    case "buyVehicle": {
+      ensureNotBlocked(state);
+      if (state.openCosts.some(o => o.account === "company")) throw new Error("Es gibt offene betriebliche Kosten. Bitte bezahle diese zuerst.");
+      if (state.company.accountCents < VEHICLE_PRICE) throw new Error("Firmenkonto reicht für den Lkw-Kauf (30.000 €) nicht aus.");
+      addBooking(state, state.gameTime, "Fahrzeugkauf", -VEHICLE_PRICE, "company", "buy");
+      const v = {
+        id: uid(state, "v"), branchId: "b1", type: STANDARD_TRUCK.type, capacityTons: 12,
+        consumptionPer100km: 28, bookValueCents: VEHICLE_PRICE, condition: 85,
+        locationCity: "Hamburg", status: "free", tripId: null, maintenanceUntil: null
+      };
+      state.vehicles.push(v);
+      checkMilestones(state, state.gameTime);
+      result = { ok: true, vehicleId: v.id };
+      break;
+    }
+
+    case "hireDriver": {
+      ensureNotBlocked(state);
+      if (state.openCosts.some(o => o.account === "company")) throw new Error("Es gibt offene betriebliche Kosten. Bitte bezahle diese zuerst.");
+      const app = state.availableApplicants.find(a => a.id === p.applicantId);
+      if (!app) throw new Error("Bewerber nicht verfügbar.");
+      if (state.hiredApplicantNames.includes(app.name)) throw new Error("Dieser Bewerber wurde bereits eingestellt.");
+      if (state.company.accountCents < HIRE_FEE) throw new Error("Firmenkonto reicht für die Einstellungsgebühr (500 €) nicht aus.");
+      addBooking(state, state.gameTime, "Einstellung: " + app.name, -HIRE_FEE, "company", "hire:" + app.name);
+      const d = { id: uid(state, "d"), name: app.name, branchId: "b1", costPerDayCents: DRIVER_COST_PER_DAY, locationCity: "Hamburg", status: "free", restUntil: null, employedDay: dayOf(state.gameTime) };
+      state.drivers.push(d);
+      state.hiredApplicantNames.push(app.name);
+      state.availableApplicants = state.availableApplicants.filter(a => a.id !== app.id);
+      refreshApplicants(state);
+      result = { ok: true, driverId: d.id };
+      break;
+    }
+
+    case "answerInvitation": {
+      const a = state.appointments.find(x => x.id === p.appointmentId);
+      if (!a) throw new Error("Termin nicht gefunden.");
+      if (a.status !== "pending") throw new Error("Diese Einladung wurde bereits beantwortet.");
+      if (state.gameTime < a.appearMin) throw new Error("Einladung ist noch nicht erschienen.");
+      if (state.gameTime >= a.decisionDeadline) throw new Error("Die Frist für diese Einladung ist abgelaufen.");
+      const choice = p.choice;
+      if (choice === "accept") {
+        if (state.private.accountCents < a.costCents) throw new Error("Privatkonto reicht für die Zusage nicht aus (60 € erforderlich).");
+        addBooking(state, state.gameTime, "Freizeitabend zugesagt", -a.costCents, "private", a.id);
+        a.status = "accepted"; a.costApplied = true;
+        result = { ok: true, choice: "accept" };
+      } else if (choice === "reschedule") {
+        state.private.relationship = clamp(state.private.relationship - 2, 0, 100);
+        a.status = "rescheduled";
+        const baseMidnight = Math.floor(a.startMin / 1440) * 1440;
+        const ersatzStart = baseMidnight + 1440 + 1080; // Folgetag 18:00
+        const ersatz = {
+          id: uid(state, "ap"), type: "invitation_ersatz", templateId: a.templateId, text: a.text,
+          appearMin: ersatzStart - 360, decisionDeadline: ersatzStart, startMin: ersatzStart, endMin: ersatzStart + 180,
+          status: "accepted", costCents: a.costCents, effectsApplied: false, originalId: a.id
+        };
+        state.appointments.push(ersatz);
+        result = { ok: true, choice: "reschedule", ersatzId: ersatz.id };
+      } else if (choice === "decline") {
+        state.private.relationship = clamp(state.private.relationship - 8, 0, 100);
+        state.private.stress = clamp(state.private.stress + 10, 0, 100);
+        state.private.happiness = clamp(state.private.happiness - 3, 0, 100);
+        a.status = "declined";
+        result = { ok: true, choice: "decline" };
+      } else throw new Error("Ungültige Wahl.");
+      if (state.tutorial.active) { state.tutorial.step = 5; state.tutorial.active = false; }
+      break;
+    }
+
+    case "startLeisure": {
+      ensureNotBlocked(state);
+      const day = dayOf(state.gameTime);
+      if (state.leisureUsedDay === day) throw new Error("Du hast heute schon eine Freizeitaktivität geplant.");
+      const start = state.gameTime, end = state.gameTime + 120;
+      for (const a of state.appointments) {
+        if (["pending", "accepted", "active"].includes(a.status) && a.startMin < end && a.endMin > start)
+          throw new Error("Die Freizeitaktivität überschneidet sich mit einem Termin.");
+      }
+      const ap = { id: uid(state, "ap"), type: "leisure", subtype: "walk", label: "Spaziergang", startMin: start, endMin: end, status: "active", effectsApplied: false };
+      state.appointments.push(ap);
+      state.leisureUsedDay = day;
+      result = { ok: true, appointmentId: ap.id };
+      break;
+    }
+
+    case "payOpenCosts": {
+      const account = p.account || "company";
+      const list = state.openCosts.filter(o => o.account === account).sort((a, b) => a.createdAtMin - b.createdAtMin);
+      let paid = 0; const paidItems = [];
+      for (const o of list) {
+        const bal = account === "company" ? state.company.accountCents : state.private.accountCents;
+        if (bal <= 0) break;
+        const pay = Math.min(bal, o.amountCents);
+        addBooking(state, state.gameTime, "Offene Kosten bezahlt: " + o.cause, -pay, account, o.id);
+        o.amountCents -= pay;
+        paid += pay;
+        paidItems.push({ id: o.id, paid: pay, remaining: o.amountCents });
+      }
+      state.openCosts = state.openCosts.filter(o => o.amountCents > 0);
+      const remaining = state.openCosts.filter(o => o.account === account).reduce((s, o) => s + o.amountCents, 0);
+      result = { ok: true, paidCents: paid, paidItems, remainingOpenCents: remaining };
+      break;
+    }
+
+    case "advanceTime": {
+      const minutes = Math.max(0, Math.min(p.minutes || 0, 1440));
+      const target = state.gameTime + minutes;
+      const log = [];
+      advanceTo(state, target, log);
+      result = { ok: true, events: log, gameTime: state.gameTime };
+      break;
+    }
+
+    case "advanceToNextEvent": {
+      const pending = state.appointments.find(a => a.status === "pending" && a.appearMin <= state.gameTime);
+      if (pending) {
+        result = { ok: false, stopped: "decision_required", message: "Es steht eine Einladungsentscheidung offen. Bitte antworte, bevor du zum nächsten Ereignis springst.", appointment: pending.id };
+        break;
+      }
+      const next = earliestEventAfter(state, state.gameTime, state.gameTime + 1440);
+      const target = next === null ? state.gameTime + 1440 : next;
+      const log = [];
+      advanceTo(state, target, log);
+      result = { ok: true, events: log, gameTime: state.gameTime, target };
+      break;
+    }
+
+    case "setTutorialStep": {
+      if (typeof p.step === "number") state.tutorial.step = p.step;
+      if (p.complete) state.tutorial.active = false;
+      result = { ok: true };
+      break;
+    }
+
+    case "dismissTutorial": {
+      state.tutorial.active = false;
+      result = { ok: true };
+      break;
+    }
+
+    default:
+      throw new Error("Unbekannter Befehl: " + command);
+  }
+  return { state, result };
+}

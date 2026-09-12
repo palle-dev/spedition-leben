@@ -1,0 +1,35 @@
+{
+  "name": "GameState",
+  "type": "object",
+  "properties": {
+    "revision": {
+      "type": "number"
+    },
+    "state": {
+      "type": "object"
+    },
+    "last_action_id": {
+      "type": "string"
+    },
+    "last_result": {
+      "type": "object"
+    },
+    "last_command_hash": {
+      "type": "string"
+    }
+  },
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}
