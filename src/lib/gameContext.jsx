@@ -316,11 +316,22 @@ export function GameProvider({ children }) {
     if (!idRef.current) return;
     setAutomationBusy(true);
     try {
-      await send("pauseAutomation", { reason: reason || "user" });
-      setAutomationEnabled(false);
-      showToast("Zeitautomatik pausiert.", "info");
-    } catch (e) {
-      showToast("Automatik konnte nicht pausiert werden: " + e.message, "error");
+      // Während aktiver Automatik ändert sich die Revision sekündlich durch den Polling-Sync.
+      // Bei Konflikt: frische Revision laden und erneut versuchen (bis zu 3 Versuche).
+      let lastError = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          await send("pauseAutomation", { reason: reason || "user" });
+          setAutomationEnabled(false);
+          showToast("Zeitautomatik pausiert.", "info");
+          return;
+        } catch (e) {
+          lastError = e;
+          // send() hat bereits reload() ausgeführt – kurze Pause, dann erneut versuchen.
+          await new Promise(r => setTimeout(r, 50));
+        }
+      }
+      showToast("Automatik konnte nicht pausiert werden: " + (lastError?.message || "Unbekannt"), "error");
     } finally {
       setAutomationBusy(false);
     }
