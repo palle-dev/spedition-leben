@@ -4,7 +4,6 @@ import OfficeHeader from "@/components/office/OfficeHeader";
 import OfficeKPIs from "@/components/office/OfficeKPIs";
 import FleetSummary from "@/components/office/FleetSummary";
 import DecisionsPanel from "@/components/office/DecisionsPanel";
-import TeamActivity from "@/components/office/TeamActivity";
 import OfficeBottom from "@/components/office/OfficeBottom";
 
 // Büro – zentrale Führungsansicht für die gesamte Firma.
@@ -29,7 +28,6 @@ export default function Office() {
         </div>
         <div className="space-y-4">
           <DecisionsPanel state={state} />
-          <TeamActivity state={state} />
         </div>
       </div>
 
