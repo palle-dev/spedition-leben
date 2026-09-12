@@ -2,7 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { formatEuro, formatGameTime } from "@/lib/gameData";
 import { getOfferTypeLabel, getOfferTypeStyle, formatPaymentTerms } from "@/lib/marketData";
-import { MapPin, ArrowRight, Clock, Package, Zap, CalendarClock, Check, Route as RouteIcon, Search } from "lucide-react";
+import { MapPin, ArrowRight, Clock, Package, Zap, CalendarClock, Check, Route as RouteIcon, Search, Flame, Droplet } from "lucide-react";
 
 // Angebot-Karte für die Frachtbörse.
 // Zeigt Kundendaten, Route, Fracht, Preis, Fristen und Aktionen.
@@ -43,6 +43,12 @@ export default function OfferCard({ offer, onAccept, busy }) {
         {offer.feasible === true && (
           <span className="text-[10px] px-1.5 py-0.5 rounded border bg-lime/10 text-lime border-lime/20">
             Passend
+          </span>
+        )}
+        {offer.isDangerousGoods && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded border bg-orange-500/10 text-orange-300 border-orange-400/20 inline-flex items-center gap-1">
+            {offer.dgTransportType === "tank" ? <Droplet className="w-2.5 h-2.5" /> : <Flame className="w-2.5 h-2.5" />}
+            ADR {offer.dgClass} · {offer.dgTransportType === "tank" ? "Tank" : "Versandstück"}
           </span>
         )}
       </div>

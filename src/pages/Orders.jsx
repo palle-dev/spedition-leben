@@ -16,6 +16,7 @@ export default function Orders() {
   const [filterCity, setFilterCity] = useState("");
   const [filterType, setFilterType] = useState("");
   const [filterFeasible, setFilterFeasible] = useState("");
+  const [filterDg, setFilterDg] = useState("");
   const [sortBy, setSortBy] = useState("deadline");
 
   const marketStats = getMarketStats(state);
@@ -48,18 +49,20 @@ export default function Orders() {
     if (filterType) list = list.filter(o => o.offerType === filterType);
     if (filterFeasible === "yes") list = list.filter(o => o.feasible === true);
     if (filterFeasible === "no") list = list.filter(o => o.feasible === false);
+    if (filterDg === "yes") list = list.filter(o => o.isDangerousGoods);
+    if (filterDg === "no") list = list.filter(o => !o.isDangerousGoods);
     return list.sort((a, b) => {
       if (sortBy === "payment") return b.paymentCents - a.paymentCents;
       if (sortBy === "accept") return a.acceptDeadlineMin - b.acceptDeadlineMin;
       return a.deliveryDeadlineMin - b.deliveryDeadlineMin;
     });
-  }, [state.orders, search, filterCity, filterType, filterFeasible, sortBy]);
+  }, [state.orders, search, filterCity, filterType, filterFeasible, filterDg, sortBy]);
 
   const active = state.orders.filter(o => ["angenommen", "unterwegs"].includes(o.status));
   const done = state.orders.filter(o => ["geliefert", "storniert", "expired"].includes(o.status)).slice(-12);
 
   function resetFilter() {
-    setSearch(""); setFilterCity(""); setFilterType(""); setFilterFeasible(""); setSortBy("deadline");
+    setSearch(""); setFilterCity(""); setFilterType(""); setFilterFeasible(""); setFilterDg(""); setSortBy("deadline");
   }
 
   return (
@@ -108,6 +111,11 @@ export default function Orders() {
               <option value="">Alle</option>
               <option value="yes">Passend</option>
               <option value="no">Schwer ausführbar</option>
+            </select>
+            <select value={filterDg} onChange={e => setFilterDg(e.target.value)} className="px-3 py-1.5 rounded-lg bg-surface-2 border border-white/10 text-xs text-foreground focus:border-lime/50 outline-none">
+              <option value="">Alle Frachten</option>
+              <option value="yes">Nur Gefahrgut</option>
+              <option value="no">Kein Gefahrgut</option>
             </select>
             <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="px-3 py-1.5 rounded-lg bg-surface-2 border border-white/10 text-xs text-foreground focus:border-lime/50 outline-none">
               <option value="deadline">Nach Lieferfrist</option>

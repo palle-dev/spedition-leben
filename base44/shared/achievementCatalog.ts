@@ -46,6 +46,12 @@ export const ACHIEVEMENTS = [
   { id: "company_5m", title: "Ein Lebenswerk wächst", desc: "5 Mio. € Unternehmensvermögenswert", category: "unternehmen", xp: 800,
     condition: (s, c) => c.companyValue >= 500000000,
     progress: (s, c) => ({ current: Math.min(c.companyValue, 500000000), target: 500000000 }) },
+  { id: "dg_first", title: "Gefahrgut-Erstling", desc: "1 Gefahrgut-Lieferung abgeschlossen", category: "unternehmen", xp: 200,
+    condition: (s) => (s.stats?.dgDeliveries || 0) >= 1,
+    progress: (s) => ({ current: Math.min(s.stats?.dgDeliveries || 0, 1), target: 1 }) },
+  { id: "dg_ten", title: "Sicherer Umgang", desc: "10 Gefahrgut-Lieferungen abgeschlossen", category: "unternehmen", xp: 400,
+    condition: (s) => (s.stats?.dgDeliveries || 0) >= 10,
+    progress: (s) => ({ current: Math.min(s.stats?.dgDeliveries || 0, 10), target: 10 }) },
 
   // --- Zuverlässigkeit ---
   { id: "reliable_ten", title: "Verlässlich", desc: "10 aufeinanderfolgende rechtzeitige Lieferungen", category: "zuverlaessigkeit", xp: 250,

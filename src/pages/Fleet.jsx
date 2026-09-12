@@ -6,7 +6,8 @@ import { ownershipLabel, getVehicleBookValue } from "@/lib/financingData";
 import StatusBadge from "@/components/ui/StatusBadge";
 import SellVehicleDialog from "@/components/fleet/SellVehicleDialog";
 import WorkshopSection from "@/components/fleet/WorkshopSection";
-import { Wrench, Plus, Truck, MapPin, Gauge, FileText, TrendingUp, FileCheck, Settings } from "lucide-react";
+import DgSection from "@/components/fleet/DgSection";
+import { Wrench, Plus, Truck, MapPin, Gauge, FileText, TrendingUp, FileCheck, Settings, Flame } from "lucide-react";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
 
 export default function Fleet() {
@@ -56,6 +57,9 @@ export default function Fleet() {
             <button onClick={() => setTab("workshop")} className={`px-3 py-2.5 text-sm font-medium transition flex items-center gap-1.5 ${tab === "workshop" ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
               <Wrench className="w-3.5 h-3.5" /> Werkstatt
             </button>
+            <button onClick={() => setTab("dg")} className={`px-3 py-2.5 text-sm font-medium transition flex items-center gap-1.5 ${tab === "dg" ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+              <Flame className="w-3.5 h-3.5" /> Gefahrgut
+            </button>
           </div>
         </div>
         {tab === "fleet" && (
@@ -73,6 +77,8 @@ export default function Fleet() {
       </div>
       {tab === "workshop" ? (
         <WorkshopSection state={state} send={send} showToast={showToast} />
+      ) : tab === "dg" ? (
+        <DgSection state={state} send={send} showToast={showToast} />
       ) : (
         <>
           {openCompany && <div className="text-sm text-red-300 bg-red-500/10 border border-red-400/20 rounded-lg px-4 py-2.5">Solange betriebliche Pflichtkosten offen sind, ist kein Fahrzeugkauf möglich.</div>}
