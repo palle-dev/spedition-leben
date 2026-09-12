@@ -17,6 +17,7 @@ import { migrateWorkshop } from "./workshopEngine.ts";
 import {
   migratePersonnelMarket, initStartApplicants,
 } from "./personnelMarketEngine.ts";
+import { initInvestment } from "./investmentEngine.ts";
 
 function uid(state, prefix) {
   state.idCounter = (state.idCounter || 100) + 1;
@@ -159,5 +160,7 @@ export function createInitialState(names) {
   // Personalmarkt initialisieren und Start-Pool erzeugen (Auftrag 29)
   migratePersonnelMarket(state);
   initStartApplicants(state);
+  // Investment-Markt und Depots initialisieren (Auftrag 33)
+  initInvestment(state);
   return { state };
 }

@@ -56,6 +56,17 @@ export const ACCOUNTS = {
   "2230": { no: "2230", name: "Zinsverbindlichkeiten", type: "liability", group: "current_liabilities" },
   "5230": { no: "5230", name: "Leasingaufwand", type: "expense", group: "operations" },
   "5610": { no: "5610", name: "Finanzierungskosten/Gebühren", type: "expense", group: "finance" },
+  // Investment (Auftrag 33)
+  "1005": { no: "1005", name: "Firmen-Verrechnungskonto Investment", type: "asset", group: "current_assets" },
+  "1160": { no: "1160", name: "Ertragsforderungen Investment", type: "asset", group: "current_assets" },
+  "1310": { no: "1310", name: "Aktien zu Anschaffungskosten", type: "asset", group: "current_assets" },
+  "1311": { no: "1311", name: "Krypto zu Anschaffungskosten", type: "asset", group: "current_assets" },
+  "1319": { no: "1319", name: "Marktwertanpassung Investment", type: "asset", group: "current_assets" },
+  "4300": { no: "4300", name: "Realisierte Investmentgewinne", type: "revenue", group: "other_revenue" },
+  "4301": { no: "4301", name: "Dividenden- und Stakingträge", type: "revenue", group: "other_revenue" },
+  "4305": { no: "4305", name: "Unrealisierte Bewertungserträge", type: "revenue", group: "other_revenue" },
+  "5710": { no: "5710", name: "Realisierte Investmentverluste", type: "expense", group: "depreciation" },
+  "5715": { no: "5715", name: "Bewertungsverluste", type: "expense", group: "depreciation" },
 };
 
 export const ACCOUNT_LIST = Object.values(ACCOUNTS);

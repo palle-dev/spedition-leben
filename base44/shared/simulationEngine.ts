@@ -135,6 +135,10 @@ import {
   DG_EQUIP_EXTERNAL_COST_CENTS, DG_EQUIP_INTERNAL_MATERIAL_CENTS,
   DG_INSPECTION_EXTERNAL_COST_CENTS, TANK_CLEANING_COST_CENTS,
 } from "./dangerousGoodsEngine.ts";
+import {
+  migrateInvestment, processMarketTick, getInvestmentEventTimes,
+  handleInvestmentCommand,
+} from "./investmentEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -384,6 +388,10 @@ function earliestEventAfter(state, t, maxMin) {
   for (const tm of getTankCleaningEventTimes(state, t, maxMin)) cand(tm);
   for (const tm of getEquipmentJobEventTimes(state, t, maxMin)) cand(tm);
   for (const tm of getInspectionJobEventTimes(state, t, maxMin)) cand(tm);
+  // Investment: Order-Ablaufzeiten (Auftrag 33)
+  if (state.investment?.market) {
+    for (const tm of getInvestmentEventTimes(state, t, maxMin)) cand(tm);
+  }
   return best;
 }
 function completeTrip(state, trip, m, log) {
@@ -648,6 +656,10 @@ function processEventsAt(state, m, log) {
   // 5b. Marktwelle zu jeder vollen Spielstunde (Auftrag 19)
   if (m % 60 === 0) {
     generateMarketWave(state, m, log);
+    // Investment-Markt-Tick bei jeder vollen Stunde (Auftrag 33)
+    if (state.investment?.market) {
+      processMarketTick(state, m, log);
+    }
   }
   // 6. Tutorial-Einladung erscheint
   if (m === 720 && !state.tutorialInviteCreated) {
@@ -956,6 +968,7 @@ export function applyCommand(state, command, params) {
   migratePersonnelMarket(state);
   migrateTraining(state);
   migrateDangerousGoods(state);
+  migrateInvestment(state);
   if (state.bookings && state.bookings.length > 200) state.bookings = state.bookings.slice(-200);
   // Historie begrenzen: abgeschlossene Touren, Aufträge und Termine älter als 30 Tage
   // entfernen. Hält den Zustand kompakt und beschleunigt Laden/Speichern bei langen Spielen.
@@ -2378,6 +2391,8 @@ export function applyCommand(state, command, params) {
     default: {
       const dgResult = handleDgCommand(state, command, p);
       if (dgResult !== null) { result = dgResult; break; }
+      const invResult = handleInvestmentCommand(state, command, p);
+      if (invResult !== null) { result = invResult; break; }
       throw new Error("Unbekannter Befehl: " + command);
     }
   }

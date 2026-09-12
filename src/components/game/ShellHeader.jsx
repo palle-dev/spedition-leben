@@ -5,7 +5,7 @@ import MoneyText from "@/components/MoneyText";
 import FernwerkSignet from "@/components/brand/FernwerkSignet";
 import AutomationControl from "@/components/game/AutomationControl";
 import NotificationCenter from "@/components/notifications/NotificationCenter";
-import { Building2, Heart, Sparkles, Mail as MailIcon } from "lucide-react";
+import { Building2, Heart, Sparkles, Mail as MailIcon, LineChart } from "lucide-react";
 import { getMailboxStats } from "@/lib/mailData";
 import { getAllNotifications } from "@/lib/eventLogClient";
 
@@ -15,6 +15,7 @@ export default function ShellHeader() {
   const navigate = useNavigate();
   const location = useLocation();
   const isHome = location.pathname === "/zuhause";
+  const isInvestment = location.pathname.startsWith("/investment");
   const mailStats = state?.mail ? getMailboxStats(state) : null;
   const unreadCount = mailStats?.unread || 0;
   const notifications = useMemo(() => getAllNotifications(state, 50), [state?.events]);
@@ -35,8 +36,8 @@ export default function ShellHeader() {
       <div className="flex items-center bg-ink/60 border border-white/10 rounded-full p-1 gap-1 backdrop-blur-lg">
         <button
           onClick={() => navigate("/")}
-          className={`flex items-center gap-2 rounded-full px-3 lg:px-4 py-1.5 text-xs lg:text-[13px] font-medium transition ${!isHome ? "bg-lime text-ink" : "text-muted-foreground hover:text-foreground"}`}
-          aria-pressed={!isHome}
+          className={`flex items-center gap-2 rounded-full px-3 lg:px-4 py-1.5 text-xs lg:text-[13px] font-medium transition ${!isHome && !isInvestment ? "bg-lime text-ink" : "text-muted-foreground hover:text-foreground"}`}
+          aria-pressed={!isHome && !isInvestment}
         >
           <Building2 className="w-4 h-4" /> <span className="hidden sm:inline">Unternehmen</span>
         </button>
@@ -46,6 +47,13 @@ export default function ShellHeader() {
           aria-pressed={isHome}
         >
           <Heart className="w-4 h-4" /> <span className="hidden sm:inline">Privatleben</span>
+        </button>
+        <button
+          onClick={() => navigate("/investment")}
+          className={`flex items-center gap-2 rounded-full px-3 lg:px-4 py-1.5 text-xs lg:text-[13px] font-medium transition ${isInvestment ? "bg-invest-purple text-ink" : "text-muted-foreground hover:text-foreground"}`}
+          aria-pressed={isInvestment}
+        >
+          <LineChart className="w-4 h-4" /> <span className="hidden sm:inline">Investment</span>
         </button>
       </div>
 

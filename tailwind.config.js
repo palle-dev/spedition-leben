@@ -52,6 +52,10 @@ module.exports = {
         lime: 'hsl(var(--lime))',
         coral: 'hsl(var(--coral))',
         line: 'hsl(var(--line))',
+        invest: {
+          purple: 'hsl(var(--invest-purple))',
+          cyan: 'hsl(var(--invest-cyan))',
+        },
         office: {
           DEFAULT: 'hsl(var(--office))',
           light: 'hsl(var(--office-2))',
