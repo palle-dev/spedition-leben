@@ -149,6 +149,10 @@ export function postJournal(state, data) {
     }
   }
   state.accounting.journal.push(entry);
+  // Performance: Journal begrenzen – alte Einträge werden nicht mehr benötigt.
+  if (state.accounting.journal.length > 500) {
+    state.accounting.journal = state.accounting.journal.slice(-500);
+  }
   return entry;
 }
 
@@ -873,6 +877,10 @@ export function migrateAccounting(state) {
     a.depreciationStartMonth = Math.max(2, periodOf(state.gameTime) + 1);
     a.migrationDone = true;
   }
+
+  // Performance: Journal und Belege begrenzen beim Laden alter Spielstände.
+  if (a.journal.length > 500) a.journal = a.journal.slice(-500);
+  if (a.receipts.length > 200) a.receipts = a.receipts.slice(-200);
 
   return state;
 }

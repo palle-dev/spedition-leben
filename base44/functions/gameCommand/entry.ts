@@ -115,10 +115,16 @@ export default async function (req) {
     }
 
     // Nachweis der verarbeiteten Aktion zusammen mit Zustand speichern.
+    // Performance: events-Array aus dem Result entfernen – Ereignisse liegen
+    // bereits dauerhaft in state.events. Verhindert Speicherblähung bei
+    // advanceTime/syncAutomation mit hunderten Log-Einträgen pro Aktion.
     newState.processedActions = newState.processedActions || {};
-    newState.processedActions[action_id] = { hash: cmdHash, revision: rec.revision + 1, result, ts: Date.now() };
+    const storedResult = (result && Array.isArray(result.events) && result.events.length > 0)
+      ? { ...result, events: [] }
+      : result;
+    newState.processedActions[action_id] = { hash: cmdHash, revision: rec.revision + 1, result: storedResult, ts: Date.now() };
     const keys = Object.keys(newState.processedActions);
-    if (keys.length > 200) { for (let i = 0; i < keys.length - 200; i++) delete newState.processedActions[keys[i]]; }
+    if (keys.length > 100) { for (let i = 0; i < keys.length - 100; i++) delete newState.processedActions[keys[i]]; }
 
     const newRev = rec.revision + 1;
 

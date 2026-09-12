@@ -62,6 +62,15 @@ export function migrateMail(state) {
   if (!state.mail.staffTasks) state.mail.staffTasks = [];
   if (!state.mail.nextMailId) state.mail.nextMailId = (state.mail.messages.length || 0) + 1;
 
+  // Performance: Nachrichten und erledigte Tasks begrenzen
+  if (state.mail.messages && state.mail.messages.length > 300) {
+    state.mail.messages = state.mail.messages.slice(-300);
+  }
+  if (state.mail.staffTasks && state.mail.staffTasks.length > 100) {
+    state.mail.staffTasks = state.mail.staffTasks.filter(t => t.status === "pending").slice(-50)
+      .concat(state.mail.staffTasks.filter(t => t.status !== "pending").slice(-50));
+  }
+
   if (!state.mail.migrationDone) {
     for (const emp of state.employees || []) {
       if (emp.employmentStatus !== "employed") continue;

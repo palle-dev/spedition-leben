@@ -3,7 +3,7 @@
 // Ereignisse überleben Neuladen, Verbindungsabbruch und Offline-Zeit.
 // Deduplizierung über dedupKey verhindert doppelte Zustellung.
 
-const MAX_EVENTS = 2000; // Begrenzung für Speichereffizienz
+const MAX_EVENTS = 500; // Begrenzung für Speichereffizienz (reduziert von 2000)
 
 export function initEvents(state) {
   if (!state.events) state.events = [];
