@@ -5,7 +5,8 @@ import { formatEuro, formatGameTime, computeDealerOffer } from "@/lib/gameData";
 import { ownershipLabel, getVehicleBookValue } from "@/lib/financingData";
 import StatusBadge from "@/components/ui/StatusBadge";
 import SellVehicleDialog from "@/components/fleet/SellVehicleDialog";
-import { Wrench, Plus, Truck, MapPin, Gauge, FileText, TrendingUp, FileCheck } from "lucide-react";
+import WorkshopSection from "@/components/fleet/WorkshopSection";
+import { Wrench, Plus, Truck, MapPin, Gauge, FileText, TrendingUp, FileCheck, Settings } from "lucide-react";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
 
 export default function Fleet() {
@@ -15,6 +16,7 @@ export default function Fleet() {
   const [buying, setBuying] = useState(false);
   const [leasing, setLeasing] = useState(false);
   const [sellVehicle, setSellVehicle] = useState(null);
+  const [tab, setTab] = useState("fleet");
   const stressed = state.private.stress >= 80;
   const maintCost = stressed ? Math.round(150000 * 1.25) : 150000;
   const openCompany = state.openCosts.some(o => o.account === "company");
@@ -49,15 +51,25 @@ export default function Fleet() {
           <p className="text-sm text-muted-foreground mt-1">{activeVehicles.length} einsatzfähige Lkw: {ownedCount} eigene, {leasedCount} geleast</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={lease} disabled={leasing || state.company.accountCents < 150000}
-            className="flex items-center gap-2 rounded-lg px-4 py-2.5 bg-white/5 border border-white/10 text-sm font-medium hover:bg-white/10 disabled:opacity-40 transition active:scale-[0.98]">
-            {leasing ? <span className="w-4 h-4 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" /> : <FileText className="w-4 h-4" />} Leasen (1.500 €)
-          </button>
-          <button onClick={buy} disabled={buying || state.company.accountCents < 3000000 || openCompany}
-            className="flex items-center gap-2 rounded-lg px-4 py-2.5 bg-lime text-ink font-semibold text-sm hover:brightness-110 disabled:opacity-40 transition active:scale-[0.98]">
-            {buying ? <span className="w-4 h-4 border-2 border-ink/30 border-t-ink rounded-full animate-spin" /> : <Plus className="w-4 h-4" />} Kaufen (30.000 €)
-          </button>
+          <div className="flex rounded-lg overflow-hidden border border-white/10">
+            <button onClick={() => setTab("fleet")} className={`px-3 py-2.5 text-sm font-medium transition ${tab === "fleet" ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"}`}>Flotte</button>
+            <button onClick={() => setTab("workshop")} className={`px-3 py-2.5 text-sm font-medium transition flex items-center gap-1.5 ${tab === "workshop" ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+              <Wrench className="w-3.5 h-3.5" /> Werkstatt
+            </button>
+          </div>
         </div>
+        {tab === "fleet" && (
+          <div className="flex gap-2">
+            <button onClick={lease} disabled={leasing || state.company.accountCents < 150000}
+              className="flex items-center gap-2 rounded-lg px-4 py-2.5 bg-white/5 border border-white/10 text-sm font-medium hover:bg-white/10 disabled:opacity-40 transition active:scale-[0.98]">
+              {leasing ? <span className="w-4 h-4 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" /> : <FileText className="w-4 h-4" />} Leasen (1.500 €)
+            </button>
+            <button onClick={buy} disabled={buying || state.company.accountCents < 3000000 || openCompany}
+              className="flex items-center gap-2 rounded-lg px-4 py-2.5 bg-lime text-ink font-semibold text-sm hover:brightness-110 disabled:opacity-40 transition active:scale-[0.98]">
+              {buying ? <span className="w-4 h-4 border-2 border-ink/30 border-t-ink rounded-full animate-spin" /> : <Plus className="w-4 h-4" />} Kaufen (30.000 €)
+            </button>
+          </div>
+        )}
       </div>
       {openCompany && <div className="text-sm text-red-300 bg-red-500/10 border border-red-400/20 rounded-lg px-4 py-2.5">Solange betriebliche Pflichtkosten offen sind, ist kein Fahrzeugkauf möglich.</div>}
       {stressed && <div className="text-sm text-amber-300 bg-amber-500/10 border border-amber-400/20 rounded-lg px-4 py-2.5">Deine Belastung ist hoch (≥ 80): Wartung kostet 25 % mehr ({formatEuro(maintCost)}).</div>}

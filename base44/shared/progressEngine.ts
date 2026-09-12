@@ -17,6 +17,7 @@ import { migrateAbsences } from "./absenceEngine.ts";
 import { migrateServices } from "./serviceEngine.ts";
 import { migrateRewards } from "./rewardEngine.ts";
 import { migratePurchases } from "./purchaseEngine.ts";
+import { migrateWorkshop } from "./workshopEngine.ts";
 import { getVehicleBookValue, MONTH_MIN } from "./accountingEngine.ts";
 import { VEHICLE_REFERENCE_PRICE } from "./gameRules.ts";
 
@@ -263,6 +264,9 @@ export function migrateState(state) {
   // ---------- Belohnungs- & Anschaffungs-Migration (Auftrag 26) ----------
   migrateRewards(state);
   migratePurchases(state);
+
+  // ---------- Werkstatt-Migration (Auftrag 27) ----------
+  migrateWorkshop(state);
 
   return state;
 }

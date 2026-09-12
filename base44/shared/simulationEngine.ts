@@ -89,6 +89,12 @@ import {
   PURCHASE_CATALOG, BASIC_ACTIVITIES, getActivityOptions, getActivePurchases,
   getActiveHome, checkPurchaseConditions,
 } from "./purchaseEngine.ts";
+import {
+  migrateWorkshop, buildWorkshopSlot, createMaintenanceOrder,
+  cancelMaintenanceOrder, assignMechanic, processWorkshop,
+  evaluateWorkshopAutomation, updateAutomationProfile, getWorkshopStatus,
+  getWorkshopEventTimes, WORKSHOP_SLOT_PRICE,
+} from "./workshopEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -108,6 +114,7 @@ const CAUSE_ACCOUNT_MAP = {
   "Kraftstoff (Leerfahrt)": "5000", "Maut (Leerfahrt)": "5010",
   "Offene Kosten bezahlt": "2120",
   "Disposition": "5110", "Reinigung und Werkstatt": "5130", "Buchhaltung": "5120",
+  "Werkstattbau": "1200", "Wartungsteile": "5300",
 };
 
 function addBooking(state, min, cause, amountCents, account, refId) {
@@ -291,6 +298,9 @@ export function createInitialState(names) {
   state.private.rewards = { claims: {}, cosmetics: {}, vouchers: [] };
   for (const slot of REWARD_SLOTS) state.private.rewards.cosmetics[slot] = null;
   state.private.purchases = { items: [], activeHomeId: null };
+  // Werkstatt initialisieren (Auftrag 27)
+  state.workshop = { slots: [], maintenanceOrders: [], automationProfile: null };
+  migrateWorkshop(state);
   return { state };
 }
 
@@ -483,6 +493,8 @@ function earliestEventAfter(state, t, maxMin) {
   for (const r of (state.absences?.vacationRequests || [])) {
     if (r.status === "approved") { cand(r.startMin); cand(r.endMin); }
   }
+  // Werkstatt-Ereignisse (Auftrag 27)
+  for (const wt of getWorkshopEventTimes(state, t, maxMin)) cand(wt);
   return best;
 }
 function completeTrip(state, trip, m, log) {
@@ -695,6 +707,9 @@ function processEventsAt(state, m, log) {
   processSicknessRecovery(state, m);
   processServiceContracts(state, m, log);
   processTempStaffBilling(state, m, log);
+  // Auftrag 27: Werkstatt-Verarbeitung und Automatik
+  processWorkshop(state, m, log);
+  evaluateWorkshopAutomation(state, m, log);
   // 4b. Monatswechsel (Abschreibung, Periodenabschluss)
   if (m % MONTH_MIN === 0 && m > 0) {
     calculateDepreciation(state, m);
@@ -1023,6 +1038,7 @@ export function applyCommand(state, command, params) {
   migrateServices(state);
   migrateRewards(state);
   migratePurchases(state);
+  migrateWorkshop(state);
   const p = params || {};
   let result;
   switch (command) {
@@ -2187,6 +2203,50 @@ export function applyCommand(state, command, params) {
 
     case "getServiceCatalog": {
       result = { ok: true, providers: SERVICE_PROVIDERS, branches: state.branches.map(b => ({ id: b.id, name: b.name, city: b.city, cleanliness: getBranchCleanliness(state, b.id), cleaningNeed: computeCleaningNeed(state, b.id) })) };
+      break;
+    }
+
+    // ---------- Werkstatt (Auftrag 27) ----------
+
+    case "buildWorkshopSlot": {
+      ensureNotBlocked(state);
+      const r = buildWorkshopSlot(state, { branchId: p.branchId });
+      result = r;
+      break;
+    }
+
+    case "planMaintenance": {
+      ensureNotBlocked(state);
+      const r = createMaintenanceOrder(state, {
+        vehicleId: p.vehicleId, branchId: p.branchId, type: p.type || "standard",
+        isAutomated: false, mechanicId: p.mechanicId || null,
+      });
+      result = r;
+      break;
+    }
+
+    case "cancelMaintenance": {
+      ensureNotBlocked(state);
+      const r = cancelMaintenanceOrder(state, { orderId: p.orderId });
+      result = r;
+      break;
+    }
+
+    case "assignMechanic": {
+      ensureNotBlocked(state);
+      const r = assignMechanic(state, { orderId: p.orderId, mechanicId: p.mechanicId });
+      result = r;
+      break;
+    }
+
+    case "updateAutomationProfile": {
+      const r = updateAutomationProfile(state, p);
+      result = r;
+      break;
+    }
+
+    case "getWorkshopStatus": {
+      result = getWorkshopStatus(state);
       break;
     }
 
