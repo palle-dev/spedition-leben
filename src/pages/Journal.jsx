@@ -12,7 +12,9 @@ export default function Journal() {
   state.trips.forEach(t => {
     if (t.status === "completed") {
       const v = state.vehicles.find(x => x.id === t.vehicleId);
-      events.push({ min: t.endMin, icon: "truck", text: `${vehicleDisplayName(v)} abgeschlossen in ${t.legs[t.legs.length - 1].toCity}` });
+      const phases = t.phases || t.legs || [];
+      const lastPhase = phases[phases.length - 1];
+      events.push({ min: t.endMin, icon: "truck", text: `${vehicleDisplayName(v)} abgeschlossen in ${lastPhase?.toCity || "—"}` });
     }
   });
   state.appointments.forEach(a => {

@@ -21,8 +21,9 @@ export default function DispatchTourList({ trips, state, selectedTripId, onSelec
         const driver = state.drivers.find(d => d.id === trip.driverId);
         const order = state.orders.find(o => o.id === trip.orderId);
         const isSelected = trip.id === selectedTripId;
-        const fromCity = order?.fromCity || trip.legs[0]?.fromCity;
-        const toCity = order?.toCity || trip.legs[0]?.toCity;
+        const phases = trip.phases || trip.legs || [];
+        const fromCity = order?.fromCity || phases[0]?.fromCity;
+        const toCity = order?.toCity || phases[0]?.toCity;
         const punctuality = derivePunctuality(trip, order, state.gameTime);
 
         return (

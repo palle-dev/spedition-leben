@@ -87,12 +87,14 @@ function deriveOpportunity(state) {
   if (running.length) {
     const t = running[0];
     const o = state.orders.find(x => x.id === t.orderId);
-    const leg = t.legs[t.currentLeg];
+    const phases = t.phases || t.legs || [];
+    const currentIdx = t.currentPhase !== undefined ? t.currentPhase : t.currentLeg;
+    const leg = phases[currentIdx] || phases[phases.length - 1];
     return {
       eyebrow: "Auf Tour", tone: "lime",
       title: o ? `Unterwegs nach ${o.toCity}.` : "Unterwegs.",
       customer: o ? o.customer : "Leerfahrt", from: o?.fromCity, to: o?.toCity,
-      meta: [{ icon: Truck, text: legLabel(leg) }, { icon: Clock, text: `bis ${formatGameTime(leg.endMin)}` }],
+      meta: [{ icon: Truck, text: legLabel(leg) }, { icon: Clock, text: `bis ${formatGameTime(leg?.endMin)}` }],
       fee: o?.paymentCents, actionLabel: "Zur Disposition", actionTo: "/disposition?trip=" + t.id,
       footnote: "Deine Flotte ist unterwegs. Setze die Zeit fort, um die Lieferung abzuschließen.",
     };
@@ -124,9 +126,11 @@ function deriveOpportunity(state) {
 function legLabel(leg) {
   if (!leg) return "—";
   if (leg.type === "empty" || leg.type === "empty_drive") return `Leerfahrt nach ${leg.toCity}`;
-  if (leg.type === "load") return `Laden in ${leg.fromCity}`;
-  if (leg.type === "drive") return `Fahrt nach ${leg.toCity}`;
-  if (leg.type === "unload") return `Entladen in ${leg.toCity}`;
+  if (leg.type === "load" || leg.type === "loading") return `Laden in ${leg.fromCity}`;
+  if (leg.type === "drive" || leg.type === "loaded_drive") return `Fahrt nach ${leg.toCity}`;
+  if (leg.type === "unload" || leg.type === "unloading") return `Entladen in ${leg.toCity}`;
+  if (leg.type === "break") return `Fahrpause bis ${clockOf(leg.endMin)}`;
+  if (leg.type === "daily_rest") return `Ruhezeit bis ${clockOf(leg.endMin)}`;
   return leg.type;
 }
 
