@@ -404,13 +404,15 @@ export function cancelPrivateActivity(state, { appointmentId }) {
 export function processDailyMaintenance(state, midnight) {
   const items = (state.private?.purchases?.items || []).filter(i => i.status === "active");
   let totalMaintenance = 0;
+  let paid = 0;
+  let unpaid = 0;
   for (const item of items) {
     totalMaintenance += item.maintenancePerDayCents || 0;
   }
   if (totalMaintenance > 0) {
     const bal = state.private?.accountCents || 0;
-    const paid = Math.min(bal, totalMaintenance);
-    const unpaid = totalMaintenance - paid;
+    paid = Math.min(bal, totalMaintenance);
+    unpaid = totalMaintenance - paid;
     if (paid > 0) {
       state.private.accountCents -= paid;
       state.bookings.push({ min: midnight, cause: "Unterhalt: Anschaffungen", amountCents: -paid, account: "private", refId: "maintenance_daily" });
