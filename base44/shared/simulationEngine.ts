@@ -676,11 +676,11 @@ function processEventsAt(state, m, log) {
     state.appointments.push(ap);
     log.push({ type: "invitation_appeared", appointment: ap.id, text: tpl.text });
   }
-  // 7. Erfolgsprüfung nach jedem Ereignis
-  const newAchs = checkAchievements(state, m);
-  if (newAchs.length) log.push({ type: "achievements_unlocked", achievements: newAchs, atMin: m });
-  // 7b. Belohnungsansprueche pruefen (Auftrag 26)
-  checkRewardClaims(state);
+  // 7. Erfolgsprüfung und Belohnungsansprueche: Nur noch am Ende von
+  // applyCommand (siehe unten), nicht mehr nach jedem einzelnen Ereignis.
+  // Beide sind idempotent und checkAchievements ruft computeCompanyValue auf,
+  // das alle Fahrzeuge/Anlagen iteriert — bei der Zeitautomatik mit vielen
+  // Ereignissen pro Tick war das der CPU-Flaschenhals.
 }
 function advanceTo(state, targetMin, log) {
   let t = state.gameTime;
