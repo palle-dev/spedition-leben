@@ -141,6 +141,12 @@ import {
   migrateInvestment, processMarketTick, getInvestmentEventTimes,
   handleInvestmentCommand,
 } from "./investmentEngine.ts";
+import {
+  migrateBranches, checkBranchRequirements, openBranch, renameBranch, closeBranch,
+  moveVehicle, moveDriver, previewMoveVehicle, previewMoveDriver,
+  assignDispatcherToBranch, getBranchStats, processDriverTravels,
+  getDriverTravelEventTimes, creditBranchDelivery,
+} from "./branchEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -426,6 +432,8 @@ function earliestEventAfter(state, t, maxMin) {
   if (state.investment?.market) {
     for (const tm of getInvestmentEventTimes(state, t, maxMin)) cand(tm);
   }
+  // Fahrer-Reisen (Filialverschiebung)
+  for (const tm of getDriverTravelEventTimes(state, t, maxMin)) cand(tm);
   return best;
 }
 function completeTrip(state, trip, m, log) {
@@ -446,6 +454,11 @@ function completeTrip(state, trip, m, log) {
   vehicle.status = "free"; vehicle.tripId = null; vehicle.locationCity = finalCity;
   vehicle.condition = Math.max(0, vehicle.condition - 1);
   driver.locationCity = finalCity;
+  // Filialverschiebung: Ziel-Filiale übernehmen, wenn Trip als Überstellung markiert
+  if (trip.targetBranchId) {
+    vehicle.branchId = trip.targetBranchId;
+    driver.branchId = trip.targetBranchId;
+  }
 
   // Fahrer-Zähler aktualisieren (neues Fahrerzeitmodell)
   if (trip.legacyMode) {
@@ -483,6 +496,7 @@ function completeTrip(state, trip, m, log) {
   if (onTime) { state.stats.timelyDeliveries++; state.stats.consecutiveTimely = (state.stats.consecutiveTimely || 0) + 1; }
   else { state.stats.consecutiveTimely = 0; }
   state.stats.totalRevenueCents = (state.stats.totalRevenueCents || 0) + payment;
+  creditBranchDelivery(state, vehicle, payment);
   const newAchs = checkAchievements(state, m);
   if (newAchs.length) log.push({ type: "achievements_unlocked", achievements: newAchs, atMin: m });
   if (state.tutorial.active && state.tutorial.step === 2) state.tutorial.step = 3;
@@ -645,6 +659,8 @@ function processEventsAt(state, m, log) {
   processFinancingEvents(state, m, log);
   // 3e.2 Freistellung nach Trip-Ende (Auftrag 18)
   processReleaseAfterTrip(state, m, log);
+  // 3e.4 Fahrer-Reisen abschließen (Filialverschiebung)
+  processDriverTravels(state, m, log);
   // 3e.3 Tatsächlicher Austritt bei Fristende (Auftrag 18)
   processEmployeeExit(state, m, log);
   // 4. Tagesabrechnung (Mitternacht)
@@ -1057,6 +1073,7 @@ export function applyCommand(state, command, params) {
   migrateTraining(state);
   migrateDangerousGoods(state);
   migrateInvestment(state);
+  migrateBranches(state);
   if (state.bookings && state.bookings.length > 200) state.bookings = state.bookings.slice(-200);
   // Historie begrenzen: abgeschlossene Touren, Aufträge und Termine älter als 30 Tage
   // entfernen. Hält den Zustand kompakt und beschleunigt Laden/Speichern bei langen Spielen.

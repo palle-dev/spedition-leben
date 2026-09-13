@@ -75,6 +75,13 @@ export const INVITATION_COST = 6000; // Cent
 export const STRESS_MAINT_THRESHOLD = 80;
 export const MAINT_STRESS_FACTOR = 1.25;
 
+// ---------- Filialverwaltung ----------
+export const BRANCH_OPEN_FEE = 5000000; // 50.000 € Eröffnungsgebühr
+export const BRANCH_MIN_GAME_DAY = 3; // Mindest-Spieltag vor Eröffnung
+export const BRANCH_MIN_CAPITAL_RATIO = 2; // Firmenkonto muss >= 2× Gebühr sein
+export const DRIVER_TRAVEL_COST_PER_KM = 15; // 0,15 €/km Bahn/Bus-Ticket (Cent)
+export const DRIVER_TRAVEL_SPEED = 80; // km/h durchschnittliche Reisegeschwindigkeit
+
 // Kündigungsfrist (Auftrag 18): 7 Spieltage = 10.080 Minuten
 export const NOTICE_PERIOD_MIN = 10080;
 
