@@ -768,6 +768,13 @@ export function suggestTours(state, opts) {
     ) : [];
 
     const allOrders = [...acceptedOrders, ...offeredOrders];
+    // CPU-Schutz: die Doppel-Tour-Suche ist O(n²). Bei vielen Aufträgen
+    // wird die Liste auf die Top-12 nach Vergütung begrenzt, damit die
+    // kombinatorische Explosion (und damit CPU-Timeouts) vermieden wird.
+    if (allOrders.length > 12) {
+      allOrders.sort((a, b) => (b.paymentCents || 0) - (a.paymentCents || 0));
+      allOrders.length = 12;
+    }
 
     // Finde die beste Einzel- oder Doppel-Tour
     let bestPlan = null;

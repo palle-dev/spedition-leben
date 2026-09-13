@@ -785,7 +785,7 @@ function processDispatcher(state, emp, m, log) {
 
   // suggestTours berücksichtigt auch ruhende Fahrer und zurückkehrende Fahrzeuge
   const result = suggestTours(state, {
-    vehicleIds: assignedVehicleIds, earliestStart: m, horizonMin: 72 * 60,
+    vehicleIds: assignedVehicleIds, earliestStart: m, horizonMin: 48 * 60,
     desiredEndCity: null, latestReturnMin: null, mode: "balanced", acceptNew,
   });
 
@@ -915,7 +915,8 @@ function triggerDispatcherPlanning(state, m, log) {
     if (emp.role !== "dispatcher" && emp.role !== "dispatcher_senior") continue;
     if (emp.workMode !== "autonomous" && emp.workMode !== "dispatch_accepted") continue;
     if ((emp.assignedVehicleIds || []).length === 0) continue;
-    if (emp.lastDecisionMin === m) continue;
+    // CPU-Schutz: höchstens alle 30 Spielminuten pro Disponent, nicht bei jedem Ereignis.
+    if (m - (emp.lastDecisionMin || 0) < 30) continue;
     processDispatcher(state, emp, m, log);
   }
 }
