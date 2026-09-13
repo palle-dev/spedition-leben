@@ -1263,14 +1263,14 @@ export function applyCommand(state, command, params) {
       ensureNotBlocked(state);
       if (state.openCosts.some(o => o.account === "company")) throw new Error("Es gibt offene betriebliche Kosten. Bitte bezahle diese zuerst.");
       if (state.company.accountCents < VEHICLE_PRICE) throw new Error("Firmenkonto reicht für den Lkw-Kauf (30.000 €) nicht aus.");
+      const buyBranch = p.branchId ? state.branches.find(b => b.id === p.branchId) : state.branches[0];
+      if (!buyBranch || buyBranch.status !== "active") throw new Error("Keine aktive Filiale verfügbar.");
       addBooking(state, state.gameTime, "Fahrzeugkauf", -VEHICLE_PRICE, "company", "buy");
-      const v = {
-        id: uid(state, "v"), branchId: "b1", type: STANDARD_TRUCK.type, capacityTons: 12,
+      const v = { id: uid(state, "v"), branchId: buyBranch.id, type: STANDARD_TRUCK.type, capacityTons: 12,
         consumptionPer100km: 28, bookValueCents: VEHICLE_PRICE, condition: 85,
-        locationCity: "Hamburg", status: "free", tripId: null, maintenanceUntil: null,
+        locationCity: buyBranch.city, status: "free", tripId: null, maintenanceUntil: null,
         ownership_type: "owned", odometerKm: 0, acquiredAtMin: state.gameTime, referencePriceCents: VEHICLE_PRICE,
-        markedForSale: false, saleOffer: null,
-      };
+        markedForSale: false, saleOffer: null, };
       state.vehicles.push(v);
       registerAsset(state, {
         vehicleId: v.id, account: "1200",
@@ -2113,7 +2113,7 @@ export function applyCommand(state, command, params) {
 
     case "leaseTruck": {
       ensureNotBlocked(state);
-      const r = leaseTruck(state, { provisionCity: p.provisionCity, offerId: p.offerId });
+      const r = leaseTruck(state, { provisionCity: p.provisionCity, offerId: p.offerId, branchId: p.branchId });
       result = r;
       break;
     }

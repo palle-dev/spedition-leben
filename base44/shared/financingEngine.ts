@@ -535,17 +535,20 @@ export function getAllLeasingOffers() {
   return [LEASING_OFFERS.standard_flex, LEASING_OFFERS.standard];
 }
 
-export function leaseTruck(state, { provisionCity, offerId } = {}) {
+export function leaseTruck(state, { provisionCity, offerId, branchId } = {}) {
   const offer = getLeasingOffer(offerId);
   const access = checkFinancingAccess(state, { type: "leasing", offerId: offer.id, provisionCity });
   if (!access.allowed) throw new Error(access.blockingReasons.join(" "));
 
   if (!provisionCity) provisionCity = offer.returnLocationCity;
+  const leaseBranch = branchId ? state.branches.find(b => b.id === branchId)
+    : state.branches.find(b => b.city === provisionCity) || state.branches[0];
+  if (!leaseBranch || leaseBranch.status !== "active") throw new Error("Keine aktive Filiale verfügbar.");
   const startMin = state.gameTime;
 
   const vehicleId = uid(state, "v");
   const vehicle = {
-    id: vehicleId, branchId: "b1", type: offer.vehicleType,
+    id: vehicleId, branchId: leaseBranch.id, type: offer.vehicleType,
     capacityTons: offer.capacityTons, consumptionPer100km: offer.consumptionPer100km,
     bookValueCents: 0, condition: 100, locationCity: provisionCity,
     status: "free", tripId: null, maintenanceUntil: null,

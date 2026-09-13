@@ -33,6 +33,9 @@ export default function Personnel() {
   const [jobPrefill, setJobPrefill] = useState(null);
   const [teamFilter, setTeamFilter] = useState("all");
   const [teamSearch, setTeamSearch] = useState("");
+  const [hireBranchId, setHireBranchId] = useState(null);
+  const activeBranches = (state.branches || []).filter(b => b.status === "active");
+  const selectedHireBranchId = hireBranchId || (activeBranches[0]?.id || null);
 
   const openCompany = state.openCosts.some(o => o.account === "company");
   const drivers = state.drivers || [];
@@ -51,8 +54,9 @@ export default function Personnel() {
   async function hire(app) {
     setBusyId(app.id);
     try {
-      await send("hireEmployee", { applicantId: app.id });
-      showToast(`${app.name} als ${roleLabel(app.role)} eingestellt.`, "success");
+      await send("hireEmployee", { applicantId: app.id, branchId: selectedHireBranchId });
+      const branch = activeBranches.find(b => b.id === selectedHireBranchId);
+      showToast(`${app.name} als ${roleLabel(app.role)} in ${branch?.city || 'Hamburg'} eingestellt.`, "success");
     } catch (e) {
       showToast(e.message, "error");
     } finally {

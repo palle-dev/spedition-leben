@@ -4,6 +4,7 @@ import { formatEuro, formatGameTime, PERSONNEL_ROLES } from "@/lib/gameData";
 import { roleLabel } from "@/lib/displayHelpers";
 import { ROLE_LABELS, paginate, totalPages } from "@/lib/personnelMarketData";
 import ApplicantCard from "@/components/personnel/ApplicantCard";
+import BranchSelector from "@/components/branches/BranchSelector";
 import Drawer from "@/components/ui/Drawer";
 import Portrait from "@/components/ui/Portrait";
 import { Search, RotateCcw, Briefcase, ChevronLeft, ChevronRight, Truck, Headset, Sparkles, Wrench, Calculator, Users, Star, UserPlus, MapPin, Clock } from "lucide-react";
@@ -26,8 +27,11 @@ export default function ApplicantBrowser({ onPostJob, dailyCosts }) {
   const [page, setPage] = useState(1);
   const [busyId, setBusyId] = useState(null);
   const [detailApp, setDetailApp] = useState(null);
+  const [hireBranchId, setHireBranchId] = useState(null);
 
   const applicants = state.availableApplicants || [];
+  const activeBranches = (state.branches || []).filter(b => b.status === "active");
+  const selectedHireBranchId = hireBranchId || (activeBranches[0]?.id || null);
   const watchlist = state.personnelMarket?.watchlist || [];
   const openCompany = state.openCosts.some(o => o.account === "company");
   const nextWaveLabel = state.personnelMarket?.nextDemandWaveMin
@@ -86,8 +90,9 @@ export default function ApplicantBrowser({ onPostJob, dailyCosts }) {
   async function hire(app) {
     setBusyId(app.id);
     try {
-      await send("hireEmployee", { applicantId: app.id });
-      showToast(`${app.name} als ${roleLabel(app.role)} eingestellt.`, "success");
+      await send("hireEmployee", { applicantId: app.id, branchId: selectedHireBranchId });
+      const branch = activeBranches.find(b => b.id === selectedHireBranchId);
+      showToast(`${app.name} als ${roleLabel(app.role)} in ${branch?.city || 'Hamburg'} eingestellt.`, "success");
     } catch (e) {
       showToast(e.message, "error");
     } finally {
@@ -114,12 +119,15 @@ export default function ApplicantBrowser({ onPostJob, dailyCosts }) {
               {total} Bewerber verfügbar · Nächste Welle: {nextWaveLabel}
             </p>
           </div>
-          <button
-            onClick={onPostJob}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-2 bg-lime/10 border border-lime/30 text-lime text-sm font-medium hover:bg-lime/20 transition"
-          >
-            <Briefcase className="w-4 h-4" /> Stelle ausschreiben
-          </button>
+          <div className="flex items-center gap-2">
+            <BranchSelector branches={activeBranches} value={selectedHireBranchId} onChange={setHireBranchId} />
+            <button
+              onClick={onPostJob}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 bg-lime/10 border border-lime/30 text-lime text-sm font-medium hover:bg-lime/20 transition"
+            >
+              <Briefcase className="w-4 h-4" /> Stelle ausschreiben
+            </button>
+          </div>
         </div>
 
         {/* Offene Stellen */}

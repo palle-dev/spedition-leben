@@ -7,6 +7,7 @@ import StatusBadge from "@/components/ui/StatusBadge";
 import SellVehicleDialog from "@/components/fleet/SellVehicleDialog";
 import WorkshopSection from "@/components/fleet/WorkshopSection";
 import DgSection from "@/components/fleet/DgSection";
+import BranchSelector from "@/components/branches/BranchSelector";
 import { Wrench, Plus, Truck, MapPin, Gauge, FileText, TrendingUp, FileCheck, Settings, Flame } from "lucide-react";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
 
@@ -18,6 +19,9 @@ export default function Fleet() {
   const [leasing, setLeasing] = useState(false);
   const [sellVehicle, setSellVehicle] = useState(null);
   const [tab, setTab] = useState("fleet");
+  const [buyBranchId, setBuyBranchId] = useState(null);
+  const activeBranches = (state.branches || []).filter(b => b.status === "active");
+  const selectedBranchId = buyBranchId || (activeBranches[0]?.id || null);
   const stressed = state.private.stress >= 80;
   const maintCost = stressed ? Math.round(150000 * 1.25) : 150000;
   const openCompany = state.openCosts.some(o => o.account === "company");
@@ -33,13 +37,21 @@ export default function Fleet() {
   }
   async function buy() {
     setBuying(true);
-    try { const r = await send("buyVehicle", {}); showToast("Neuer Lkw in Hamburg übernommen.", "success"); }
+    try {
+      const branch = activeBranches.find(b => b.id === selectedBranchId) || activeBranches[0];
+      await send("buyVehicle", { branchId: selectedBranchId });
+      showToast(`Neuer Lkw in ${branch?.city || 'Hamburg'} übernommen.`, "success");
+    }
     catch (e) { showToast(e.message, "error"); }
     finally { setBuying(false); }
   }
   async function lease() {
     setLeasing(true);
-    try { const r = await send("leaseTruck", { provisionCity: "Hamburg" }); showToast(`Leasing-Lkw in Hamburg bereitgestellt.`, "success"); }
+    try {
+      const branch = activeBranches.find(b => b.id === selectedBranchId) || activeBranches[0];
+      await send("leaseTruck", { provisionCity: branch?.city || "Hamburg", branchId: selectedBranchId });
+      showToast(`Leasing-Lkw in ${branch?.city || 'Hamburg'} bereitgestellt.`, "success");
+    }
     catch (e) { showToast(e.message, "error"); }
     finally { setLeasing(false); }
   }
@@ -63,7 +75,8 @@ export default function Fleet() {
           </div>
         </div>
         {tab === "fleet" && (
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <BranchSelector branches={activeBranches} value={selectedBranchId} onChange={setBuyBranchId} />
             <button onClick={lease} disabled={leasing || state.company.accountCents < 150000}
               className="flex items-center gap-2 rounded-lg px-4 py-2.5 bg-white/5 border border-white/10 text-sm font-medium hover:bg-white/10 disabled:opacity-40 transition active:scale-[0.98]">
               {leasing ? <span className="w-4 h-4 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" /> : <FileText className="w-4 h-4" />} Leasen (1.500 €)
