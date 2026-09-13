@@ -2,11 +2,11 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { formatEuro, formatGameTime } from "@/lib/gameData";
 import { getOfferTypeLabel, getOfferTypeStyle, formatPaymentTerms } from "@/lib/marketData";
-import { MapPin, ArrowRight, Clock, Package, Zap, CalendarClock, Check, Route as RouteIcon, Search, Flame, Droplet } from "lucide-react";
+import { MapPin, ArrowRight, Clock, Package, Zap, CalendarClock, Check, Route as RouteIcon, Search, Flame, Droplet, Building2 } from "lucide-react";
 
 // Angebot-Karte für die Frachtbörse.
 // Zeigt Kundendaten, Route, Fracht, Preis, Fristen und Aktionen.
-export default function OfferCard({ offer, onAccept, busy }) {
+export default function OfferCard({ offer, onAccept, busy, branchName, branchCity }) {
   const navigate = useNavigate();
   const typeIcon = offer.offerType === "express" ? Zap : offer.offerType === "advance" ? CalendarClock : Package;
 
@@ -29,6 +29,12 @@ export default function OfferCard({ offer, onAccept, busy }) {
         <ArrowRight className="w-3 h-3 shrink-0" />
         <span className="truncate">{offer.toCity}</span>
       </div>
+
+      {branchName && (
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70">
+          <Building2 className="w-2.5 h-2.5" /> Zuständig: {branchName}{branchCity ? ` (${branchCity})` : ""}
+        </div>
+      )}
 
       <div className="flex items-center gap-2 flex-wrap">
         <span className={`text-[10px] px-1.5 py-0.5 rounded border inline-flex items-center gap-1 ${getOfferTypeStyle(offer.offerType)}`}>

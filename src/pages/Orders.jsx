@@ -1,11 +1,24 @@
 import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
-import { formatEuro, formatGameTime, CITIES } from "@/lib/gameData";
+import { formatEuro, formatGameTime, CITIES, getDistance } from "@/lib/gameData";
 import { getMarketStats } from "@/lib/marketData";
 import StatusBadge from "@/components/ui/StatusBadge";
 import OfferCard from "@/components/orders/OfferCard";
 import { Check, X, MapPin, ArrowRight, Clock, Route as RouteIcon, Truck, TrendingUp, Calendar, Package } from "lucide-react";
+
+// Ermittelt die zuständige Filiale für einen Abholort (nächste aktive Filiale).
+function nearestBranchFor(state, fromCity) {
+  const branches = (state.branches || []).filter(b => b.status === "active");
+  if (branches.length === 0) return null;
+  if (branches.length === 1) return branches[0];
+  let best = branches[0], bestDist = getDistance(branches[0].city, fromCity);
+  for (let i = 1; i < branches.length; i++) {
+    const d = getDistance(branches[i].city, fromCity);
+    if (d < bestDist) { best = branches[i]; bestDist = d; }
+  }
+  return best;
+}
 
 export default function Orders() {
   const { state, send, showToast } = useGame();
@@ -17,6 +30,7 @@ export default function Orders() {
   const [filterType, setFilterType] = useState("");
   const [filterFeasible, setFilterFeasible] = useState("");
   const [filterDg, setFilterDg] = useState("");
+  const [filterBranch, setFilterBranch] = useState("");
   const [sortBy, setSortBy] = useState("deadline");
 
   const marketStats = getMarketStats(state);
@@ -51,18 +65,19 @@ export default function Orders() {
     if (filterFeasible === "no") list = list.filter(o => o.feasible === false);
     if (filterDg === "yes") list = list.filter(o => o.isDangerousGoods);
     if (filterDg === "no") list = list.filter(o => !o.isDangerousGoods);
+    if (filterBranch) list = list.filter(o => (nearestBranchFor(state, o.fromCity)?.id || null) === filterBranch);
     return list.sort((a, b) => {
       if (sortBy === "payment") return b.paymentCents - a.paymentCents;
       if (sortBy === "accept") return a.acceptDeadlineMin - b.acceptDeadlineMin;
       return a.deliveryDeadlineMin - b.deliveryDeadlineMin;
     });
-  }, [state.orders, search, filterCity, filterType, filterFeasible, filterDg, sortBy]);
+  }, [state.orders, state.branches, search, filterCity, filterType, filterFeasible, filterDg, filterBranch, sortBy]);
 
   const active = state.orders.filter(o => ["angenommen", "unterwegs"].includes(o.status));
   const done = state.orders.filter(o => ["geliefert", "storniert", "expired"].includes(o.status)).slice(-12);
 
   function resetFilter() {
-    setSearch(""); setFilterCity(""); setFilterType(""); setFilterFeasible(""); setFilterDg(""); setSortBy("deadline");
+    setSearch(""); setFilterCity(""); setFilterType(""); setFilterFeasible(""); setFilterDg(""); setFilterBranch(""); setSortBy("deadline");
   }
 
   return (
@@ -117,6 +132,12 @@ export default function Orders() {
               <option value="yes">Nur Gefahrgut</option>
               <option value="no">Kein Gefahrgut</option>
             </select>
+            {((state.branches || []).filter(b => b.status === "active").length > 1) && (
+              <select value={filterBranch} onChange={e => setFilterBranch(e.target.value)} className="px-3 py-1.5 rounded-lg bg-surface-2 border border-white/10 text-xs text-foreground focus:border-lime/50 outline-none">
+                <option value="">Alle Filialen</option>
+                {(state.branches || []).filter(b => b.status === "active").map(b => <option key={b.id} value={b.id}>{b.name} ({b.city})</option>)}
+              </select>
+            )}
             <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="px-3 py-1.5 rounded-lg bg-surface-2 border border-white/10 text-xs text-foreground focus:border-lime/50 outline-none">
               <option value="deadline">Nach Lieferfrist</option>
               <option value="accept">Nach Annahmefrist</option>
@@ -137,7 +158,10 @@ export default function Orders() {
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {offered.map(o => <OfferCard key={o.id} offer={o} onAccept={accept} busy={busyId === o.id} />)}
+              {offered.map(o => {
+                const nb = nearestBranchFor(state, o.fromCity);
+                return <OfferCard key={o.id} offer={o} onAccept={accept} busy={busyId === o.id} branchName={nb?.name} branchCity={nb?.city} />;
+              })}
             </div>
           )}
         </div>
