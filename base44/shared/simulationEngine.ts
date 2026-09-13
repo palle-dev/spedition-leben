@@ -794,9 +794,14 @@ function processDispatcher(state, emp, m, log) {
   // Firmenpool: Alle nicht verkauften, nicht vorgemerkten Fahrzeuge.
   // Disponenten teilen sich den Pool — verschiedene Schichten können
   // nacheinander auf dieselben Lkw zugreifen (24/7-Betrieb).
-  const poolVehicles = state.vehicles.filter(v =>
+  // Wenn ein Disponent einer Filiale zugeordnet ist, disponiert er nur
+  // deren Fahrzeuge (Filial-Modus). Ohne Zuordnung: gesamter Firmenpool.
+  let poolVehicles = state.vehicles.filter(v =>
     v.status !== "sold" && v.status !== "archived" && !v.markedForSale
   );
+  if (emp.assignedBranchId) {
+    poolVehicles = poolVehicles.filter(v => v.branchId === emp.assignedBranchId);
+  }
   const poolVehicleIds = poolVehicles.map(v => v.id);
   if (poolVehicles.length === 0) {
     if ((emp.suggestions || []).length > 0) {
@@ -1439,7 +1444,10 @@ export function applyCommand(state, command, params) {
       if (state.hiredApplicantNames.includes(app.name)) throw new Error("Dieser Bewerber wurde bereits eingestellt.");
       if (state.company.accountCents < HIRE_FEE) throw new Error("Firmenkonto reicht für die Einstellungsgebühr (500 €) nicht aus.");
       addBooking(state, state.gameTime, "Einstellung: " + app.name, -HIRE_FEE, "company", "hire:" + app.name);
-      const d = { id: uid(state, "d"), name: app.name, branchId: "b1", costPerDayCents: DRIVER_COST_PER_DAY, locationCity: "Hamburg", status: "free", restUntil: null, employedDay: dayOf(state.gameTime), portraitId: app.portraitId || null, satisfaction: 70, satisfactionReasons: [], employmentStatus: "employed", attendance: "present", consecutiveLowSatisfactionDays: 0 };
+      const hireBranch = p.branchId ? state.branches.find(b => b.id === p.branchId) : state.branches[0];
+      const hireCity = hireBranch ? hireBranch.city : "Hamburg";
+      const hireBranchId = hireBranch ? hireBranch.id : "b1";
+      const d = { id: uid(state, "d"), name: app.name, branchId: hireBranchId, costPerDayCents: DRIVER_COST_PER_DAY, locationCity: hireCity, status: "free", restUntil: null, employedDay: dayOf(state.gameTime), portraitId: app.portraitId || null, satisfaction: 70, satisfactionReasons: [], employmentStatus: "employed", attendance: "present", consecutiveLowSatisfactionDays: 0 };
       state.drivers.push(d);
       state.hiredApplicantNames.push(app.name);
       state.availableApplicants = state.availableApplicants.filter(a => a.id !== app.id);
@@ -1469,11 +1477,14 @@ export function applyCommand(state, command, params) {
       if (state.company.accountCents < hireFee) throw new Error("Firmenkonto reicht für die Einstellungsgebühr (" + (hireFee / 100) + " €) nicht aus.");
       addBooking(state, state.gameTime, "Einstellung: " + app.name + " (" + roleDef.label + ")", -hireFee, "company", "hire:" + app.id);
 
+      const hireBranch2 = p.branchId ? state.branches.find(b => b.id === p.branchId) : state.branches[0];
+      const hireCity2 = hireBranch2 ? hireBranch2.city : "Hamburg";
+      const hireBranchId2 = hireBranch2 ? hireBranch2.id : "b1";
       if (role === "driver") {
         // Fahrer werden in das bestehende drivers-Array aufgenommen
         const d = {
-          id: uid(state, "d"), name: app.name, branchId: "b1",
-          costPerDayCents: dailyWage, locationCity: "Hamburg", status: "free",
+          id: uid(state, "d"), name: app.name, branchId: hireBranchId2,
+          costPerDayCents: dailyWage, locationCity: hireCity2, status: "free",
           restUntil: null, employedDay: dayOf(state.gameTime),
           portraitId: app.portraitId || null, satisfaction: 70, satisfactionReasons: [],
           employmentStatus: "employed", attendance: "present", consecutiveLowSatisfactionDays: 0,
@@ -1483,8 +1494,8 @@ export function applyCommand(state, command, params) {
       } else {
         // Nicht fahrende Angestellte werden in das employees-Array aufgenommen
         const emp = {
-          id: uid(state, "emp"), name: app.name, role, branchId: "b1",
-          locationCity: "Hamburg", employedDay: dayOf(state.gameTime),
+          id: uid(state, "emp"), name: app.name, role, branchId: hireBranchId2,
+          locationCity: hireCity2, employedDay: dayOf(state.gameTime),
           costPerDayCents: dailyWage, hireFeeCents: hireFee,
           satisfaction: 70, satisfactionReasons: [],
           employmentStatus: "employed", exitDate: null,
@@ -1551,12 +1562,24 @@ export function applyCommand(state, command, params) {
       if (p.workMode && ["suggestions", "dispatch_accepted", "autonomous"].includes(p.workMode)) {
         emp.workMode = p.workMode;
       }
+      // Filiale zuweisen (optional): Disponent disponiert nur deren Fahrzeuge
+      if (p.branchId !== undefined) {
+        if (p.branchId === null) {
+          emp.assignedBranchId = null;
+        } else {
+          const b = state.branches.find(x => x.id === p.branchId);
+          if (!b) throw new Error("Filiale nicht gefunden.");
+          if (b.status !== "active") throw new Error("Filiale ist nicht aktiv.");
+          emp.assignedBranchId = p.branchId;
+          emp.locationCity = b.city;
+        }
+      }
       // Schicht zuweisen (8-Stunden-Schicht für 24/7-Betrieb)
       if (p.shiftStart != null) emp.shiftStart = p.shiftStart;
       if (p.shiftEnd != null) emp.shiftEnd = p.shiftEnd;
       // Alte Vorschläge aufräumen
       emp.suggestions = [];
-      result = { ok: true, employeeId: emp.id, workMode: emp.workMode, shiftStart: emp.shiftStart ?? SERVICE_START_MIN, shiftEnd: emp.shiftEnd ?? SERVICE_END_MIN };
+      result = { ok: true, employeeId: emp.id, workMode: emp.workMode, shiftStart: emp.shiftStart ?? SERVICE_START_MIN, shiftEnd: emp.shiftEnd ?? SERVICE_END_MIN, assignedBranchId: emp.assignedBranchId || null };
       break;
     }
 
