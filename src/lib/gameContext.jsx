@@ -310,7 +310,7 @@ export function GameProvider({ children }) {
     } catch (e) {
       // Verbindungsstatus verfolgen
       syncFailCountRef.current++;
-      if (syncFailCountRef.current >= 2) setConnectionState("reconnecting");
+      if (syncFailCountRef.current >= 4) setConnectionState("reconnecting");
     } finally {
       syncInFlightRef.current = false;
     }
@@ -374,7 +374,7 @@ export function GameProvider({ children }) {
       return;
     }
     syncAutomation();
-    pollRef.current = setInterval(syncAutomation, 5000);
+    pollRef.current = setInterval(syncAutomation, 15000);
     return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
   }, [automationEnabled, syncAutomation]);
 
@@ -407,8 +407,9 @@ export function GameProvider({ children }) {
       unsub = base44.entities.GameState.subscribe((event) => {
         // Nur reagieren wenn es unser Spielstand ist
         if (event?.id === stateId || event?.data?.id === stateId) {
-          // Sofortigen Sync anstoßen (debounced durch syncInFlightRef)
-          syncAutomation();
+          // Debounced: nur syncen wenn letzter Sync >5s zurück liegt
+          const sinceLast = Date.now() - lastSyncRealMsRef.current;
+          if (sinceLast > 5000) syncAutomation();
         }
       });
       subscriptionRef.current = unsub;
