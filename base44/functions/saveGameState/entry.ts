@@ -14,19 +14,11 @@ export default async function (req) {
     const body = await req.json();
     const { stateId, state, expected_revision } = body || {};
     if (!stateId || !state) return Response.json({ error: "stateId und state erforderlich" }, { status: 400 });
+    if (expected_revision === undefined) return Response.json({ error: "expected_revision erforderlich" }, { status: 400 });
 
     const S = base44.asServiceRole.entities.GameState;
-    const rec = await S.get(stateId);
-    if (!rec || rec.owner_id !== user.id) {
-      return Response.json({ error: "Kein Zugriff auf diesen Spielstand" }, { status: 403 });
-    }
-
-    if (expected_revision !== undefined && rec.revision !== expected_revision) {
-      return Response.json({ error: "Konflikt: Spielstand wurde gleichzeitig geändert", conflict: true, current_revision: rec.revision }, { status: 409 });
-    }
-
     const migrated = migrateState(state);
-    const newRev = rec.revision + 1;
+    const newRev = expected_revision + 1;
     const updateSet = {
       state: migrated,
       revision: newRev,
@@ -35,6 +27,10 @@ export default async function (req) {
       automation_enabled: !!migrated.timeControl?.enabled,
     };
 
+    // Atomares Update ohne vorherigen Lesezugriff – der Filter
+    // (id + owner_id + revision) stellt sicher, dass nur der berechtigte
+    // Nutzer mit der richtigen Revision schreibt. Bei 0 Treffern (Konflikt)
+    // ist ein Lesezugriff nötig, um die aktuelle Revision zu melden.
     const upd = await S.updateMany(
       { id: stateId, owner_id: user.id, revision: expected_revision },
       { $set: updateSet }
@@ -42,7 +38,10 @@ export default async function (req) {
 
     if (!upd || upd.updated !== 1) {
       const cur = await S.get(stateId);
-      return Response.json({ error: "Konflikt: Zustand wurde gleichzeitig geändert", conflict: true, current_revision: cur ? cur.revision : 0 }, { status: 409 });
+      if (!cur || cur.owner_id !== user.id) {
+        return Response.json({ error: "Kein Zugriff auf diesen Spielstand" }, { status: 403 });
+      }
+      return Response.json({ error: "Konflikt: Zustand wurde gleichzeitig geändert", conflict: true, current_revision: cur.revision }, { status: 409 });
     }
 
     return Response.json({ ok: true, revision: newRev, stateId });

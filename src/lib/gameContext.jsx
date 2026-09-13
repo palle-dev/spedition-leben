@@ -302,7 +302,8 @@ export function GameProvider({ children }) {
       if (timeAdvanced) {
         applyLoaded({ state: data.state, revision: revRef.current, stateId: idRef.current, result: data.result });
         setDirty(true);
-        await save(true);
+        // NICHT pro Tick speichern – Auto-Save (180s) und Visibility-Handler
+        // persistieren. Das verhindert "entity write traffic volume limit exceeded".
       }
       syncFailCountRef.current = 0;
       setConnectionState("connected");
@@ -378,7 +379,7 @@ export function GameProvider({ children }) {
   // ---- Auto-Save: alle 60 Sekunden, falls dirty ----
   useEffect(() => {
     if (!dirty) return;
-    const timer = setInterval(() => { if (dirty) save(true); }, 60000);
+    const timer = setInterval(() => { if (dirty) save(true); }, 180000);
     return () => clearInterval(timer);
   }, [dirty, save]);
 
