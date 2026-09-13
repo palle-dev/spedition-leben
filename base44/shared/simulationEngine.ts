@@ -684,14 +684,26 @@ function processEventsAt(state, m, log) {
 }
 function advanceTo(state, targetMin, log) {
   let t = state.gameTime;
+  // CPU-Schutz: begrenzt Verarbeitungsdauer und Ereignisanzahl pro Aufruf.
+  // Verhindert cpu-exceeded bei sehr langen Zeit-Sprüngen oder vielen Ereignissen.
+  // Bei vorzeitigem Abbruch wird gameTime auf die letzte verarbeitete Minute gesetzt;
+  // der nächste Tick/Sync setzt ab dort fort.
+  const startTime = Date.now();
+  const CPU_BUDGET_MS = 12000; // 12 s — Puffer unter dem Plattform-Limit
+  const MAX_EVENTS = 500;
+  let eventCount = 0;
+  let stopped = false;
   // eslint-disable-next-line no-constant-condition
   while (true) {
+    if (eventCount >= MAX_EVENTS || Date.now() - startTime > CPU_BUDGET_MS) { stopped = true; break; }
     const next = earliestEventAfter(state, t, targetMin);
     if (next === null) break;
     processEventsAt(state, next, log);
     t = next;
+    eventCount++;
   }
-  state.gameTime = targetMin;
+  state.gameTime = stopped ? t : targetMin;
+  if (stopped) log.push({ type: "advance_stopped", atMin: t, targetMin, reason: eventCount >= MAX_EVENTS ? "max_events" : "cpu_budget" });
 }
 
 // ---------- Dispositionsplanung ----------
