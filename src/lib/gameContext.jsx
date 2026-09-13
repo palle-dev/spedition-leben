@@ -194,7 +194,8 @@ export function GameProvider({ children }) {
     syncInFlightRef.current = true;
     try {
       const data = await applyCommandRemote({ state: stateRef.current, command: "syncAutomation", params: {} });
-      if (!data.result.events || data.result.events.length === 0) { syncInFlightRef.current = false; return; }
+      // Zustand IMMER aktualisieren — auch ohne Ereignisse advanced die Spielzeit.
+      // Früher wurde hier übersprungen, was dazu führte, dass die Automatik stehen blieb.
       const newState = data.state;
       stateRef.current = newState; setState(newState);
       saveToStorage(newState);
