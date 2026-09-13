@@ -118,10 +118,19 @@ export const PERSONNEL_ROLES = {
   accountant_senior:  { id: "accountant_senior",  label: "Erfahrene Buchhaltungskraft",   hireFeeCents: 70000,  costPerDayCents: 19000, capacity: 80 },
 };
 
-// Dienstzeiten für nicht fahrende Mitarbeiter — 24/7-Betrieb (rund um die Uhr)
-export const SERVICE_START_MIN = 0;
-export const SERVICE_END_MIN = 1440;
+// Dienstzeiten für nicht fahrende Mitarbeiter (Buchhaltung, Reinigung etc.)
+// Disponenten nutzen eigene Schichten (siehe SHIFT_TEMPLATES).
+export const SERVICE_START_MIN = 480;
+export const SERVICE_END_MIN = 960;
 export const SERVICE_INTERVAL_MIN = 15;
+
+// Schicht-Vorlagen für Disponenten (8-Stunden-Schichten für 24/7-Betrieb)
+export const SHIFT_TEMPLATES = [
+  { id: "early",  label: "Frühschicht",  startMin: 360,  endMin: 840,  desc: "06:00–14:00 Uhr" },
+  { id: "day",    label: "Tagschicht",   startMin: 480,  endMin: 960,  desc: "08:00–16:00 Uhr" },
+  { id: "late",   label: "Spätschicht",  startMin: 840,  endMin: 1200, desc: "14:00–22:00 Uhr" },
+  { id: "night",  label: "Nachtschicht", startMin: 1200, endMin: 360,  desc: "22:00–06:00 Uhr" },
+];
 
 // Bewerber-Namen-Pools pro Rolle (disjunkt von Fahrer-Pool)
 export const APPLICANT_NAMES = {

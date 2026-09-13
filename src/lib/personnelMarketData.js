@@ -8,6 +8,14 @@ export const APPLICANT_EXPIRY_MIN = 7 * 1440;
 export const BATCH_LIMIT = 200;
 export const REGULAR_WAVE_TIMES = [480, 840]; // 08:00 und 14:00
 
+// Schicht-Vorlagen für Disponenten (spiegelt SHIFT_TEMPLATES aus gameRules)
+export const SHIFT_TEMPLATES = [
+  { id: "early",  label: "Frühschicht",  startMin: 360,  endMin: 840,  desc: "06:00–14:00 Uhr" },
+  { id: "day",    label: "Tagschicht",   startMin: 480,  endMin: 960,  desc: "08:00–16:00 Uhr" },
+  { id: "late",   label: "Spätschicht",  startMin: 840,  endMin: 1200, desc: "14:00–22:00 Uhr" },
+  { id: "night",  label: "Nachtschicht", startMin: 1200, endMin: 360,  desc: "22:00–06:00 Uhr" },
+];
+
 // Rollen-Katalog (spiegelt PERSONNEL_ROLES aus gameRules)
 export const ROLES = [
   { id: "driver",            label: "Fahrer",                  hireFeeCents: 50000,  costPerDayCents: 10000, capacity: 0,  profile: "standard" },

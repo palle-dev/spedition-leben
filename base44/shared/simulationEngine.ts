@@ -10,7 +10,7 @@ import {
   DRIVER_COST_PER_DAY, BRANCH_COST_PER_DAY, PRIVATE_WITHDRAWAL_PER_DAY, PRIVATE_LIVING_PER_DAY,
   VEHICLE_PRICE, HIRE_FEE, MAINTENANCE_COST, MAINTENANCE_DURATION,
   INVITATION_COST, STRESS_MAINT_THRESHOLD, MAINT_STRESS_FACTOR,
-  PERSONNEL_ROLES, SERVICE_START_MIN, SERVICE_END_MIN, SERVICE_INTERVAL_MIN,
+  PERSONNEL_ROLES, SERVICE_START_MIN, SERVICE_END_MIN, SERVICE_INTERVAL_MIN, SHIFT_TEMPLATES,
   APPLICANT_NAMES, PORTRAIT_IDS, NOTICE_PERIOD_MIN,
   computeMarketValue, computeDealerOffer,
 } from "./gameRules.ts";
@@ -204,6 +204,19 @@ function ensureNotBlocked(state) {
     throw new Error("Du bist derzeit mit einer privaten Aktivität beschäftigt. Operative Aktionen sind bis " + formatGameTime(nextBlockEnd(state)) + " gesperrt.");
   }
 }
+
+// Prüft, ob ein Disponent innerhalb seiner Schicht ist (8-Stunden-Schicht).
+// Nachtschichten können über Mitternacht hinausgehen (startMin > endMin).
+function isDispatcherOnShift(emp, gameMinute) {
+  const clock = gameMinute % 1440;
+  const start = emp.shiftStart ?? SERVICE_START_MIN;
+  const end = emp.shiftEnd ?? SERVICE_END_MIN;
+  if (start <= end) {
+    return clock >= start && clock < end;
+  } else {
+    return clock >= start || clock < end;
+  }
+}
 function checkMilestones(state, min) {
   const set = (id, cond) => {
     const m = state.milestones.find(x => x.id === id);
@@ -335,12 +348,29 @@ function earliestEventAfter(state, t, maxMin) {
   if (!state.tutorialInviteCreated) cand(720);
   for (const d of state.drivers) { if (d.status === "resting" && d.restUntil !== null) cand(d.restUntil); }
   for (const v of state.vehicles) { if (v.status === "maintenance" && v.maintenanceUntil !== null) cand(v.maintenanceUntil); }
-  // Dienstzeiten für Angestellte (Disponenten, Reinigung, etc.)
-  const hasWorkingStaff = (state.employees || []).some(e => e.employmentStatus === "employed" && e.attendance === "present" && e.role !== "driver");
-  if (hasWorkingStaff) {
+  // Dienstzeiten für Angestellte (Buchhaltung/Reinigung tagsüber, Disponenten Schicht-basiert)
+  const hasNonDriverStaff = (state.employees || []).some(e => e.employmentStatus === "employed" && e.attendance === "present" && e.role !== "driver");
+  if (hasNonDriverStaff) {
     const dayStart = Math.floor(t / 1440) * 1440;
+    // Buchhaltung, Reinigung etc.: feste Dienstzeiten 08:00–16:00
     for (let st = dayStart + SERVICE_START_MIN; st <= dayStart + SERVICE_END_MIN; st += SERVICE_INTERVAL_MIN) {
       cand(st);
+    }
+    // Disponenten: Schicht-basierte Zeiten (inkl. Nacht, 2-Tage-Abdeckung für Mitternacht-Überlauf)
+    for (const emp of (state.employees || [])) {
+      if (emp.role !== "dispatcher" && emp.role !== "dispatcher_senior") continue;
+      if (!isActivelyEmployed(emp) || emp.attendance !== "present") continue;
+      const sStart = emp.shiftStart ?? SERVICE_START_MIN;
+      const sEnd = emp.shiftEnd ?? SERVICE_END_MIN;
+      for (let day = 0; day <= 1; day++) {
+        const base = dayStart + day * 1440;
+        if (sStart <= sEnd) {
+          for (let st = base + sStart; st <= base + sEnd; st += SERVICE_INTERVAL_MIN) cand(st);
+        } else {
+          for (let st = base + sStart; st < base + 1440; st += SERVICE_INTERVAL_MIN) cand(st);
+          for (let st = base; st <= base + sEnd; st += SERVICE_INTERVAL_MIN) cand(st);
+        }
+      }
     }
   }
   // Tour-Deployment-Startzeiten
@@ -602,8 +632,8 @@ function processEventsAt(state, m, log) {
   }
   // 3b.2 Ereignisgesteuerte Dispositionsplanung (außerhalb des regulären Diensttakts)
   triggerDispatcherPlanning(state, m, log);
-  // 3c. Angestellte verarbeiten (Disponenten, Reinigung, etc.) an Dienstzeitpunkten
-  if (m % 1440 >= SERVICE_START_MIN && m % 1440 <= SERVICE_END_MIN && m % SERVICE_INTERVAL_MIN === 0) {
+  // 3c. Angestellte verarbeiten (Disponenten Schicht-basiert, Buchhaltung/Reinigung tagsüber)
+  if (m % SERVICE_INTERVAL_MIN === 0) {
     processEmployees(state, m, log);
   }
   // 3d. Berichte generieren und Staff-Tasks verarbeiten
@@ -723,13 +753,15 @@ function planTrip(state, order, vehicle, driver) {
 // Disponenten erstellen Vorschläge (Modus A), disponieren (Modus B/C).
 // Reinigung, Werkstatt, Buchhaltung folgen in Etappe 2.
 function processEmployees(state, m, log) {
+  const clock = m % 1440;
+  const inServiceHours = clock >= SERVICE_START_MIN && clock < SERVICE_END_MIN;
   for (const emp of (state.employees || [])) {
     if (!isActivelyEmployed(emp)) continue;
     if (emp.attendance !== "present") continue;
     if (emp.role === "dispatcher" || emp.role === "dispatcher_senior") {
+      if (!isDispatcherOnShift(emp, m)) continue;
       processDispatcher(state, emp, m, log);
-    }
-    if (emp.role === "accountant" || emp.role === "accountant_senior") {
+    } else if (inServiceHours && (emp.role === "accountant" || emp.role === "accountant_senior")) {
       processAccountant(state, emp, m, log);
     }
   }
@@ -919,7 +951,6 @@ function processDispatcher(state, emp, m, log) {
 // Vermeidet Doppelverarbeitung in derselben Spielminute.
 function triggerDispatcherPlanning(state, m, log) {
   const clock = m % 1440;
-  if (clock < SERVICE_START_MIN || clock > SERVICE_END_MIN) return;
   if (clock % SERVICE_INTERVAL_MIN === 0) return; // Bereits durch processEmployees abgedeckt
   for (const emp of (state.employees || [])) {
     if (!isActivelyEmployed(emp)) continue;
@@ -927,6 +958,7 @@ function triggerDispatcherPlanning(state, m, log) {
     if (emp.role !== "dispatcher" && emp.role !== "dispatcher_senior") continue;
     if (emp.workMode !== "autonomous" && emp.workMode !== "dispatch_accepted") continue;
     if ((emp.assignedVehicleIds || []).length === 0) continue;
+    if (!isDispatcherOnShift(emp, m)) continue;
     // CPU-Schutz: höchstens alle 30 Spielminuten pro Disponent, nicht bei jedem Ereignis.
     if (m - (emp.lastDecisionMin || 0) < 30) continue;
     processDispatcher(state, emp, m, log);
@@ -1465,9 +1497,12 @@ export function applyCommand(state, command, params) {
       if (p.workMode && ["suggestions", "dispatch_accepted", "autonomous"].includes(p.workMode)) {
         emp.workMode = p.workMode;
       }
+      // Schicht zuweisen (8-Stunden-Schicht für 24/7-Betrieb)
+      if (p.shiftStart != null) emp.shiftStart = p.shiftStart;
+      if (p.shiftEnd != null) emp.shiftEnd = p.shiftEnd;
       // Alte Vorschläge aufräumen
       emp.suggestions = [];
-      result = { ok: true, employeeId: emp.id, assignedVehicleIds: vehicleIds, workMode: emp.workMode };
+      result = { ok: true, employeeId: emp.id, assignedVehicleIds: vehicleIds, workMode: emp.workMode, shiftStart: emp.shiftStart ?? SERVICE_START_MIN, shiftEnd: emp.shiftEnd ?? SERVICE_END_MIN };
       break;
     }
 

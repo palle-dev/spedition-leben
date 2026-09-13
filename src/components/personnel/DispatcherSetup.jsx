@@ -2,13 +2,17 @@ import React, { useState, useEffect } from "react";
 import { useGame } from "@/lib/gameContext";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
 import { formatEuro } from "@/lib/gameData";
-import { Truck, Check, X, Headset, Clock } from "lucide-react";
+import { Truck, Check, X, Headset, Clock, Moon } from "lucide-react";
+import { SHIFT_TEMPLATES } from "@/lib/personnelMarketData";
 
 // Disponenten-Einrichtung: Lkw zuweisen, Arbeitsweise festlegen.
 export default function DispatcherSetup({ employee, onClose }) {
   const { state, send, showToast } = useGame();
   const [selectedVehicles, setSelectedVehicles] = useState(employee.assignedVehicleIds || []);
   const [workMode, setWorkMode] = useState(employee.workMode || "suggestions");
+  const [shiftId, setShiftId] = useState(
+    SHIFT_TEMPLATES.find(s => s.startMin === (employee.shiftStart ?? 480) && s.endMin === (employee.shiftEnd ?? 960))?.id || "day"
+  );
   const [saving, setSaving] = useState(false);
 
   const capacity = employee.capacity || 6;
@@ -35,10 +39,13 @@ export default function DispatcherSetup({ employee, onClose }) {
   async function save() {
     setSaving(true);
     try {
+      const shift = SHIFT_TEMPLATES.find(s => s.id === shiftId) || SHIFT_TEMPLATES[1];
       await send("setupDispatcher", {
         employeeId: employee.id,
         vehicleIds: selectedVehicles,
         workMode,
+        shiftStart: shift.startMin,
+        shiftEnd: shift.endMin,
       });
       showToast("Disponent eingerichtet.", "success");
       onClose();
@@ -110,9 +117,31 @@ export default function DispatcherSetup({ employee, onClose }) {
         </div>
       </div>
 
-      {/* Dienstzeiten */}
-      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-        <Clock className="w-3 h-3" /> Dienstzeit: 08:00–16:00 Uhr · Entscheidungen alle 60 min
+      {/* Schicht */}
+      <div>
+        <div className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground mb-2 flex items-center gap-1.5">
+          <Clock className="w-3 h-3" /> Schicht (8 Stunden)
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {SHIFT_TEMPLATES.map(s => (
+            <button
+              key={s.id}
+              onClick={() => setShiftId(s.id)}
+              className={`text-left rounded-lg px-3 py-2 border transition ${
+                shiftId === s.id ? "border-lime/40 bg-lime/10" : "border-white/10 hover:border-white/20"
+              }`}
+            >
+              <div className={`text-sm font-medium flex items-center gap-1.5 ${shiftId === s.id ? "text-lime" : "text-foreground"}`}>
+                {s.id === "night" && <Moon className="w-3.5 h-3.5" />}
+                {s.label}
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">{s.desc}</div>
+            </button>
+          ))}
+        </div>
+        <div className="text-[10px] text-muted-foreground mt-2">
+          Mehrere Disponenten in verschiedenen Schichten ermöglichen 24/7-Betrieb.
+        </div>
       </div>
 
       {/* Speichern */}
