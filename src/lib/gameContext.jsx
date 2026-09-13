@@ -170,6 +170,13 @@ export function GameProvider({ children }) {
 
   // ---- Befehl über applyCommandRemote (Simulation serverseitig, kein DB-Zugriff) ----
   const send = useCallback(async (command, params) => {
+    // Warte auf laufende Automatik-Synchronisation, um Race-Conditions zu vermeiden:
+    // syncAutomation und send nutzen denselben stateRef als Eingabe. Ohne Synchronisation
+    // würde der später zurückkehrende Aufruf den Zustand des früheren überschreiben und
+    // dabei Dispositionsentscheidungen oder Spieleraktionen verlieren.
+    while (syncInFlightRef.current) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
     if (!stateRef.current) throw new Error("Kein Spielstand geladen");
     setBusy(true); sendInFlightRef.current = true;
     try {
