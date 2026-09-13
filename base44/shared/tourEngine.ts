@@ -55,11 +55,13 @@ export function earliestAvailable(state, vehicle, driver) {
     const trip = state.trips.find(tr => tr.id === driver.tripId || tr.driverId === driver.id);
     if (trip) t = Math.max(t, trip.endMin);
   }
-  // Prüfe Touren-Reservierungen
+  // Prüfe Touren-Reservierungen — pausierte Touren blockieren keine Ressourcen
+  // (sie können nicht starten und sollten vom Cleanup abgebrochen werden).
   for (const tour of state.tours || []) {
     if (tour.status !== "active" && tour.status !== "planned") continue;
+    if (tour.pauseReason) continue; // Pausierte Tour gibt Ressource frei
     if (tour.vehicleId === vehicle.id || tour.driverId === driver.id) {
-      if (tour.reservedUntil) t = Math.max(t, tour.reservedUntil);
+      if (tour.reservedUntil && tour.reservedUntil > state.gameTime) t = Math.max(t, tour.reservedUntil);
     }
   }
   return t;
