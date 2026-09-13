@@ -23,7 +23,21 @@ export default function BranchOverview() {
         const maintenance = vehicles.filter(v => v.status === "maintenance").length;
         const utilization = vehicles.length > 0 ? Math.round(onTrip / vehicles.length * 100) : 0;
 
-        const stats = b.stats || { revenueCents: 0, deliveries: 0, expensesCents: 0 };
+        // Filial-Statistiken: b.stats (kumuliert, von creditBranchDelivery gepflegt)
+        // mit Trip-basierter Berechnung abgleichen — nimmt das Maximum beider Quellen,
+        // da b.stats bei älteren Spielständen u.U. nicht zuverlässig gefüllt ist.
+        const bStats = b.stats || { revenueCents: 0, deliveries: 0, expensesCents: 0 };
+        const branchTrips = (state.trips || []).filter(t =>
+          t.type === "loaded" && t.status === "completed" &&
+          (state.vehicles.find(v => v.id === t.vehicleId)?.branchId === b.id)
+        );
+        const tripRevenue = branchTrips.reduce((s, t) => s + (t.paymentCents || 0), 0);
+        const tripDeliveries = branchTrips.length;
+        const stats = {
+          revenueCents: Math.max(bStats.revenueCents, tripRevenue),
+          deliveries: Math.max(bStats.deliveries, tripDeliveries),
+          expensesCents: bStats.expensesCents || 0,
+        };
         const dailyCost = b.costPerDayCents
           + drivers.reduce((s, d) => s + (d.costPerDayCents || 0), 0)
           + allStaff.reduce((s, e) => s + (e.costPerDayCents || 0), 0);
@@ -48,7 +62,7 @@ export default function BranchOverview() {
         };
       })
       .sort((a, b) => b.stats.revenueCents - a.stats.revenueCents);
-  }, [state.branches, state.vehicles, state.drivers, state.employees]);
+  }, [state.branches, state.vehicles, state.drivers, state.employees, state.trips]);
 
   const totals = useMemo(() => {
     return rows.reduce((acc, r) => {
