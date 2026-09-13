@@ -16,3 +16,31 @@ export async function gameCommand(payload) {
     throw e;
   }
 }
+
+// Wendet einen Befehl auf dem Client-Zustand serverseitig an (kein DB-Zugriff).
+export async function applyCommandRemote(payload) {
+  try {
+    const res = await base44.functions.invoke("applyCommandRemote", payload);
+    return res.data;
+  } catch (e) {
+    if (e.response?.data?.error) {
+      throw new Error(e.response.data.error);
+    }
+    throw e;
+  }
+}
+
+// Speichert einen clientseitig berechneten Spielstand in die Datenbank.
+export async function saveGameState(payload) {
+  try {
+    const res = await base44.functions.invoke("saveGameState", payload);
+    return res.data;
+  } catch (e) {
+    if (e.response?.data?.error) {
+      const err = new Error(e.response.data.error);
+      err.conflict = e.response.data.conflict;
+      throw err;
+    }
+    throw e;
+  }
+}

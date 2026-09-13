@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
-import { gameCommand } from "@/lib/gameClient";
+import { gameCommand, applyCommandRemote, saveGameState } from "@/lib/gameClient";
 import { base44 } from "@/api/base44Client";
 import { eventToToast, eventToNotification } from "@/lib/eventNotifications";
 import { getUnseenEventCount } from "@/lib/eventLogClient";
@@ -22,6 +22,8 @@ export function GameProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(null);
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [motionEnabled, setMotionEnabled] = useState(() => {
     if (typeof window !== "undefined" && window.matchMedia) {
       return !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -30,6 +32,7 @@ export function GameProvider({ children }) {
   });
   const revRef = useRef(0);
   const idRef = useRef(null);
+  const savingRef = useRef(false);
   const [overlay, setOverlay] = useState(null);
   const prevAchievementsRef = useRef(new Set());
   const pendingAchievementsRef = useRef([]);
@@ -55,7 +58,6 @@ export function GameProvider({ children }) {
   const clockIntervalRef = useRef(null);
   const dismissOverlay = useCallback(() => {
     setOverlay(null);
-    // Nächste ausstehende Auszeichnung anzeigen, falls vorhanden
     if (pendingAchievementsRef.current.length > 0) {
       const next = pendingAchievementsRef.current.shift();
       setTimeout(() => setOverlay({ type: "achievement", data: next }), 300);
@@ -66,8 +68,7 @@ export function GameProvider({ children }) {
     document.body.classList.toggle("no-motion", !motionEnabled);
   }, [motionEnabled]);
 
-  // ---- Glatte Uhr: interpoliert Spielzeit zwischen Backend-Syncs ----
-  // 1 Echtsekunde = 1 Spielminute → die Uhr tickt sekündlich, ohne Sprünge.
+  // ---- Glatte Uhr: interpoliert Spielzeit zwischen Syncs ----
   useEffect(() => {
     if (!automationEnabled || !state?.timeControl?.enabled) {
       setDisplayGameTime(state?.gameTime || 0);
@@ -76,7 +77,7 @@ export function GameProvider({ children }) {
     }
     const tick = () => {
       const elapsedMs = Date.now() - lastSyncRealMsRef.current;
-      const advancedMin = Math.floor(elapsedMs / 1000); // 1s = 1 Spielminute
+      const advancedMin = Math.floor(elapsedMs / 1000);
       setDisplayGameTime(lastSyncGameTimeRef.current + advancedMin);
     };
     tick();
@@ -84,17 +85,15 @@ export function GameProvider({ children }) {
     return () => { if (clockIntervalRef.current) { clearInterval(clockIntervalRef.current); clockIntervalRef.current = null; } };
   }, [automationEnabled, state?.gameTime, state?.timeControl?.enabled]);
 
-  // Snapshot für Willkommen-zurück-Bericht speichern (beim Verlassen der Seite).
+  // Snapshot speichern
   useEffect(() => {
     const storeSnapshot = () => {
       const s = stateRef.current;
       if (!s) return;
       try {
         localStorage.setItem(LS_SNAPSHOT_KEY, JSON.stringify({
-          gameMin: s.gameTime,
-          companyCents: s.company?.accountCents,
-          totalDeliveries: s.stats?.totalDeliveries,
-          ts: Date.now(),
+          gameMin: s.gameTime, companyCents: s.company?.accountCents,
+          totalDeliveries: s.stats?.totalDeliveries, ts: Date.now(),
         }));
       } catch (e) {}
     };
@@ -114,24 +113,8 @@ export function GameProvider({ children }) {
     setTimeout(() => setToast(null), 4200);
   }, []);
 
-  // ---- Toast-Verwaltung (Auftrag 23) ----
   const dismissToast = useCallback((id) => {
     setToasts(prev => prev.filter(t => t.id !== id));
-  }, []);
-
-  const markAllEventsSeen = useCallback(async () => {
-    if (!idRef.current) return;
-    try {
-      await gameCommand({
-        stateId: idRef.current,
-        action_id: (crypto.randomUUID ? crypto.randomUUID() : "seen_" + Date.now()),
-        expected_revision: revRef.current,
-        command: "markAllEventsSeen",
-        params: {},
-      });
-      // Lokalen Zähler sofort aktualisieren
-      setUnseenCount(0);
-    } catch (e) { /* Silent fail – wird beim nächsten Sync korrigiert */ }
   }, []);
 
   const applyLoaded = useCallback((data) => {
@@ -147,17 +130,14 @@ export function GameProvider({ children }) {
     lastSyncRealMsRef.current = Date.now();
     prevAchievementsRef.current = new Set((data.state?.achievements || []).filter(a => a.unlocked).map(a => a.id));
 
-    // ---- Neue Ereignisse erkennen und Toasts anzeigen (Auftrag 23) ----
     const events = data.state?.events || [];
     if (isInitialLoadRef.current) {
-      // Erster Laden: alle vorhandenen Ereignisse als gesehen markieren, keine Toasts
       for (const ev of events) {
         seenEventIdsRef.current.add(ev.id);
         if (ev.seq > lastEventSeqRef.current) lastEventSeqRef.current = ev.seq;
       }
       isInitialLoadRef.current = false;
     } else {
-      // Folge-Update: nur neue Ereignisse anzeigen
       const newEvents = events.filter(ev =>
         !seenEventIdsRef.current.has(ev.id) && ev.seq > lastEventSeqRef.current
       );
@@ -170,11 +150,7 @@ export function GameProvider({ children }) {
           if (ev.seq > lastEventSeqRef.current) lastEventSeqRef.current = ev.seq;
         }
         if (newToasts.length > 0) {
-          setToasts(prev => {
-            // Max 20 Toasts im Speicher, nur 3 sichtbar
-            const combined = [...prev, ...newToasts];
-            return combined.slice(-20);
-          });
+          setToasts(prev => [...prev, ...newToasts].slice(-20));
         }
       }
     }
@@ -186,6 +162,7 @@ export function GameProvider({ children }) {
     try {
       const data = await gameCommand({ command: "load", stateId: idRef.current });
       applyLoaded(data);
+      setDirty(false);
     } catch (e) {
       showToast("Spielstand konnte nicht geladen werden: " + e.message, "error");
     }
@@ -198,19 +175,13 @@ export function GameProvider({ children }) {
         try {
           const data = await gameCommand({ command: "load", stateId: savedId });
           applyLoaded(data);
-          // Beim Laden: Automatik immer pausieren – kein Hintergrundbetrieb mehr.
-          // Der Nutzer aktiviert die Zeitautomatik per Klick, wenn er sie möchte.
           if (data.state?.timeControl?.enabled) {
             try {
-              await gameCommand({
-                stateId: savedId,
-                action_id: (crypto.randomUUID ? crypto.randomUUID() : "pause_" + Date.now()),
-                expected_revision: data.revision,
-                command: "pauseAutomation",
-                params: { reason: "loaded" },
-              });
-              const paused = await gameCommand({ command: "load", stateId: savedId });
-              applyLoaded(paused);
+              const r = await applyCommandRemote({ state: stateRef.current, command: "pauseAutomation", params: { reason: "loaded" } });
+              applyLoaded({ state: r.state, revision: data.revision, stateId: savedId, result: r.result });
+              await saveGameState({ stateId: savedId, state: r.state, expected_revision: data.revision });
+              revRef.current = data.revision + 1;
+              setRevision(data.revision + 1);
             } catch (e) {}
             userWantsAutomationRef.current = false;
           }
@@ -222,30 +193,60 @@ export function GameProvider({ children }) {
     })();
   }, [applyLoaded]);
 
-  const send = useCallback(async (command, params) => {
-    if (!idRef.current) throw new Error("Kein Spielstand geladen");
-    setBusy(true);
+  // ---- Speichern: persistiert lokalen Zustand in die DB ----
+  const save = useCallback(async (silent = false) => {
+    if (!idRef.current || !stateRef.current) return;
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
     try {
-      const action_id = (crypto.randomUUID ? crypto.randomUUID() : "a_" + Date.now() + "_" + Math.random());
-      const data = await gameCommand({
+      const data = await saveGameState({
         stateId: idRef.current,
-        action_id,
+        state: stateRef.current,
         expected_revision: revRef.current,
-        command,
-        params: params || {}
       });
       if (data.conflict) {
+        if (!silent) showToast("Konflikt: Spielstand wurde gleichzeitig geändert. Lade neu.", "error");
         await reload();
-        throw new Error(data.error || "Konflikt: Zustand wurde gleichzeitig geändert. Bitte wiederholen.");
+        return;
       }
       if (data.error) throw new Error(data.error);
-      applyLoaded(data);
+      setRevision(data.revision);
+      revRef.current = data.revision;
+      setDirty(false);
+      if (!silent) showToast("Spielstand gespeichert", "success");
+    } catch (e) {
+      if (!silent) showToast("Speichern fehlgeschlagen: " + e.message, "error");
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  }, [reload, showToast]);
+
+  // ---- Befehle über applyCommandRemote (kein DB-Zugriff, schnell) ----
+  const send = useCallback(async (command, params) => {
+    if (!stateRef.current) throw new Error("Kein Spielstand geladen");
+    setBusy(true);
+    try {
+      const data = await applyCommandRemote({
+        state: stateRef.current,
+        command,
+        params: params || {},
+      });
+      if (data.error) throw new Error(data.error);
+
+      const newState = data.state;
       const result = data.result;
+
+      applyLoaded({ state: newState, revision: revRef.current, stateId: idRef.current, result });
+      setDirty(true);
+
+      // Overlay-Logik
       if (result?.events) {
         const delivery = result.events.find(e => e.type === "delivery");
         if (delivery) {
-          const order = data.state.orders.find(o => o.id === delivery.order);
-          const trip = data.state.trips.find(t => t.id === delivery.trip);
+          const order = newState.orders.find(o => o.id === delivery.order);
+          const trip = newState.trips.find(t => t.id === delivery.trip);
           setOverlay({
             type: "delivery",
             data: {
@@ -256,8 +257,7 @@ export function GameProvider({ children }) {
           });
         }
       }
-      // Neue Erfolge erkennen und als Overlay anzeigen
-      const newAchs = (data.state?.achievements || []).filter(a => a.unlocked && !prevAchievementsRef.current.has(a.id));
+      const newAchs = (newState.achievements || []).filter(a => a.unlocked && !prevAchievementsRef.current.has(a.id));
       if (newAchs.length > 0) {
         const ACHIEVEMENT_DEFS = await import("@/lib/achievementCatalog.js").then(m => m.ACHIEVEMENTS).catch(() => []);
         const achData = newAchs.map(a => {
@@ -267,107 +267,88 @@ export function GameProvider({ children }) {
         pendingAchievementsRef.current = achData.slice(1);
         setOverlay({ type: "achievement", data: achData[0] });
       }
-      prevAchievementsRef.current = new Set((data.state?.achievements || []).filter(a => a.unlocked).map(a => a.id));
+      prevAchievementsRef.current = new Set((newState.achievements || []).filter(a => a.unlocked).map(a => a.id));
       if (command === "startTransport" && result?.fuelCents != null) {
         setOverlay({ type: "transportStart", data: { fuelCents: result.fuelCents, tollCents: result.tollCents, endMin: result.endMin } });
       }
       if (command === "answerInvitation" && result?.choice) {
         setOverlay({
           type: "invitation",
-          data: { choice: result.choice, relationship: data.state.private.relationship, happiness: data.state.private.happiness, stress: data.state.private.stress }
+          data: { choice: result.choice, relationship: newState.private.relationship, happiness: newState.private.happiness, stress: newState.private.stress }
         });
       }
-      return data.result;
+      return result;
     } catch (e) {
-      if (e.response && e.response.data && e.response.data.conflict) {
-        await reload();
-        throw new Error(e.response.data.error || "Konflikt. Bitte wiederholen.");
-      }
+      if (e.message && !e.message.includes("Kein Spielstand")) showToast(e.message, "error");
       throw e;
     } finally {
       setBusy(false);
     }
-  }, [applyLoaded, reload]);
+  }, [applyLoaded, showToast]);
 
-  // ---- Zeitautomatik ----
+  // ---- Zeitautomatik: lokal über applyCommandRemote, auto-speichern ----
   const syncAutomation = useCallback(async () => {
-    if (!idRef.current) return;
-    // Nur ein gleichzeitiger Sync pro Spielstand (Auftrag 23)
+    if (!idRef.current || !stateRef.current) return;
     if (syncInFlightRef.current) return;
     syncInFlightRef.current = true;
     try {
-      const action_id = (crypto.randomUUID ? crypto.randomUUID() : "sync_" + Date.now());
-      const data = await gameCommand({
-        stateId: idRef.current, action_id, expected_revision: revRef.current,
-        command: "syncAutomation", params: {}
+      const data = await applyCommandRemote({
+        state: stateRef.current,
+        command: "syncAutomation",
+        params: {},
       });
-      if (data.conflict) { await reload(); return; }
-      if (data.error) return;
-      applyLoaded(data);
-      // Verbindung erfolgreich
+      if (data.error) throw new Error(data.error);
+      const timeAdvanced = data.state.gameTime !== stateRef.current.gameTime || (data.result.events && data.result.events.length > 0);
+      if (timeAdvanced) {
+        applyLoaded({ state: data.state, revision: revRef.current, stateId: idRef.current, result: data.result });
+        setDirty(true);
+        await save(true);
+      }
       syncFailCountRef.current = 0;
       setConnectionState("connected");
     } catch (e) {
-      // Verbindungsstatus verfolgen
       syncFailCountRef.current++;
       if (syncFailCountRef.current >= 4) setConnectionState("reconnecting");
     } finally {
       syncInFlightRef.current = false;
     }
-  }, [applyLoaded, reload]);
+  }, [applyLoaded, save]);
 
   const enableAutomation = useCallback(async (silent = false) => {
     if (!idRef.current) return;
     setAutomationBusy(true);
     userWantsAutomationRef.current = true;
     try {
-      let lastError = null;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-          await send("enableAutomation", {});
-          setAutomationEnabled(true);
-          if (!silent) showToast("Zeitautomatik aktiviert – läuft, solange das Spiel geöffnet ist.", "success");
-          return;
-        } catch (e) {
-          lastError = e;
-          await new Promise(r => setTimeout(r, 50));
-        }
-      }
-      if (!silent) showToast("Automatik konnte nicht aktiviert werden: " + (lastError?.message || "Unbekannt"), "error");
+      await send("enableAutomation", {});
+      setAutomationEnabled(true);
+      await save(true);
+      if (!silent) showToast("Zeitautomatik aktiviert – läuft, solange das Spiel geöffnet ist.", "success");
+    } catch (e) {
+      if (!silent) showToast("Automatik konnte nicht aktiviert werden: " + (e?.message || "Unbekannt"), "error");
     } finally {
       setAutomationBusy(false);
     }
-  }, [send, showToast]);
+  }, [send, save, showToast]);
 
   const pauseAutomation = useCallback(async (silent = false, reason) => {
     if (!idRef.current) return;
     setAutomationBusy(true);
-    // Sofort Polling stoppen, um Entity-Read-Limit zu entlasten.
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     const isUserInitiated = !silent;
     if (isUserInitiated) userWantsAutomationRef.current = false;
     try {
-      let lastError = null;
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          await send("pauseAutomation", { reason: reason || "user" });
-          setAutomationEnabled(false);
-          if (isUserInitiated) showToast("Zeitautomatik pausiert.", "info");
-          return;
-        } catch (e) {
-          lastError = e;
-          await new Promise(r => setTimeout(r, 100));
-        }
-      }
-      if (isUserInitiated) showToast("Automatik konnte nicht pausiert werden: " + (lastError?.message || "Unbekannt"), "error");
+      await send("pauseAutomation", { reason: reason || "user" });
+      setAutomationEnabled(false);
+      await save(true);
+      if (isUserInitiated) showToast("Zeitautomatik pausiert.", "info");
+    } catch (e) {
+      if (isUserInitiated) showToast("Automatik konnte nicht pausiert werden: " + (e?.message || "Unbekannt"), "error");
     } finally {
       setAutomationBusy(false);
     }
-  }, [send, showToast]);
+  }, [send, save, showToast]);
 
-  // Polling: alle 3 Sekunden syncen, wenn Automatik aktiv (Auftrag 23).
-  // Echtzeit-Subscription sorgt für sofortige Updates; Polling ist Fallback.
-  // Längerer Intervall schont das Entity-Read-Limit der Plattform.
+  // Polling: alle 15 Sekunden syncen, wenn Automatik aktiv
   useEffect(() => {
     if (!automationEnabled) {
       if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
@@ -378,15 +359,12 @@ export function GameProvider({ children }) {
     return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
   }, [automationEnabled, syncAutomation]);
 
-  // ---- Visibility-basierte Automatik: nur laufen, wenn Tab sichtbar ----
-  // Bei Tab-Wechsel/Minimierung: Automatik pausieren und sichern.
-  // Bei Rückkehr: Automatik fortsetzen, wenn der Nutzer sie aktiviert hatte.
+  // ---- Visibility-basierte Automatik ----
   useEffect(() => {
     const handleVisibility = () => {
       if (document.hidden) {
-        if (automationEnabled) {
-          pauseAutomation(true, "tab_hidden");
-        }
+        if (automationEnabled) pauseAutomation(true, "tab_hidden");
+        if (dirty) save(true);
       } else {
         if (userWantsAutomationRef.current && !automationEnabled && !automationBusy) {
           enableAutomation(true);
@@ -395,32 +373,33 @@ export function GameProvider({ children }) {
     };
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [automationEnabled, automationBusy, enableAutomation, pauseAutomation]);
+  }, [automationEnabled, automationBusy, dirty, enableAutomation, pauseAutomation, save]);
 
-  // ---- Echtzeit-Subscription für GameState-Änderungen (Auftrag 23) ----
-  // Subscribe zu GameState-Entity: bei Änderung sofortigen Sync anstoßen.
-  // Polling bleibt als belastbarer Fallback aktiv.
+  // ---- Auto-Save: alle 60 Sekunden, falls dirty ----
+  useEffect(() => {
+    if (!dirty) return;
+    const timer = setInterval(() => { if (dirty) save(true); }, 60000);
+    return () => clearInterval(timer);
+  }, [dirty, save]);
+
+  // ---- Echtzeit-Subscription ----
   useEffect(() => {
     if (!stateId) return;
     let unsub = null;
     try {
       unsub = base44.entities.GameState.subscribe((event) => {
-        // Nur reagieren wenn es unser Spielstand ist
         if (event?.id === stateId || event?.data?.id === stateId) {
-          // Debounced: nur syncen wenn letzter Sync >5s zurück liegt
           const sinceLast = Date.now() - lastSyncRealMsRef.current;
-          if (sinceLast > 5000) syncAutomation();
+          if (sinceLast > 5000 && automationEnabled) syncAutomation();
         }
       });
       subscriptionRef.current = unsub;
-    } catch (e) {
-      // Subscription nicht verfügbar – Polling ist ausreichend
-    }
+    } catch (e) {}
     return () => {
       if (unsub) { try { unsub(); } catch (e) {} }
       subscriptionRef.current = null;
     };
-  }, [stateId, syncAutomation]);
+  }, [stateId, syncAutomation, automationEnabled]);
 
   // ---- Bei Spielstandwechsel: Event-Tracking zurücksetzen ----
   useEffect(() => {
@@ -430,8 +409,17 @@ export function GameProvider({ children }) {
       lastEventSeqRef.current = 0;
       setToasts([]);
       setUnseenCount(0);
+      setDirty(false);
     }
   }, [stateId]);
+
+  const markAllEventsSeen = useCallback(async () => {
+    if (!idRef.current) return;
+    try {
+      await send("markAllEventsSeen", {});
+      setUnseenCount(0);
+    } catch (e) {}
+  }, [send]);
 
   const newGame = useCallback(async (names) => {
     setBusy(true);
@@ -439,6 +427,7 @@ export function GameProvider({ children }) {
       const action_id = (crypto.randomUUID ? crypto.randomUUID() : "a_" + Date.now());
       const data = await gameCommand({ command: "newGame", action_id, params: names || {} });
       applyLoaded(data);
+      setDirty(false);
       return data;
     } finally {
       setBusy(false);
@@ -452,6 +441,7 @@ export function GameProvider({ children }) {
   const loadGame = useCallback(async (sid) => {
     const data = await gameCommand({ command: "load", stateId: sid });
     applyLoaded(data);
+    setDirty(false);
   }, [applyLoaded]);
 
   const value = {
@@ -459,7 +449,9 @@ export function GameProvider({ children }) {
     motionEnabled, toggleMotion, overlay, dismissOverlay,
     automationEnabled, automationBusy, enableAutomation, pauseAutomation,
     displayGameTime,
-    // Live-Dienst (Auftrag 23)
+    // Cache-System
+    dirty, save, saving,
+    // Live-Dienst
     toasts, dismissToast, unseenCount, markAllEventsSeen, connectionState,
   };
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

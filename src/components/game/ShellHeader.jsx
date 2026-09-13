@@ -5,13 +5,13 @@ import MoneyText from "@/components/MoneyText";
 import FernwerkSignet from "@/components/brand/FernwerkSignet";
 import AutomationControl from "@/components/game/AutomationControl";
 import NotificationCenter from "@/components/notifications/NotificationCenter";
-import { Building2, Heart, Sparkles, Mail as MailIcon, LineChart } from "lucide-react";
+import { Building2, Heart, Sparkles, Mail as MailIcon, LineChart, Save, Loader2 } from "lucide-react";
 import { getMailboxStats } from "@/lib/mailData";
 import { getAllNotifications } from "@/lib/eventLogClient";
 
 // Obere Statusleiste: FERNWERK-Marke, Welt-Umschaltung, beide Konten, Bewegungs-Toggle.
 export default function ShellHeader() {
-  const { state, motionEnabled, toggleMotion, unseenCount, markAllEventsSeen } = useGame();
+  const { state, motionEnabled, toggleMotion, unseenCount, markAllEventsSeen, dirty, save, saving } = useGame();
   const navigate = useNavigate();
   const location = useLocation();
   const isHome = location.pathname === "/zuhause";
@@ -60,6 +60,18 @@ export default function ShellHeader() {
       {/* Konten */}
       <div className="ml-auto flex items-center gap-3 lg:gap-6">
         <AutomationControl />
+        {dirty && (
+          <button
+            onClick={() => save()}
+            disabled={saving}
+            className="flex items-center gap-1.5 rounded-lg px-2.5 lg:px-3 py-1.5 text-xs font-medium bg-lime/15 text-lime border border-lime/30 hover:bg-lime/25 disabled:opacity-50 transition shrink-0"
+            aria-label="Spielstand speichern"
+            title="Spielstand in Datenbank sichern"
+          >
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">Speichern</span>
+          </button>
+        )}
         <button onClick={() => navigate("/finanzen")} className="text-left group" aria-label="Firmenkonto und Finanzen">
           <div className="text-[9px] lg:text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Firma</div>
           <MoneyText value={state.company.accountCents} className="text-sm lg:text-lg font-medium tracking-tight text-foreground group-hover:text-lime transition-colors" accentOnFlash="text-lime" />
