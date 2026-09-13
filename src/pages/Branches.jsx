@@ -4,9 +4,10 @@ import { formatEuro, formatGameTime } from "@/lib/gameData";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
 import BranchCard from "@/components/branches/BranchCard";
 import BranchMap from "@/components/branches/BranchMap";
+import BranchOverview from "@/components/branches/BranchOverview";
 import OpenBranchDialog from "@/components/branches/OpenBranchDialog";
 import MoveResourceDialog from "@/components/branches/MoveResourceDialog";
-import { Building2, Plus, Truck, Users, MapPin, ArrowRight } from "lucide-react";
+import { Building2, Plus, Truck, Users, MapPin, ArrowRight, LayoutGrid, List } from "lucide-react";
 
 export default function Branches() {
   const { state, send, showToast } = useGame();
@@ -14,6 +15,7 @@ export default function Branches() {
   const [moveContext, setMoveContext] = useState(null); // { type, branchId }
   const [selectedResource, setSelectedResource] = useState(null); // resource object
   const [selectedBranchId, setSelectedBranchId] = useState(null);
+  const [tab, setTab] = useState("overview"); // "overview" | "map"
 
   const activeBranches = (state.branches || []).filter(b => b.status === "active");
   const totalDailyCost = activeBranches.reduce((s, b) => s + (b.costPerDayCents || 0), 0);
@@ -57,39 +59,51 @@ export default function Branches() {
         </button>
       </div>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <SummaryCard label="Standorte" value={activeBranches.length} icon={Building2} />
-        <SummaryCard label="Gesamtumsatz" value={formatEuro(totalRevenue)} icon={ArrowRight} />
-        <SummaryCard label="Lieferungen" value={totalDeliveries} icon={Truck} />
-        <SummaryCard label="Tageskosten" value={formatEuro(totalDailyCost)} icon={Users} />
+      {/* Tabs */}
+      <div className="flex items-center gap-1 border-b border-white/10">
+        <TabButton active={tab === "overview"} onClick={() => setTab("overview")} icon={List} label="Übersicht" />
+        <TabButton active={tab === "map"} onClick={() => setTab("map")} icon={LayoutGrid} label="Standorte & Karte" />
       </div>
 
-      <div className="grid lg:grid-cols-[320px_1fr] gap-6">
-        {/* Map */}
-        <div className="space-y-3">
-          <BranchMap branches={activeBranches} selectedId={selectedBranchId} onSelect={setSelectedBranchId} />
-          <div className="text-xs text-muted-foreground/60 text-center">
-            Lime-Marker zeigen aktive Filialen. Klicke auf eine Stadt, um die Filialkarte zu fokussieren.
+      {tab === "overview" ? (
+        <BranchOverview />
+      ) : (
+        <>
+          {/* Summary Stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <SummaryCard label="Standorte" value={activeBranches.length} icon={Building2} />
+            <SummaryCard label="Gesamtumsatz" value={formatEuro(totalRevenue)} icon={ArrowRight} />
+            <SummaryCard label="Lieferungen" value={totalDeliveries} icon={Truck} />
+            <SummaryCard label="Tageskosten" value={formatEuro(totalDailyCost)} icon={Users} />
           </div>
-        </div>
 
-        {/* Branch Cards */}
-        <div className="grid md:grid-cols-2 gap-3">
-          {activeBranches.map(b => (
-            <BranchCard
-              key={b.id}
-              branch={{ ...b, totalDailyCostCents: computeBranchDailyCost(state, b) }}
-              onMoveResource={(ctx) => { setMoveContext(ctx); setSelectedBranchId(b.id); }}
-            />
-          ))}
-          {activeBranches.length === 0 && (
-            <div className="text-sm text-muted-foreground text-center py-8 col-span-2">
-              Keine aktiven Filialen. Eröffne deinen ersten Standort.
+          <div className="grid lg:grid-cols-[320px_1fr] gap-6">
+            {/* Map */}
+            <div className="space-y-3">
+              <BranchMap branches={activeBranches} selectedId={selectedBranchId} onSelect={setSelectedBranchId} />
+              <div className="text-xs text-muted-foreground/60 text-center">
+                Lime-Marker zeigen aktive Filialen. Klicke auf eine Stadt, um die Filialkarte zu fokussieren.
+              </div>
             </div>
-          )}
-        </div>
-      </div>
+
+            {/* Branch Cards */}
+            <div className="grid md:grid-cols-2 gap-3">
+              {activeBranches.map(b => (
+                <BranchCard
+                  key={b.id}
+                  branch={{ ...b, totalDailyCostCents: computeBranchDailyCost(state, b) }}
+                  onMoveResource={(ctx) => { setMoveContext(ctx); setSelectedBranchId(b.id); }}
+                />
+              ))}
+              {activeBranches.length === 0 && (
+                <div className="text-sm text-muted-foreground text-center py-8 col-span-2">
+                  Keine aktiven Filialen. Eröffne deinen ersten Standort.
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Open Branch Dialog */}
       {showOpen && <OpenBranchDialog onClose={() => setShowOpen(false)} />}
@@ -133,6 +147,21 @@ function SummaryCard({ label, value, icon: Icon }) {
       </div>
       <div className="text-lg font-medium tabular-nums">{value}</div>
     </div>
+  );
+}
+
+function TabButton({ active, onClick, icon: Icon, label }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition -mb-px ${
+        active
+          ? "border-lime text-lime"
+          : "border-transparent text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      <Icon className="w-3.5 h-3.5" /> {label}
+    </button>
   );
 }
 
