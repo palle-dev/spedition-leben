@@ -15,7 +15,8 @@ export default function BranchOverview() {
       .map(b => {
         const vehicles = (state.vehicles || []).filter(v => v.branchId === b.id && v.status !== "sold" && v.status !== "archived");
         const drivers = (state.drivers || []).filter(d => d.branchId === b.id && d.employmentStatus === "employed");
-        const dispatchers = (state.employees || []).filter(e => e.assignedBranchId === b.id && e.employmentStatus === "employed");
+        const allStaff = (state.employees || []).filter(e => (e.assignedBranchId || e.branchId) === b.id && e.employmentStatus === "employed");
+        const dispatchers = allStaff.filter(e => e.role === "dispatcher" || e.role === "dispatcher_senior");
 
         const onTrip = vehicles.filter(v => v.status === "on_trip").length;
         const free = vehicles.filter(v => v.status === "free").length;
@@ -25,7 +26,7 @@ export default function BranchOverview() {
         const stats = b.stats || { revenueCents: 0, deliveries: 0, expensesCents: 0 };
         const dailyCost = b.costPerDayCents
           + drivers.reduce((s, d) => s + (d.costPerDayCents || 0), 0)
-          + dispatchers.reduce((s, e) => s + (e.costPerDayCents || 0), 0);
+          + allStaff.reduce((s, e) => s + (e.costPerDayCents || 0), 0);
         // Kumulierte Kosten: Tageskosten × Öffnungstage (mind. 1)
         const daysOpen = Math.max(1, Math.floor(((state.gameTime || 0) - (b.openedAtMin || 0)) / 1440));
         const accumulatedCosts = dailyCost * daysOpen;
