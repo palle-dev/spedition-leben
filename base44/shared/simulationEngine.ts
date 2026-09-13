@@ -773,12 +773,17 @@ function processEmployees(state, m, log) {
 //   Liquiditätsprüfung und Rentabilitätsfilter. Berücksichtigt auch ruhende Fahrer
 //   und zurückkehrende Fahrzeuge über earliestAvailable.
 function processDispatcher(state, emp, m, log) {
-  const assignedVehicleIds = emp.assignedVehicleIds || [];
-  const assignedVehicles = assignedVehicleIds.map(vid => state.vehicles.find(v => v.id === vid)).filter(Boolean);
-  if (assignedVehicles.length === 0) {
+  // Firmenpool: Alle nicht verkauften, nicht vorgemerkten Fahrzeuge.
+  // Disponenten teilen sich den Pool — verschiedene Schichten können
+  // nacheinander auf dieselben Lkw zugreifen (24/7-Betrieb).
+  const poolVehicles = state.vehicles.filter(v =>
+    v.status !== "sold" && v.status !== "archived" && !v.markedForSale
+  );
+  const poolVehicleIds = poolVehicles.map(v => v.id);
+  if (poolVehicles.length === 0) {
     if ((emp.suggestions || []).length > 0) {
       emp.suggestions = [];
-      log.push({ type: "dispatcher_suggestions_cleared", employee: emp.id, atMin: m, reason: "keine Lkw zugewiesen" });
+      log.push({ type: "dispatcher_suggestions_cleared", employee: emp.id, atMin: m, reason: "keine Lkw im Firmenpool" });
     }
     return;
   }
@@ -786,7 +791,7 @@ function processDispatcher(state, emp, m, log) {
   // ---------- Modus A: Vorschläge vorbereiten ----------
   if (emp.workMode === "suggestions") {
     const hasAcceptedOrders = state.orders.some(o => o.status === "angenommen");
-    const hasFreeVehicles = assignedVehicles.some(v => v.status === "free" || v.status === "resting");
+    const hasFreeVehicles = poolVehicles.some(v => v.status === "free" || v.status === "resting");
     if (!hasAcceptedOrders || !hasFreeVehicles) {
       if ((emp.suggestions || []).length > 0) {
         emp.suggestions = [];
@@ -799,7 +804,7 @@ function processDispatcher(state, emp, m, log) {
       if (!hasSituationChanged(state, emp, existingValid)) return;
     }
     const result = suggestTours(state, {
-      vehicleIds: assignedVehicleIds, earliestStart: m, horizonMin: 2880,
+      vehicleIds: poolVehicleIds, earliestStart: m, horizonMin: 2880,
       desiredEndCity: null, latestReturnMin: null, mode: "balanced", acceptNew: false,
     });
     emp.suggestions = (emp.suggestions || []).filter(s => s.status !== "pending");
@@ -829,7 +834,7 @@ function processDispatcher(state, emp, m, log) {
 
   // suggestTours berücksichtigt auch ruhende Fahrer und zurückkehrende Fahrzeuge
   const result = suggestTours(state, {
-    vehicleIds: assignedVehicleIds, earliestStart: m, horizonMin: 48 * 60,
+    vehicleIds: poolVehicleIds, earliestStart: m, horizonMin: 48 * 60,
     desiredEndCity: null, latestReturnMin: null, mode: "balanced", acceptNew,
   });
 
@@ -837,13 +842,20 @@ function processDispatcher(state, emp, m, log) {
   const usedOrderIds = new Set();
   let planned = 0;
 
+  const capacity = emp.capacity || 6;
   for (const sug of result.suggestions) {
+    if (planned >= capacity) break;
     if (usedVehicleIds.has(sug.vehicleId)) continue;
     // Aufträge noch verfügbar?
     const allAvailable = sug.orderIds.every(oid => {
       if (usedOrderIds.has(oid)) return false;
       const o = state.orders.find(x => x.id === oid);
-      return o && (o.status === "offered" || o.status === "angenommen");
+      if (!o || (o.status !== "offered" && o.status !== "angenommen")) return false;
+      // Prüfe, ob der Auftrag bereits Teil einer aktiven Tour ist (verhindert
+      // Doppelbuchung bei Pool-Modell: mehrere Disponenten könnten denselben
+      // Auftrag sehen, wenn die Tour-Deployment-Zeit in der Zukunft liegt).
+      if ((state.tours || []).some(t => t.status === "active" && (t.deployments || []).some(d => d.orderId === oid && d.status !== "cancelled"))) return false;
+      return true;
     });
     if (!allAvailable) continue;
     // Rentabilitätsprüfung: Nur positive Beiträge bei Neuaufträgen
@@ -928,7 +940,7 @@ function processDispatcher(state, emp, m, log) {
   }
 
   // Stillstandsgründe für ungenutzte Fahrzeuge dokumentieren
-  for (const v of assignedVehicles) {
+  for (const v of poolVehicles) {
     if (usedVehicleIds.has(v.id)) { v.idleReason = null; continue; }
     if (v.status === "on_trip") { v.idleReason = "Unterwegs"; continue; }
     if (v.status === "maintenance") { v.idleReason = "Wartung bis " + formatGameTime(v.maintenanceUntil); continue; }
@@ -943,7 +955,7 @@ function processDispatcher(state, emp, m, log) {
     v.idleReasonAtMin = m;
   }
   emp.lastDecisionMin = m;
-  emp.lastPlanningResult = { atMin: m, planned, totalVehicles: assignedVehicles.length, usedVehicles: usedVehicleIds.size };
+  emp.lastPlanningResult = { atMin: m, planned, totalVehicles: poolVehicles.length, usedVehicles: usedVehicleIds.size };
 }
 
 // Ereignisgesteuerte Dispositionsplanung: ruft processDispatcher für alle
@@ -957,7 +969,6 @@ function triggerDispatcherPlanning(state, m, log) {
     if (emp.attendance !== "present") continue;
     if (emp.role !== "dispatcher" && emp.role !== "dispatcher_senior") continue;
     if (emp.workMode !== "autonomous" && emp.workMode !== "dispatch_accepted") continue;
-    if ((emp.assignedVehicleIds || []).length === 0) continue;
     if (!isDispatcherOnShift(emp, m)) continue;
     // CPU-Schutz: höchstens alle 30 Spielminuten pro Disponent, nicht bei jedem Ereignis.
     if (m - (emp.lastDecisionMin || 0) < 30) continue;
@@ -968,10 +979,6 @@ function triggerDispatcherPlanning(state, m, log) {
 // Prüft, ob sich die Situation seit der letzten Vorschlagserstellung geändert hat.
 function hasSituationChanged(state, emp, existingSuggestions) {
   const acceptedOrders = state.orders.filter(o => o.status === "angenommen");
-  const assignedFree = (emp.assignedVehicleIds || []).filter(vid => {
-    const v = state.vehicles.find(x => x.id === vid);
-    return v && (v.status === "free" || v.status === "resting");
-  });
   // Wenn es angenommene Aufträge gibt, die nicht in bestehenden Vorschlägen abgedeckt sind
   const coveredOrderIds = new Set();
   for (const s of existingSuggestions) {
@@ -1479,14 +1486,10 @@ export function applyCommand(state, command, params) {
       const emp = (state.employees || []).find(e => e.id === p.employeeId);
       if (!emp) throw new Error("Angestellter nicht gefunden.");
       if (emp.role !== "dispatcher" && emp.role !== "dispatcher_senior") throw new Error("Diese Person ist kein Disponent.");
-      const vehicleIds = p.vehicleIds || [];
-      if (vehicleIds.length > emp.capacity) throw new Error("Überlastung: " + vehicleIds.length + " Lkw überschreiten Kapazität von " + emp.capacity + ".");
-      // LKWs können von mehreren Disponenten in verschiedenen Schichten geteilt werden
-      for (const vid of vehicleIds) {
-        const v = state.vehicles.find(x => x.id === vid);
-        if (!v) throw new Error("Fahrzeug nicht gefunden: " + vid);
-      }
-      emp.assignedVehicleIds = vehicleIds;
+      // Fahrzeugzuweisung: Alle Lkw gehören dem Firmenpool. Disponenten
+      // greifen automatisch auf alle verfügbaren Fahrzeuge zu (24/7-Betrieb).
+      // vehicleIds wird aus Kompatibilität noch akzeptiert, aber nicht ausgewertet.
+      emp.assignedVehicleIds = p.vehicleIds || [];
       if (p.workMode && ["suggestions", "dispatch_accepted", "autonomous"].includes(p.workMode)) {
         emp.workMode = p.workMode;
       }
@@ -1495,7 +1498,7 @@ export function applyCommand(state, command, params) {
       if (p.shiftEnd != null) emp.shiftEnd = p.shiftEnd;
       // Alte Vorschläge aufräumen
       emp.suggestions = [];
-      result = { ok: true, employeeId: emp.id, assignedVehicleIds: vehicleIds, workMode: emp.workMode, shiftStart: emp.shiftStart ?? SERVICE_START_MIN, shiftEnd: emp.shiftEnd ?? SERVICE_END_MIN };
+      result = { ok: true, employeeId: emp.id, workMode: emp.workMode, shiftStart: emp.shiftStart ?? SERVICE_START_MIN, shiftEnd: emp.shiftEnd ?? SERVICE_END_MIN };
       break;
     }
 

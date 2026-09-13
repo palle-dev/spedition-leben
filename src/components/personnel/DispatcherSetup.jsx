@@ -1,41 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
-import { vehicleDisplayName } from "@/lib/displayHelpers";
-import { formatEuro } from "@/lib/gameData";
-import { Truck, Check, X, Headset, Clock, Moon } from "lucide-react";
+import { Check, Headset, Clock, Moon, Truck } from "lucide-react";
 import { SHIFT_TEMPLATES } from "@/lib/personnelMarketData";
 
-// Disponenten-Einrichtung: Lkw zuweisen, Arbeitsweise festlegen.
+// Disponenten-Einrichtung: Arbeitsweise und Schicht festlegen.
+// Alle Lkw gehören dem Firmenpool — verschiedene Disponenten in
+// verschiedenen Schichten greifen auf denselben Pool zu (24/7-Betrieb).
 export default function DispatcherSetup({ employee, onClose }) {
-  const { state, send, showToast } = useGame();
-  const [selectedVehicles, setSelectedVehicles] = useState(employee.assignedVehicleIds || []);
+  const { send, showToast } = useGame();
   const [workMode, setWorkMode] = useState(employee.workMode || "suggestions");
   const [shiftId, setShiftId] = useState(
     SHIFT_TEMPLATES.find(s => s.startMin === (employee.shiftStart ?? 480) && s.endMin === (employee.shiftEnd ?? 960))?.id || "day"
   );
   const [saving, setSaving] = useState(false);
-
-  const capacity = employee.capacity || 6;
-  const allVehicles = state.vehicles;
-  // LKWs, die keinem ANDEREN Disponenten zugewiesen sind.
-  // Bereits diesem Disponenten zugewiesene LKWs bleiben auswählbar.
-  // Andere Disponenten, die LKWs teilen können (Schicht-Betrieb)
-  const otherDispatchers = (state.employees || []).filter(
-    e => e.id !== employee.id && (e.role === "dispatcher" || e.role === "dispatcher_senior")
-  );
-  const sharedWith = (vid) => otherDispatchers.filter(d => (d.assignedVehicleIds || []).includes(vid));
-  const shiftLabel = (emp) => {
-    const s = SHIFT_TEMPLATES.find(t => t.startMin === (emp.shiftStart ?? 480) && t.endMin === (emp.shiftEnd ?? 960));
-    return s ? s.label : "Tagschicht";
-  };
-
-  function toggleVehicle(vid) {
-    setSelectedVehicles(prev => {
-      if (prev.includes(vid)) return prev.filter(v => v !== vid);
-      if (prev.length >= capacity) return prev; // Überlastung verhindern
-      return [...prev, vid];
-    });
-  }
 
   async function save() {
     setSaving(true);
@@ -43,7 +20,6 @@ export default function DispatcherSetup({ employee, onClose }) {
       const shift = SHIFT_TEMPLATES.find(s => s.id === shiftId) || SHIFT_TEMPLATES[1];
       await send("setupDispatcher", {
         employeeId: employee.id,
-        vehicleIds: selectedVehicles,
         workMode,
         shiftStart: shift.startMin,
         shiftEnd: shift.endMin,
@@ -65,41 +41,13 @@ export default function DispatcherSetup({ employee, onClose }) {
 
   return (
     <div className="space-y-5">
-      {/* Lkw-Zuweisung */}
-      <div>
-        <div className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground mb-2 flex items-center gap-1.5">
-          <Truck className="w-3 h-3" /> Zugewiesene Lkw
+      {/* Firmenpool-Hinweis */}
+      <div className="rounded-lg border border-lime/20 bg-lime/5 px-3 py-2.5">
+        <div className="text-[10px] tracking-[0.14em] uppercase text-lime/80 mb-1 flex items-center gap-1.5">
+          <Truck className="w-3 h-3" /> Firmenpool
         </div>
-        <div className="text-xs text-muted-foreground mb-3">
-          {selectedVehicles.length}/{capacity} zugewiesen · Maximal {capacity} Lkw
-        </div>
-        <div className="space-y-1.5 max-h-48 overflow-y-auto scrollbar-none">
-          {allVehicles.map(v => {
-            const selected = selectedVehicles.includes(v.id);
-            const disabled = !selected && selectedVehicles.length >= capacity;
-            const shared = sharedWith(v.id);
-            return (
-              <button
-                key={v.id}
-                onClick={() => toggleVehicle(v.id)}
-                disabled={disabled}
-                className={`w-full flex items-center justify-between rounded-lg px-3 py-2.5 text-sm border transition ${
-                  selected ? "border-lime/40 bg-lime/10 text-lime" : "border-white/10 text-foreground hover:border-white/20"
-                } ${disabled ? "opacity-30 cursor-not-allowed" : ""}`}
-              >
-                <span className="flex items-center gap-2">
-                  <Truck className="w-4 h-4" />
-                  {vehicleDisplayName(v)}
-                </span>
-                <span className="flex items-center gap-2">
-                  {shared.length > 0 && (
-                    <span className="text-[10px] text-muted-foreground">auch bei {shared.map(d => shiftLabel(d)).join(", ")}</span>
-                  )}
-                  <span className="text-[10px] text-muted-foreground">{v.locationCity}</span>
-                </span>
-              </button>
-            );
-          })}
+        <div className="text-xs text-muted-foreground leading-relaxed">
+          Alle Lkw gehören dem Firmenpool. Dieser Disponent greift automatisch auf alle verfügbaren Fahrzeuge zu — verschiedene Schichten teilen sich die Flotte für den 24/7-Betrieb.
         </div>
       </div>
 

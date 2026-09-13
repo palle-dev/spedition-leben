@@ -71,8 +71,6 @@ export default function DispatcherPanel() {
       {dispatchers.map(emp => {
         const att = attendanceLabel(emp.attendance);
         const wm = workModeLabel(emp.workMode);
-        const assignedVehicles = (emp.assignedVehicleIds || [])
-          .map(vid => state.vehicles.find(v => v.id === vid)).filter(Boolean);
         const stats = emp.dailyStats || {};
         const empSuggestions = (emp.suggestions || []).filter(s => s.status === "pending");
 
@@ -98,17 +96,11 @@ export default function DispatcherPanel() {
               <p className="text-[10px] text-muted-foreground/70 mt-0.5">{wm.desc}</p>
             </div>
 
-            {/* Zugewiesene Lkw */}
+            {/* Firmenpool */}
             <div className="mt-2.5 flex flex-wrap gap-1">
-              {assignedVehicles.length === 0 ? (
-                <span className="text-[10px] text-muted-foreground/60">Keine Lkw zugewiesen</span>
-              ) : (
-                assignedVehicles.map(v => (
-                  <span key={v.id} className="text-[10px] px-2 py-0.5 rounded-full bg-surface-2/60 border border-white/10 flex items-center gap-1">
-                    <Truck className="w-2.5 h-2.5" /> {vehicleDisplayName(v)}
-                  </span>
-                ))
-              )}
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-lime/10 border border-lime/20 flex items-center gap-1 text-lime/80">
+                <Truck className="w-2.5 h-2.5" /> Firmenpool
+              </span>
             </div>
 
             {/* Ergebnis heute */}

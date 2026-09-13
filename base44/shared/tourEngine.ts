@@ -752,11 +752,13 @@ export function suggestTours(state, opts) {
     );
     if (!driver) continue;
 
-    // 1. Bereits angenommene, unzugewiesene Aufträge (nicht bereits zugewiesen)
+    // 1. Bereits angenommene, unzugewiesene Aufträge (nicht bereits zugewiesen,
+    //    nicht bereits Teil einer aktiven Tour — verhindert Doppelbuchung im Pool-Modell)
     const acceptedOrders = state.orders.filter(o =>
       o.status === "angenommen" &&
       o.tons <= vehicle.capacityTons &&
-      !usedOrderIds.has(o.id)
+      !usedOrderIds.has(o.id) &&
+      !(state.tours || []).some(t => t.status === "active" && (t.deployments || []).some(d => d.orderId === o.id && d.status !== "cancelled"))
     );
 
     // 2. Offene Angebote (nur wenn acceptNew, nicht bereits zugewiesen)
@@ -764,7 +766,8 @@ export function suggestTours(state, opts) {
       o.status === "offered" &&
       o.acceptDeadlineMin > startMin &&
       o.tons <= vehicle.capacityTons &&
-      !usedOrderIds.has(o.id)
+      !usedOrderIds.has(o.id) &&
+      !(state.tours || []).some(t => t.status === "active" && (t.deployments || []).some(d => d.orderId === o.id && d.status !== "cancelled"))
     ) : [];
 
     const allOrders = [...acceptedOrders, ...offeredOrders];
