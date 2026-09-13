@@ -1,18 +1,20 @@
 import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
-import { Check, Headset, Clock, Moon, Truck } from "lucide-react";
+import { Check, Headset, Clock, Moon, Truck, Building2 } from "lucide-react";
 import { SHIFT_TEMPLATES } from "@/lib/personnelMarketData";
 
-// Disponenten-Einrichtung: Arbeitsweise und Schicht festlegen.
-// Alle Lkw gehören dem Firmenpool — verschiedene Disponenten in
-// verschiedenen Schichten greifen auf denselben Pool zu (24/7-Betrieb).
+// Disponenten-Einrichtung: Arbeitsweise, Schicht und Filiale festlegen.
+// Ohne Filialzuordnung: gesamter Firmenpool. Mit Filialzuordnung: nur deren Lkw.
 export default function DispatcherSetup({ employee, onClose }) {
-  const { send, showToast } = useGame();
+  const { state, send, showToast } = useGame();
   const [workMode, setWorkMode] = useState(employee.workMode || "suggestions");
   const [shiftId, setShiftId] = useState(
     SHIFT_TEMPLATES.find(s => s.startMin === (employee.shiftStart ?? 480) && s.endMin === (employee.shiftEnd ?? 960))?.id || "day"
   );
+  const [branchId, setBranchId] = useState(employee.assignedBranchId || null);
   const [saving, setSaving] = useState(false);
+
+  const activeBranches = (state.branches || []).filter(b => b.status === "active");
 
   async function save() {
     setSaving(true);
@@ -23,6 +25,7 @@ export default function DispatcherSetup({ employee, onClose }) {
         workMode,
         shiftStart: shift.startMin,
         shiftEnd: shift.endMin,
+        branchId: branchId,
       });
       showToast("Disponent eingerichtet.", "success");
       onClose();
@@ -44,10 +47,10 @@ export default function DispatcherSetup({ employee, onClose }) {
       {/* Firmenpool-Hinweis */}
       <div className="rounded-lg border border-lime/20 bg-lime/5 px-3 py-2.5">
         <div className="text-[10px] tracking-[0.14em] uppercase text-lime/80 mb-1 flex items-center gap-1.5">
-          <Truck className="w-3 h-3" /> Firmenpool
+          <Truck className="w-3 h-3" /> Fahrzeugpool
         </div>
         <div className="text-xs text-muted-foreground leading-relaxed">
-          Alle Lkw gehören dem Firmenpool. Dieser Disponent greift automatisch auf alle verfügbaren Fahrzeuge zu — verschiedene Schichten teilen sich die Flotte für den 24/7-Betrieb.
+          Standardmäßig disponiert dieser Disponent alle Lkw des Firmenpools. Alternativ kannst du ihn einer Filiale zuordnen — dann plant er nur noch deren Fahrzeuge.
         </div>
       </div>
 
@@ -96,6 +99,36 @@ export default function DispatcherSetup({ employee, onClose }) {
         </div>
         <div className="text-[10px] text-muted-foreground mt-2">
           Mehrere Disponenten in verschiedenen Schichten ermöglichen 24/7-Betrieb.
+        </div>
+      </div>
+
+      {/* Filiale */}
+      <div>
+        <div className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground mb-2 flex items-center gap-1.5">
+          <Building2 className="w-3 h-3" /> Filiale
+        </div>
+        <div className="space-y-1.5">
+          <button
+            onClick={() => setBranchId(null)}
+            className={`w-full text-left rounded-lg px-3 py-2.5 border transition ${
+              branchId === null ? "border-lime/40 bg-lime/10" : "border-white/10 hover:border-white/20"
+            }`}
+          >
+            <div className={`text-sm font-medium ${branchId === null ? "text-lime" : "text-foreground"}`}>Gesamter Firmenpool</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">Disponiert alle Lkw aller Filialen</div>
+          </button>
+          {activeBranches.map(b => (
+            <button
+              key={b.id}
+              onClick={() => setBranchId(b.id)}
+              className={`w-full text-left rounded-lg px-3 py-2.5 border transition ${
+                branchId === b.id ? "border-lime/40 bg-lime/10" : "border-white/10 hover:border-white/20"
+              }`}
+            >
+              <div className={`text-sm font-medium ${branchId === b.id ? "text-lime" : "text-foreground"}`}>{b.name}</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">{b.city} · nur deren Lkw</div>
+            </button>
+          ))}
         </div>
       </div>
 

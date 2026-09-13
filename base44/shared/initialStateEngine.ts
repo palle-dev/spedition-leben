@@ -63,7 +63,7 @@ export function createInitialState(names) {
       stress: 30, happiness: 60, relationship: 60,
       residence: "Wohnung in Hamburg"
     },
-    branches: [{ id: "b1", name: "Hauptniederlassung Hamburg", city: "Hamburg", costPerDayCents: BRANCH_COST_PER_DAY }],
+    branches: [{ id: "b1", name: "Hauptniederlassung Hamburg", city: "Hamburg", costPerDayCents: BRANCH_COST_PER_DAY, isHeadquarters: true, status: "active", openedAtMin: 480, stats: { revenueCents: 0, deliveries: 0, expensesCents: 0 }, cleanliness: 85, lastCleaningDay: 0 }],
     vehicles: [1, 2, 3].map(i => ({
       id: "v" + i, branchId: "b1", type: STANDARD_TRUCK.type, capacityTons: 12,
       consumptionPer100km: 28, bookValueCents: STANDARD_TRUCK.bookValueCents,

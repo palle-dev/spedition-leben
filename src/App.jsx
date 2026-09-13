@@ -24,6 +24,7 @@ import Journal from '@/pages/Journal';
 import Achievements from '@/pages/Achievements';
 import Mail from '@/pages/Mail';
 import Investment from '@/pages/Investment';
+import Branches from '@/pages/Branches';
 // Add page imports here
 
 const AuthenticatedApp = () => {
@@ -69,6 +70,7 @@ const AuthenticatedApp = () => {
         <Route path="/erfolge" element={<Achievements />} />
         <Route path="/postfach" element={<Mail />} />
         <Route path="/investment" element={<Investment />} />
+        <Route path="/filialen" element={<Branches />} />
       </Route>
     </Route>
     <Route path="*" element={<PageNotFound />} />

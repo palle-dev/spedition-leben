@@ -1,0 +1,181 @@
+import React, { useState, useMemo } from "react";
+import { useGame } from "@/lib/gameContext";
+import { formatEuro, formatGameTime } from "@/lib/gameData";
+import { vehicleDisplayName } from "@/lib/displayHelpers";
+import BranchCard from "@/components/branches/BranchCard";
+import BranchMap from "@/components/branches/BranchMap";
+import OpenBranchDialog from "@/components/branches/OpenBranchDialog";
+import MoveResourceDialog from "@/components/branches/MoveResourceDialog";
+import { Building2, Plus, Truck, Users, MapPin, ArrowRight } from "lucide-react";
+
+export default function Branches() {
+  const { state, send, showToast } = useGame();
+  const [showOpen, setShowOpen] = useState(false);
+  const [moveContext, setMoveContext] = useState(null); // { type, branchId }
+  const [selectedResource, setSelectedResource] = useState(null); // resource object
+  const [selectedBranchId, setSelectedBranchId] = useState(null);
+
+  const activeBranches = (state.branches || []).filter(b => b.status === "active");
+  const totalDailyCost = activeBranches.reduce((s, b) => s + (b.costPerDayCents || 0), 0);
+  const totalRevenue = activeBranches.reduce((s, b) => s + (b.stats?.revenueCents || 0), 0);
+  const totalDeliveries = activeBranches.reduce((s, b) => s + (b.stats?.deliveries || 0), 0);
+
+  // When moveContext is set, show resource picker
+  const branchForMove = moveContext ? activeBranches.find(b => b.id === moveContext.branchId) : null;
+  const availableResources = useMemo(() => {
+    if (!moveContext || !branchForMove) return [];
+    if (moveContext.type === "vehicle") {
+      return (state.vehicles || []).filter(v =>
+        v.branchId === moveContext.branchId &&
+        v.status === "free" &&
+        v.status !== "sold" && v.status !== "archived"
+      );
+    } else {
+      return (state.drivers || []).filter(d =>
+        d.branchId === moveContext.branchId &&
+        d.employmentStatus === "employed" &&
+        d.status === "free"
+      );
+    }
+  }, [moveContext, branchForMove, state.vehicles, state.drivers]);
+
+  return (
+    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1600px] mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-end justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-medium tracking-tight">Filialen</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {activeBranches.length} aktive Standort{activeBranches.length !== 1 ? "e" : ""} · {formatEuro(totalDailyCost)}/Tag · {totalDeliveries} Lieferungen gesamt
+          </p>
+        </div>
+        <button
+          onClick={() => setShowOpen(true)}
+          className="flex items-center gap-2 rounded-lg px-4 py-2.5 bg-lime text-ink font-semibold text-sm hover:brightness-110 transition active:scale-[0.98]"
+        >
+          <Plus className="w-4 h-4" /> Filiale eröffnen
+        </button>
+      </div>
+
+      {/* Summary Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <SummaryCard label="Standorte" value={activeBranches.length} icon={Building2} />
+        <SummaryCard label="Gesamtumsatz" value={formatEuro(totalRevenue)} icon={ArrowRight} />
+        <SummaryCard label="Lieferungen" value={totalDeliveries} icon={Truck} />
+        <SummaryCard label="Tageskosten" value={formatEuro(totalDailyCost)} icon={Users} />
+      </div>
+
+      <div className="grid lg:grid-cols-[320px_1fr] gap-6">
+        {/* Map */}
+        <div className="space-y-3">
+          <BranchMap branches={activeBranches} selectedId={selectedBranchId} onSelect={setSelectedBranchId} />
+          <div className="text-xs text-muted-foreground/60 text-center">
+            Lime-Marker zeigen aktive Filialen. Klicke auf eine Stadt, um die Filialkarte zu fokussieren.
+          </div>
+        </div>
+
+        {/* Branch Cards */}
+        <div className="grid md:grid-cols-2 gap-3">
+          {activeBranches.map(b => (
+            <BranchCard
+              key={b.id}
+              branch={{ ...b, totalDailyCostCents: computeBranchDailyCost(state, b) }}
+              onMoveResource={(ctx) => { setMoveContext(ctx); setSelectedBranchId(b.id); }}
+            />
+          ))}
+          {activeBranches.length === 0 && (
+            <div className="text-sm text-muted-foreground text-center py-8 col-span-2">
+              Keine aktiven Filialen. Eröffne deinen ersten Standort.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Open Branch Dialog */}
+      {showOpen && <OpenBranchDialog onClose={() => setShowOpen(false)} />}
+
+      {/* Resource Picker (when moveContext is set but no resource selected yet) */}
+      {moveContext && !selectedResource && (
+        <ResourcePicker
+          moveContext={moveContext}
+          branch={branchForMove}
+          resources={availableResources}
+          onSelect={(r) => setSelectedResource(r)}
+          onClose={() => setMoveContext(null)}
+        />
+      )}
+
+      {/* Move Resource Dialog (when a resource is selected) */}
+      {selectedResource && (
+        <MoveResourceDialog
+          resource={selectedResource}
+          resourceType={moveContext.type}
+          onClose={() => { setSelectedResource(null); setMoveContext(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function computeBranchDailyCost(state, branch) {
+  const drivers = (state.drivers || []).filter(d => d.branchId === branch.id && d.employmentStatus === "employed");
+  const dispatchers = (state.employees || []).filter(e => e.assignedBranchId === branch.id && e.employmentStatus === "employed");
+  return branch.costPerDayCents
+    + drivers.reduce((s, d) => s + (d.costPerDayCents || 0), 0)
+    + dispatchers.reduce((s, e) => s + (e.costPerDayCents || 0), 0);
+}
+
+function SummaryCard({ label, value, icon: Icon }) {
+  return (
+    <div className="glass border border-white/10 rounded-xl p-3.5">
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-1">
+        <Icon className="w-3 h-3" /> {label}
+      </div>
+      <div className="text-lg font-medium tabular-nums">{value}</div>
+    </div>
+  );
+}
+
+function ResourcePicker({ moveContext, branch, resources, onSelect, onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/80 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="glass border border-white/15 rounded-2xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-2 mb-1">
+          {moveContext.type === "vehicle" ? <Truck className="w-5 h-5 text-lime" /> : <Users className="w-5 h-5 text-lime" />}
+          <h2 className="text-lg font-medium">
+            {moveContext.type === "vehicle" ? "Lkw verschieben" : "Fahrer verschieben"}
+          </h2>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          Wähle eine Ressource aus {branch?.name} ({branch?.city}):
+        </p>
+        {resources.length === 0 ? (
+          <div className="text-sm text-muted-foreground text-center py-6">
+            Keine freie {moveContext.type === "vehicle" ? "Fahrzeuge" : "Fahrer"} an diesem Standort.
+          </div>
+        ) : (
+          <div className="space-y-1.5 max-h-60 overflow-y-auto">
+            {resources.map(r => (
+              <button
+                key={r.id}
+                onClick={() => onSelect(r)}
+                className="w-full text-left rounded-lg px-3 py-2.5 border border-white/10 hover:border-lime/30 hover:bg-lime/5 transition flex items-center justify-between"
+              >
+                <span className="flex items-center gap-2 text-sm">
+                  {moveContext.type === "vehicle" ? <Truck className="w-3.5 h-3.5 text-muted-foreground" /> : <Users className="w-3.5 h-3.5 text-muted-foreground" />}
+                  {moveContext.type === "vehicle" ? vehicleDisplayName(r) : r.name}
+                </span>
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <MapPin className="w-3 h-3" /> {r.locationCity}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+        <button onClick={onClose} className="w-full mt-4 rounded-lg py-2.5 text-sm border border-white/10 text-muted-foreground hover:text-foreground transition">
+          Abbrechen
+        </button>
+      </div>
+    </div>
+  );
+}
