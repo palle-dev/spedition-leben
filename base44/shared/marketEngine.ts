@@ -148,9 +148,11 @@ function computeAnchorCities(state) {
 }
 
 // Wählt einen Kunden gewichtet nach Flottennähe seiner Depots.
+// Basisgewicht 4 stellt sicher, dass auch Kunden abseits der Flotte
+// (z. B. Süd- und Westdeutschland) regelmäßig Aufträge generieren.
 function pickCustomer(state, anchors, rng) {
   const weights = CUSTOMER_PROFILES.map(c => {
-    let w = 1;
+    let w = 4;
     for (const depot of c.depots) {
       if (anchors[depot]) w += anchors[depot];
     }
