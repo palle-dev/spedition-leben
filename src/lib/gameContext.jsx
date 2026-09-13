@@ -47,6 +47,12 @@ export function GameProvider({ children }) {
   const subscriptionRef = useRef(null);
   const syncFailCountRef = useRef(0);
   const syncInFlightRef = useRef(false);
+  // ---- Glatte Uhr & Visibility-basierte Automatik ----
+  const [displayGameTime, setDisplayGameTime] = useState(0);
+  const userWantsAutomationRef = useRef(false);
+  const lastSyncGameTimeRef = useRef(0);
+  const lastSyncRealMsRef = useRef(0);
+  const clockIntervalRef = useRef(null);
   const dismissOverlay = useCallback(() => {
     setOverlay(null);
     // Nächste ausstehende Auszeichnung anzeigen, falls vorhanden
@@ -59,6 +65,24 @@ export function GameProvider({ children }) {
   useEffect(() => {
     document.body.classList.toggle("no-motion", !motionEnabled);
   }, [motionEnabled]);
+
+  // ---- Glatte Uhr: interpoliert Spielzeit zwischen Backend-Syncs ----
+  // 1 Echtsekunde = 1 Spielminute → die Uhr tickt sekündlich, ohne Sprünge.
+  useEffect(() => {
+    if (!automationEnabled || !state?.timeControl?.enabled) {
+      setDisplayGameTime(state?.gameTime || 0);
+      if (clockIntervalRef.current) { clearInterval(clockIntervalRef.current); clockIntervalRef.current = null; }
+      return;
+    }
+    const tick = () => {
+      const elapsedMs = Date.now() - lastSyncRealMsRef.current;
+      const advancedMin = Math.floor(elapsedMs / 1000); // 1s = 1 Spielminute
+      setDisplayGameTime(lastSyncGameTimeRef.current + advancedMin);
+    };
+    tick();
+    clockIntervalRef.current = setInterval(tick, 500);
+    return () => { if (clockIntervalRef.current) { clearInterval(clockIntervalRef.current); clockIntervalRef.current = null; } };
+  }, [automationEnabled, state?.gameTime, state?.timeControl?.enabled]);
 
   // Snapshot für Willkommen-zurück-Bericht speichern (beim Verlassen der Seite).
   useEffect(() => {
@@ -119,6 +143,8 @@ export function GameProvider({ children }) {
     if (data.stateId) localStorage.setItem(LS_KEY, data.stateId);
     stateRef.current = data.state;
     setAutomationEnabled(!!data.state?.timeControl?.enabled);
+    lastSyncGameTimeRef.current = data.state?.gameTime || 0;
+    lastSyncRealMsRef.current = Date.now();
     prevAchievementsRef.current = new Set((data.state?.achievements || []).filter(a => a.unlocked).map(a => a.id));
 
     // ---- Neue Ereignisse erkennen und Toasts anzeigen (Auftrag 23) ----
@@ -172,29 +198,21 @@ export function GameProvider({ children }) {
         try {
           const data = await gameCommand({ command: "load", stateId: savedId });
           applyLoaded(data);
-          // Willkommen-zurück-Bericht bei Abwesenheit mit aktiver Automatik.
+          // Beim Laden: Automatik immer pausieren – kein Hintergrundbetrieb mehr.
+          // Der Nutzer aktiviert die Zeitautomatik per Klick, wenn er sie möchte.
           if (data.state?.timeControl?.enabled) {
             try {
-              const raw = localStorage.getItem(LS_SNAPSHOT_KEY);
-              if (raw) {
-                const snap = JSON.parse(raw);
-                const diff = data.state.gameTime - snap.gameMin;
-                if (diff >= 1440) {
-                  const mailUnread = (data.state.mail?.conversations || []).reduce((s, c) =>
-                    s + (c.messages || []).filter(m => m.toId === "player" && !m.read).length, 0);
-                  setOverlay({
-                    type: "welcomeBack",
-                    data: {
-                      daysAway: Math.floor(diff / 1440),
-                      hoursAway: Math.floor((diff % 1440) / 60),
-                      companyDelta: (data.state.company?.accountCents || 0) - (snap.companyCents || 0),
-                      deliveriesDelta: (data.state.stats?.totalDeliveries || 0) - (snap.totalDeliveries || 0),
-                      unreadMail: mailUnread,
-                    },
-                  });
-                }
-              }
+              await gameCommand({
+                stateId: savedId,
+                action_id: (crypto.randomUUID ? crypto.randomUUID() : "pause_" + Date.now()),
+                expected_revision: data.revision,
+                command: "pauseAutomation",
+                params: { reason: "loaded" },
+              });
+              const paused = await gameCommand({ command: "load", stateId: savedId });
+              applyLoaded(paused);
             } catch (e) {}
+            userWantsAutomationRef.current = false;
           }
         } catch (e) {
           localStorage.removeItem(LS_KEY);
@@ -298,50 +316,50 @@ export function GameProvider({ children }) {
     }
   }, [applyLoaded, reload]);
 
-  const enableAutomation = useCallback(async () => {
+  const enableAutomation = useCallback(async (silent = false) => {
     if (!idRef.current) return;
     setAutomationBusy(true);
+    userWantsAutomationRef.current = true;
     try {
       let lastError = null;
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
           await send("enableAutomation", {});
           setAutomationEnabled(true);
-          showToast("Zeitautomatik aktiviert – das Spiel läuft im Hintergrund weiter.", "success");
+          if (!silent) showToast("Zeitautomatik aktiviert – läuft, solange das Spiel geöffnet ist.", "success");
           return;
         } catch (e) {
           lastError = e;
           await new Promise(r => setTimeout(r, 50));
         }
       }
-      showToast("Automatik konnte nicht aktiviert werden: " + (lastError?.message || "Unbekannt"), "error");
+      if (!silent) showToast("Automatik konnte nicht aktiviert werden: " + (lastError?.message || "Unbekannt"), "error");
     } finally {
       setAutomationBusy(false);
     }
   }, [send, showToast]);
 
-  const pauseAutomation = useCallback(async (reason) => {
+  const pauseAutomation = useCallback(async (silent = false, reason) => {
     if (!idRef.current) return;
     setAutomationBusy(true);
     // Sofort Polling stoppen, um Entity-Read-Limit zu entlasten.
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    const isUserInitiated = !silent;
+    if (isUserInitiated) userWantsAutomationRef.current = false;
     try {
-      // Während aktiver Automatik ändert sich die Revision durch den Polling-Sync.
-      // Bei Konflikt: frische Revision laden und erneut versuchen (bis zu 2 Versuche).
       let lastError = null;
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
           await send("pauseAutomation", { reason: reason || "user" });
           setAutomationEnabled(false);
-          showToast("Zeitautomatik pausiert.", "info");
+          if (isUserInitiated) showToast("Zeitautomatik pausiert.", "info");
           return;
         } catch (e) {
           lastError = e;
-          // send() hat bereits reload() ausgeführt – kurze Pause, dann erneut versuchen.
           await new Promise(r => setTimeout(r, 100));
         }
       }
-      showToast("Automatik konnte nicht pausiert werden: " + (lastError?.message || "Unbekannt"), "error");
+      if (isUserInitiated) showToast("Automatik konnte nicht pausiert werden: " + (lastError?.message || "Unbekannt"), "error");
     } finally {
       setAutomationBusy(false);
     }
@@ -356,9 +374,28 @@ export function GameProvider({ children }) {
       return;
     }
     syncAutomation();
-    pollRef.current = setInterval(syncAutomation, 3000);
+    pollRef.current = setInterval(syncAutomation, 5000);
     return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
   }, [automationEnabled, syncAutomation]);
+
+  // ---- Visibility-basierte Automatik: nur laufen, wenn Tab sichtbar ----
+  // Bei Tab-Wechsel/Minimierung: Automatik pausieren und sichern.
+  // Bei Rückkehr: Automatik fortsetzen, wenn der Nutzer sie aktiviert hatte.
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden) {
+        if (automationEnabled) {
+          pauseAutomation(true, "tab_hidden");
+        }
+      } else {
+        if (userWantsAutomationRef.current && !automationEnabled && !automationBusy) {
+          enableAutomation(true);
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [automationEnabled, automationBusy, enableAutomation, pauseAutomation]);
 
   // ---- Echtzeit-Subscription für GameState-Änderungen (Auftrag 23) ----
   // Subscribe zu GameState-Entity: bei Änderung sofortigen Sync anstoßen.
@@ -420,6 +457,7 @@ export function GameProvider({ children }) {
     state, revision, stateId, loading, busy, toast, showToast, send, newGame, listGames, loadGame, reload,
     motionEnabled, toggleMotion, overlay, dismissOverlay,
     automationEnabled, automationBusy, enableAutomation, pauseAutomation,
+    displayGameTime,
     // Live-Dienst (Auftrag 23)
     toasts, dismissToast, unseenCount, markAllEventsSeen, connectionState,
   };
