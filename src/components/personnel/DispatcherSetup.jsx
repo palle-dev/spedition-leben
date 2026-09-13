@@ -13,6 +13,16 @@ export default function DispatcherSetup({ employee, onClose }) {
 
   const capacity = employee.capacity || 6;
   const allVehicles = state.vehicles;
+  // LKWs, die keinem ANDEREN Disponenten zugewiesen sind.
+  // Bereits diesem Disponenten zugewiesene LKWs bleiben auswählbar.
+  const otherAssignedIds = new Set(
+    (state.employees || [])
+      .filter(e => e.id !== employee.id && (e.role === "dispatcher" || e.role === "dispatcher_senior"))
+      .flatMap(e => e.assignedVehicleIds || [])
+  );
+  const availableVehicles = allVehicles.filter(v =>
+    selectedVehicles.includes(v.id) || !otherAssignedIds.has(v.id)
+  );
 
   function toggleVehicle(vid) {
     setSelectedVehicles(prev => {
@@ -56,7 +66,7 @@ export default function DispatcherSetup({ employee, onClose }) {
           {selectedVehicles.length}/{capacity} zugewiesen · Maximal {capacity} Lkw
         </div>
         <div className="space-y-1.5 max-h-48 overflow-y-auto scrollbar-none">
-          {allVehicles.map(v => {
+          {availableVehicles.map(v => {
             const selected = selectedVehicles.includes(v.id);
             const disabled = !selected && selectedVehicles.length >= capacity;
             return (
