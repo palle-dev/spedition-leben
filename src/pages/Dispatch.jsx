@@ -3,6 +3,7 @@ import { useGame } from "@/lib/gameContext";
 import { loadRouteGeometries, buildPlanRouteGeoJSON } from "@/lib/geoData";
 import DispatchMap from "@/components/dispatch/DispatchMap";
 import DispatchWorkspace from "@/components/dispatch/DispatchWorkspace";
+import MarketPriorityControl from "@/components/dispatch/MarketPriorityControl";
 import { Navigation, Truck, Home, Route as RouteIcon, Map, List, Search, X, Plus, Package } from "lucide-react";
 
 export default function Dispatch() {
@@ -187,6 +188,9 @@ export default function Dispatch() {
             </button>
           )}
         </div>
+
+        {/* Marktpriorität */}
+        <MarketPriorityControl />
 
         {/* Mobil: Karte/Liste-Umschalter */}
         <div className="lg:hidden flex gap-1 bg-ink/60 border border-white/10 rounded-full p-0.5 shrink-0">

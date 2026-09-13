@@ -805,7 +805,7 @@ function processDispatcher(state, emp, m, log) {
     }
     const result = suggestTours(state, {
       vehicleIds: poolVehicleIds, earliestStart: m, horizonMin: 2880,
-      desiredEndCity: null, latestReturnMin: null, mode: "balanced", acceptNew: false,
+      desiredEndCity: null, latestReturnMin: null, mode: state.marketPriority || "balanced", acceptNew: false,
     });
     emp.suggestions = (emp.suggestions || []).filter(s => s.status !== "pending");
     for (const s of result.suggestions) {
@@ -839,7 +839,7 @@ function processDispatcher(state, emp, m, log) {
   // suggestTours berücksichtigt auch ruhende Fahrer und zurückkehrende Fahrzeuge
   const result = suggestTours(state, {
     vehicleIds: poolVehicleIds, earliestStart: m, horizonMin: 48 * 60,
-    desiredEndCity: null, latestReturnMin: null, mode: "balanced", acceptNew,
+    desiredEndCity: null, latestReturnMin: null, mode: state.marketPriority || "balanced", acceptNew,
   });
 
   const usedVehicleIds = new Set();
@@ -1064,6 +1064,14 @@ export function applyCommand(state, command, params) {
       if (p.playerName) state.private.playerName = p.playerName;
       if (p.partnerName) state.private.partnerName = p.partnerName;
       result = { ok: true };
+      break;
+    }
+
+    case "setMarketPriority": {
+      const valid = ["balanced", "high_margin", "low_empty"];
+      if (!valid.includes(p.priority)) throw new Error("Ungültige Priorität: " + p.priority);
+      state.marketPriority = p.priority;
+      result = { ok: true, marketPriority: state.marketPriority };
       break;
     }
 
