@@ -28,9 +28,10 @@ function uid(state, prefix) {
 export function isResourceFree(state, resource, fromMin, toMin) {
   if (resource.status === "on_trip" || resource.status === "maintenance") return false;
   if (resource.status === "resting" && resource.restUntil !== null && resource.restUntil > fromMin) return false;
-  // Prüfe bestehende Touren-Reservierungen
+  // Prüfe bestehende Touren-Reservierungen — pausierte Touren blockieren nicht
   for (const tour of state.tours || []) {
     if (tour.status !== "active" && tour.status !== "planned") continue;
+    if (tour.pauseReason) continue;
     if (tour.vehicleId === resource.id || tour.driverId === resource.id) {
       if (tour.reservedUntil && tour.reservedUntil > fromMin) return false;
     }
@@ -644,6 +645,43 @@ export function cancelTour(state, tourId) {
 // Wird bei jedem Ereignis-Zeitpunkt aufgerufen.
 // Prüft, ob eine Tour zum nächsten Einsatz starten kann.
 export function processTours(state, m, log) {
+  // Cleanup: Pausierte und verwaiste Touren abbrechen.
+  // Pausierte Touren (z.B. "Fahrzeug nicht am erwarteten Ort") können nicht
+  // starten und blockieren über reservedUntil Fahrzeuge/Fahrer. Verwaiste
+  // Touren (alle Einsätze geplant + Startzeit weit in der Vergangenheit)
+  // sind ebenfalls nicht mehr ausführbar. Beide werden abgebrochen, um
+  // Ressourcen freizugeben.
+  for (const tour of state.tours || []) {
+    if (tour.status !== "active") continue;
+    let shouldCancel = false;
+    let cancelReason = null;
+    if (tour.pauseReason) {
+      shouldCancel = true;
+      cancelReason = "Pausiert: " + tour.pauseReason;
+    } else {
+      const deps = tour.deployments || [];
+      const allPlanned = deps.length > 0 && deps.every(d => d.status === "planned");
+      const allPast = deps.every(d => d.startMin < m - 720);
+      if (allPlanned && allPast) {
+        shouldCancel = true;
+        cancelReason = "Einsätze in der Vergangenheit nicht gestartet";
+      }
+    }
+    if (shouldCancel) {
+      tour.status = "cancelled";
+      tour.cancelReason = cancelReason;
+      for (const dep of (tour.deployments || [])) {
+        if (dep.orderId && dep.status === "planned") {
+          const order = state.orders.find(o => o.id === dep.orderId);
+          if (order && order.status === "unterwegs") order.status = "angenommen";
+        }
+        dep.status = "cancelled";
+        dep.cancelReason = "tour_cancelled_stale";
+      }
+      log.push({ type: "tour_cancelled_stale", tour: tour.id, reason: cancelReason });
+    }
+  }
+
   for (const tour of state.tours || []) {
     if (tour.status !== "active") continue;
     if (tour.pauseReason) continue;
