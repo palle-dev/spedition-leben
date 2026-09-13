@@ -315,6 +315,29 @@ export function GameProvider({ children }) {
     if (stateId) { isInitialLoadRef.current = true; seenEventIdsRef.current = new Set(); lastEventSeqRef.current = 0; setToasts([]); setUnseenCount(0); setDirty(false); }
   }, [stateId]);
 
+  // ---- Hintergrund-Check: Server-State verifizieren, localStorage ggf. leeren ----
+  useEffect(() => {
+    if (!stateId || loading) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await gameCommand({ command: "load", stateId });
+      } catch (e) {
+        if (cancelled) return;
+        if (e?.message && e.message.includes("Kein Zugriff")) {
+          localStorage.removeItem(LS_STATE);
+          localStorage.removeItem(LS_STATE_ID);
+          localStorage.removeItem(LS_SERVER_REV);
+          stateRef.current = null;
+          setState(null);
+          setStateId(null);
+          stateIdRef.current = null;
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [stateId, loading]);
+
   const markAllEventsSeen = useCallback(async () => {
     if (!stateRef.current) return;
     try { await send("markAllEventsSeen", {}); setUnseenCount(0); } catch (e) {}
