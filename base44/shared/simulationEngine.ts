@@ -973,7 +973,7 @@ function processDispatcher(state, emp, m, log) {
         const driverCount = state.drivers.filter(d => d.employmentStatus === "employed" && d.attendance !== "released").length;
         reason = driverCount === 0
           ? "Keine Fahrer eingestellt"
-          : "Kein Fahrer am Standort " + v.locationCity + " (oder Zeitversatz)";
+          : "Kein Fahrer am Standort " + v.locationCity + " (" + driverCount + " Fahrer für " + poolVehicles.length + " Lkw)";
       } else if (!hasUnplannedAccepted && !hasOfferedOrders) {
         reason = acceptNew ? "Keine (profitablen) Aufträge verfügbar" : "Keine angenommenen Aufträge – autonomer Modus oder manuelle Annahme nötig";
       } else {

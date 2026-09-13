@@ -827,24 +827,25 @@ export function suggestTours(state, opts) {
     const vehicleFutureCity = futureLocation(state, vehicle);
     const vehicleAvail = earliestAvailable(state, vehicle, { id: null });
 
-    // Finde einen passenden Fahrer am gleichen Ort (auch ruhende oder auf Tour,
-    // wenn die zukünftige Stadt übereinstimmt und der Fahrer nicht schon
-    // anderweitig vorgemerkt ist).
-    const driver = state.drivers.find(d => {
+    // Finde alle passenden Fahrer am gleichen Ort (auch ruhende oder auf Tour,
+    // wenn die zukünftige Stadt übereinstimmt). Probiere mehrere Fahrer, da
+    // verschiedene Fahrer unterschiedliche Arbeitszeit-Zähler haben — der
+    // erste Fahrer könnte erschöpft sein, während ein anderer noch Kapazität hat.
+    const candidateDrivers = state.drivers.filter(d => {
       if (d.employmentStatus !== "employed") return false;
       if (usedDriverIds.has(d.id)) return false;
       if (d.status !== "free" && d.status !== "resting" && d.status !== "on_trip") return false;
       const driverFutureCity = futureDriverLocation(state, d);
       if (driverFutureCity !== vehicleFutureCity) return false;
-      // Wenn beide auf Tour sind, müssen ihre Touren etwa zeitgleich enden
-      // (Toleranz 60 Min), damit der Fahrer am richtigen Ort ist.
       if (d.status === "on_trip" || vehicle.status === "on_trip") {
         const driverAvail = earliestAvailable(state, { id: null }, d);
         if (Math.abs(driverAvail - vehicleAvail) > 120) return false;
       }
       return true;
     });
-    if (!driver) continue;
+    // CPU-Schutz: höchstens 4 Fahrer pro Fahrzeug probieren.
+    if (candidateDrivers.length > 4) candidateDrivers.length = 4;
+    if (candidateDrivers.length === 0) continue;
 
     // 1. Bereits angenommene, unzugewiesene Aufträge (nicht bereits zugewiesen,
     //    nicht bereits Teil einer aktiven Tour — verhindert Doppelbuchung im Pool-Modell)
@@ -866,67 +867,76 @@ export function suggestTours(state, opts) {
 
     const allOrders = [...acceptedOrders, ...offeredOrders];
     // CPU-Schutz: die Doppel-Tour-Suche ist O(n²). Bei vielen Aufträgen
-    // wird die Liste auf die Top-12 nach Vergütung begrenzt, damit die
+    // wird die Liste auf die Top-18 nach Vergütung begrenzt, damit die
     // kombinatorische Explosion (und damit CPU-Timeouts) vermieden wird.
     if (allOrders.length > 18) {
       allOrders.sort((a, b) => (b.paymentCents || 0) - (a.paymentCents || 0));
       allOrders.length = 18;
     }
 
-    // Finde die beste Einzel- oder Doppel-Tour.
-    // Bei Neuaufträgen (offered) werden nur profitable Pläne berücksichtigt —
-    // verhindert, dass suggestTours einen unprofitablen Plan zurückgibt, der
-    // dann in processDispatcher verworfen wird, während ein anderer profitabler
-    // Auftrag verfügbar gewesen wäre.
+    // Probiere jeden Kandidaten-Fahrer und wähle den mit dem besten Plan.
+    // Bei Neuaufträgen (offered) werden nur profitable Pläne berücksichtigt.
     let bestPlan = null;
     let bestOrders = null;
+    let bestDriver = null;
 
-    // Einzel-Touren
-    for (const o of allOrders) {
-      const plan = buildTourPlan(state, {
-        vehicleId, driverId: driver.id,
-        orderIds: [o.id],
-        desiredEndCity, latestReturnMin,
-      });
-      if (plan.ok && plan.tourEndMin <= maxMin) {
-        const isNew = o.status === "offered";
-        if (isNew && plan.totalContributionCents <= 0) continue;
-        if (!bestPlan || comparePlans(plan, bestPlan, mode) < 0) {
-          bestPlan = plan;
-          bestOrders = [o.id];
-        }
-      }
-    }
+    for (const driver of candidateDrivers) {
+      let driverBestPlan = null;
+      let driverBestOrders = null;
 
-    // Doppel-Touren (Hin + Rück)
-    for (let i = 0; i < allOrders.length; i++) {
-      for (let j = 0; j < allOrders.length; j++) {
-        if (i === j) continue;
-        const o1 = allOrders[i], o2 = allOrders[j];
-        if (o1.toCity !== o2.fromCity) continue; // Nur direkte Rückladungen
+      // Einzel-Touren
+      for (const o of allOrders) {
         const plan = buildTourPlan(state, {
           vehicleId, driverId: driver.id,
-          orderIds: [o1.id, o2.id],
+          orderIds: [o.id],
           desiredEndCity, latestReturnMin,
         });
         if (plan.ok && plan.tourEndMin <= maxMin) {
-          const hasNew = o1.status === "offered" || o2.status === "offered";
-          if (hasNew && plan.totalContributionCents <= 0) continue;
-          if (!bestPlan || comparePlans(plan, bestPlan, mode) < 0) {
-            bestPlan = plan;
-            bestOrders = [o1.id, o2.id];
+          const isNew = o.status === "offered";
+          if (isNew && plan.totalContributionCents <= 0) continue;
+          if (!driverBestPlan || comparePlans(plan, driverBestPlan, mode) < 0) {
+            driverBestPlan = plan;
+            driverBestOrders = [o.id];
           }
         }
+      }
+
+      // Doppel-Touren (Hin + Rück)
+      for (let i = 0; i < allOrders.length; i++) {
+        for (let j = 0; j < allOrders.length; j++) {
+          if (i === j) continue;
+          const o1 = allOrders[i], o2 = allOrders[j];
+          if (o1.toCity !== o2.fromCity) continue;
+          const plan = buildTourPlan(state, {
+            vehicleId, driverId: driver.id,
+            orderIds: [o1.id, o2.id],
+            desiredEndCity, latestReturnMin,
+          });
+          if (plan.ok && plan.tourEndMin <= maxMin) {
+            const hasNew = o1.status === "offered" || o2.status === "offered";
+            if (hasNew && plan.totalContributionCents <= 0) continue;
+            if (!driverBestPlan || comparePlans(plan, driverBestPlan, mode) < 0) {
+              driverBestPlan = plan;
+              driverBestOrders = [o1.id, o2.id];
+            }
+          }
+        }
+      }
+
+      if (driverBestPlan && (!bestPlan || comparePlans(driverBestPlan, bestPlan, mode) < 0)) {
+        bestPlan = driverBestPlan;
+        bestOrders = driverBestOrders;
+        bestDriver = driver;
       }
     }
 
     if (bestPlan) {
-      usedDriverIds.add(driver.id);
+      usedDriverIds.add(bestDriver.id);
       bestOrders.forEach(oid => usedOrderIds.add(oid));
       suggestions.push({
         vehicleId,
-        driverId: driver.id,
-        vehicle, driver,
+        driverId: bestDriver.id,
+        vehicle, driver: bestDriver,
         orderIds: bestOrders,
         plan: bestPlan,
         mode,
