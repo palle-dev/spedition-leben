@@ -270,9 +270,11 @@ function maybeGenerateInvitation(state, day, midnight) {
   }
 }
 function doDailyAccounting(state, midnight) {
+  // Idempotenz-Sperre: verhindert doppelten Tagesabschluss bei Race-Conditions
+  // (z.B. verworfener Sync nach Reload, der Mitternacht erneut verarbeitet).
+  if (state.lastDailyAccountingMin === midnight) return [];
   const day = dayOf(midnight);
   const log = [];
-  resetDailyStats(state, midnight);
   resetDailyStats(state, midnight);
   const drivers = [...state.drivers].sort((a, b) => (a.id < b.id ? -1 : 1));
   for (const d of drivers) {

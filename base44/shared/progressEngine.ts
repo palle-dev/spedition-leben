@@ -284,5 +284,8 @@ export function migrateState(state) {
   // ---------- Gefahrgut-Migration (Auftrag 32) ----------
   migrateDangerousGoods(state);
 
+  // ---------- Tagesabschluss-Migration ----------
+  if (state.lastDailyAccountingMin === undefined) state.lastDailyAccountingMin = 0;
+
   return state;
 }

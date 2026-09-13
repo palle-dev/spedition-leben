@@ -157,8 +157,7 @@ export function migrateInvestment(state) {
     initInvestment(state);
     return;
   }
-  const m = state.investment.market;
-  if (!m || !m.instruments) {
+  if (!state.investment.market || !state.investment.market.instruments) {
     initInvestmentMarket(state);
   }
   if (!state.investment.depots) {
@@ -168,6 +167,7 @@ export function migrateInvestment(state) {
     };
   }
   // Instrumente auf Vollständigkeit prüfen (keine Preisrücksetzung)
+  const m = state.investment.market;
   for (const def of ALL_INSTRUMENT_DEFS) {
     if (!m.instruments[def.id]) {
       m.instruments[def.id] = makeInstrument(def, state);
