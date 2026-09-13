@@ -50,6 +50,8 @@ export function GameProvider({ children }) {
   const subscriptionRef = useRef(null);
   const syncFailCountRef = useRef(0);
   const syncInFlightRef = useRef(false);
+  const sendInFlightRef = useRef(false);
+  const pendingSaveRef = useRef(false);
   // ---- Glatte Uhr & Visibility-basierte Automatik ----
   const [displayGameTime, setDisplayGameTime] = useState(0);
   const userWantsAutomationRef = useRef(false);
@@ -194,9 +196,13 @@ export function GameProvider({ children }) {
   }, [applyLoaded]);
 
   // ---- Speichern: persistiert lokalen Zustand in die DB ----
+  // Wenn save während eines laufenden Speicherns aufgerufen wird, wird ein
+  // Re-Save markiert. Nach Abschluss des aktuellen Speicherns wird automatisch
+  // der neueste Zustand nachgespeichert – kein Datenverlust bei schnellen
+  // aufeinanderfolgenden Befehlen.
   const save = useCallback(async (silent = false) => {
     if (!idRef.current || !stateRef.current) return;
-    if (savingRef.current) return;
+    if (savingRef.current) { pendingSaveRef.current = true; return; }
     savingRef.current = true;
     setSaving(true);
     try {
@@ -220,6 +226,11 @@ export function GameProvider({ children }) {
     } finally {
       savingRef.current = false;
       setSaving(false);
+      // Wenn während des Speicherns weitere Änderungen anstanden, nachspeichern.
+      if (pendingSaveRef.current) {
+        pendingSaveRef.current = false;
+        save(true);
+      }
     }
   }, [reload, showToast]);
 
@@ -227,6 +238,7 @@ export function GameProvider({ children }) {
   const send = useCallback(async (command, params) => {
     if (!stateRef.current) throw new Error("Kein Spielstand geladen");
     setBusy(true);
+    sendInFlightRef.current = true;
     try {
       const data = await applyCommandRemote({
         state: stateRef.current,
@@ -287,6 +299,7 @@ export function GameProvider({ children }) {
       throw e;
     } finally {
       setBusy(false);
+      sendInFlightRef.current = false;
     }
   }, [applyLoaded, showToast, save]);
 
@@ -294,7 +307,9 @@ export function GameProvider({ children }) {
   const syncAutomation = useCallback(async () => {
     if (!idRef.current || !stateRef.current) return;
     if (syncInFlightRef.current) return;
+    if (sendInFlightRef.current) return; // Benutzerbefehl hat Vorrang – Tick überspringen
     syncInFlightRef.current = true;
+    const stateBefore = stateRef.current;
     try {
       const data = await applyCommandRemote({
         state: stateRef.current,
@@ -302,6 +317,10 @@ export function GameProvider({ children }) {
         params: {},
       });
       if (data.error) throw new Error(data.error);
+      // Race-Condition-Schutz: wenn ein Benutzerbefehl während des Await den
+      // Zustand geändert hat, verwerfen wir das Tick-Ergebnis – der nächste
+      // Tick holt sich den neuesten Zustand.
+      if (stateRef.current !== stateBefore) return;
       const timeAdvanced = data.state.gameTime !== stateRef.current.gameTime || (data.result.events && data.result.events.length > 0);
       if (timeAdvanced) {
         applyLoaded({ state: data.state, revision: revRef.current, stateId: idRef.current, result: data.result });
