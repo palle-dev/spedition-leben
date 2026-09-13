@@ -462,6 +462,7 @@ function completeTrip(state, trip, m, log) {
       driver.workMinutesSinceRest = 0; driver.driveMinutesSinceBreak = 0;
     } else {
       driver.status = "free"; driver.restUntil = null;
+      driver.freeSinceMin = m;
     }
   }
 

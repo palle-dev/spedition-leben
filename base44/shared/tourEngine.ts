@@ -28,18 +28,27 @@ function uid(state, prefix) {
 export function isResourceFree(state, resource, fromMin, toMin) {
   if (resource.status === "on_trip" || resource.status === "maintenance") return false;
   if (resource.status === "resting" && resource.restUntil !== null && resource.restUntil > fromMin) return false;
-  // Prüfe bestehende Touren-Reservierungen — pausierte Touren blockieren nicht
+  // Prüfe Vorausplanungen: Eine geplanter Einsatz blockiert das Intervall,
+  // wenn die neue Nutzung [fromMin, toMin] bis zum Einsatz-Start reicht.
+  // Pausierte Touren blockieren nicht.
   for (const tour of state.tours || []) {
     if (tour.status !== "active" && tour.status !== "planned") continue;
     if (tour.pauseReason) continue;
-    if (tour.vehicleId === resource.id || tour.driverId === resource.id) {
-      if (tour.reservedUntil && tour.reservedUntil > fromMin) return false;
+    if (tour.vehicleId !== resource.id && tour.driverId !== resource.id) continue;
+    for (const dep of (tour.deployments || [])) {
+      if (dep.status !== "planned") continue;
+      if (dep.startMin <= state.gameTime) continue; // Vergangenheit
+      if (toMin > dep.startMin) return false; // Neue Nutzung überschneidet sich
     }
   }
   return true;
 }
 
 // Frühester verfügbarer Zeitpunkt für ein Fahrzeug/Fahrer-Paar.
+// Gibt die aktuelle Spielzeit zurück, wenn Fahrzeug/Fahrer frei sind.
+// Vorausplanungen (Touren mit geplanten Einsätzen in der Zukunft) blockieren
+// NICHT die Verfügbarkeit — stattdessen prüft buildTourPlan über
+// nextReservationStart, ob eine neue Tour vor der Vorausplanung endet.
 export function earliestAvailable(state, vehicle, driver) {
   let t = state.gameTime;
   if (vehicle.status === "on_trip") {
@@ -56,16 +65,26 @@ export function earliestAvailable(state, vehicle, driver) {
     const trip = state.trips.find(tr => tr.id === driver.tripId || tr.driverId === driver.id);
     if (trip) t = Math.max(t, trip.endMin);
   }
-  // Prüfe Touren-Reservierungen — pausierte Touren blockieren keine Ressourcen
-  // (sie können nicht starten und sollten vom Cleanup abgebrochen werden).
+  return t;
+}
+
+// Nächste Vorausplanung: frühester Start eines geplanten Einsatzes in einer
+// aktiven Tour für dieses Fahrzeug/diesen Fahrer. Eine neue Tour muss vor
+// diesem Zeitpunkt enden, sonst überschneidet sie sich mit der Vorausplanung.
+// Gibt null zurück, wenn keine Vorausplanung existiert.
+export function nextReservationStart(state, vehicle, driver) {
+  let earliest = null;
   for (const tour of state.tours || []) {
     if (tour.status !== "active" && tour.status !== "planned") continue;
-    if (tour.pauseReason) continue; // Pausierte Tour gibt Ressource frei
-    if (tour.vehicleId === vehicle.id || tour.driverId === driver.id) {
-      if (tour.reservedUntil && tour.reservedUntil > state.gameTime) t = Math.max(t, tour.reservedUntil);
+    if (tour.pauseReason) continue;
+    if (tour.vehicleId !== vehicle.id && tour.driverId !== driver.id) continue;
+    for (const dep of (tour.deployments || [])) {
+      if (dep.status !== "planned") continue;
+      if (dep.startMin <= state.gameTime) continue; // Bereits in der Vergangenheit
+      if (earliest === null || dep.startMin < earliest) earliest = dep.startMin;
     }
   }
-  return t;
+  return earliest;
 }
 
 // Ermittelt die zukünftige Stadt eines Fahrzeugs nach Abschluss aller
@@ -302,6 +321,13 @@ export function buildTourPlan(state, opts) {
     if (latestReturnMin && tourEndMin > latestReturnMin) {
       return { error: "Tour endet zu spät (" + formatGameTime(tourEndMin) + "), späteste Rückkehr " + formatGameTime(latestReturnMin) + "." };
     }
+    // Konfliktprüfung mit Vorausplanung: Die neue Tour muss enden (inkl.
+    // evtl. Ruhezeit), bevor die nächste geplante Einsatz-Reservierung
+    // beginnt. Verhindert Doppelbuchung bei 24/7-Vorausplanung.
+    const reservationStart = nextReservationStart(state, vehicle, driver);
+    if (reservationStart !== null && driverFreeMin > reservationStart) {
+      return { error: "Tour überschneidet sich mit Vorausplanung (Tour endet " + formatGameTime(driverFreeMin) + ", nächste Reservierung startet " + formatGameTime(reservationStart) + ")." };
+    }
     const liquidityCheck = checkTourLiquidity(state, deployments, returnDeployment, planStart);
     if (!liquidityCheck.ok) return { error: "Liquidität reicht nicht: " + liquidityCheck.reason };
     const hasMidTourRest = deployments.some(d => (d.phases || []).some(p => p.type === "daily_rest"));
@@ -321,6 +347,17 @@ export function buildTourPlan(state, opts) {
     };
   }
 
+  // Natürliche Ruhe-Rücksetzung: Wenn der Fahrer 12+ Stunden frei war,
+  // sind seine Arbeitszeit-Zähler zurückgesetzt. freeSinceMin wird von
+  // processTours und completeTrip gesetzt; falls nicht gesetzt (Migration),
+  // nehmen wir an, dass der Fahrer lange genug geruht hat.
+  if (driver.status === "free") {
+    if (!driver.freeSinceMin || state.gameTime - driver.freeSinceMin >= REST_MIN) {
+      driver.workMinutesSinceRest = 0;
+      driver.driveMinutesSinceBreak = 0;
+      if (!driver.freeSinceMin) driver.freeSinceMin = state.gameTime;
+    }
+  }
   const initCounters = {
     workMin: driver.workMinutesSinceRest || 0,
     driveMin: driver.driveMinutesSinceBreak || 0,
@@ -645,6 +682,23 @@ export function cancelTour(state, tourId) {
 // Wird bei jedem Ereignis-Zeitpunkt aufgerufen.
 // Prüft, ob eine Tour zum nächsten Einsatz starten kann.
 export function processTours(state, m, log) {
+  // Natürliche Ruhe-Rücksetzung: Ein Fahrer, der 12+ Stunden frei war,
+  // hat sich von selbst ausgeruht. Seine Arbeitszeit-Zähler werden
+  // zurückgesetzt, damit er für neue Touren voll verfügbar ist.
+  // Verhindert, dass Fahrer mit hohem workMin dauerhaft unbrauchbar werden.
+  for (const d of state.drivers || []) {
+    if (d.status !== "free") continue;
+    // Migration: freeSinceMin wird beim ersten Mal auf m - REST_MIN gesetzt
+    // (annimmt 12h Ruhe), damit bestehende Fahrer sofort zurückgesetzt werden.
+    // Neu freigegebene Fahrer erhalten freeSinceMin in completeTrip.
+    if (!d.freeSinceMin) { d.freeSinceMin = m - REST_MIN; d.workMinutesSinceRest = 0; d.driveMinutesSinceBreak = 0; }
+    if (m - d.freeSinceMin >= REST_MIN) {
+      d.workMinutesSinceRest = 0;
+      d.driveMinutesSinceBreak = 0;
+      d.freeSinceMin = m;
+    }
+  }
+
   // Cleanup: Pausierte und verwaiste Touren abbrechen.
   // Pausierte Touren (z.B. "Fahrzeug nicht am erwarteten Ort") können nicht
   // starten und blockieren über reservedUntil Fahrzeuge/Fahrer. Verwaiste
