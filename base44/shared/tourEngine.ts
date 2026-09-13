@@ -243,95 +243,109 @@ export function buildTourPlan(state, opts) {
   let minBuffer = Infinity;
 
   // Fahrerzähler über alle Einsätze hinweg fortführen
-  let counters = {
+  // Planungslogik als lokale Funktion: erlaubt Neu-Planung mit
+  // Ruhe-voraus-Strategie, wenn die erste Planung eine Ruhezeit mitten in
+  // der Tour erfordert (was alle Lieferfristen sprengt).
+  function _tryPlan(planStart, initCounters) {
+    let currentCity = vehicleFutureCity;
+    let t = planStart;
+    const deployments = [];
+    const acceptedOrderIds = [];
+    let totalKm = 0, emptyKm = 0, loadedKm = 0;
+    let totalFuel = 0, totalToll = 0, totalPayment = 0;
+    let minBuffer = Infinity;
+    let counters = { ...initCounters };
+
+    for (const orderId of orderIds) {
+      const order = state.orders.find(o => o.id === orderId);
+      if (!order) return { error: "Auftrag nicht gefunden: " + orderId };
+      if (order.status !== "offered" && order.status !== "angenommen") {
+        return { error: "Auftrag " + order.customer + " ist nicht verfügbar (Status: " + order.status + ")." };
+      }
+      if (order.tons > vehicle.capacityTons) {
+        return { error: "Überladung: " + order.tons + " t überschreiten Kapazität von " + vehicle.capacityTons + " t." };
+      }
+      const dep = buildDeployment(state, order, vehicle, currentCity, t, counters);
+      if (dep.endMin > order.deliveryDeadlineMin) {
+        return { error: "Lieferung von " + order.customer + " würde die Lieferfrist überschreiten (Ankunft " + formatGameTime(dep.endMin) + ", Frist " + formatGameTime(order.deliveryDeadlineMin) + ")." };
+      }
+      if (order.status === "offered" && order.acceptDeadlineMin <= state.gameTime) {
+        return { error: "Annahmefrist für " + order.customer + " ist abgelaufen." };
+      }
+      if (order.status === "offered") acceptedOrderIds.push(orderId);
+      deployments.push(dep);
+      totalKm += dep.totalKm; emptyKm += dep.emptyKm; loadedKm += dep.loadedKm;
+      totalFuel += dep.fuelCents; totalToll += dep.tollCents; totalPayment += dep.paymentCents;
+      if (dep.deadlineBufferMin !== null && dep.deadlineBufferMin < minBuffer) minBuffer = dep.deadlineBufferMin;
+      currentCity = order.toCity;
+      counters = { workMin: dep.finalWorkMin, driveMin: dep.finalDriveMin };
+      t = dep.endMin;
+    }
+
+    let returnDeployment = null;
+    if (desiredEndCity && currentCity !== desiredEndCity) {
+      const dep = buildEmptyDeployment(state, currentCity, desiredEndCity, vehicle, t, counters);
+      returnDeployment = dep;
+      totalKm += dep.totalKm; emptyKm += dep.emptyKm;
+      totalFuel += dep.fuelCents; totalToll += dep.tollCents;
+      counters = { workMin: dep.finalWorkMin, driveMin: dep.finalDriveMin };
+      t = dep.endMin;
+    }
+
+    const lastDeliveryEnd = deployments.length > 0 ? deployments[deployments.length - 1].endMin : planStart;
+    const tourEndMin = returnDeployment ? returnDeployment.endMin : lastDeliveryEnd;
+    let driverFreeMin = t;
+    if (counters.workMin >= WORK_BUDGET_MIN) driverFreeMin = t + REST_MIN;
+    if (latestReturnMin && tourEndMin > latestReturnMin) {
+      return { error: "Tour endet zu spät (" + formatGameTime(tourEndMin) + "), späteste Rückkehr " + formatGameTime(latestReturnMin) + "." };
+    }
+    const liquidityCheck = checkTourLiquidity(state, deployments, returnDeployment, planStart);
+    if (!liquidityCheck.ok) return { error: "Liquidität reicht nicht: " + liquidityCheck.reason };
+    const hasMidTourRest = deployments.some(d => (d.phases || []).some(p => p.type === "daily_rest"));
+    return {
+      ok: true, hasMidTourRest,
+      deployments, returnDeployment, acceptedOrderIds,
+      totalKm, emptyKm, loadedKm,
+      totalFuelCents: totalFuel, totalTollCents: totalToll,
+      totalVariableCostCents: totalFuel + totalToll,
+      totalPaymentCents: totalPayment,
+      totalContributionCents: totalPayment - totalFuel - totalToll,
+      earliestStartMin: planStart,
+      lastDeliveryEndMin: lastDeliveryEnd,
+      tourEndMin, driverFreeMin,
+      minDeadlineBufferMin: minBuffer === Infinity ? null : minBuffer,
+      reservedUntil: driverFreeMin,
+    };
+  }
+
+  const initCounters = {
     workMin: driver.workMinutesSinceRest || 0,
     driveMin: driver.driveMinutesSinceBreak || 0,
   };
 
-  for (const orderId of orderIds) {
-    const order = state.orders.find(o => o.id === orderId);
-    if (!order) return { error: "Auftrag nicht gefunden: " + orderId };
-    if (order.status !== "offered" && order.status !== "angenommen") {
-      return { error: "Auftrag " + order.customer + " ist nicht verfügbar (Status: " + order.status + ")." };
-    }
-    if (order.tons > vehicle.capacityTons) {
-      return { error: "Überladung: " + order.tons + " t überschreiten Kapazität von " + vehicle.capacityTons + " t." };
-    }
+  // Erster Versuch: mit aktuellen Fahrer-Zählern planen.
+  let planResult = _tryPlan(earliestStart, initCounters);
 
-    const dep = buildDeployment(state, order, vehicle, currentCity, t, counters);
-    // Kein MAX_DUTY_MIN-Ablehnungsgrund mehr — lange Aufträge sind mit Pausen ausführbar
-    if (dep.endMin > order.deliveryDeadlineMin) {
-      return { error: "Lieferung von " + order.customer + " würde die Lieferfrist überschreiten (Ankunft " + formatGameTime(dep.endMin) + ", Frist " + formatGameTime(order.deliveryDeadlineMin) + ")." };
-    }
-    if (order.status === "offered" && order.acceptDeadlineMin <= state.gameTime) {
-      return { error: "Annahmefrist für " + order.customer + " ist abgelaufen." };
-    }
-
-    if (order.status === "offered") acceptedOrderIds.push(orderId);
-
-    deployments.push(dep);
-    totalKm += dep.totalKm; emptyKm += dep.emptyKm; loadedKm += dep.loadedKm;
-    totalFuel += dep.fuelCents; totalToll += dep.tollCents; totalPayment += dep.paymentCents;
-    if (dep.deadlineBufferMin !== null && dep.deadlineBufferMin < minBuffer) minBuffer = dep.deadlineBufferMin;
-
-    currentCity = order.toCity;
-    counters = { workMin: dep.finalWorkMin, driveMin: dep.finalDriveMin };
-    t = dep.endMin; // Keine pauschale Ruhe mehr — Zähler tragen fort
+  // Wenn die Planung eine Ruhezeit mitten in der Tour erfordert (was alle
+  // Lieferfristen sprengt), plane neu: Fahrer ruht zuerst (720 Min), dann
+  // startet die Tour mit frischen Zählern. Advance-Aufträge mit späteren
+  // Lieferfristen können so noch pünktlich geliefert werden.
+  if (planResult.ok && planResult.hasMidTourRest) {
+    const restFirstResult = _tryPlan(earliestStart + REST_MIN, { workMin: 0, driveMin: 0 });
+    if (restFirstResult.ok) planResult = restFirstResult;
   }
 
-  // Optionale gewünschte Rückkehr
-  let returnDeployment = null;
-  if (desiredEndCity && currentCity !== desiredEndCity) {
-    const dep = buildEmptyDeployment(state, currentCity, desiredEndCity, vehicle, t, counters);
-    returnDeployment = dep;
-    totalKm += dep.totalKm; emptyKm += dep.emptyKm;
-    totalFuel += dep.fuelCents; totalToll += dep.tollCents;
-    counters = { workMin: dep.finalWorkMin, driveMin: dep.finalDriveMin };
-    t = dep.endMin;
-  }
-
-  const lastDeliveryEnd = deployments.length > 0 ? deployments[deployments.length - 1].endMin : earliestStart;
-  const tourEndMin = returnDeployment ? returnDeployment.endMin : lastDeliveryEnd;
-
-  // Nach letzter Lieferung: Ruhezeit nur wenn Arbeitsbudget erschöpft
-  let driverFreeMin = t;
-  if (counters.workMin >= WORK_BUDGET_MIN) {
-    driverFreeMin = t + REST_MIN;
-  }
-
-  if (latestReturnMin && tourEndMin > latestReturnMin) {
-    return { error: "Tour endet zu spät (" + formatGameTime(tourEndMin) + "), späteste Rückkehr " + formatGameTime(latestReturnMin) + "." };
-  }
-
-  // Liquiditätsprüfung: simuliere Kontoverlauf
-  const liquidityCheck = checkTourLiquidity(state, deployments, returnDeployment, earliestStart);
-  if (!liquidityCheck.ok) {
-    return { error: "Liquidität reicht nicht: " + liquidityCheck.reason };
-  }
+  if (planResult.error) return { error: planResult.error };
 
   return {
+    ...planResult,
     ok: true,
     vehicleId, driverId,
     startCity: vehicle.locationCity,
     desiredEndCity: desiredEndCity || null,
     latestReturnMin: latestReturnMin || null,
-    deployments,
-    returnDeployment,
-    acceptedOrderIds,
-    totalKm, emptyKm, loadedKm,
-    totalFuelCents: totalFuel,
-    totalTollCents: totalToll,
-    totalVariableCostCents: totalFuel + totalToll,
-    totalPaymentCents: totalPayment,
-    totalContributionCents: totalPayment - totalFuel - totalToll,
-    earliestStartMin: earliestStart,
     driverTravelMin,
     driverTravelFromCity: driverTravelMin > 0 ? driverFutureCity : null,
-    lastDeliveryEndMin: lastDeliveryEnd,
-    tourEndMin,
-    driverFreeMin,
-    minDeadlineBufferMin: minBuffer === Infinity ? null : minBuffer,
-    reservedUntil: driverFreeMin,
   };
 }
 
