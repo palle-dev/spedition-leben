@@ -11,9 +11,10 @@ import ServicesTab from "@/components/personnel/ServicesTab";
 import ApplicantBrowser from "@/components/personnel/ApplicantBrowser";
 import JobPostingPanel from "@/components/personnel/JobPostingPanel";
 import TeamClimate from "@/components/personnel/TeamClimate";
+import TeamTab from "@/components/personnel/TeamTab";
 import SatisfactionDetail from "@/components/personnel/SatisfactionDetail";
 import DevelopmentSection from "@/components/personnel/DevelopmentSection";
-import { UserPlus, Users, MapPin, Clock, Truck, Headset, Sparkles, Wrench, Calculator, Settings, Check, X, AlertCircle, Briefcase, LogOut, RotateCcw, HeartHandshake, GraduationCap } from "lucide-react";
+import { UserPlus, Users, MapPin, Clock, Truck, Headset, Sparkles, Wrench, Calculator, Settings, Check, X, AlertCircle, Briefcase, LogOut, RotateCcw, HeartHandshake, GraduationCap, Search } from "lucide-react";
 
 const ROLE_ICON = {
   driver: Truck, dispatcher: Headset, dispatcher_senior: Headset,
@@ -30,6 +31,8 @@ export default function Personnel() {
   const [terminatePerson, setTerminatePerson] = useState(null); // { id, kind, name }
   const [jobPostingOpen, setJobPostingOpen] = useState(false);
   const [jobPrefill, setJobPrefill] = useState(null);
+  const [teamFilter, setTeamFilter] = useState("all");
+  const [teamSearch, setTeamSearch] = useState("");
 
   const openCompany = state.openCosts.some(o => o.account === "company");
   const drivers = state.drivers || [];
@@ -117,31 +120,17 @@ export default function Personnel() {
 
       {/* Team Tab */}
       {tab === "team" && (
-        <div className="space-y-5">
-          {/* Fahrer */}
-          {drivers.length > 0 && (
-            <div>
-              <h2 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground mb-3">Fahrer</h2>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {drivers.map(d => <DriverCard key={d.id} driver={d} onManage={setManagePerson} />)}
-              </div>
-            </div>
-          )}
-          {/* Angestellte (nicht fahrende Rollen) */}
-          {employees.length > 0 && (
-            <div>
-              <h2 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground mb-3">Angestellte</h2>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {employees.map(emp => (
-                  <EmployeeCard key={emp.id} employee={emp} state={state} onSetup={() => setSetupEmp(emp)} onManage={setManagePerson} />
-                ))}
-              </div>
-            </div>
-          )}
-          {drivers.length === 0 && employees.length === 0 && (
-            <EmptyTeam />
-          )}
-        </div>
+        <TeamTab
+          drivers={drivers}
+          employees={employees}
+          state={state}
+          filter={teamFilter}
+          setFilter={setTeamFilter}
+          search={teamSearch}
+          setSearch={setTeamSearch}
+          onManage={setManagePerson}
+          onSetup={setSetupEmp}
+        />
       )}
 
       {/* Teamklima Tab (Auftrag 30) */}
@@ -268,149 +257,6 @@ export default function Personnel() {
   );
 }
 
-function DriverCard({ driver, onManage }) {
-  const sat = satisfactionLabel(driver.satisfaction);
-  const att = attendanceLabel(driver.attendance);
-  const empStat = employmentStatusLabel(driver.employmentStatus);
-  const statusLabel = {
-    free: { label: "Bereit", color: "text-lime", dot: "bg-lime" },
-    on_trip: { label: "Unterwegs", color: "text-amber-300", dot: "bg-amber-300" },
-    resting: { label: "Erholung", color: "text-sky-300", dot: "bg-sky-300" },
-    maintenance: { label: "Wartung", color: "text-violet-300", dot: "bg-violet-300" },
-    former: { label: "Ehemalig", color: "text-muted-foreground", dot: "bg-muted-foreground" },
-  }[driver.status] || { label: driver.status, color: "text-muted-foreground", dot: "bg-muted-foreground" };
-  const noticed = driver.employmentStatus === "notice_given";
-
-  return (
-    <div className="glass border border-white/10 rounded-xl p-4">
-      <div className="flex items-start gap-3">
-        <Portrait portraitId={driver.portraitId} name={driver.name} size="md" />
-        <div className="flex-1 min-w-0">
-          <div className="font-medium truncate">{driver.name}</div>
-          <div className="text-[10px] text-muted-foreground mt-0.5">Fahrer · seit Tag {driver.employedDay}</div>
-          <div className="flex items-center gap-3 mt-2 text-[10px] flex-wrap">
-            <span className={`flex items-center gap-1 ${statusLabel.color}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${statusLabel.dot}`} /> {statusLabel.label}
-            </span>
-            <span className={`flex items-center gap-1 ${sat.color}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${sat.dot}`} /> {sat.label}
-            </span>
-            {noticed && (
-              <span className={`flex items-center gap-1 ${empStat.color}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${empStat.dot}`} /> {empStat.label}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-2 text-xs mt-3 pt-3 border-t border-white/5">
-        <div className="flex items-center gap-1.5 text-muted-foreground">
-          <MapPin className="w-3 h-3 text-foreground/40" /> {driver.locationCity}
-        </div>
-        <div className="flex items-center gap-1.5 text-muted-foreground">
-          <Clock className="w-3 h-3 text-foreground/40" /> {formatEuro(driver.costPerDayCents)}/Tag
-        </div>
-      </div>
-      {driver.restUntil && (
-        <div className="text-[10px] text-sky-300 mt-2">Erholung bis {formatGameTime(driver.restUntil)}</div>
-      )}
-      {noticed && (
-        <div className="text-[10px] text-amber-300 mt-2">Austritt am {formatGameTime(driver.exitMin)}</div>
-      )}
-      <button
-        onClick={() => onManage({ id: driver.id, kind: "driver", name: driver.name })}
-        className="w-full flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium border border-white/10 text-foreground hover:border-lime/30 hover:text-lime transition mt-3"
-      >
-        <Settings className="w-3.5 h-3.5" /> Verwalten
-      </button>
-    </div>
-  );
-}
-
-function EmployeeCard({ employee, state, onSetup, onManage }) {
-  const Icon = ROLE_ICON[employee.role] || Users;
-  const sat = satisfactionLabel(employee.satisfaction);
-  const att = attendanceLabel(employee.attendance);
-  const empStat = employmentStatusLabel(employee.employmentStatus);
-  const isDispatcher = employee.role === "dispatcher" || employee.role === "dispatcher_senior";
-  const wm = workModeLabel(employee.workMode);
-  const assignedVehicles = (employee.assignedVehicleIds || []).map(vid => state.vehicles.find(v => v.id === vid)).filter(Boolean);
-  const pendingSuggestions = (employee.suggestions || []).filter(s => s.status === "pending");
-  const noticed = employee.employmentStatus === "notice_given";
-
-  return (
-    <div className="glass border border-white/10 rounded-xl p-4">
-      <div className="flex items-start gap-3">
-        <Portrait portraitId={employee.portraitId} name={employee.name} size="md" />
-        <div className="flex-1 min-w-0">
-          <div className="font-medium truncate">{employee.name}</div>
-          <div className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
-            <Icon className="w-3 h-3" /> {roleLabel(employee.role)} · seit Tag {employee.employedDay}
-          </div>
-          <div className="flex items-center gap-3 mt-2 text-[10px] flex-wrap">
-            <span className={`flex items-center gap-1 ${att.color}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${att.dot}`} /> {att.label}
-            </span>
-            <span className={`flex items-center gap-1 ${sat.color}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${sat.dot}`} /> {sat.label}
-            </span>
-            {noticed && (
-              <span className={`flex items-center gap-1 ${empStat.color}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${empStat.dot}`} /> {empStat.label}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 text-xs mt-3 pt-3 border-t border-white/5">
-        <div className="flex items-center gap-1.5 text-muted-foreground">
-          <MapPin className="w-3 h-3 text-foreground/40" /> {employee.locationCity}
-        </div>
-        <div className="flex items-center gap-1.5 text-muted-foreground">
-          <Clock className="w-3 h-3 text-foreground/40" /> {formatEuro(employee.costPerDayCents)}/Tag
-        </div>
-      </div>
-
-      {noticed && (
-        <div className="text-[10px] text-amber-300 mt-2">Austritt am {formatGameTime(employee.exitMin)}</div>
-      )}
-
-      {/* Disponent-spezifisch */}
-      {isDispatcher && !noticed && (
-        <div className="mt-3 pt-3 border-t border-white/5 space-y-2">
-          <div className="flex items-center justify-between text-[10px]">
-            <span className="text-muted-foreground">Arbeitsweise</span>
-            <span className="text-foreground/80">{wm.label}</span>
-          </div>
-          <div className="flex items-center justify-between text-[10px]">
-            <span className="text-muted-foreground">Zugewiesene Lkw</span>
-            <span className="text-foreground/80">{assignedVehicles.length}/{employee.capacity}</span>
-          </div>
-          {pendingSuggestions.length > 0 && (
-            <div className="flex items-center gap-1.5 text-[10px] text-lime">
-              <Sparkles className="w-3 h-3" /> {pendingSuggestions.length} Vorschlag{pendingSuggestions.length > 1 ? "e" : ""} offen
-            </div>
-          )}
-          <button
-            onClick={onSetup}
-            className="w-full flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium border border-white/10 text-foreground hover:border-lime/30 hover:text-lime transition mt-2"
-          >
-            <Settings className="w-3.5 h-3.5" /> Einrichten
-          </button>
-        </div>
-      )}
-
-      <button
-        onClick={() => onManage({ id: employee.id, kind: "employee", name: employee.name })}
-        className={`w-full flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium border border-white/10 text-foreground hover:border-lime/30 hover:text-lime transition ${isDispatcher && !noticed ? "mt-2" : "mt-3"}`}
-      >
-        <Settings className="w-3.5 h-3.5" /> Verwalten
-      </button>
-    </div>
-  );
-}
-
 function ApplicantCard({ app, onHire, busy, disabled, dailyCosts }) {
   const roleDef = PERSONNEL_ROLES[app.role];
   const hireFee = app.hireFeeCents || roleDef?.hireFeeCents || 0;
@@ -449,16 +295,6 @@ function ApplicantCard({ app, onHire, busy, disabled, dailyCosts }) {
       >
         {busy ? <span className="w-4 h-4 border-2 border-ink/30 border-t-ink rounded-full animate-spin" /> : <><UserPlus className="w-4 h-4" /> Einstellen</>}
       </button>
-    </div>
-  );
-}
-
-function EmptyTeam() {
-  return (
-    <div className="text-center py-12">
-      <Users className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-      <div className="text-sm text-muted-foreground">Noch kein Personal eingestellt.</div>
-      <div className="text-xs text-muted-foreground/60 mt-1">Wechsle zum Tab „Einstellen“, um Bewerber zu sehen.</div>
     </div>
   );
 }
