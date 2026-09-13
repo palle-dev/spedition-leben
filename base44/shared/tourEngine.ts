@@ -326,11 +326,16 @@ export function buildTourPlan(state, opts) {
   // Erster Versuch: mit aktuellen Fahrer-Zählern planen.
   let planResult = _tryPlan(earliestStart, initCounters);
 
-  // Wenn die Planung eine Ruhezeit mitten in der Tour erfordert (was alle
-  // Lieferfristen sprengt), plane neu: Fahrer ruht zuerst (720 Min), dann
-  // startet die Tour mit frischen Zählern. Advance-Aufträge mit späteren
-  // Lieferfristen können so noch pünktlich geliefert werden.
-  if (planResult.ok && planResult.hasMidTourRest) {
+  // Ruhe-voraus-Strategie: Wenn der Fahrer bereits Arbeitszeit angesammelt hat,
+  // kann die erste Planung entweder (a) eine mid-tour-Ruhe einbauen (was alle
+  // Lieferfristen sprengt) oder (b) direkt an einer Frist scheitern, weil die
+  // mid-tour-Ruhe die Ankunft zu spät macht. In beiden Fällen: Fahrer ruht
+  // zuerst (720 Min), dann startet die Tour mit frischen Zählern. Advance-
+  // Aufträge mit späteren Lieferfristen können so noch pünktlich geliefert werden.
+  const needsRestFirst = initCounters.workMin > 0 && (
+    planResult.error || (planResult.ok && planResult.hasMidTourRest)
+  );
+  if (needsRestFirst) {
     const restFirstResult = _tryPlan(earliestStart + REST_MIN, { workMin: 0, driveMin: 0 });
     if (restFirstResult.ok) planResult = restFirstResult;
   }
