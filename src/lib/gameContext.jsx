@@ -241,6 +241,10 @@ export function GameProvider({ children }) {
       applyLoaded({ state: newState, revision: revRef.current, stateId: idRef.current, result });
       setDirty(true);
 
+      // Benutzerbefehle sofort persistieren – nur syncAutomation
+      // (alle 15s) bewusst ohne DB-Schreiben, um das Schreiblimit zu schonen.
+      save(true);
+
       // Overlay-Logik
       if (result?.events) {
         const delivery = result.events.find(e => e.type === "delivery");
@@ -284,7 +288,7 @@ export function GameProvider({ children }) {
     } finally {
       setBusy(false);
     }
-  }, [applyLoaded, showToast]);
+  }, [applyLoaded, showToast, save]);
 
   // ---- Zeitautomatik: lokal über applyCommandRemote, auto-speichern ----
   const syncAutomation = useCallback(async () => {
