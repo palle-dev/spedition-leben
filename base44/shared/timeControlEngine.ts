@@ -3,10 +3,10 @@
 // Umrechnung: 2 echte Sekunden = 60 Spielminuten = 1 Spielstunde.
 // 1 echte Millisekunde = 3/100 Spielminuten = 3 Numerator-Einheiten (1/100 Spielminute).
 
-export const NUMERATOR_PER_REAL_MS = 3;
+export const NUMERATOR_PER_REAL_MS = 0.1;
 export const NUMERATOR_PER_GAME_MINUTE = 100;
-export const REAL_MS_PER_GAME_HOUR = 2000; // 2 Sekunden = 1 Spielstunde
-export const REAL_MS_PER_GAME_DAY = 48000; // 48 Sekunden = 1 Spieltag
+export const REAL_MS_PER_GAME_HOUR = 60000; // 1 Minute = 1 Spielstunde
+export const REAL_MS_PER_GAME_DAY = 1440000; // 24 Minuten = 1 Spieltag
 
 // Berechnet das Ziel-Numerator (1/100 Spielminute) aus dem Echtzeitanker.
 // Bei deaktivierter Automatik gilt ausschließlich das eingefrorene Endziel.
