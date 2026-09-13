@@ -71,7 +71,7 @@ export default function Personnel() {
   const roleOrder = ["dispatcher", "dispatcher_senior", "driver", "cleaner", "mechanic", "accountant"];
 
   return (
-    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-7xl mx-auto space-y-5">
+    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1600px] mx-auto space-y-5">
       {/* Header */}
       <div className="flex items-end justify-between flex-wrap gap-3">
         <div>
@@ -122,7 +122,7 @@ export default function Personnel() {
           {drivers.length > 0 && (
             <div>
               <h2 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground mb-3">Fahrer</h2>
-              <div className="grid md:grid-cols-2 gap-3">
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {drivers.map(d => <DriverCard key={d.id} driver={d} onManage={setManagePerson} />)}
               </div>
             </div>
@@ -131,7 +131,7 @@ export default function Personnel() {
           {employees.length > 0 && (
             <div>
               <h2 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground mb-3">Angestellte</h2>
-              <div className="grid md:grid-cols-2 gap-3">
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {employees.map(emp => (
                   <EmployeeCard key={emp.id} employee={emp} state={state} onSetup={() => setSetupEmp(emp)} onManage={setManagePerson} />
                 ))}
@@ -185,7 +185,7 @@ export default function Personnel() {
                 {formerDrivers.length > 0 && (
                   <div>
                     <h2 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground mb-3">Ehemalige Fahrer</h2>
-                    <div className="grid md:grid-cols-2 gap-3">
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
                       {formerDrivers.map(d => <FormerCard key={d.id} person={d} roleLabel="Fahrer" />)}
                     </div>
                   </div>
@@ -193,7 +193,7 @@ export default function Personnel() {
                 {formerEmps.length > 0 && (
                   <div>
                     <h2 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground mb-3">Ehemalige Angestellte</h2>
-                    <div className="grid md:grid-cols-2 gap-3">
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
                       {formerEmps.map(e => <FormerCard key={e.id} person={e} roleLabel={roleLabel(e.role)} />)}
                     </div>
                   </div>

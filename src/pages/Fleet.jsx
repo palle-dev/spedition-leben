@@ -45,7 +45,7 @@ export default function Fleet() {
   }
 
   return (
-    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-5xl mx-auto space-y-6">
+    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1600px] mx-auto space-y-6">
       <div className="flex items-end justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl lg:text-3xl font-medium tracking-tight">Fuhrpark</h1>
@@ -84,7 +84,7 @@ export default function Fleet() {
           {openCompany && <div className="text-sm text-red-300 bg-red-500/10 border border-red-400/20 rounded-lg px-4 py-2.5">Solange betriebliche Pflichtkosten offen sind, ist kein Fahrzeugkauf möglich.</div>}
           {stressed && <div className="text-sm text-amber-300 bg-amber-500/10 border border-amber-400/20 rounded-lg px-4 py-2.5">Deine Belastung ist hoch (≥ 80): Wartung kostet 25 % mehr ({formatEuro(maintCost)}).</div>}
 
-          <div className="grid md:grid-cols-2 gap-3">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
             {activeVehicles.map(v => {
               const trip = v.tripId ? state.trips.find(t => t.id === v.tripId) : null;
               const canMaint = v.status === "free" && v.condition < 100;

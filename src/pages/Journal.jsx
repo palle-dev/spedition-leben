@@ -32,7 +32,7 @@ export default function Journal() {
   const recent = events.slice(0, 60);
 
   return (
-    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-3xl mx-auto space-y-4">
+    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-5xl mx-auto space-y-4">
       <div>
         <h1 className="text-2xl lg:text-3xl font-medium tracking-tight flex items-center gap-2"><BookOpen className="w-6 h-6 text-lime/70" /> Ereignisjournal</h1>
         <p className="text-sm text-muted-foreground mt-1">Chronologischer Verlauf von Buchungen, Fahrten, Terminen und Meilensteinen.</p>

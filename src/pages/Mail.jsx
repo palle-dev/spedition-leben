@@ -15,7 +15,7 @@ export default function Mail() {
 
   if (!state?.mail) {
     return (
-      <div className="px-4 sm:px-6 lg:px-12 py-10 max-w-5xl mx-auto">
+      <div className="px-4 sm:px-6 lg:px-12 py-10 max-w-[1600px] mx-auto">
         <div className="flex flex-col items-center justify-center text-center py-20">
           <MailIcon className="w-10 h-10 text-muted-foreground/30 mb-3" />
           <p className="text-sm text-muted-foreground">Postfach wird initialisiert…</p>
@@ -25,7 +25,7 @@ export default function Mail() {
   }
 
   return (
-    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-8 max-w-6xl mx-auto">
+    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-8 max-w-[1600px] mx-auto">
       <div className="mb-4">
         <h1 className="text-2xl lg:text-3xl font-medium tracking-tight">Postfach</h1>
         <p className="text-sm text-muted-foreground mt-1">

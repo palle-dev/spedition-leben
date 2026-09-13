@@ -66,7 +66,7 @@ export default function Orders() {
   }
 
   return (
-    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-5xl mx-auto space-y-6">
+    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1600px] mx-auto space-y-6">
       <div>
         <h1 className="text-2xl lg:text-3xl font-medium tracking-tight">Aufträge</h1>
         <p className="text-sm text-muted-foreground mt-1">Der Auftragsmarkt – nimm Angebote an, bevor die Annahmefrist abläuft.</p>
@@ -136,7 +136,7 @@ export default function Orders() {
                 : "Aktuell keine Angebote. Die nächste Marktwelle bringt neue Fracht."}
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 gap-3">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
               {offered.map(o => <OfferCard key={o.id} offer={o} onAccept={accept} busy={busyId === o.id} />)}
             </div>
           )}
