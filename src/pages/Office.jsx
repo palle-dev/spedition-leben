@@ -6,6 +6,7 @@ import FleetSummary from "@/components/office/FleetSummary";
 import DecisionsPanel from "@/components/office/DecisionsPanel";
 import OfficeBottom from "@/components/office/OfficeBottom";
 import OfficeTrends from "@/components/office/OfficeTrends";
+import OfficeBranches from "@/components/office/OfficeBranches";
 
 // Büro – zentrale Führungsansicht für die gesamte Firma.
 // Kompakte Kopfzeile, Kennzahlen, Flottenlage, Entscheidungen,
@@ -31,6 +32,9 @@ export default function Office() {
           <DecisionsPanel state={state} />
         </div>
       </div>
+
+      {/* Filialübersicht (nur bei mehreren Standorten) */}
+      <OfficeBranches state={state} />
 
       {/* Trends: Umsatz- und Flottenauslastung (30 Tage) */}
       <OfficeTrends />
