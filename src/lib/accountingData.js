@@ -150,6 +150,51 @@ export function getLiquidityProjection(state, days) {
   };
 }
 
+// Filialbezogene Finanzdaten für einen Zeitraum: Umsatz, direkte Kosten,
+// Personalkosten, Standortkosten und Gewinn pro aktiver Filiale.
+export function getBranchFinancials(state, fromMin, toMin) {
+  const days = Math.max(1, Math.ceil((toMin - fromMin) / 1440));
+  const branches = (state.branches || []).filter(b => b.status === "active");
+  return branches.map(b => {
+    const branchVehicles = (state.vehicles || []).filter(v => v.branchId === b.id && v.status !== "sold" && v.status !== "archived");
+    const branchDrivers = (state.drivers || []).filter(d => d.branchId === b.id && d.employmentStatus === "employed");
+    const branchEmployees = (state.employees || []).filter(e => (e.assignedBranchId || e.branchId) === b.id && e.employmentStatus === "employed");
+
+    let revenue = 0;
+    for (const o of (state.orders || [])) {
+      if (o.status !== "geliefert" || !o.paidCents) continue;
+      if (o.deliveredAtMin < fromMin || o.deliveredAtMin > toMin) continue;
+      const trip = (state.trips || []).find(t => t.orderId === o.id && t.type === "loaded");
+      const vehicle = trip ? (state.vehicles || []).find(v => v.id === trip.vehicleId) : null;
+      if (vehicle?.branchId === b.id) revenue += o.paidCents;
+    }
+
+    let directCosts = 0;
+    for (const t of (state.trips || [])) {
+      if (t.type !== "loaded" || t.endMin == null || t.endMin < fromMin || t.endMin > toMin) continue;
+      const vehicle = (state.vehicles || []).find(v => v.id === t.vehicleId);
+      if (vehicle?.branchId === b.id) directCosts += (t.fuelCents || 0) + (t.tollCents || 0);
+    }
+
+    const driverWages = branchDrivers.reduce((s, d) => s + (d.costPerDayCents || 10000), 0) * days;
+    const employeeWages = branchEmployees.reduce((s, e) => s + (e.costPerDayCents || 0), 0) * days;
+    const branchCosts = (b.costPerDayCents || 0) * days;
+    const personnelCosts = driverWages + employeeWages;
+    const totalCosts = directCosts + personnelCosts + branchCosts;
+    const contribution = revenue - directCosts;
+    const profit = revenue - totalCosts;
+    const margin = revenue > 0 ? Math.round(profit / revenue * 100) : 0;
+
+    return {
+      branch: b, revenue, directCosts, personnelCosts, branchCosts, totalCosts,
+      contribution, profit, margin,
+      vehicleCount: branchVehicles.length,
+      driverCount: branchDrivers.length,
+      employeeCount: branchEmployees.length,
+    };
+  });
+}
+
 export function getAssetRegister(state) {
   return state?.accounting?.assets || [];
 }

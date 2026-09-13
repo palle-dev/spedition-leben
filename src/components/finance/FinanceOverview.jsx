@@ -3,6 +3,7 @@ import { formatEuro } from "@/lib/gameData";
 import { getBalanceSheet, getPnL, getCashFlow, getLiquidityProjection, periodOf, periodStartMin, periodEndMin } from "@/lib/accountingData";
 import { Wallet, Home, TrendingUp, TrendingDown, Scale, Banknote, ArrowUpRight, ArrowDownRight, Clock } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, ReferenceLine } from "recharts";
+import BranchFinanceSection from "@/components/finance/BranchFinanceSection";
 
 export default function FinanceOverview({ state }) {
   const acc = state.accounting || {};
@@ -104,6 +105,9 @@ export default function FinanceOverview({ state }) {
           </div>
         )}
       </div>
+
+      {/* Filialvergleich */}
+      <BranchFinanceSection state={state} />
 
       {/* G&V Kurzübersicht */}
       <div className="glass border border-white/10 rounded-xl p-4">
