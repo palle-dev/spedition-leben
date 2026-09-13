@@ -1,34 +1,51 @@
 // Statische Spielweltdaten und reine Berechnungsregeln für "Spedition & Leben".
 // Diese Werte sind vereinfachte, veränderbare Spielwerte – keine Abbildung realer Preise oder Vorschriften.
 
-export const CITIES = ["Hamburg", "Bremen", "Kiel", "Lübeck", "Hannover", "Berlin", "Rostock", "Magdeburg"];
+// 30 Städte – deckt ganz Deutschland ab (Nord, Süd, West, Ost, Mitte).
+export const CITIES = [
+  "Hamburg", "Bremen", "Kiel", "Lübeck", "Hannover", "Berlin", "Rostock", "Magdeburg",
+  "München", "Köln", "Düsseldorf", "Frankfurt", "Stuttgart", "Leipzig", "Dresden",
+  "Nürnberg", "Dortmund", "Essen", "Mannheim", "Freiburg", "Braunschweig", "Erfurt",
+  "Kassel", "Münster", "Osnabrück", "Saarbrücken", "Regensburg", "Würzburg",
+  "Bielefeld", "Ulm"
+];
 
-export const CITY_COORDS = {
-  Hamburg: { x: 45, y: 50 },
-  Bremen: { x: 25, y: 55 },
-  Kiel: { x: 55, y: 25 },
-  Lübeck: { x: 58, y: 40 },
-  Hannover: { x: 30, y: 70 },
-  Berlin: { x: 75, y: 65 },
-  Rostock: { x: 62, y: 22 },
-  Magdeburg: { x: 55, y: 70 }
+// Reale Koordinaten [Längengrad, Breitengrad] für Entfernungsberechnung und Karte.
+export const CITY_LATLON = {
+  Hamburg: [9.9937, 53.5511], Bremen: [8.8072, 53.0758], Kiel: [10.1394, 54.3233],
+  Lübeck: [10.6866, 53.8697], Hannover: [9.7322, 52.3759], Berlin: [13.4050, 52.5200],
+  Rostock: [12.0989, 54.0922], Magdeburg: [11.6276, 52.1205],
+  München: [11.5820, 48.1351], Köln: [6.9603, 50.9375], Düsseldorf: [6.7760, 51.2217],
+  Frankfurt: [8.6821, 50.1109], Stuttgart: [9.1829, 48.7758], Leipzig: [12.3878, 51.3438],
+  Dresden: [13.7373, 51.0504], Nürnberg: [11.0775, 49.4539], Dortmund: [7.4653, 51.5136],
+  Essen: [7.0127, 51.4556], Mannheim: [8.4914, 49.4891], Freiburg: [7.8491, 47.9990],
+  Braunschweig: [10.5276, 52.2688], Erfurt: [11.0290, 50.9847], Kassel: [9.4797, 51.3128],
+  Münster: [7.6261, 51.9607], Osnabrück: [8.0472, 52.2790], Saarbrücken: [7.0019, 49.2354],
+  Regensburg: [12.1016, 49.0175], Würzburg: [9.9296, 49.7924], Bielefeld: [8.5285, 52.0302],
+  Ulm: [9.9900, 48.4011]
 };
 
-// Feste, symmetrische Spielentfernungen in Kilometern (ungleiche Städtepaare, gleiche Stadt = 0).
-const _D = [
-  [0, 120, 95, 65, 150, 290, 190, 300],
-  [120, 0, 200, 180, 100, 400, 250, 260],
-  [95, 200, 0, 80, 240, 370, 210, 340],
-  [65, 180, 80, 0, 210, 300, 160, 300],
-  [150, 100, 240, 210, 0, 260, 290, 190],
-  [290, 400, 370, 300, 260, 0, 230, 150],
-  [190, 250, 210, 160, 290, 230, 0, 260],
-  [300, 260, 340, 300, 190, 150, 260, 0]
-];
+// Kompatibilität: älterer Code referenziert CITY_COORDS.
+export const CITY_COORDS = CITY_LATLON;
+
+// Straßenfaktor: Haversine-Luftlinie × 1,2 approximiert Straßenentfernung.
+const ROAD_FACTOR = 1.2;
+
+function haversineKm(a, b) {
+  const [lng1, lat1] = a, [lng2, lat2] = b;
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const sLat = Math.sin(dLat / 2), sLng = Math.sin(dLng / 2);
+  const h = sLat * sLat + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * sLng * sLng;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
 export function getDistance(a, b) {
-  const i = CITIES.indexOf(a), j = CITIES.indexOf(b);
-  if (i < 0 || j < 0) return 0;
-  return _D[i][j];
+  if (a === b) return 0;
+  const c1 = CITY_LATLON[a], c2 = CITY_LATLON[b];
+  if (!c1 || !c2) return 0;
+  return Math.round(haversineKm(c1, c2) * ROAD_FACTOR / 5) * 5;
 }
 
 // Spielkonstanten (Cent-basiert für Geld).
@@ -197,8 +214,8 @@ export const CUSTOMER_PROFILES = [
     preferredRelations: [["Lübeck","Hamburg"],["Lübeck","Bremen"],["Lübeck","Kiel"]],
     cargoTypes: ["Verpackungsmaterial","Stückgut"] },
   { id: "c09", name: "Nordwind Transport", industry: "Baustoffe", contact: "Herr Storm",
-    depots: ["Hannover"],
-    preferredRelations: [["Hannover","Hamburg"],["Hannover","Berlin"],["Hannover","Magdeburg"]],
+    depots: ["Hannover","Braunschweig"],
+    preferredRelations: [["Hannover","Hamburg"],["Hannover","Berlin"],["Hannover","Magdeburg"],["Braunschweig","Hannover"]],
     cargoTypes: ["Baustoffe","Bauteile"] },
   { id: "c10", name: "Salzstein GmbH", industry: "Stückgut", contact: "Frau Keller",
     depots: ["Magdeburg"],
@@ -224,6 +241,67 @@ export const CUSTOMER_PROFILES = [
     depots: ["Rostock"],
     preferredRelations: [["Rostock","Lübeck"],["Rostock","Hannover"],["Rostock","Berlin"]],
     cargoTypes: ["Getränke","Lebensmittel"] },
+  // Neue Kunden für Süd-, West- und Mitteldeutschland (Auftrag 34: Städte-Erweiterung)
+  { id: "c16", name: "Bayern Logistik", industry: "Stückgut", contact: "Frau Steinberger",
+    depots: ["München"],
+    preferredRelations: [["München","Nürnberg"],["München","Stuttgart"],["München","Regensburg"],["München","Hamburg"]],
+    cargoTypes: ["Stückgut","Elektronik"] },
+  { id: "c17", name: "Rheinland Transport", industry: "Handel", contact: "Herr Becker",
+    depots: ["Köln","Düsseldorf"],
+    preferredRelations: [["Köln","Düsseldorf"],["Köln","Dortmund"],["Köln","Frankfurt"],["Düsseldorf","Essen"],["Köln","Hamburg"]],
+    cargoTypes: ["Stückgut","Verpackungsmaterial"] },
+  { id: "c18", name: "Main-Spedition", industry: "Finanz & Technik", contact: "Frau Hartmann",
+    depots: ["Frankfurt","Würzburg"],
+    preferredRelations: [["Frankfurt","Mannheim"],["Frankfurt","Würzburg"],["Frankfurt","Kassel"],["Würzburg","Nürnberg"],["Frankfurt","Berlin"]],
+    cargoTypes: ["Elektronik","Stückgut"] },
+  { id: "c19", name: "Schwaben-Express", industry: "Maschinenteile", contact: "Herr Keller",
+    depots: ["Stuttgart"],
+    preferredRelations: [["Stuttgart","München"],["Stuttgart","Nürnberg"],["Stuttgart","Mannheim"],["Stuttgart","Frankfurt"]],
+    cargoTypes: ["Maschinenteile","Bauteile"] },
+  { id: "c20", name: "Sachsen-Fracht", industry: "Baustoffe", contact: "Frau Richter",
+    depots: ["Leipzig"],
+    preferredRelations: [["Leipzig","Dresden"],["Leipzig","Magdeburg"],["Leipzig","Erfurt"],["Leipzig","Hamburg"]],
+    cargoTypes: ["Baustoffe","Stückgut"] },
+  { id: "c21", name: "Elbsandstein Logistik", industry: "Möbel", contact: "Herr Wagner",
+    depots: ["Dresden"],
+    preferredRelations: [["Dresden","Berlin"],["Dresden","Leipzig"],["Dresden","Magdeburg"],["Dresden","Hannover"]],
+    cargoTypes: ["Möbel","Stückgut"] },
+  { id: "c22", name: "Franken-Vertrieb", industry: "Textilien", contact: "Frau Bauer",
+    depots: ["Nürnberg"],
+    preferredRelations: [["Nürnberg","München"],["Nürnberg","Frankfurt"],["Nürnberg","Stuttgart"],["Nürnberg","Würzburg"]],
+    cargoTypes: ["Textilien","Stückgut"] },
+  { id: "c23", name: "Ruhr-Express", industry: "Bauteile", contact: "Herr Schmitz",
+    depots: ["Essen","Dortmund"],
+    preferredRelations: [["Essen","Düsseldorf"],["Dortmund","Köln"],["Essen","Münster"],["Dortmund","Hannover"]],
+    cargoTypes: ["Bauteile","Maschinenteile"] },
+  { id: "c24", name: "Rhein-Neckar Transport", industry: "Lebensmittel", contact: "Frau Klein",
+    depots: ["Mannheim"],
+    preferredRelations: [["Mannheim","Frankfurt"],["Mannheim","Stuttgart"],["Mannheim","Freiburg"],["Mannheim","Köln"]],
+    cargoTypes: ["Lebensmittel","Getränke"] },
+  { id: "c25", name: "Schwarzwald-Spediteur", industry: "Möbel", contact: "Herr Braun",
+    depots: ["Freiburg"],
+    preferredRelations: [["Freiburg","Mannheim"],["Freiburg","Stuttgart"],["Freiburg","Frankfurt"],["Freiburg","Köln"]],
+    cargoTypes: ["Möbel","Baustoffe"] },
+  { id: "c26", name: "Ostwestfalen-Transport", industry: "Stückgut", contact: "Frau Meyer",
+    depots: ["Bielefeld","Münster","Osnabrück"],
+    preferredRelations: [["Bielefeld","Hannover"],["Bielefeld","Dortmund"],["Münster","Osnabrück"],["Osnabrück","Bremen"],["Bielefeld","Hamburg"]],
+    cargoTypes: ["Stückgut","Verpackungsmaterial"] },
+  { id: "c27", name: "Saar-Palatina Logistik", industry: "Stahl & Metall", contact: "Herr Klein",
+    depots: ["Saarbrücken"],
+    preferredRelations: [["Saarbrücken","Mannheim"],["Saarbrücken","Frankfurt"],["Saarbrücken","Stuttgart"],["Saarbrücken","Köln"]],
+    cargoTypes: ["Bauteile","Maschinenteile"] },
+  { id: "c28", name: "Donau-Transport", industry: "Getränke", contact: "Frau Fischer",
+    depots: ["Regensburg","Ulm"],
+    preferredRelations: [["Regensburg","München"],["Regensburg","Nürnberg"],["Ulm","Stuttgart"],["Ulm","München"]],
+    cargoTypes: ["Getränke","Lebensmittel"] },
+  { id: "c29", name: "Thüringen-Express", industry: "Elektronik", contact: "Herr Schmidt",
+    depots: ["Erfurt"],
+    preferredRelations: [["Erfurt","Leipzig"],["Erfurt","Kassel"],["Erfurt","Frankfurt"],["Erfurt","Hannover"]],
+    cargoTypes: ["Elektronik","Stückgut"] },
+  { id: "c30", name: "Nordhessen-Fracht", industry: "Verpackung", contact: "Frau Wolf",
+    depots: ["Kassel"],
+    preferredRelations: [["Kassel","Frankfurt"],["Kassel","Hannover"],["Kassel","Erfurt"],["Kassel","Dortmund"]],
+    cargoTypes: ["Verpackungsmaterial","Stückgut"] },
 ];
 
 // ---------- Marktkonstanten (Auftrag 19) ----------

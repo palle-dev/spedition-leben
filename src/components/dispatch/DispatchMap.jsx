@@ -12,9 +12,9 @@ import { AlertTriangle } from "lucide-react";
 // OpenFreeMap Dark-Stil (öffentlich, kein API-Schlüssel nötig).
 // Stil und Anbieter zentral konfigurierbar.
 const MAP_STYLE = "https://tiles.openfreemap.org/styles/dark";
-const MAP_CENTER = [10.5, 53.5];
-const MAP_ZOOM = 5.6;
-const MAX_BOUNDS = [[4, 47], [16, 56]];
+const MAP_CENTER = [10.2, 51.0];
+const MAP_ZOOM = 5.0;
+const MAX_BOUNDS = [[4, 46], [16, 56]];
 
 export default function DispatchMap({
   routeData,
