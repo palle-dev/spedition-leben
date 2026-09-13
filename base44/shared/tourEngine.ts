@@ -51,6 +51,10 @@ export function earliestAvailable(state, vehicle, driver) {
   if (driver.status === "resting" && driver.restUntil) {
     t = Math.max(t, driver.restUntil);
   }
+  if (driver.status === "on_trip") {
+    const trip = state.trips.find(tr => tr.id === driver.tripId || tr.driverId === driver.id);
+    if (trip) t = Math.max(t, trip.endMin);
+  }
   // Prüfe Touren-Reservierungen
   for (const tour of state.tours || []) {
     if (tour.status !== "active" && tour.status !== "planned") continue;
@@ -59,6 +63,61 @@ export function earliestAvailable(state, vehicle, driver) {
     }
   }
   return t;
+}
+
+// Ermittelt die zukünftige Stadt eines Fahrzeugs nach Abschluss aller
+// laufenden Touren. Für 24/7-Vorausplanung: wenn ein Lkw auf Tour ist,
+// ist vehicle.locationCity noch die Startstadt — wir brauchen aber
+// die Stadt, an der das Fahrzeug nach Tourende steht.
+export function futureLocation(state, vehicle) {
+  // 1. Aktiver Trip: Endstadt aus Phasen ableiten
+  if (vehicle.status === "on_trip" && vehicle.tripId) {
+    const trip = state.trips.find(t => t.id === vehicle.tripId);
+    if (trip && trip.phases) {
+      for (let i = trip.phases.length - 1; i >= 0; i--) {
+        const p = trip.phases[i];
+        if (p.type === "empty_drive" || p.type === "loaded_drive") return p.toCity;
+      }
+    }
+  }
+  // 2. Aktive Tour mit geplanten Deployments: Endstadt des letzten Deployments
+  for (const tour of state.tours || []) {
+    if (tour.status !== "active") continue;
+    if (tour.vehicleId !== vehicle.id) continue;
+    const allDeps = [...(tour.deployments || []), tour.returnDeployment].filter(Boolean);
+    // Finde das letzte nicht-abgeschlossene Deployment
+    for (let i = allDeps.length - 1; i >= 0; i--) {
+      if (allDeps[i].status !== "completed" && allDeps[i].status !== "cancelled") {
+        return allDeps[i].toCity || vehicle.locationCity;
+      }
+    }
+  }
+  return vehicle.locationCity;
+}
+
+// Ermittelt die zukünftige Stadt eines Fahrers nach Abschluss aller
+// laufenden Touren. Entspricht futureLocation für Fahrzeuge.
+export function futureDriverLocation(state, driver) {
+  if (driver.status === "on_trip") {
+    const trip = state.trips.find(t => t.driverId === driver.id && t.status === "in_progress");
+    if (trip && trip.phases) {
+      for (let i = trip.phases.length - 1; i >= 0; i--) {
+        const p = trip.phases[i];
+        if (p.type === "empty_drive" || p.type === "loaded_drive") return p.toCity;
+      }
+    }
+  }
+  for (const tour of state.tours || []) {
+    if (tour.status !== "active") continue;
+    if (tour.driverId !== driver.id) continue;
+    const allDeps = [...(tour.deployments || []), tour.returnDeployment].filter(Boolean);
+    for (let i = allDeps.length - 1; i >= 0; i--) {
+      if (allDeps[i].status !== "completed" && allDeps[i].status !== "cancelled") {
+        return allDeps[i].toCity || driver.locationCity;
+      }
+    }
+  }
+  return driver.locationCity;
 }
 
 // ---------- Deployment-Planung ----------
@@ -160,12 +219,17 @@ export function buildTourPlan(state, opts) {
   if (!vehicle || !driver) return { error: "Fahrzeug oder Fahrer nicht gefunden." };
 
   // Prüfe Grundvoraussetzungen
-  if (vehicle.locationCity !== driver.locationCity) {
-    return { error: "Fahrer und Lkw befinden sich an unterschiedlichen Orten." };
+  // Für Vorausplanung: Wenn Fahrzeug/Fahrer auf Tour sind, vergleiche
+  // die zukünftigen Städte (wo sie nach Tourende stehen), nicht die
+  // aktuellen locationCity-Werte (die noch die Startstadt zeigen).
+  const vehicleFutureCity = futureLocation(state, vehicle);
+  const driverFutureCity = futureDriverLocation(state, driver);
+  if (vehicleFutureCity !== driverFutureCity) {
+    return { error: "Fahrer und Lkw befinden sich nach Tourende an unterschiedlichen Orten (" + vehicleFutureCity + " vs " + driverFutureCity + ")." };
   }
 
   const earliestStart = earliestAvailable(state, vehicle, driver);
-  let currentCity = vehicle.locationCity;
+  let currentCity = vehicleFutureCity;
   let t = earliestStart;
   const deployments = [];
   const acceptedOrderIds = [];
@@ -320,10 +384,22 @@ export function confirmTour(state, params) {
   const driver = state.drivers.find(d => d.id === driverId);
 
   // 2. Prüfe Ressourcen-Verfügbarkeit erneut
-  if (vehicle.status !== "free" && vehicle.status !== "resting") {
+  // Für 24/7-Vorausplanung: Erlaube auch on_trip, wenn die neue Tour
+  // erst nach der aktuellen startet (plan.earliestStartMin > state.gameTime).
+  // earliestAvailable berücksichtigt aktuelle Touren und Reservierungen.
+  const earliestAvail = earliestAvailable(state, vehicle, driver);
+  if (vehicle.status === "on_trip") {
+    if (plan.earliestStartMin <= state.gameTime) {
+      throw new Error("Fahrzeug ist auf Tour und kann nicht sofort disponiert werden. Tourende: " + formatGameTime(earliestAvail) + ".");
+    }
+  } else if (vehicle.status !== "free" && vehicle.status !== "resting") {
     throw new Error("Fahrzeug ist nicht frei (Status: " + vehicle.status + ").");
   }
-  if (driver.status !== "free" && driver.status !== "resting") {
+  if (driver.status === "on_trip") {
+    if (plan.earliestStartMin <= state.gameTime) {
+      throw new Error("Fahrer ist auf Tour und kann nicht sofort disponiert werden. Tourende: " + formatGameTime(earliestAvail) + ".");
+    }
+  } else if (driver.status !== "free" && driver.status !== "resting") {
     throw new Error("Fahrer ist nicht frei (Status: " + driver.status + ").");
   }
   if (vehicle.condition < 20) {
@@ -740,16 +816,34 @@ export function suggestTours(state, opts) {
   for (const vehicleId of vehicleIds || state.vehicles.map(v => v.id)) {
     const vehicle = state.vehicles.find(v => v.id === vehicleId);
     if (!vehicle) continue;
-    if (vehicle.status !== "free" && vehicle.status !== "resting") continue;
-    if (vehicle.condition < 20) continue;
+    // Für 24/7-Vorausplanung: Erlaube auch on_trip — earliestAvailable
+    // gibt den Zeitpunkt nach Tourende zurück, buildTourPlan startet
+    // die neue Tour dann erst danach.
+    if (vehicle.status !== "free" && vehicle.status !== "resting" && vehicle.status !== "on_trip") continue;
+    if (vehicle.status === "on_trip" && vehicle.condition < 20) continue; // nach Tour erst warten
+    if (vehicle.status !== "on_trip" && vehicle.condition < 20) continue;
 
-    // Finde einen passenden Fahrer am gleichen Ort (auch ruhende, noch nicht zugewiesen)
-    const driver = state.drivers.find(d =>
-      d.locationCity === vehicle.locationCity &&
-      (d.status === "free" || d.status === "resting") &&
-      d.employmentStatus === "employed" &&
-      !usedDriverIds.has(d.id)
-    );
+    // Zukünftige Stadt nach Abschluss aller laufenden Touren
+    const vehicleFutureCity = futureLocation(state, vehicle);
+    const vehicleAvail = earliestAvailable(state, vehicle, { id: null });
+
+    // Finde einen passenden Fahrer am gleichen Ort (auch ruhende oder auf Tour,
+    // wenn die zukünftige Stadt übereinstimmt und der Fahrer nicht schon
+    // anderweitig vorgemerkt ist).
+    const driver = state.drivers.find(d => {
+      if (d.employmentStatus !== "employed") return false;
+      if (usedDriverIds.has(d.id)) return false;
+      if (d.status !== "free" && d.status !== "resting" && d.status !== "on_trip") return false;
+      const driverFutureCity = futureDriverLocation(state, d);
+      if (driverFutureCity !== vehicleFutureCity) return false;
+      // Wenn beide auf Tour sind, müssen ihre Touren etwa zeitgleich enden
+      // (Toleranz 60 Min), damit der Fahrer am richtigen Ort ist.
+      if (d.status === "on_trip" || vehicle.status === "on_trip") {
+        const driverAvail = earliestAvailable(state, { id: null }, d);
+        if (Math.abs(driverAvail - vehicleAvail) > 120) return false;
+      }
+      return true;
+    });
     if (!driver) continue;
 
     // 1. Bereits angenommene, unzugewiesene Aufträge (nicht bereits zugewiesen,

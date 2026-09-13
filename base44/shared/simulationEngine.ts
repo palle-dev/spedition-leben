@@ -822,11 +822,15 @@ function processDispatcher(state, emp, m, log) {
 
   // ---------- Modus B/C: flottenweite Planung mit suggestTours ----------
   const acceptNew = emp.workMode === "autonomous";
-  const hasAcceptedOrders = state.orders.some(o =>
-    o.status === "angenommen" && !state.trips.some(t => t.orderId === o.id && t.status === "in_progress")
+  // Prüfe, ob es angenommene Aufträge gibt, die noch nicht Teil einer
+  // aktiven Tour sind (verhindert unnötige Planversuche).
+  const hasUnplannedAccepted = state.orders.some(o =>
+    o.status === "angenommen" &&
+    !state.trips.some(t => t.orderId === o.id && t.status === "in_progress") &&
+    !(state.tours || []).some(t => t.status === "active" && (t.deployments || []).some(d => d.orderId === o.id && d.status !== "cancelled"))
   );
   const hasOfferedOrders = acceptNew && state.orders.some(o => o.status === "offered" && o.acceptDeadlineMin > m);
-  if (!hasAcceptedOrders && !hasOfferedOrders) {
+  if (!hasUnplannedAccepted && !hasOfferedOrders) {
     emp.lastIdleReason = "Keine Aufträge zu vergeben";
     emp.lastIdleReasonAtMin = m;
     return;
@@ -842,7 +846,9 @@ function processDispatcher(state, emp, m, log) {
   const usedOrderIds = new Set();
   let planned = 0;
 
-  const capacity = emp.capacity || 6;
+  // Kapazität: Mindestens so viele Touren wie Fahrzeuge im Pool, damit ein
+  // Disponent die gesamte Flotte in einem Zyklus verplanen kann (24/7-Betrieb).
+  const capacity = Math.max(emp.capacity || 6, poolVehicles.length);
   for (const sug of result.suggestions) {
     if (planned >= capacity) break;
     if (usedVehicleIds.has(sug.vehicleId)) continue;
@@ -970,8 +976,8 @@ function triggerDispatcherPlanning(state, m, log) {
     if (emp.role !== "dispatcher" && emp.role !== "dispatcher_senior") continue;
     if (emp.workMode !== "autonomous" && emp.workMode !== "dispatch_accepted") continue;
     if (!isDispatcherOnShift(emp, m)) continue;
-    // CPU-Schutz: höchstens alle 30 Spielminuten pro Disponent, nicht bei jedem Ereignis.
-    if (m - (emp.lastDecisionMin || 0) < 30) continue;
+    // CPU-Schutz: höchstens alle 15 Spielminuten pro Disponent.
+    if (m - (emp.lastDecisionMin || 0) < 15) continue;
     processDispatcher(state, emp, m, log);
   }
 }
