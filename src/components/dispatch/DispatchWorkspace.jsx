@@ -7,6 +7,7 @@ import DispatchTourList from "./DispatchTourList";
 import DispatchTourDetails from "./DispatchTourDetails";
 import DispatchPlanner from "./DispatchPlanner";
 import TourPlanner from "./TourPlanner";
+import OrderMatchList from "./OrderMatchList";
 import DispatchActiveTours from "./DispatchActiveTours";
 import DriverWorkBudget from "./DriverWorkBudget";
 import DispatcherPanel from "./DispatcherPanel";
@@ -132,45 +133,13 @@ export default function DispatchWorkspace({
                     </>
                   )}
                 </div>
-              ) : filteredOrders.length === 0 ? (
-                <div className="glass border border-white/10 rounded-xl p-5 text-center">
-                  <p className="text-sm text-muted-foreground">Keine passenden Aufträge.</p>
-                  <button onClick={onResetSearch} className="inline-flex items-center gap-1.5 mt-3 px-3 py-2 rounded-lg bg-surface-2 border border-white/10 text-foreground text-xs font-medium hover:border-white/20 transition">
-                    <X className="w-3.5 h-3.5" /> Suche zurücksetzen
-                  </button>
-                </div>
               ) : (
-                filteredOrders.map(o => (
-                  <div
-                    key={o.id}
-                    className="rounded-xl p-3 border border-white/10 hover:border-lime/30 bg-surface/30 transition"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium truncate">{o.customer}</span>
-                      <span className="text-lime text-xs font-medium tabular-nums shrink-0">{formatEuro(o.paymentCents)}</span>
-                    </div>
-                    <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        {o.fromCity} <ArrowRight className="w-3 h-3" /> {o.toCity} · {o.tons} t
-                      </span>
-                      <span>Frist: {formatGameTime(o.deliveryDeadlineMin)}</span>
-                    </div>
-                    <div className="flex gap-2 mt-2.5">
-                      <button
-                        onClick={() => onPlanOrder(o.id)}
-                        className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 bg-lime text-ink text-xs font-semibold hover:brightness-110 transition active:scale-95"
-                      >
-                        <Play className="w-3.5 h-3.5" /> Planen
-                      </button>
-                      <button
-                        onClick={() => { setTourOrderId(o.id); onPlanRoute?.(null); }}
-                        className="flex items-center justify-center gap-1.5 rounded-lg py-2 px-3 border border-white/10 text-foreground/80 hover:text-foreground hover:border-white/20 text-xs font-medium transition active:scale-95"
-                      >
-                        <Route className="w-3.5 h-3.5" /> Tour planen
-                      </button>
-                    </div>
-                  </div>
-                ))
+                <OrderMatchList
+                  orders={accepted}
+                  onPlanOrder={onPlanOrder}
+                  onTourPlan={(oid) => { setTourOrderId(oid); onPlanRoute?.(null); }}
+                  searchLower={searchLower}
+                />
               )}
               <button
                 onClick={() => setEmptyMode(true)}
