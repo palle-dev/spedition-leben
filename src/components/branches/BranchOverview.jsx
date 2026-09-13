@@ -26,7 +26,10 @@ export default function BranchOverview() {
         const dailyCost = b.costPerDayCents
           + drivers.reduce((s, d) => s + (d.costPerDayCents || 0), 0)
           + dispatchers.reduce((s, e) => s + (e.costPerDayCents || 0), 0);
-        const profit = stats.revenueCents - (stats.expensesCents || 0);
+        // Kumulierte Kosten: Tageskosten × Öffnungstage (mind. 1)
+        const daysOpen = Math.max(1, Math.floor(((state.gameTime || 0) - (b.openedAtMin || 0)) / 1440));
+        const accumulatedCosts = dailyCost * daysOpen;
+        const profit = stats.revenueCents - accumulatedCosts;
         const margin = stats.revenueCents > 0 ? Math.round(profit / stats.revenueCents * 100) : 0;
 
         // Flotten-Zustand Durchschnitt
@@ -40,7 +43,7 @@ export default function BranchOverview() {
           drivers,
           dispatchers,
           onTrip, free, maintenance, utilization,
-          stats, dailyCost, profit, margin, avgCondition,
+          stats, dailyCost, accumulatedCosts, profit, margin, avgCondition,
         };
       })
       .sort((a, b) => b.stats.revenueCents - a.stats.revenueCents);
@@ -50,14 +53,14 @@ export default function BranchOverview() {
     return rows.reduce((acc, r) => {
       acc.revenue += r.stats.revenueCents || 0;
       acc.deliveries += r.stats.deliveries || 0;
-      acc.expenses += r.stats.expensesCents || 0;
+      acc.accumulatedCosts += r.accumulatedCosts || 0;
       acc.dailyCost += r.dailyCost;
       acc.vehicles += r.vehicles.length;
       acc.drivers += r.drivers.length;
       acc.dispatchers += r.dispatchers.length;
       acc.onTrip += r.onTrip;
       return acc;
-    }, { revenue: 0, deliveries: 0, expenses: 0, dailyCost: 0, vehicles: 0, drivers: 0, dispatchers: 0, onTrip: 0 });
+    }, { revenue: 0, deliveries: 0, accumulatedCosts: 0, dailyCost: 0, vehicles: 0, drivers: 0, dispatchers: 0, onTrip: 0 });
   }, [rows]);
 
   if (rows.length === 0) {
@@ -122,9 +125,9 @@ export default function BranchOverview() {
                     <div className="flex items-center gap-2">
                       <Truck className="w-3.5 h-3.5 text-muted-foreground" />
                       <span className="font-medium tabular-nums">{r.vehicles.length}</span>
-                      <div className="flex gap-1 text-[10px]">
+                      <div className="flex gap-1.5 text-[10px]">
                         {r.onTrip > 0 && <span className="text-lime">{r.onTrip}↗</span>}
-                        {r.free > 0 && <span className="text-muted-foreground">{r.free}frei</span>}
+                        {r.free > 0 && <span className="text-muted-foreground">{r.free} frei</span>}
                         {r.maintenance > 0 && <span className="text-coral flex items-center gap-0.5"><Wrench className="w-2.5 h-2.5" />{r.maintenance}</span>}
                       </div>
                     </div>
@@ -201,8 +204,8 @@ export default function BranchOverview() {
                 <td className="px-3 py-2.5 text-center tabular-nums font-medium">{totals.dispatchers}</td>
                 <td className="px-3 py-2.5 text-right tabular-nums font-medium">{formatEuro(totals.revenue)}</td>
                 <td className="px-3 py-2.5 text-right tabular-nums font-medium">{totals.deliveries}</td>
-                <td className={`px-3 py-2.5 text-right tabular-nums font-medium ${totals.revenue - totals.expenses >= 0 ? "text-lime" : "text-coral"}`}>
-                  {formatEuro(totals.revenue - totals.expenses)}
+                <td className={`px-3 py-2.5 text-right tabular-nums font-medium ${totals.revenue - totals.accumulatedCosts >= 0 ? "text-lime" : "text-coral"}`}>
+                  {formatEuro(totals.revenue - totals.accumulatedCosts)}
                 </td>
                 <td className="px-3 py-2.5" />
                 <td className="px-4 py-2.5 text-right tabular-nums font-medium text-muted-foreground">{formatEuro(totals.dailyCost)}</td>
