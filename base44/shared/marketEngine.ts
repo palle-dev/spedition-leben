@@ -11,7 +11,7 @@ import {
   EXPRESS_FACTOR, RELATION_FACTOR_MIN, RELATION_FACTOR_MAX,
   NORMAL_ACCEPT_HOURS, EXPRESS_ACCEPT_HOURS, ADVANCE_ACCEPT_HOURS,
   NORMAL_BUFFER_HOURS, EXPRESS_BUFFER_HOURS, PAYMENT_TERMS_DAYS,
-  LOAD_MIN, UNLOAD_MIN, WORK_BUDGET_MIN, DRIVE_BUDGET_MIN, BREAK_MIN,
+  LOAD_MIN, UNLOAD_MIN, WORK_BUDGET_MIN, DRIVE_BUDGET_MIN, BREAK_MIN, REST_MIN,
   SERVICE_START_MIN,
 } from "./gameRules.ts";
 import { earliestAvailable } from "./tourEngine.ts";
@@ -199,34 +199,48 @@ function computeTimeWindows(state, m, offerType, fromCity, toCity, km, rng) {
   const driveMin = driveMinutes(km);
   const opMin = LOAD_MIN + driveMin + UNLOAD_MIN;
 
+  // Anfahrtsweg vom nächsten Flottenstandort zur Abholung.
+  // Bei weit entfernten Abholorten (z. B. München bei Flotte in Hamburg)
+  // benötigen die Zeitfenster mehr Vorlaufzeit für die Leerfahrt.
+  const approachMin = computeNearestApproach(state, fromCity);
+
+  // Ruhepausen: Bei weiten Anfahrten muss der Fahrer ggf. eine oder mehrere
+  // vollständige Ruhepausen (REST_MIN) einlegen. Diese Zeit muss in der
+  // Lieferfrist enthalten sein, sonst wird der Auftrag von buildTourPlan
+  // als unmachbar abgelehnt.
+  const totalWorkMin = approachMin + opMin;
+  const workBeyond = Math.max(0, totalWorkMin - WORK_BUDGET_MIN);
+  const restsNeeded = workBeyond > 0 ? Math.ceil(workBeyond / WORK_BUDGET_MIN) : 0;
+  const restTime = restsNeeded * REST_MIN;
+
   if (offerType === "express") {
     const acceptHours = EXPRESS_ACCEPT_HOURS[0] + rng() * (EXPRESS_ACCEPT_HOURS[1] - EXPRESS_ACCEPT_HOURS[0]);
-    const acceptDeadline = m + Math.round(acceptHours * 60);
+    const acceptDeadline = m + Math.round(acceptHours * 60) + approachMin;
     const earliestPickup = m + 30;
     const latestLoadStart = acceptDeadline;
     const bufferMin = Math.round((EXPRESS_BUFFER_HOURS[0] + rng() * (EXPRESS_BUFFER_HOURS[1] - EXPRESS_BUFFER_HOURS[0])) * 60);
-    const deliveryDeadline = earliestPickup + opMin + bufferMin;
+    const deliveryDeadline = Math.max(earliestPickup, m + approachMin) + opMin + restTime + bufferMin;
     return { acceptDeadline, earliestPickup, latestLoadStart, deliveryDeadline, paymentTermsDays: 0 };
   }
 
   if (offerType === "advance") {
     const acceptHours = ADVANCE_ACCEPT_HOURS[0] + rng() * (ADVANCE_ACCEPT_HOURS[1] - ADVANCE_ACCEPT_HOURS[0]);
-    const acceptDeadline = m + Math.round(acceptHours * 60);
+    const acceptDeadline = m + Math.round(acceptHours * 60) + approachMin;
     const nextDay = Math.floor(m / 1440) * 1440 + 1440;
     const earliestPickup = nextDay + 480 + Math.floor(rng() * 240); // 08:00–12:00
     const latestLoadStart = acceptDeadline;
     const bufferMin = Math.round((NORMAL_BUFFER_HOURS[0] + rng() * (NORMAL_BUFFER_HOURS[1] - NORMAL_BUFFER_HOURS[0])) * 60);
-    const deliveryDeadline = earliestPickup + opMin + bufferMin;
+    const deliveryDeadline = Math.max(earliestPickup, m + approachMin) + opMin + restTime + bufferMin;
     return { acceptDeadline, earliestPickup, latestLoadStart, deliveryDeadline, paymentTermsDays: 3 };
   }
 
   // Normal
   const acceptHours = NORMAL_ACCEPT_HOURS[0] + rng() * (NORMAL_ACCEPT_HOURS[1] - NORMAL_ACCEPT_HOURS[0]);
-  let acceptDeadline = m + Math.round(acceptHours * 60);
+  let acceptDeadline = m + Math.round(acceptHours * 60) + approachMin;
   const earliestPickup = m + 60 + Math.floor(rng() * 120); // 1–3 h
   const latestLoadStart = acceptDeadline;
   const bufferMin = Math.round((NORMAL_BUFFER_HOURS[0] + rng() * (NORMAL_BUFFER_HOURS[1] - NORMAL_BUFFER_HOURS[0])) * 60);
-  const deliveryDeadline = earliestPickup + opMin + bufferMin;
+  const deliveryDeadline = Math.max(earliestPickup, m + approachMin) + opMin + restTime + bufferMin;
 
   // Außerhalb Dienstzeit: Annahmefrist bis nächsten Dienstbeginn verlängern
   const hour = (m % 1440) / 60;
@@ -241,13 +255,31 @@ function computeTimeWindows(state, m, offerType, fromCity, toCity, km, rng) {
   return { acceptDeadline, earliestPickup, latestLoadStart, deliveryDeadline, paymentTermsDays };
 }
 
+// Berechnet die Leerfahrzeit vom nächsten Flottenstandort zur Abholstadt.
+// Flottenstandorte: Fahrzeugpositionen und aktive Filialen.
+function computeNearestApproach(state, fromCity) {
+  const fleetCities = new Set();
+  for (const v of state.vehicles || []) {
+    if (v.status !== "archived") fleetCities.add(v.locationCity);
+  }
+  for (const b of state.branches || []) {
+    if (b.status === "active") fleetCities.add(b.city);
+  }
+  let nearest = 0;
+  for (const city of fleetCities) {
+    const min = driveMinutes(getDistance(city, fromCity));
+    if (nearest === 0 || min < nearest) nearest = min;
+  }
+  return nearest;
+}
+
 // ---------- Machbarkeitsprüfung (begrenzte Suche) ----------
 
 // Prüft, ob mindestens ein Fahrzeug-/Fahrerpaar den Auftrag innerhalb 24 h
 // abholen und pünktlich liefern könnte. Vereinfachte Prüfung ohne vollständige
 // Phasenplanung – ausreichend für die Generator-Vorauswahl.
 function checkOfferFeasibility(state, offer) {
-  const maxPickup = state.gameTime + 24 * 60;
+  const maxPickup = state.gameTime + 48 * 60;
   const loadedKm = getDistance(offer.fromCity, offer.toCity);
   const opMin = LOAD_MIN + driveMinutes(loadedKm) + UNLOAD_MIN;
 
@@ -266,15 +298,26 @@ function checkOfferFeasibility(state, offer) {
       const avail = earliestAvailable(state, v, d);
       if (avail > maxPickup) continue;
 
-      const pickupStart = Math.max(avail, offer.earliestPickupMin);
-      const deliveryEnd = pickupStart + totalWorkMin;
+      // Fahrzeug reist erst leer zur Abholung, dann beginnt der Ladungsprozess.
+      const arriveAtPickup = avail + emptyDriveMin;
+      const pickupStart = Math.max(arriveAtPickup, offer.earliestPickupMin);
+      // Lieferende = Abholung + beladene Operation (die Leerfahrt ist im
+      // Lieferfrist-Zeitfenster bereits über approachMin enthalten).
+      const deliveryEnd = pickupStart + opMin;
 
-      if (deliveryEnd <= offer.deliveryDeadlineMin) {
-        // Vereinfachte Fahrerzeit-Prüfung: Arbeitsbudget reicht oder wird durch Ruhe zurückgesetzt
-        const remainingWork = WORK_BUDGET_MIN - (d.workMinutesSinceRest || 0);
-        if (totalWorkMin <= remainingWork + WORK_BUDGET_MIN) {
-          return true;
-        }
+      if (deliveryEnd > offer.deliveryDeadlineMin) continue;
+
+      // Fahrerzeit-Prüfung mit Ruhepausen: Arbeitsbudget kann durch
+      // vollständige Ruhepausen (REST_MIN) mehrfach zurückgesetzt werden.
+      const remainingWork = WORK_BUDGET_MIN - (d.workMinutesSinceRest || 0);
+      if (totalWorkMin <= remainingWork) return true;
+      const workBeyond = totalWorkMin - remainingWork;
+      const restsNeeded = Math.ceil(workBeyond / WORK_BUDGET_MIN);
+      // Mit n Ruhepausen: Gesamtkalenderzeit = Arbeit + n × REST_MIN.
+      // Die Lieferung muss auch mit Ruhepausen rechtlich fristgerecht sein.
+      const totalTimeWithRest = totalWorkMin + restsNeeded * REST_MIN;
+      if (pickupStart - emptyDriveMin + totalTimeWithRest <= offer.deliveryDeadlineMin) {
+        return true;
       }
     }
   }
