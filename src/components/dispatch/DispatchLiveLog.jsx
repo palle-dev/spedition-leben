@@ -55,7 +55,7 @@ export default function DispatchLiveLog({ events, onJumpToLatest }) {
   if (logEvents.length === 0) return null;
 
   return (
-    <div className="glass border border-white/10 rounded-xl overflow-hidden">
+    <div className="glass border border-white/10 rounded-xl overflow-hidden h-full flex flex-col">
       <button
         onClick={() => setCollapsed(c => !c)}
         className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-white/5 transition"
@@ -89,7 +89,7 @@ export default function DispatchLiveLog({ events, onJumpToLatest }) {
             <div
               ref={scrollRef}
               onScroll={handleScroll}
-              className="max-h-64 overflow-y-auto scrollbar-none"
+              className="flex-1 min-h-0 overflow-y-auto scrollbar-none"
             >
               <div className="divide-y divide-white/5">
                 {logEvents.map(ev => {

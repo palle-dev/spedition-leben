@@ -263,7 +263,7 @@ export default function DispatchWorkspace({
         {activeTab === "disponenten" && <DispatcherPanel />}
 
         {/* ---------- Verlauf ---------- */}
-        {activeTab === "verlauf" && <DispatchLiveLog events={recentEvents} />}
+        {activeTab === "verlauf" && <div className="h-full"><DispatchLiveLog events={recentEvents} /></div>}
       </div>
     </div>
   );
