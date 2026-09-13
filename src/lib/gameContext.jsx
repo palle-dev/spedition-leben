@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
-import { gameCommand, applyCommandRemote, saveGameState } from "@/lib/gameClient";
+import { gameCommand } from "@/lib/gameClient";
 import { base44 } from "@/api/base44Client";
 import { eventToToast, eventToNotification } from "@/lib/eventNotifications";
 import { getUnseenEventCount } from "@/lib/eventLogClient";
@@ -180,11 +180,18 @@ export function GameProvider({ children }) {
           applyLoaded(data);
           if (data.state?.timeControl?.enabled) {
             try {
-              const r = await applyCommandRemote({ state: stateRef.current, command: "pauseAutomation", params: { reason: "loaded" } });
-              applyLoaded({ state: r.state, revision: data.revision, stateId: savedId, result: r.result });
-              await saveGameState({ stateId: savedId, state: r.state, expected_revision: data.revision });
-              revRef.current = data.revision + 1;
-              setRevision(data.revision + 1);
+              const r = await gameCommand({
+                command: "pauseAutomation",
+                stateId: savedId,
+                action_id: "pause_load_" + Date.now(),
+                expected_revision: data.revision,
+                params: { reason: "loaded" },
+              });
+              if (r.state) {
+                applyLoaded({ state: r.state, revision: r.revision, stateId: savedId, result: r.result });
+                revRef.current = r.revision;
+                setRevision(r.revision);
+              }
             } catch (e) {}
             userWantsAutomationRef.current = false;
           }
@@ -196,67 +203,31 @@ export function GameProvider({ children }) {
     })();
   }, [applyLoaded]);
 
-  // ---- Speichern: persistiert lokalen Zustand in die DB ----
-  // Wenn save während eines laufenden Speicherns aufgerufen wird, wird ein
-  // Re-Save markiert. Nach Abschluss des aktuellen Speicherns wird automatisch
-  // der neueste Zustand nachgespeichert – kein Datenverlust bei schnellen
-  // aufeinanderfolgenden Befehlen.
-  const save = useCallback(async (silent = false) => {
-    if (!idRef.current || !stateRef.current) return;
-    if (savingRef.current) { pendingSaveRef.current = true; return; }
-    savingRef.current = true;
-    setSaving(true);
-    try {
-      const data = await saveGameState({
-        stateId: idRef.current,
-        state: stateRef.current,
-        expected_revision: revRef.current,
-      });
-      if (data.conflict) {
-        if (!silent) showToast("Konflikt: Spielstand wurde gleichzeitig geändert. Lade neu.", "error");
-        await reload();
-        return;
-      }
-      if (data.error) throw new Error(data.error);
-      setRevision(data.revision);
-      revRef.current = data.revision;
-      setDirty(false);
-      if (!silent) showToast("Spielstand gespeichert", "success");
-    } catch (e) {
-      if (!silent) showToast("Speichern fehlgeschlagen: " + e.message, "error");
-    } finally {
-      savingRef.current = false;
-      setSaving(false);
-      // Wenn während des Speicherns weitere Änderungen anstanden, nachspeichern.
-      if (pendingSaveRef.current) {
-        pendingSaveRef.current = false;
-        save(true);
-      }
-    }
-  }, [reload, showToast]);
+  // Server-autoritativ: Jeder Befehl wird über gameCommand atomar persistiert.
+  // save ist ein No-op für Abwärtskompatibilität mit manuellen Speichern-Aufrufen.
+  const save = useCallback(async (_silent = false) => {}, []);
 
-  // ---- Befehle über applyCommandRemote (kein DB-Zugriff, schnell) ----
+  // ---- Befehle server-autoritativ über gameCommand (lädt, wendet an, persistiert atomar) ----
   const send = useCallback(async (command, params) => {
-    if (!stateRef.current) throw new Error("Kein Spielstand geladen");
+    if (!idRef.current) throw new Error("Kein Spielstand geladen");
     setBusy(true);
     sendInFlightRef.current = true;
+    const action_id = (crypto.randomUUID ? crypto.randomUUID() : "a_" + Date.now() + "_" + Math.random());
     try {
-      const data = await applyCommandRemote({
-        state: stateRef.current,
+      const data = await gameCommand({
         command,
+        stateId: idRef.current,
+        action_id,
+        expected_revision: revRef.current,
         params: params || {},
       });
-      if (data.error) throw new Error(data.error);
 
       const newState = data.state;
       const result = data.result;
 
-      applyLoaded({ state: newState, revision: revRef.current, stateId: idRef.current, result });
-      setDirty(true);
-
-      // Benutzerbefehle sofort persistieren – nur syncAutomation
-      // (alle 15s) bewusst ohne DB-Schreiben, um das Schreiblimit zu schonen.
-      save(true);
+      applyLoaded({ state: newState, revision: data.revision, stateId: idRef.current, result });
+      revRef.current = data.revision;
+      setRevision(data.revision);
 
       // Overlay-Logik
       if (result?.events) {
@@ -296,48 +267,49 @@ export function GameProvider({ children }) {
       }
       return result;
     } catch (e) {
+      if (e.conflict) await reload();
       if (e.message && !e.message.includes("Kein Spielstand")) showToast(e.message, "error");
       throw e;
     } finally {
       setBusy(false);
       sendInFlightRef.current = false;
     }
-  }, [applyLoaded, showToast, save]);
+  }, [applyLoaded, showToast, reload]);
 
-  // ---- Zeitautomatik: lokal über applyCommandRemote, auto-speichern ----
+  // ---- Zeitautomatik: server-autoritativ über gameCommand (atomar, revisionssicher) ----
   const syncAutomation = useCallback(async () => {
-    if (!idRef.current || !stateRef.current) return;
+    if (!idRef.current) return;
     if (syncInFlightRef.current) return;
     if (sendInFlightRef.current) return; // Benutzerbefehl hat Vorrang – Tick überspringen
     syncInFlightRef.current = true;
-    const stateBefore = stateRef.current;
+    const action_id = "sync_" + Date.now() + "_" + Math.random().toString(36).slice(2);
     try {
-      const data = await applyCommandRemote({
-        state: stateRef.current,
+      const data = await gameCommand({
         command: "syncAutomation",
+        stateId: idRef.current,
+        action_id,
+        expected_revision: revRef.current,
         params: {},
       });
-      if (data.error) throw new Error(data.error);
-      // Race-Condition-Schutz: wenn ein Benutzerbefehl während des Await den
-      // Zustand geändert hat, verwerfen wir das Tick-Ergebnis – der nächste
-      // Tick holt sich den neuesten Zustand.
-      if (stateRef.current !== stateBefore) return;
-      const timeAdvanced = data.state.gameTime !== stateRef.current.gameTime || (data.result.events && data.result.events.length > 0);
-      if (timeAdvanced) {
-        applyLoaded({ state: data.state, revision: revRef.current, stateId: idRef.current, result: data.result });
-        setDirty(true);
-        // NICHT pro Tick speichern – Auto-Save (180s) und Visibility-Handler
-        // persistieren. Das verhindert "entity write traffic volume limit exceeded".
+      // Idle: keine Zeit vergangen, Zustand unverändert – Revision nicht aktualisieren
+      if (data.idle) {
+        syncFailCountRef.current = 0;
+        setConnectionState("connected");
+        return;
       }
+      applyLoaded({ state: data.state, revision: data.revision, stateId: idRef.current, result: data.result });
+      revRef.current = data.revision;
+      setRevision(data.revision);
       syncFailCountRef.current = 0;
       setConnectionState("connected");
     } catch (e) {
       syncFailCountRef.current++;
       if (syncFailCountRef.current >= 4) setConnectionState("reconnecting");
+      if (e.conflict) await reload();
     } finally {
       syncInFlightRef.current = false;
     }
-  }, [applyLoaded, save]);
+  }, [applyLoaded, reload]);
 
   const enableAutomation = useCallback(async (silent = false) => {
     if (!idRef.current) return;
@@ -346,7 +318,6 @@ export function GameProvider({ children }) {
     try {
       await send("enableAutomation", {});
       setAutomationEnabled(true);
-      await save(true);
       if (!silent) showToast("Zeitautomatik aktiviert – läuft, solange das Spiel geöffnet ist.", "success");
     } catch (e) {
       if (!silent) showToast("Automatik konnte nicht aktiviert werden: " + (e?.message || "Unbekannt"), "error");
@@ -364,7 +335,6 @@ export function GameProvider({ children }) {
     try {
       await send("pauseAutomation", { reason: reason || "user" });
       setAutomationEnabled(false);
-      await save(true);
       if (isUserInitiated) showToast("Zeitautomatik pausiert.", "info");
     } catch (e) {
       if (isUserInitiated) showToast("Automatik konnte nicht pausiert werden: " + (e?.message || "Unbekannt"), "error");
@@ -389,7 +359,6 @@ export function GameProvider({ children }) {
     const handleVisibility = () => {
       if (document.hidden) {
         if (automationEnabled) pauseAutomation(true, "tab_hidden");
-        if (dirty) save(true);
       } else {
         if (userWantsAutomationRef.current && !automationEnabled && !automationBusy) {
           enableAutomation(true);
@@ -400,12 +369,7 @@ export function GameProvider({ children }) {
     return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, [automationEnabled, automationBusy, dirty, enableAutomation, pauseAutomation, save]);
 
-  // ---- Auto-Save: alle 60 Sekunden, falls dirty ----
-  useEffect(() => {
-    if (!dirty) return;
-    const timer = setInterval(() => { if (dirty) save(true); }, 180000);
-    return () => clearInterval(timer);
-  }, [dirty, save]);
+  // ---- Auto-Save entfällt: Server-autoritativ, jeder Befehl persistiert atomar über gameCommand ----
 
   // ---- Echtzeit-Subscription ----
   useEffect(() => {
