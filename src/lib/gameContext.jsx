@@ -79,7 +79,8 @@ export function GameProvider({ children }) {
     }
     const tick = () => {
       const elapsedMs = Date.now() - lastSyncRealMsRef.current;
-      const advancedMin = Math.floor(elapsedMs / 1000);
+      // 20 echte Sekunden = 60 Spielminuten → 3 Spielminuten pro Sekunde
+      const advancedMin = Math.floor(elapsedMs / 1000 * 3);
       setDisplayGameTime(lastSyncGameTimeRef.current + advancedMin);
     };
     tick();
