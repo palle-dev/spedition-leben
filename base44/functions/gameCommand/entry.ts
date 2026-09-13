@@ -96,6 +96,10 @@ export default async function (req) {
       return Response.json({ error: "Veraltete Revision", conflict: true, current_revision: rec.revision }, { status: 409 });
     }
 
+    // Spielzeit vor der Ausführung sichern, um echten Zeitfortschritt zu erkennen.
+    const oldGameTime = state.gameTime || 0;
+    const oldProcessedMin = state.timeControl?.processedGameMinute || 0;
+
     // Regelprüfung und Zustandsänderung.
     // serverNowMs für Zeitautomatik-Befehle ergänzen (serverseitige Zeitautorität).
     const isTimeCommand = ["enableAutomation", "pauseAutomation", "syncAutomation", "getAutomationStatus"].includes(command);
@@ -108,9 +112,13 @@ export default async function (req) {
       return Response.json({ error: e.message }, { status: 400 });
     }
 
-    // Optimierung: syncAutomation ohne Ereignisse überspringt das Speichern
-    // (verhindert Revisionserhöhung beim Client-Polling, wenn keine Spielzeit vergangen ist).
-    if (command === "syncAutomation" && (!result.events || result.events.length === 0)) {
+    // Idle-Erkennung: nur überspringen, wenn KEINE Spielzeit vergangen ist
+    // (processedGameMinute unverändert und keine Ereignisse). Wenn Zeit vergangen
+    // ist, MUSS gespeichert werden, sonst springt die Zeit bei der nächsten
+    // Aktion zurück, weil der alte Zustand ohne Zeitfortschritt geladen wird.
+    const newProcessedMin = newState.timeControl?.processedGameMinute || 0;
+    const timeAdvanced = newProcessedMin !== oldProcessedMin || (newState.gameTime || 0) !== oldGameTime;
+    if (command === "syncAutomation" && !timeAdvanced && (!result.events || result.events.length === 0)) {
       return Response.json({ state: newState, revision: rec.revision, stateId, result, idle: true });
     }
 
