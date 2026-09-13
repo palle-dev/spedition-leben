@@ -883,17 +883,21 @@ export function suggestTours(state, opts) {
 
     // 1. Bereits angenommene, unzugewiesene Aufträge (nicht bereits zugewiesen,
     //    nicht bereits Teil einer aktiven Tour — verhindert Doppelbuchung im Pool-Modell)
+    //    Lieferfrist muss noch in der Zukunft liegen (sonst ist der Auftrag unrealisierbar).
     const acceptedOrders = state.orders.filter(o =>
       o.status === "angenommen" &&
+      o.deliveryDeadlineMin > startMin &&
       o.tons <= vehicle.capacityTons &&
       !usedOrderIds.has(o.id) &&
       !(state.tours || []).some(t => t.status === "active" && (t.deployments || []).some(d => d.orderId === o.id && d.status !== "cancelled"))
     );
 
     // 2. Offene Angebote (nur wenn acceptNew, nicht bereits zugewiesen)
+    //    Lieferfrist muss noch in der Zukunft liegen.
     const offeredOrders = acceptNew ? state.orders.filter(o =>
       o.status === "offered" &&
       o.acceptDeadlineMin > startMin &&
+      o.deliveryDeadlineMin > startMin &&
       o.tons <= vehicle.capacityTons &&
       !usedOrderIds.has(o.id) &&
       !(state.tours || []).some(t => t.status === "active" && (t.deployments || []).some(d => d.orderId === o.id && d.status !== "cancelled"))
@@ -901,11 +905,24 @@ export function suggestTours(state, opts) {
 
     const allOrders = [...acceptedOrders, ...offeredOrders];
     // CPU-Schutz: die Doppel-Tour-Suche ist O(n²). Bei vielen Aufträgen
-    // wird die Liste auf die Top-18 nach Vergütung begrenzt, damit die
-    // kombinatorische Explosion (und damit CPU-Timeouts) vermieden wird.
+    // wird die Liste begrenzt, damit die kombinatorische Explosion (und damit
+    // CPU-Timeouts) vermieden wird.
+    // Sortierung nach Beitrag pro km (balanced-Modus): bevorzugt profitable
+    // Aufträge mit kurzen Distanzen, die tatsächlich realisierbar sind.
+    // Reine Vergütungs-Sortierung bevorzugt Express-Aufträge mit hohen Preisen
+    // aber unrealisierbar kurzen Lieferfristen, die dann alle durch buildTourPlan
+    // abgelehnt werden und die machbaren Advance-Aufträge verdrängen.
     if (allOrders.length > 18) {
-      allOrders.sort((a, b) => (b.paymentCents || 0) - (a.paymentCents || 0));
-      allOrders.length = 18;
+      const vehicleCity = vehicleFutureCity;
+      const scored = allOrders.map(o => {
+        const emptyKm = getDistance(vehicleCity, o.fromCity);
+        const loadedKm = getDistance(o.fromCity, o.toCity);
+        const totalKm = (emptyKm + loadedKm) || 1;
+        return { o, score: (o.paymentCents || 0) / totalKm };
+      });
+      scored.sort((a, b) => b.score - a.score);
+      allOrders.length = 0;
+      for (const s of scored.slice(0, 18)) allOrders.push(s.o);
     }
 
     // Probiere jeden Kandidaten-Fahrer und wähle den mit dem besten Plan.
