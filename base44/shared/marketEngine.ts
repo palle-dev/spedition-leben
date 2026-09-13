@@ -150,14 +150,15 @@ function computeAnchorCities(state) {
 // Wählt einen Kunden gewichtet nach Flottennähe seiner Depots.
 // Basisgewicht 8 stellt sicher, dass auch Kunden abseits der Flotte
 // (z. B. Süd- und Westdeutschland) regelmäßig Aufträge generieren.
-// Der Anker-Bonus bleibt als moderater Vorsprung für Flottennähe erhalten.
+// Der Anker-Bonus wird auf 6 begrenzt, damit kein einzelner Kunde
+// durch Rückkopplung aktiver Touren den gesamten Markt dominiert.
 function pickCustomer(state, anchors, rng) {
   const weights = CUSTOMER_PROFILES.map(c => {
-    let w = 8;
+    let bonus = 0;
     for (const depot of c.depots) {
-      if (anchors[depot]) w += anchors[depot];
+      if (anchors[depot]) bonus += anchors[depot];
     }
-    return w;
+    return 8 + Math.min(bonus, 6);
   });
   return weightedPick(CUSTOMER_PROFILES, weights, rng);
 }
