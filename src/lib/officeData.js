@@ -529,6 +529,86 @@ export function getRevenueTrend(state, days = 30) {
   });
 }
 
+// ---------- Trends pro Filiale ----------
+
+const BRANCH_CHART_COLORS = [
+  "hsl(var(--lime))",
+  "hsl(var(--coral))",
+  "hsl(var(--invest-cyan))",
+  "hsl(var(--invest-purple))",
+  "hsl(43 74% 66%)",
+  "hsl(27 87% 67%)",
+];
+
+// Täglicher Umsatz pro Filiale (gestapelt). Jeder Tag hat ein Feld pro Filiale + total.
+export function getRevenueTrendByBranch(state, days = 30) {
+  const today = Math.floor(state.gameTime / 1440);
+  const branches = (state.branches || []).filter(b => b.status === "active");
+  const branchKeys = branches.map((b, i) => ({
+    id: b.id, name: b.name, key: "b_" + b.id, color: BRANCH_CHART_COLORS[i % BRANCH_CHART_COLORS.length],
+  }));
+
+  const data = new Array(days).fill(0).map((_, i) => {
+    const day = today - days + 1 + i;
+    const obj = { day: day + 1, label: "T" + (day + 1), total: 0 };
+    for (const bk of branchKeys) obj[bk.key] = 0;
+    return obj;
+  });
+
+  for (const o of (state.orders || [])) {
+    if (o.status !== "geliefert" || o.deliveredAtMin == null || !o.paidCents) continue;
+    const dayIdx = Math.floor(o.deliveredAtMin / 1440);
+    const offset = dayIdx - (today - days + 1);
+    if (offset < 0 || offset >= days) continue;
+    const trip = (state.trips || []).find(t => t.orderId === o.id && t.type === "loaded");
+    const vehicle = trip ? (state.vehicles || []).find(v => v.id === trip.vehicleId) : null;
+    const branchId = vehicle?.branchId || branches[0]?.id;
+    const bk = branchKeys.find(bk => bk.id === branchId);
+    if (bk) {
+      data[offset][bk.key] += o.paidCents;
+      data[offset].total += o.paidCents;
+    }
+  }
+
+  return { data, branches: branchKeys };
+}
+
+// Tägliche Flottenauslastung pro Filiale. Jeder Tag hat ein Prozent-Feld pro Filiale.
+export function getFleetUtilizationTrendByBranch(state, days = 30) {
+  const today = Math.floor(state.gameTime / 1440);
+  const trips = state.trips || [];
+  const branches = (state.branches || []).filter(b => b.status === "active");
+  const branchKeys = branches.map((b, i) => ({
+    id: b.id, name: b.name, key: "b_" + b.id, color: BRANCH_CHART_COLORS[i % BRANCH_CHART_COLORS.length],
+  }));
+
+  const data = [];
+  for (let i = 0; i < days; i++) {
+    const dayStart = (today - days + 1 + i) * 1440;
+    const dayEnd = dayStart + 1440;
+    const day = today - days + 1 + i;
+    const obj = { day: day + 1, label: "T" + (day + 1) };
+    for (const bk of branchKeys) {
+      const branchVehicles = (state.vehicles || []).filter(v =>
+        v.branchId === bk.id && v.status !== "archived" &&
+        (v.acquiredAtMin == null || v.acquiredAtMin <= dayEnd) &&
+        (v.soldAtMin == null || v.soldAtMin > dayStart)
+      );
+      let total = branchVehicles.length;
+      let active = 0;
+      for (const v of branchVehicles) {
+        if (trips.some(t => t.vehicleId === v.id && t.startMin < dayEnd && (t.endMin != null ? t.endMin : t.startMin) > dayStart)) active++;
+      }
+      obj[bk.key] = total > 0 ? Math.round((active / total) * 100) : 0;
+      obj[bk.key + "_active"] = active;
+      obj[bk.key + "_total"] = total;
+    }
+    data.push(obj);
+  }
+
+  return { data, branches: branchKeys };
+}
+
 // Tägliche Flottenauslastung: Anteil der Fahrzeuge auf Tour am gesamten Flottenbestand.
 export function getFleetUtilizationTrend(state, days = 30) {
   const today = Math.floor(state.gameTime / 1440);
