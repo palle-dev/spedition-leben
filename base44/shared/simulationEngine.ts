@@ -16,7 +16,8 @@ import {
 } from "./gameRules.ts";
 import {
   buildTourPlan, confirmTour as doConfirmTour, cancelTour as doCancelTour,
-  processTours, onTripCompleted, findReturnLoads, suggestTours
+  processTours, onTripCompleted, findReturnLoads, suggestTours,
+  futureLocation, futureDriverLocation
 } from "./tourEngine.ts";
 import {
   buildPhases, buildWorkSteps, buildEmptyWorkSteps,
@@ -831,7 +832,7 @@ function processDispatcher(state, emp, m, log) {
   );
   const hasOfferedOrders = acceptNew && state.orders.some(o => o.status === "offered" && o.acceptDeadlineMin > m);
   if (!hasUnplannedAccepted && !hasOfferedOrders) {
-    emp.lastIdleReason = "Keine Aufträge zu vergeben";
+    emp.lastIdleReason = acceptNew ? "Keine Aufträge auf dem Markt" : "Keine angenommenen Aufträge – autonomer Modus nötig";
     emp.lastIdleReasonAtMin = m;
     return;
   }
@@ -945,23 +946,45 @@ function processDispatcher(state, emp, m, log) {
     }
   }
 
-  // Stillstandsgründe für ungenutzte Fahrzeuge dokumentieren
+  // Stillstandsgründe für ungenutzte Fahrzeuge dokumentieren.
+  // Unterscheidet: Unterwegs, Wartung, kein Fahrer, kein profitabler
+  // Auftrag, Bestätigung fehlgeschlagen, keine Aufträge.
+  const suggestedVehicleIds = new Set(result.suggestions.map(s => s.vehicleId));
   for (const v of poolVehicles) {
     if (usedVehicleIds.has(v.id)) { v.idleReason = null; continue; }
     if (v.status === "on_trip") { v.idleReason = "Unterwegs"; continue; }
     if (v.status === "maintenance") { v.idleReason = "Wartung bis " + formatGameTime(v.maintenanceUntil); continue; }
     let reason = "Kein geeigneter Auftrag gefunden";
-    if (v.condition < 20) reason = "Zustand unter 20 – Wartung erforderlich";
-    else if (!state.drivers.some(d => d.locationCity === v.locationCity && (d.status === "free" || d.status === "resting") && d.employmentStatus === "employed")) {
-      reason = "Kein Fahrer am Standort " + v.locationCity;
-    } else if (!hasUnplannedAccepted && !hasOfferedOrders) {
-      reason = "Keine Aufträge verfügbar";
+    if (v.condition < 20) {
+      reason = "Zustand unter 20 – Wartung erforderlich";
+    } else if (suggestedVehicleIds.has(v.id)) {
+      // Fahrzeug war in den Vorschlägen, aber Bestätigung ist fehlgeschlagen
+      reason = "Tour-Bestätigung fehlgeschlagen";
+    } else {
+      // Fahrzeug war nicht in den Vorschlägen — Ursache ermitteln
+      const futureCity = futureLocation(state, v);
+      const hasDriverAtLocation = state.drivers.some(d =>
+        d.employmentStatus === "employed" &&
+        d.attendance !== "released" &&
+        (d.status === "free" || d.status === "resting" || d.status === "on_trip") &&
+        futureDriverLocation(state, d) === futureCity
+      );
+      if (!hasDriverAtLocation) {
+        const driverCount = state.drivers.filter(d => d.employmentStatus === "employed" && d.attendance !== "released").length;
+        reason = driverCount === 0
+          ? "Keine Fahrer eingestellt"
+          : "Kein Fahrer am Standort " + v.locationCity + " (oder Zeitversatz)";
+      } else if (!hasUnplannedAccepted && !hasOfferedOrders) {
+        reason = acceptNew ? "Keine (profitablen) Aufträge verfügbar" : "Keine angenommenen Aufträge – autonomer Modus oder manuelle Annahme nötig";
+      } else {
+        reason = "Kein profitabler Auftrag gefunden";
+      }
     }
     v.idleReason = reason;
     v.idleReasonAtMin = m;
   }
   emp.lastDecisionMin = m;
-  emp.lastPlanningResult = { atMin: m, planned, totalVehicles: poolVehicles.length, usedVehicles: usedVehicleIds.size };
+  emp.lastPlanningResult = { atMin: m, planned, totalVehicles: poolVehicles.length, usedVehicles: usedVehicleIds.size, suggested: result.suggestions.length };
 }
 
 // Ereignisgesteuerte Dispositionsplanung: ruft processDispatcher für alle

@@ -868,12 +868,16 @@ export function suggestTours(state, opts) {
     // CPU-Schutz: die Doppel-Tour-Suche ist O(n²). Bei vielen Aufträgen
     // wird die Liste auf die Top-12 nach Vergütung begrenzt, damit die
     // kombinatorische Explosion (und damit CPU-Timeouts) vermieden wird.
-    if (allOrders.length > 12) {
+    if (allOrders.length > 18) {
       allOrders.sort((a, b) => (b.paymentCents || 0) - (a.paymentCents || 0));
-      allOrders.length = 12;
+      allOrders.length = 18;
     }
 
-    // Finde die beste Einzel- oder Doppel-Tour
+    // Finde die beste Einzel- oder Doppel-Tour.
+    // Bei Neuaufträgen (offered) werden nur profitable Pläne berücksichtigt —
+    // verhindert, dass suggestTours einen unprofitablen Plan zurückgibt, der
+    // dann in processDispatcher verworfen wird, während ein anderer profitabler
+    // Auftrag verfügbar gewesen wäre.
     let bestPlan = null;
     let bestOrders = null;
 
@@ -885,6 +889,8 @@ export function suggestTours(state, opts) {
         desiredEndCity, latestReturnMin,
       });
       if (plan.ok && plan.tourEndMin <= maxMin) {
+        const isNew = o.status === "offered";
+        if (isNew && plan.totalContributionCents <= 0) continue;
         if (!bestPlan || comparePlans(plan, bestPlan, mode) < 0) {
           bestPlan = plan;
           bestOrders = [o.id];
@@ -904,6 +910,8 @@ export function suggestTours(state, opts) {
           desiredEndCity, latestReturnMin,
         });
         if (plan.ok && plan.tourEndMin <= maxMin) {
+          const hasNew = o1.status === "offered" || o2.status === "offered";
+          if (hasNew && plan.totalContributionCents <= 0) continue;
           if (!bestPlan || comparePlans(plan, bestPlan, mode) < 0) {
             bestPlan = plan;
             bestOrders = [o1.id, o2.id];
