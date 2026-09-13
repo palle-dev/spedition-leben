@@ -63,11 +63,15 @@ export function migrateTimeControl(state) {
 }
 
 // Aktiviert die Zeitautomatik: setzt den Anker auf die aktuelle Spielposition.
+// Verwendet immer state.gameTime (nicht processedGameMinute), da manuelle
+// Zeitfortschritte (advanceTime, advanceToNextEvent) gameTime aktualisieren,
+// aber processedGameMinute nicht synchronisieren — sonst springt die Zeit zurück.
 export function enableAutomation(state, serverNowMs) {
   const tc = state.timeControl;
-  // Anker setzen: aktuelle verarbeitete Spielposition als Start
+  const currentMin = state.gameTime || 0;
   tc.anchorRealMs = serverNowMs;
-  tc.anchorGameNumerator = (tc.processedGameMinute || state.gameTime || 0) * NUMERATOR_PER_GAME_MINUTE;
+  tc.anchorGameNumerator = currentMin * NUMERATOR_PER_GAME_MINUTE;
+  tc.processedGameMinute = currentMin;
   tc.enabled = true;
   tc.clockVersion = (tc.clockVersion || 1) + 1;
   tc.pauseReason = null;

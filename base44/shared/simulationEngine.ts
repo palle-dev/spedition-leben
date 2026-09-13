@@ -2397,6 +2397,13 @@ export function applyCommand(state, command, params) {
       throw new Error("Unbekannter Befehl: " + command);
     }
   }
+  // processedGameMinute mit gameTime synchronisieren: manuelle Zeitfortschritte
+  // (advanceTime, advanceToNextEvent, Befehle mit advanceTo) aktualisieren gameTime,
+  // aber nicht processedGameMinute. Ohne Synchronisation würde enableAutomation
+  // die Zeit auf den alten processedGameMinute-Wert zurücksetzen.
+  if (state.timeControl && state.gameTime > (state.timeControl.processedGameMinute || 0)) {
+    state.timeControl.processedGameMinute = state.gameTime;
+  }
   // Erfolgsprüfung nach jedem Befehl (idempotent)
   const finalAchs = checkAchievements(state, state.gameTime);
   if (finalAchs.length && !result.newAchievements) result.newAchievements = finalAchs;
