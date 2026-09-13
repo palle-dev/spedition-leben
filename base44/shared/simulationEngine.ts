@@ -2516,6 +2516,70 @@ export function applyCommand(state, command, params) {
       break;
     }
 
+    // ---------- Filialverwaltung ----------
+
+    case "checkBranchRequirements": {
+      result = checkBranchRequirements(state);
+      break;
+    }
+
+    case "openBranch": {
+      ensureNotBlocked(state);
+      const r = openBranch(state, { city: p.city, name: p.name });
+      result = r;
+      break;
+    }
+
+    case "renameBranch": {
+      ensureNotBlocked(state);
+      const r = renameBranch(state, { branchId: p.branchId, name: p.name });
+      result = r;
+      break;
+    }
+
+    case "closeBranch": {
+      ensureNotBlocked(state);
+      const r = closeBranch(state, { branchId: p.branchId });
+      result = r;
+      break;
+    }
+
+    case "previewMoveVehicle": {
+      result = previewMoveVehicle(state, { vehicleId: p.vehicleId, targetBranchId: p.targetBranchId });
+      break;
+    }
+
+    case "moveVehicle": {
+      ensureNotBlocked(state);
+      const r = moveVehicle(state, { vehicleId: p.vehicleId, targetBranchId: p.targetBranchId });
+      result = r;
+      break;
+    }
+
+    case "previewMoveDriver": {
+      result = previewMoveDriver(state, { driverId: p.driverId, targetBranchId: p.targetBranchId });
+      break;
+    }
+
+    case "moveDriver": {
+      ensureNotBlocked(state);
+      const r = moveDriver(state, { driverId: p.driverId, targetBranchId: p.targetBranchId });
+      result = r;
+      break;
+    }
+
+    case "assignDispatcherToBranch": {
+      ensureNotBlocked(state);
+      const r = assignDispatcherToBranch(state, { employeeId: p.employeeId, branchId: p.branchId });
+      result = r;
+      break;
+    }
+
+    case "getBranchStats": {
+      result = { ok: true, branches: getBranchStats(state) };
+      break;
+    }
+
     default: {
       const dgResult = handleDgCommand(state, command, p);
       if (dgResult !== null) { result = dgResult; break; }
