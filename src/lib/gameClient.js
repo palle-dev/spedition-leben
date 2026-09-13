@@ -11,13 +11,14 @@ export async function gameCommand(payload) {
     if (e.response?.data?.error) {
       const err = new Error(e.response.data.error);
       err.conflict = e.response.data.conflict;
+      err.current_revision = e.response.data.current_revision;
       throw err;
     }
     throw e;
-  }
-}
+    }
+    }
 
-// Wendet einen Befehl auf dem Client-Zustand serverseitig an (kein DB-Zugriff).
+    // Wendet einen Befehl auf dem Client-Zustand serverseitig an (kein DB-Zugriff).
 export async function applyCommandRemote(payload) {
   try {
     const res = await base44.functions.invoke("applyCommandRemote", payload);

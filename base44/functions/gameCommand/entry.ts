@@ -71,6 +71,50 @@ export default async function (req) {
       return Response.json({ state: migrateState(rec.state || {}), revision: rec.revision, stateId: rec.id });
     }
 
+    // ---- Backup erstellen (Hybrid-Modell: Client erstellt State, Server speichert Kopie) ----
+    if (command === "createBackup") {
+      if (action_id) {
+        const existing = await S.filter({ owner_id: user.id, last_action_id: action_id }, "-created_date", 1);
+        if (existing && existing.length) {
+          return Response.json({ stateId: existing[0].id, revision: existing[0].revision });
+        }
+      }
+      const backupState = params?.state || {};
+      const rec = await S.create({
+        state: backupState, revision: 1, owner_id: user.id,
+        last_action_id: action_id || null,
+        last_result: { ok: true, command: "createBackup" },
+        last_command_hash: hash({ command, params: {} }),
+        automation_enabled: false, // Hybrid-Modell: Client steuert die Zeit
+      });
+      return Response.json({ stateId: rec.id, revision: 1 });
+    }
+
+    // ---- Backup aktualisieren (Hybrid-Modell: Client speichert periodisch) ----
+    if (command === "saveBackup") {
+      if (!stateId) return Response.json({ error: "stateId erforderlich" }, { status: 400 });
+      if (expected_revision === undefined) return Response.json({ error: "expected_revision erforderlich" }, { status: 400 });
+      const rec = await S.get(stateId);
+      if (!rec || rec.owner_id !== user.id) return Response.json({ error: "Kein Zugriff auf diesen Spielstand" }, { status: 403 });
+      const backupState = params?.state || {};
+      const newRev = expected_revision + 1;
+      const upd = await S.updateMany(
+        { id: stateId, owner_id: user.id, revision: expected_revision },
+        { $set: {
+          state: backupState, revision: newRev,
+          last_action_id: action_id || ("save_" + Date.now()),
+          last_result: { ok: true, command: "saveBackup" },
+          last_command_hash: hash({ command, params: {} }),
+          automation_enabled: false, // Hybrid-Modell: Client steuert die Zeit
+        }}
+      );
+      if (!upd || upd.updated !== 1) {
+        const cur = await S.get(stateId);
+        return Response.json({ error: "Konflikt: Zustand wurde gleichzeitig geändert", conflict: true, current_revision: cur ? cur.revision : 0 }, { status: 409 });
+      }
+      return Response.json({ ok: true, revision: newRev, stateId });
+    }
+
     // ---- Spielbefehle ----
     if (!stateId || !action_id || expected_revision === undefined) {
       return Response.json({ error: "action_id, stateId und expected_revision erforderlich" }, { status: 400 });
