@@ -971,9 +971,12 @@ function processDispatcher(state, emp, m, log) {
       );
       if (!hasDriverAtLocation) {
         const driverCount = state.drivers.filter(d => d.employmentStatus === "employed" && d.attendance !== "released").length;
+        const freeDriverCount = state.drivers.filter(d => d.employmentStatus === "employed" && d.attendance !== "released" && d.status === "free").length;
         reason = driverCount === 0
           ? "Keine Fahrer eingestellt"
-          : "Kein Fahrer am Standort " + v.locationCity + " (" + driverCount + " Fahrer für " + poolVehicles.length + " Lkw)";
+          : freeDriverCount === 0
+            ? "Alle Fahrer ruhen/auf Tour (" + driverCount + " Fahrer, keine freien für " + poolVehicles.length + " Lkw)"
+            : "Kein freier Fahrer am Standort " + v.locationCity + " (" + freeDriverCount + " freie Fahrer für " + poolVehicles.length + " Lkw, Cross-City-Suche eingeplant)";
       } else if (!hasUnplannedAccepted && !hasOfferedOrders) {
         reason = acceptNew ? "Keine (profitablen) Aufträge verfügbar" : "Keine angenommenen Aufträge – autonomer Modus oder manuelle Annahme nötig";
       } else {

@@ -224,11 +224,16 @@ export function buildTourPlan(state, opts) {
   // aktuellen locationCity-Werte (die noch die Startstadt zeigen).
   const vehicleFutureCity = futureLocation(state, vehicle);
   const driverFutureCity = futureDriverLocation(state, driver);
+  // Fahrer-Repositionierung: Wenn Fahrer und Lkw an verschiedenen Orten sind,
+  // reist der Fahrer per Bahn/Bus zum Fahrzeug. Das kostet Zeit (driveMinutes),
+  // aber keinen Kraftstoff/Maut. Dadurch können stillstehende Lkw an entfernten
+  // Orten von freien Fahrern vom Hauptsitz genutzt werden.
+  let driverTravelMin = 0;
   if (vehicleFutureCity !== driverFutureCity) {
-    return { error: "Fahrer und Lkw befinden sich nach Tourende an unterschiedlichen Orten (" + vehicleFutureCity + " vs " + driverFutureCity + ")." };
+    driverTravelMin = driveMinutes(getDistance(driverFutureCity, vehicleFutureCity));
   }
 
-  const earliestStart = earliestAvailable(state, vehicle, driver);
+  const earliestStart = earliestAvailable(state, vehicle, driver) + driverTravelMin;
   let currentCity = vehicleFutureCity;
   let t = earliestStart;
   const deployments = [];
@@ -320,6 +325,8 @@ export function buildTourPlan(state, opts) {
     totalPaymentCents: totalPayment,
     totalContributionCents: totalPayment - totalFuel - totalToll,
     earliestStartMin: earliestStart,
+    driverTravelMin,
+    driverTravelFromCity: driverTravelMin > 0 ? driverFutureCity : null,
     lastDeliveryEndMin: lastDeliveryEnd,
     tourEndMin,
     driverFreeMin,
@@ -831,7 +838,7 @@ export function suggestTours(state, opts) {
     // wenn die zukünftige Stadt übereinstimmt). Probiere mehrere Fahrer, da
     // verschiedene Fahrer unterschiedliche Arbeitszeit-Zähler haben — der
     // erste Fahrer könnte erschöpft sein, während ein anderer noch Kapazität hat.
-    const candidateDrivers = state.drivers.filter(d => {
+    const sameCityDrivers = state.drivers.filter(d => {
       if (d.employmentStatus !== "employed") return false;
       if (usedDriverIds.has(d.id)) return false;
       if (d.status !== "free" && d.status !== "resting" && d.status !== "on_trip") return false;
@@ -843,6 +850,19 @@ export function suggestTours(state, opts) {
       }
       return true;
     });
+    // Fahrer-Repositionierung: Wenn nicht genug Fahrer am gleichen Ort sind,
+    // suche freie Fahrer an anderen Orten. Diese reisen per Bahn/Bus zum
+    // Fahrzeug (buildTourPlan addiert die Reisezeit). Dadurch können Lkw
+    // an entfernten Orten von freien Fahrern vom Hauptsitz genutzt werden.
+    const crossCityDrivers = sameCityDrivers.length < 4 ? state.drivers.filter(d => {
+      if (d.employmentStatus !== "employed") return false;
+      if (usedDriverIds.has(d.id)) return false;
+      if (d.status !== "free") return false; // Nur freie Fahrer für Cross-City
+      const driverFutureCity = futureDriverLocation(state, d);
+      if (driverFutureCity === vehicleFutureCity) return false; // bereits in sameCityDrivers
+      return true;
+    }) : [];
+    const candidateDrivers = [...sameCityDrivers, ...crossCityDrivers];
     // CPU-Schutz: höchstens 4 Fahrer pro Fahrzeug probieren.
     if (candidateDrivers.length > 4) candidateDrivers.length = 4;
     if (candidateDrivers.length === 0) continue;
