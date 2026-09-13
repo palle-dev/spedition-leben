@@ -24,7 +24,7 @@ const ALL_NAV = [...PRIMARY_NAV, ...SECONDARY_NAV];
 
 // Untere Navigationsleiste und Zeitsteuerung – dauerhaft sichtbar.
 export default function ShellDock() {
-  const { state, send, showToast, busy } = useGame();
+  const { state, displayGameTime, send, showToast, busy } = useGame();
   const location = useLocation();
   const [advancing, setAdvancing] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -134,12 +134,12 @@ export default function ShellDock() {
         {/* Zeitsteuerung */}
         <div className="flex items-center gap-2 lg:gap-3 shrink-0 border-l border-white/10 pl-2 lg:pl-4">
           <div className="text-right hidden sm:block leading-tight">
-            <div className="text-[9px] text-muted-foreground uppercase tracking-wider">Tag {dayOf(state.gameTime)}</div>
-            <div className="text-sm font-medium tabular-nums">{clockOf(state.gameTime)} Uhr</div>
+            <div className="text-[9px] text-muted-foreground uppercase tracking-wider">Tag {dayOf(displayGameTime || state.gameTime)}</div>
+            <div className="text-sm font-medium tabular-nums">{clockOf(displayGameTime || state.gameTime)} Uhr</div>
           </div>
           <div className="text-right sm:hidden leading-tight">
-            <div className="text-[9px] text-muted-foreground">T{dayOf(state.gameTime)}</div>
-            <div className="text-xs font-medium tabular-nums">{clockOf(state.gameTime)}</div>
+            <div className="text-[9px] text-muted-foreground">T{dayOf(displayGameTime || state.gameTime)}</div>
+            <div className="text-xs font-medium tabular-nums">{clockOf(displayGameTime || state.gameTime)}</div>
           </div>
           {nextEvent && (
             <div className="hidden lg:block text-right leading-tight mr-1">

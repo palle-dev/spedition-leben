@@ -6,10 +6,10 @@ import { clockOf } from "@/lib/gameData";
 // Kompakte Zeitautomatik-Steuerung für den ShellHeader.
 // Play/Pause-Schalter mit Live-Indikator und aktueller Spielzeit.
 export default function AutomationControl() {
-  const { state, automationEnabled, automationBusy, enableAutomation, pauseAutomation } = useGame();
+  const { state, displayGameTime, automationEnabled, automationBusy, enableAutomation, pauseAutomation } = useGame();
   if (!state) return null;
 
-  const gameTime = state.gameTime || 0;
+  const gameTime = displayGameTime || state.gameTime || 0;
   const day = Math.floor(gameTime / 1440) + 1;
   const clock = clockOf(gameTime);
 
