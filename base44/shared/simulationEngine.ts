@@ -954,7 +954,7 @@ function processDispatcher(state, emp, m, log) {
     if (v.condition < 20) reason = "Zustand unter 20 – Wartung erforderlich";
     else if (!state.drivers.some(d => d.locationCity === v.locationCity && (d.status === "free" || d.status === "resting") && d.employmentStatus === "employed")) {
       reason = "Kein Fahrer am Standort " + v.locationCity;
-    } else if (!hasAcceptedOrders && !hasOfferedOrders) {
+    } else if (!hasUnplannedAccepted && !hasOfferedOrders) {
       reason = "Keine Aufträge verfügbar";
     }
     v.idleReason = reason;
