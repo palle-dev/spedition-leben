@@ -201,6 +201,11 @@ export default function DispatchWorkspace({
                   {v.status === "maintenance" && v.maintenanceUntil && (
                     <div className="text-xs text-sky-300 mt-1.5">Wartung bis {formatGameTime(v.maintenanceUntil)}</div>
                   )}
+                  {v.status === "free" && v.idleReason && (
+                    <div className="text-xs text-muted-foreground/60 mt-1.5 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3 shrink-0" /> {v.idleReason}
+                    </div>
+                  )}
                 </button>
               );
             })}

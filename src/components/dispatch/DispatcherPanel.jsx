@@ -4,7 +4,7 @@ import { useGame } from "@/lib/gameContext";
 import { vehicleDisplayName, driverDisplayName, roleLabel, workModeLabel, attendanceLabel } from "@/lib/displayHelpers";
 import { formatGameTime, formatEuro, dayOf } from "@/lib/gameData";
 import Portrait from "@/components/ui/Portrait";
-import { Check, X, Truck, ArrowRight, Headset, Mail, Users, Clock } from "lucide-react";
+import { Check, X, Truck, ArrowRight, Headset, Mail, Users, Clock, Building2 } from "lucide-react";
 
 // Disponenten-Übersicht: Mitarbeiter, Status, zugewiesene Lkw,
 // Arbeitsergebnisse heute und offene Vorschläge mit Bestätigen/Ablehnen.
@@ -96,11 +96,20 @@ export default function DispatcherPanel() {
               <p className="text-[10px] text-muted-foreground/70 mt-0.5">{wm.desc}</p>
             </div>
 
-            {/* Firmenpool */}
+            {/* Filialzuweisung */}
             <div className="mt-2.5 flex flex-wrap gap-1">
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-lime/10 border border-lime/20 flex items-center gap-1 text-lime/80">
-                <Truck className="w-2.5 h-2.5" /> Firmenpool
-              </span>
+              {(() => {
+                const bf = emp.assignedBranchId !== undefined ? emp.assignedBranchId : (emp.branchId || null);
+                const branch = bf ? (state.branches || []).find(b => b.id === bf) : null;
+                const poolCount = (state.vehicles || []).filter(v =>
+                  v.branchId === bf && v.status !== "sold" && v.status !== "archived" && !v.markedForSale
+                ).length;
+                return (
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full border flex items-center gap-1 ${branch ? "bg-sky-400/10 border-sky-400/20 text-sky-300" : "bg-lime/10 border-lime/20 text-lime/80"}`}>
+                    {branch ? <><Building2 className="w-2.5 h-2.5" /> {branch.name} · {poolCount} Lkw</> : <><Truck className="w-2.5 h-2.5" /> Firmenpool · {poolCount} Lkw</>}
+                  </span>
+                );
+              })()}
             </div>
 
             {/* Ergebnis heute */}
