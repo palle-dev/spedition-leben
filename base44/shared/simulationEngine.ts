@@ -1481,17 +1481,10 @@ export function applyCommand(state, command, params) {
       if (emp.role !== "dispatcher" && emp.role !== "dispatcher_senior") throw new Error("Diese Person ist kein Disponent.");
       const vehicleIds = p.vehicleIds || [];
       if (vehicleIds.length > emp.capacity) throw new Error("Überlastung: " + vehicleIds.length + " Lkw überschreiten Kapazität von " + emp.capacity + ".");
-      // Prüfe, dass keine Lkw bereits einem anderen Disponenten zugewiesen sind
+      // LKWs können von mehreren Disponenten in verschiedenen Schichten geteilt werden
       for (const vid of vehicleIds) {
         const v = state.vehicles.find(x => x.id === vid);
         if (!v) throw new Error("Fahrzeug nicht gefunden: " + vid);
-        for (const other of (state.employees || [])) {
-          if (other.id === emp.id) continue;
-          if (other.role !== "dispatcher" && other.role !== "dispatcher_senior") continue;
-          if ((other.assignedVehicleIds || []).includes(vid)) {
-            throw new Error("Lkw " + vid + " ist bereits " + other.name + " zugewiesen.");
-          }
-        }
       }
       emp.assignedVehicleIds = vehicleIds;
       if (p.workMode && ["suggestions", "dispatch_accepted", "autonomous"].includes(p.workMode)) {

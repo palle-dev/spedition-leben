@@ -19,14 +19,15 @@ export default function DispatcherSetup({ employee, onClose }) {
   const allVehicles = state.vehicles;
   // LKWs, die keinem ANDEREN Disponenten zugewiesen sind.
   // Bereits diesem Disponenten zugewiesene LKWs bleiben auswählbar.
-  const otherAssignedIds = new Set(
-    (state.employees || [])
-      .filter(e => e.id !== employee.id && (e.role === "dispatcher" || e.role === "dispatcher_senior"))
-      .flatMap(e => e.assignedVehicleIds || [])
+  // Andere Disponenten, die LKWs teilen können (Schicht-Betrieb)
+  const otherDispatchers = (state.employees || []).filter(
+    e => e.id !== employee.id && (e.role === "dispatcher" || e.role === "dispatcher_senior")
   );
-  const availableVehicles = allVehicles.filter(v =>
-    selectedVehicles.includes(v.id) || !otherAssignedIds.has(v.id)
-  );
+  const sharedWith = (vid) => otherDispatchers.filter(d => (d.assignedVehicleIds || []).includes(vid));
+  const shiftLabel = (emp) => {
+    const s = SHIFT_TEMPLATES.find(t => t.startMin === (emp.shiftStart ?? 480) && t.endMin === (emp.shiftEnd ?? 960));
+    return s ? s.label : "Tagschicht";
+  };
 
   function toggleVehicle(vid) {
     setSelectedVehicles(prev => {
@@ -73,9 +74,10 @@ export default function DispatcherSetup({ employee, onClose }) {
           {selectedVehicles.length}/{capacity} zugewiesen · Maximal {capacity} Lkw
         </div>
         <div className="space-y-1.5 max-h-48 overflow-y-auto scrollbar-none">
-          {availableVehicles.map(v => {
+          {allVehicles.map(v => {
             const selected = selectedVehicles.includes(v.id);
             const disabled = !selected && selectedVehicles.length >= capacity;
+            const shared = sharedWith(v.id);
             return (
               <button
                 key={v.id}
@@ -89,7 +91,12 @@ export default function DispatcherSetup({ employee, onClose }) {
                   <Truck className="w-4 h-4" />
                   {vehicleDisplayName(v)}
                 </span>
-                <span className="text-[10px] text-muted-foreground">{v.locationCity}</span>
+                <span className="flex items-center gap-2">
+                  {shared.length > 0 && (
+                    <span className="text-[10px] text-muted-foreground">auch bei {shared.map(d => shiftLabel(d)).join(", ")}</span>
+                  )}
+                  <span className="text-[10px] text-muted-foreground">{v.locationCity}</span>
+                </span>
               </button>
             );
           })}
