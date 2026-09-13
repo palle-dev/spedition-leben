@@ -799,9 +799,8 @@ function processDispatcher(state, emp, m, log) {
   let poolVehicles = state.vehicles.filter(v =>
     v.status !== "sold" && v.status !== "archived" && !v.markedForSale
   );
-  if (emp.assignedBranchId) {
-    poolVehicles = poolVehicles.filter(v => v.branchId === emp.assignedBranchId);
-  }
+  const _bf = emp.assignedBranchId !== undefined ? emp.assignedBranchId : (emp.branchId || null);
+  if (_bf) poolVehicles = poolVehicles.filter(v => v.branchId === _bf);
   const poolVehicleIds = poolVehicles.map(v => v.id);
   if (poolVehicles.length === 0) {
     if ((emp.suggestions || []).length > 0) {
@@ -1502,7 +1501,7 @@ export function applyCommand(state, command, params) {
           attendance: "present", sickUntil: null, vacationUntil: null,
           vacationDaysAvailable: 3,
           activity: "idle", consecutiveLowSatisfactionDays: 0,
-          assignedVehicleIds: [], workMode: "suggestions",
+          assignedVehicleIds: [], workMode: (role === "dispatcher" || role === "dispatcher_senior") ? "autonomous" : "suggestions",
           capacity: app.capacity || roleDef.capacity,
           lastDecisionMin: null, suggestions: [],
           portraitId: app.portraitId || null,
