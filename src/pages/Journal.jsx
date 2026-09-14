@@ -64,7 +64,7 @@ export default function Journal() {
   const hasAssistantLog = (state?.assistantLog || []).length > 0;
 
   return (
-    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-5xl mx-auto space-y-5">
+    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1400px] mx-auto space-y-5">
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
@@ -98,21 +98,23 @@ export default function Journal() {
             <StatCard icon={Package} label="Lieferungen" value={stats.deliveries} color="text-foreground" />
           </div>
 
-          {/* Tagesgruppierte Ereignisliste */}
-          {grouped.map(([day, items]) => (
-            <div key={day} className="space-y-1">
-              <div className="flex items-center gap-2.5 px-1 pb-1">
-                <Calendar className="w-3.5 h-3.5 text-muted-foreground/50" />
-                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">Tag {day}</span>
-                <div className="flex-1 h-px bg-white/5" />
+          {/* Tagesgruppierte Ereignisliste — zweispaltig auf breiten Bildschirmen */}
+          <div className="grid lg:grid-cols-2 gap-5">
+            {grouped.map(([day, items]) => (
+              <div key={day} className="space-y-1">
+                <div className="flex items-center gap-2.5 px-1 pb-1">
+                  <Calendar className="w-3.5 h-3.5 text-muted-foreground/50" />
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">Tag {day}</span>
+                  <div className="flex-1 h-px bg-white/5" />
+                </div>
+                <div className="glass border border-white/10 rounded-xl divide-y divide-white/5 overflow-hidden">
+                  {items.map((e, i) => (
+                    <EventRow key={i} event={e} />
+                  ))}
+                </div>
               </div>
-              <div className="glass border border-white/10 rounded-xl divide-y divide-white/5 overflow-hidden">
-                {items.map((e, i) => (
-                  <EventRow key={i} event={e} />
-                ))}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </div>
