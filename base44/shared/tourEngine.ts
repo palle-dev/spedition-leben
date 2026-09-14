@@ -23,6 +23,19 @@ function uid(state, prefix) {
   return prefix + "_" + state.idCounter;
 }
 
+// Planungs-Cache: wird zu Beginn von suggestTours und applyCommand geleert.
+// Reduziert redundante earliestAvailable/futureLocation/nextReservationStart
+// Aufrufe innerhalb einer suggestTours-Suche (dieselben Fahrzeug/Fahrer-Paare
+// liefern identische Ergebnisse, da der Zustand sich nicht ändert).
+const _planCache = new Map();
+export function _clearPlanCache() { _planCache.clear(); }
+function _cached(key, fn) {
+  if (_planCache.has(key)) return _planCache.get(key);
+  const v = fn();
+  _planCache.set(key, v);
+  return v;
+}
+
 // Prüft, ob ein Fahrer/Fahrzeug-Paar für ein gegebenes Intervall frei ist.
 // Berücksichtigt bestehende Trips, Touren und Erholung.
 export function isResourceFree(state, resource, fromMin, toMin) {
@@ -244,8 +257,8 @@ export function buildTourPlan(state, opts) {
   // Für Vorausplanung: Wenn Fahrzeug/Fahrer auf Tour sind, vergleiche
   // die zukünftigen Städte (wo sie nach Tourende stehen), nicht die
   // aktuellen locationCity-Werte (die noch die Startstadt zeigen).
-  const vehicleFutureCity = futureLocation(state, vehicle);
-  const driverFutureCity = futureDriverLocation(state, driver);
+  const vehicleFutureCity = _cached("futV:" + vehicleId, () => futureLocation(state, vehicle));
+  const driverFutureCity = _cached("futD:" + driverId, () => futureDriverLocation(state, driver));
   // Fahrer-Repositionierung: Wenn Fahrer und Lkw an verschiedenen Orten sind,
   // reist der Fahrer per Bahn/Bus zum Fahrzeug. Das kostet Zeit (driveMinutes),
   // aber keinen Kraftstoff/Maut. Dadurch können stillstehende Lkw an entfernten
@@ -255,7 +268,7 @@ export function buildTourPlan(state, opts) {
     driverTravelMin = driveMinutes(getDistance(driverFutureCity, vehicleFutureCity));
   }
 
-  const earliestStart = earliestAvailable(state, vehicle, driver) + driverTravelMin;
+  const earliestStart = _cached("ea:" + vehicleId + "|" + driverId, () => earliestAvailable(state, vehicle, driver)) + driverTravelMin;
   let currentCity = vehicleFutureCity;
   let t = earliestStart;
   const deployments = [];
@@ -324,7 +337,7 @@ export function buildTourPlan(state, opts) {
     // Konfliktprüfung mit Vorausplanung: Die neue Tour muss enden (inkl.
     // evtl. Ruhezeit), bevor die nächste geplante Einsatz-Reservierung
     // beginnt. Verhindert Doppelbuchung bei 24/7-Vorausplanung.
-    const reservationStart = nextReservationStart(state, vehicle, driver);
+    const reservationStart = _cached("nrs:" + vehicleId + "|" + driverId, () => nextReservationStart(state, vehicle, driver));
     if (reservationStart !== null && driverFreeMin > reservationStart) {
       return { error: "Tour überschneidet sich mit Vorausplanung (Tour endet " + formatGameTime(driverFreeMin) + ", nächste Reservierung startet " + formatGameTime(reservationStart) + ")." };
     }
@@ -925,6 +938,7 @@ export function findReturnLoads(state, primaryOrderId, vehicleId, driverId) {
 // Findet Vorschläge für freie Fahrzeuge.
 // mode: "balanced" | "high_margin" | "low_empty"
 export function suggestTours(state, opts) {
+  _clearPlanCache();
   const { vehicleIds, earliestStart, horizonMin, desiredEndCity, latestReturnMin, mode, acceptNew } = opts;
   const suggestions = [];
 
@@ -944,8 +958,8 @@ export function suggestTours(state, opts) {
     if (vehicle.status !== "on_trip" && vehicle.condition < 20) continue;
 
     // Zukünftige Stadt nach Abschluss aller laufenden Touren
-    const vehicleFutureCity = futureLocation(state, vehicle);
-    const vehicleAvail = earliestAvailable(state, vehicle, { id: null });
+    const vehicleFutureCity = _cached("futV:" + vehicleId, () => futureLocation(state, vehicle));
+    const vehicleAvail = _cached("ea:" + vehicleId + "|null", () => earliestAvailable(state, vehicle, { id: null }));
 
     // Finde alle passenden Fahrer am gleichen Ort (auch ruhende oder auf Tour,
     // wenn die zukünftige Stadt übereinstimmt). Probiere mehrere Fahrer, da
@@ -1051,12 +1065,16 @@ export function suggestTours(state, opts) {
         }
       }
 
-      // Doppel-Touren (Hin + Rück)
-      for (let i = 0; i < allOrders.length; i++) {
-        for (let j = 0; j < allOrders.length; j++) {
-          if (i === j) continue;
-          const o1 = allOrders[i], o2 = allOrders[j];
-          if (o1.toCity !== o2.fromCity) continue;
+      // Doppel-Touren (Hin + Rück) — Ketten-Map für O(n·k) statt O(n²)
+      const chainMap = new Map();
+      for (const o of allOrders) {
+        if (!chainMap.has(o.fromCity)) chainMap.set(o.fromCity, []);
+        chainMap.get(o.fromCity).push(o);
+      }
+      for (const o1 of allOrders) {
+        const chainable = chainMap.get(o1.toCity) || [];
+        for (const o2 of chainable) {
+          if (o1.id === o2.id) continue;
           const plan = buildTourPlan(state, {
             vehicleId, driverId: driver.id,
             orderIds: [o1.id, o2.id],

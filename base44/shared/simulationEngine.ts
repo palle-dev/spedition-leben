@@ -14,11 +14,7 @@ import {
   APPLICANT_NAMES, PORTRAIT_IDS, NOTICE_PERIOD_MIN,
   computeMarketValue, computeDealerOffer,
 } from "./gameRules.ts";
-import {
-  buildTourPlan, confirmTour as doConfirmTour, cancelTour as doCancelTour,
-  processTours, onTripCompleted, findReturnLoads, suggestTours,
-  futureLocation, futureDriverLocation
-} from "./tourEngine.ts";
+import { buildTourPlan, confirmTour as doConfirmTour, cancelTour as doCancelTour, processTours, onTripCompleted, findReturnLoads, suggestTours, futureLocation, futureDriverLocation, _clearPlanCache } from "./tourEngine.ts";
 import {
   buildPhases, buildWorkSteps, buildEmptyWorkSteps,
   computeFinalCounters, resetCounters, needsRest, migrateTripPhases,
@@ -1067,7 +1063,7 @@ function extractTaskParams(body, state, conv) {
 
 // ---------- Befehle ----------
 export function applyCommand(state, command, params) {
-  migrateState(state);
+  _clearPlanCache(); migrateState(state);
   migrateAbsences(state);
   migrateServices(state);
   migrateRewards(state);
