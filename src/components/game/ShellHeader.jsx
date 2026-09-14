@@ -26,7 +26,7 @@ export default function ShellHeader() {
   const totalUnseen = unseenCount + unreadCount;
 
   return (
-    <header className="relative z-20 flex items-center gap-3 lg:gap-6 px-4 lg:px-12 h-14 lg:h-16 border-b border-white/10 backdrop-blur-md bg-ink/60 shrink-0">
+    <header className="relative z-20 flex items-center gap-2 lg:gap-3 px-4 lg:px-6 h-14 lg:h-16 border-b border-white/10 backdrop-blur-md bg-ink/60 shrink-0">
       {/* Marke */}
       <button onClick={() => navigate("/")} className="flex items-center gap-2.5 shrink-0" aria-label="FERNWERK – zum Büro">
         <FernwerkSignet size={26} />
@@ -37,27 +37,27 @@ export default function ShellHeader() {
       </button>
 
       {/* Welt-Umschaltung */}
-      <div className="flex items-center bg-ink/60 border border-white/10 rounded-full p-1 gap-1 backdrop-blur-lg">
+      <div className="flex items-center bg-ink/60 border border-white/10 rounded-full p-0.5 gap-0.5 backdrop-blur-lg shrink-0">
         <button
           onClick={() => navigate("/")}
-          className={`flex items-center gap-2 rounded-full px-3 lg:px-4 py-1.5 text-xs lg:text-[13px] font-medium transition ${!isHome && !isInvestment ? "bg-lime text-ink" : "text-muted-foreground hover:text-foreground"}`}
+          className={`flex items-center gap-1.5 rounded-full px-2.5 lg:px-3 py-1 text-xs lg:text-[13px] font-medium transition ${!isHome && !isInvestment ? "bg-lime text-ink" : "text-muted-foreground hover:text-foreground"}`}
           aria-pressed={!isHome && !isInvestment}
         >
-          <Building2 className="w-4 h-4" /> <span className="hidden sm:inline">Unternehmen</span>
+          <Building2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Unternehmen</span>
         </button>
         <button
           onClick={() => navigate("/zuhause")}
-          className={`flex items-center gap-2 rounded-full px-3 lg:px-4 py-1.5 text-xs lg:text-[13px] font-medium transition ${isHome ? "bg-coral text-ink" : "text-muted-foreground hover:text-foreground"}`}
+          className={`flex items-center gap-1.5 rounded-full px-2.5 lg:px-3 py-1 text-xs lg:text-[13px] font-medium transition ${isHome ? "bg-coral text-ink" : "text-muted-foreground hover:text-foreground"}`}
           aria-pressed={isHome}
         >
-          <Heart className="w-4 h-4" /> <span className="hidden sm:inline">Privatleben</span>
+          <Heart className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Privatleben</span>
         </button>
         <button
           onClick={() => navigate("/investment")}
-          className={`flex items-center gap-2 rounded-full px-3 lg:px-4 py-1.5 text-xs lg:text-[13px] font-medium transition ${isInvestment ? "bg-invest-purple text-ink" : "text-muted-foreground hover:text-foreground"}`}
+          className={`flex items-center gap-1.5 rounded-full px-2.5 lg:px-3 py-1 text-xs lg:text-[13px] font-medium transition ${isInvestment ? "bg-invest-purple text-ink" : "text-muted-foreground hover:text-foreground"}`}
           aria-pressed={isInvestment}
         >
-          <LineChart className="w-4 h-4" /> <span className="hidden sm:inline">Investment</span>
+          <LineChart className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Investment</span>
         </button>
       </div>
 
@@ -70,16 +70,16 @@ export default function ShellHeader() {
       )}
 
       {/* Konten */}
-      <div className="ml-auto flex items-center gap-3 lg:gap-6">
+      <div className="ml-auto flex items-center gap-2 lg:gap-3">
         <AutomationControl />
         <button
           onClick={() => setSlotsOpen(true)}
-          className="flex items-center gap-1.5 rounded-lg px-2.5 lg:px-3 py-1.5 text-xs font-medium bg-white/5 text-muted-foreground border border-white/10 hover:text-foreground hover:bg-white/10 transition shrink-0"
+          className="flex items-center gap-1.5 rounded-lg px-2 lg:px-2.5 py-1.5 text-xs font-medium bg-white/5 text-muted-foreground border border-white/10 hover:text-foreground hover:bg-white/10 transition shrink-0"
           aria-label="Spielstände verwalten"
           title="Spielstände sichern und laden"
         >
           <HardDrive className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Spielstände</span>
+          <span className="hidden lg:inline">Spielstände</span>
         </button>
         {dirty && (
           <button
@@ -95,11 +95,11 @@ export default function ShellHeader() {
         )}
         <button onClick={() => navigate("/finanzen")} className="text-left group" aria-label="Firmenkonto und Finanzen">
           <div className="text-[9px] lg:text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Firma</div>
-          <MoneyText value={state.company.accountCents} className="text-sm lg:text-lg font-medium tracking-tight text-foreground group-hover:text-lime transition-colors" accentOnFlash="text-lime" />
+          <MoneyText value={state.company.accountCents} className="text-sm lg:text-base font-medium tracking-tight text-foreground group-hover:text-lime transition-colors" accentOnFlash="text-lime" />
         </button>
-        <button onClick={() => navigate("/finanzen")} className="text-left group hidden sm:block" aria-label="Privatkonto und Haushalt">
+        <button onClick={() => navigate("/finanzen")} className="text-left group hidden lg:block" aria-label="Privatkonto und Haushalt">
           <div className="text-[9px] lg:text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Privat</div>
-          <MoneyText value={state.private.accountCents} className="text-sm lg:text-lg font-medium tracking-tight text-foreground group-hover:text-coral transition-colors" accentOnFlash="text-coral" />
+          <MoneyText value={state.private.accountCents} className="text-sm lg:text-base font-medium tracking-tight text-foreground group-hover:text-coral transition-colors" accentOnFlash="text-coral" />
         </button>
         <NotificationCenter
           notifications={notifications}

@@ -40,10 +40,10 @@ export default function NotificationCenter({ notifications, unseenCount, onMarkA
     <div className="relative" ref={ref}>
       <button
         onClick={() => { setOpen(o => !o); if (!open && unseenCount > 0) onMarkAllSeen(); }}
-        className="relative w-10 h-10 rounded-lg flex items-center justify-center bg-white/5 hover:bg-white/10 transition active:scale-95"
+        className="relative w-9 h-9 rounded-lg flex items-center justify-center bg-white/5 hover:bg-white/10 transition active:scale-95"
         aria-label={`Benachrichtigungen${unseenCount > 0 ? " (${unseenCount} ungelesen)" : ""}`}
       >
-        <Bell className="w-5 h-5" />
+        <Bell className="w-4 h-4" />
         {unseenCount > 0 && (
           <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-coral text-ink text-[10px] font-bold flex items-center justify-center">
             {unseenCount > 99 ? "99+" : unseenCount}

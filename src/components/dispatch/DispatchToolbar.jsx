@@ -11,7 +11,7 @@ export default function DispatchToolbar({
 }) {
   const isMapVisible = mobileView === "map";
   return (
-    <div className="flex items-center gap-1.5 shrink-0">
+    <div className="flex items-center gap-1 shrink-0">
       <button
         onClick={onPlan}
         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-lime text-ink text-xs font-semibold hover:brightness-110 transition active:scale-95 shrink-0"

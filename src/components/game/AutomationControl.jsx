@@ -20,7 +20,7 @@ export default function AutomationControl() {
   };
 
   return (
-    <div className="flex items-center gap-2 shrink-0">
+    <div className="flex items-center gap-1.5 shrink-0">
       {/* Spielzeit-Anzeige */}
       <div className="hidden md:block text-right leading-none">
         <div className="text-[9px] uppercase tracking-[0.1em] text-muted-foreground">Tag {day}</div>
@@ -31,7 +31,7 @@ export default function AutomationControl() {
       <button
         onClick={handleToggle}
         disabled={automationBusy}
-        className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border transition shrink-0 ${
+        className={`flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium border transition shrink-0 ${
           automationEnabled
             ? "bg-lime/15 border-lime/40 text-lime hover:bg-lime/25"
             : "bg-white/5 border-white/10 text-muted-foreground hover:text-foreground hover:bg-white/10"
