@@ -6,10 +6,11 @@ import FernwerkSignet from "@/components/brand/FernwerkSignet";
 import AutomationControl from "@/components/game/AutomationControl";
 import NotificationCenter from "@/components/notifications/NotificationCenter";
 import SaveSlotsDialog from "@/components/game/SaveSlotsDialog";
-import { Building2, Heart, Sparkles, Mail as MailIcon, LineChart, Save, Loader2, HardDrive } from "lucide-react";
+import { Sparkles, Mail as MailIcon, Save, Loader2, HardDrive } from "lucide-react";
 import { getMailboxStats } from "@/lib/mailData";
 import { getAllNotifications } from "@/lib/eventLogClient";
 import { useHeaderSlot } from "@/lib/headerSlot";
+import WorldSwitch from "@/components/game/WorldSwitch";
 
 // Obere Statusleiste: FERNWERK-Marke, Welt-Umschaltung, beide Konten, Bewegungs-Toggle.
 export default function ShellHeader() {
@@ -18,8 +19,6 @@ export default function ShellHeader() {
   const navigate = useNavigate();
   const location = useLocation();
   const [slotsOpen, setSlotsOpen] = useState(false);
-  const isHome = location.pathname === "/zuhause";
-  const isInvestment = location.pathname.startsWith("/investment");
   const mailStats = state?.mail ? getMailboxStats(state) : null;
   const unreadCount = mailStats?.unread || 0;
   const notifications = useMemo(() => getAllNotifications(state, 50), [state?.events]);
@@ -37,29 +36,7 @@ export default function ShellHeader() {
       </button>
 
       {/* Welt-Umschaltung */}
-      <div className="flex items-center bg-ink/60 border border-white/10 rounded-full p-0.5 gap-0.5 backdrop-blur-lg shrink-0">
-        <button
-          onClick={() => navigate("/")}
-          className={`flex items-center gap-1.5 rounded-full px-2.5 lg:px-3 py-1 text-xs lg:text-[13px] font-medium transition ${!isHome && !isInvestment ? "bg-lime text-ink" : "text-muted-foreground hover:text-foreground"}`}
-          aria-pressed={!isHome && !isInvestment}
-        >
-          <Building2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Unternehmen</span>
-        </button>
-        <button
-          onClick={() => navigate("/zuhause")}
-          className={`flex items-center gap-1.5 rounded-full px-2.5 lg:px-3 py-1 text-xs lg:text-[13px] font-medium transition ${isHome ? "bg-coral text-ink" : "text-muted-foreground hover:text-foreground"}`}
-          aria-pressed={isHome}
-        >
-          <Heart className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Privatleben</span>
-        </button>
-        <button
-          onClick={() => navigate("/investment")}
-          className={`flex items-center gap-1.5 rounded-full px-2.5 lg:px-3 py-1 text-xs lg:text-[13px] font-medium transition ${isInvestment ? "bg-invest-purple text-ink" : "text-muted-foreground hover:text-foreground"}`}
-          aria-pressed={isInvestment}
-        >
-          <LineChart className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Investment</span>
-        </button>
-      </div>
+      <WorldSwitch />
 
       {/* Seiten-spezifische Steuerleiste (z.B. Disposition) */}
       {slot && (
