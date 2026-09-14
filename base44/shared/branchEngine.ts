@@ -150,15 +150,15 @@ export function closeBranch(state, { branchId }) {
   const driversAtBranch = (state.drivers || []).filter(d =>
     d.branchId === branchId && d.employmentStatus === "employed"
   );
-  const dispatchersAtBranch = (state.employees || []).filter(e =>
-    e.assignedBranchId === branchId && e.employmentStatus === "employed"
+  const employeesAtBranch = (state.employees || []).filter(e =>
+    (e.assignedBranchId === branchId || e.branchId === branchId) && e.employmentStatus === "employed"
   );
 
-  if (vehiclesAtBranch.length > 0 || driversAtBranch.length > 0 || dispatchersAtBranch.length > 0) {
+  if (vehiclesAtBranch.length > 0 || driversAtBranch.length > 0 || employeesAtBranch.length > 0) {
     const parts = [];
     if (vehiclesAtBranch.length > 0) parts.push(vehiclesAtBranch.length + " Fahrzeug(e)");
     if (driversAtBranch.length > 0) parts.push(driversAtBranch.length + " Fahrer");
-    if (dispatchersAtBranch.length > 0) parts.push(dispatchersAtBranch.length + " Disponent(en)");
+    if (employeesAtBranch.length > 0) parts.push(employeesAtBranch.length + " Angestellte(r)");
     throw new Error("Filiale kann nicht stillgelegt werden: " + parts.join(", ") + " noch vor Ort. Verschiebe oder entlasse diese zuerst.");
   }
 
@@ -361,11 +361,13 @@ export function getBranchStats(state) {
     if (b.status !== "active") continue;
     const vehicles = (state.vehicles || []).filter(v => v.branchId === b.id && v.status !== "sold" && v.status !== "archived");
     const drivers = (state.drivers || []).filter(d => d.branchId === b.id && d.employmentStatus === "employed");
-    const dispatchers = (state.employees || []).filter(e => e.assignedBranchId === b.id && e.employmentStatus === "employed");
+    const allStaff = (state.employees || []).filter(e =>
+      (e.assignedBranchId === b.id || e.branchId === b.id) && e.employmentStatus === "employed"
+    );
     const activeVehicles = vehicles.filter(v => v.status === "on_trip").length;
     const totalDailyCost = b.costPerDayCents
       + drivers.reduce((s, d) => s + (d.costPerDayCents || 0), 0)
-      + dispatchers.reduce((s, e) => s + (e.costPerDayCents || 0), 0);
+      + allStaff.reduce((s, e) => s + (e.costPerDayCents || 0), 0);
     result.push({
       id: b.id, name: b.name, city: b.city, isHeadquarters: b.isHeadquarters || false,
       openedAtMin: b.openedAtMin, status: b.status,
@@ -373,7 +375,9 @@ export function getBranchStats(state) {
       totalDailyCostCents: totalDailyCost,
       vehicleCount: vehicles.length,
       driverCount: drivers.length,
-      dispatcherCount: dispatchers.length,
+      dispatcherCount: allStaff.filter(e => e.role === "dispatcher" || e.role === "dispatcher_senior").length,
+      staffCount: allStaff.length,
+      allStaff,
       activeVehicles,
       utilization: vehicles.length > 0 ? Math.round(activeVehicles / vehicles.length * 100) : 0,
       stats: b.stats || { revenueCents: 0, deliveries: 0, expensesCents: 0 },

@@ -15,6 +15,7 @@ import { pushEvent } from "./eventLog.ts";
 import { onOrderAccepted, onTourConfirmed } from "./mailReports.ts";
 import { hasDgDispatch } from "./trainingEngine.ts";
 import { processAccountant } from "./accountingEngine.ts";
+import { applyCleaningEffect } from "./serviceEngine.ts";
 
 // Lokale Kopie von uid (inkrementiert state.idCounter).
 function uid(state, prefix) {
@@ -47,7 +48,31 @@ export function processEmployees(state, m, log) {
       processDispatcher(state, emp, m, log);
     } else if (inServiceHours && (emp.role === "accountant" || emp.role === "accountant_senior")) {
       processAccountant(state, emp, m, log);
+    } else if (inServiceHours && emp.role === "cleaner") {
+      processCleaner(state, emp, m, log);
     }
+  }
+}
+
+// Reinigungskraft reinigt ihre zugewiesene Filiale.
+// Wird einmal pro Tag beim ersten Dienstzeitpunkt ausgeführt.
+// Trägt capacity-Einheiten zur Tagesreinigung bei.
+function processCleaner(state, emp, m, log) {
+  const day = dayOf(m);
+  if (emp._lastCleaningDay === day) return;
+  emp._lastCleaningDay = day;
+
+  const branchId = emp.assignedBranchId || emp.branchId;
+  if (!branchId) return;
+  const branch = (state.branches || []).find(b => b.id === branchId);
+  if (!branch || branch.status !== "active") return;
+
+  const units = emp.capacity || 4;
+  const dayId = "d" + day;
+  const result = applyCleaningEffect(state, branchId, units, dayId);
+
+  if (result.effect > 0) {
+    log.push({ type: "cleaner_worked", employee: emp.id, branch: branchId, effect: result.effect, newCleanliness: result.newCleanliness, atMin: m });
   }
 }
 

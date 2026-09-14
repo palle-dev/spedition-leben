@@ -3,7 +3,7 @@ import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime } from "@/lib/gameData";
 import { vehicleDisplayName, roleLabel } from "@/lib/displayHelpers";
 import Portrait from "@/components/ui/Portrait";
-import { Building2, MapPin, Truck, Users, Headset, TrendingUp, Wallet, Edit2, X, ArrowRight, Crown, Check, Zap, ShieldCheck } from "lucide-react";
+import { Building2, MapPin, Truck, Users, Headset, TrendingUp, Wallet, Edit2, X, ArrowRight, Crown, Check, Zap, ShieldCheck, Wrench, Sparkles, Calculator } from "lucide-react";
 
 export default function BranchCard({ branch, onMoveResource }) {
   const { state, send, showToast } = useGame();
@@ -14,8 +14,12 @@ export default function BranchCard({ branch, onMoveResource }) {
 
   const vehicles = (state.vehicles || []).filter(v => v.branchId === branch.id && v.status !== "sold" && v.status !== "archived");
   const drivers = (state.drivers || []).filter(d => d.branchId === branch.id && d.employmentStatus === "employed");
-  const dispatchers = (state.employees || []).filter(e => e.assignedBranchId === branch.id && e.employmentStatus === "employed");
-  const manager = (state.employees || []).find(e => e.role === "branch_manager" && e.assignedBranchId === branch.id && e.employmentStatus === "employed");
+  const allStaff = (state.employees || []).filter(e => (e.assignedBranchId || e.branchId) === branch.id && e.employmentStatus === "employed");
+  const dispatchers = allStaff.filter(e => e.role === "dispatcher" || e.role === "dispatcher_senior");
+  const mechanics = allStaff.filter(e => e.role === "mechanic");
+  const cleaners = allStaff.filter(e => e.role === "cleaner");
+  const accountants = allStaff.filter(e => e.role === "accountant" || e.role === "accountant_senior");
+  const manager = allStaff.find(e => e.role === "branch_manager");
   const [modeBusy, setModeBusy] = useState(false);
   const activeVehicles = vehicles.filter(v => v.status === "on_trip").length;
   const utilization = vehicles.length > 0 ? Math.round(activeVehicles / vehicles.length * 100) : 0;
@@ -88,6 +92,15 @@ export default function BranchCard({ branch, onMoveResource }) {
         <ResourceChip icon={Users} label="Fahrer" value={drivers.length} />
         <ResourceChip icon={Headset} label="Dispo" value={dispatchers.length} />
       </div>
+
+      {/* Weitere Mitarbeiter */}
+      {(mechanics.length > 0 || cleaners.length > 0 || accountants.length > 0) && (
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          {mechanics.length > 0 && <StaffChip icon={Wrench} label="Werkstatt" value={mechanics.length} />}
+          {cleaners.length > 0 && <StaffChip icon={Sparkles} label="Reinigung" value={cleaners.length} />}
+          {accountants.length > 0 && <StaffChip icon={Calculator} label="Buchhaltung" value={accountants.length} />}
+        </div>
+      )}
 
       {/* Filialleiter */}
       {manager && (
@@ -180,6 +193,16 @@ function ResourceChip({ icon: Icon, label, value, active }) {
       <Icon className="w-3.5 h-3.5 text-foreground/40 mx-auto mb-0.5" />
       <div className="text-sm font-medium tabular-nums">{value}</div>
       <div className="text-[9px] text-muted-foreground">{label}{active != null && active > 0 ? ` (${active} aktiv)` : ""}</div>
+    </div>
+  );
+}
+
+function StaffChip({ icon: Icon, label, value }) {
+  return (
+    <div className="flex items-center gap-1.5 rounded-lg bg-surface-2/30 border border-white/5 px-2.5 py-1.5">
+      <Icon className="w-3 h-3 text-foreground/40" />
+      <span className="text-xs font-medium tabular-nums">{value}</span>
+      <span className="text-[9px] text-muted-foreground">{label}</span>
     </div>
   );
 }

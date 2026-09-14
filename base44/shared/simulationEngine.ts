@@ -1497,7 +1497,7 @@ export function applyCommand(state, command, params) {
           attendance: "present", sickUntil: null, vacationUntil: null,
           vacationDaysAvailable: 3,
           activity: "idle", consecutiveLowSatisfactionDays: 0,
-          assignedVehicleIds: [], workMode: (role === "dispatcher" || role === "dispatcher_senior") ? "autonomous" : "suggestions", assignedBranchId: (role === "dispatcher" || role === "dispatcher_senior") ? hireBranchId2 : undefined,
+          assignedVehicleIds: [], workMode: (role === "dispatcher" || role === "dispatcher_senior" || role === "branch_manager") ? "autonomous" : "suggestions", managementMode: role === "branch_manager" ? "requests_approval" : undefined, assignedBranchId: (role === "dispatcher" || role === "dispatcher_senior" || role === "branch_manager" || role === "mechanic" || role === "cleaner") ? hireBranchId2 : undefined,
           capacity: app.capacity || roleDef.capacity,
           lastDecisionMin: null, suggestions: [],
           portraitId: app.portraitId || null,

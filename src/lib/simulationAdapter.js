@@ -86,9 +86,7 @@ export async function executeCommand(state, command, params) {
     // Assistent der Geschäftsführung: stündliche Verarbeitung.
     // Läuft bei Zeitautomatik (syncAutomation) UND manuellem Zeitvorlauf (advanceTo).
     if (newState && (command === "syncAutomation" || command === "advanceTo")) {
-      if (command === "syncAutomation") {
-        newState = generateBranchDecisions(newState);
-      }
+      newState = generateBranchDecisions(newState);
       if (!newState.assistantState) newState.assistantState = { lastProcessedHour: 0 };
       const lastHour = newState.assistantState.lastProcessedHour || 0;
       const currentHour = Math.floor(newState.gameTime / 60);

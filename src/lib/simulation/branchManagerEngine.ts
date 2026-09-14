@@ -3,7 +3,7 @@
 // Sie treffen selbstständig Entscheidungen im Rahmen ihrer Befugnisse
 // und legen wichtige Entscheidungen dem Geschäftsführer zur Freigabe vor.
 
-import { dayOf, HIRE_FEE, DRIVER_COST_PER_DAY } from "./gameRules.ts";
+import { dayOf, HIRE_FEE, DRIVER_COST_PER_DAY, CITIES, PORTRAIT_IDS, APPLICANT_NAMES } from "./gameRules.ts";
 
 function uid(state: any, prefix: string): string {
   state.idCounter = (state.idCounter || 100) + 1;
@@ -12,6 +12,14 @@ function uid(state: any, prefix: string): string {
 
 // Auto-Freigabegrenze für autonome Filialleiter (5.000 €).
 const AUTONOMOUS_THRESHOLD = 500000;
+
+function pickDriverName(state: any): string {
+  const pool = APPLICANT_NAMES.driver || ["Fahrer"];
+  const used = new Set([...(state.drivers || []).map((d: any) => d.name)]);
+  const available = pool.filter((n: string) => !used.has(n));
+  if (available.length > 0) return available[Math.floor(Math.random() * available.length)];
+  return "Fahrer " + ((state.drivers || []).length + 1);
+}
 
 // ---------- Migration ----------
 
@@ -154,31 +162,44 @@ function applyDecision(state: any, decision: any) {
       min: state.gameTime, cause: "Filialleiter: Fahrer eingestellt",
       amountCents: -decision.costCents, account: "company", refId: "bm_hire",
     });
+    const portraitIdx = (state.drivers || []).length % PORTRAIT_IDS.length;
     state.drivers.push({
-      id: uid(state, "d"), name: "Fahrer " + ((state.drivers || []).length + 1),
+      id: uid(state, "d"), name: pickDriverName(state),
       branchId: branch.id, costPerDayCents: DRIVER_COST_PER_DAY,
       locationCity: branch.city, status: "free", restUntil: null,
-      employedDay: dayOf(state.gameTime), portraitId: null,
+      employedDay: dayOf(state.gameTime), portraitId: PORTRAIT_IDS[portraitIdx],
       satisfaction: 70, satisfactionReasons: [],
       employmentStatus: "employed", attendance: "present",
       consecutiveLowSatisfactionDays: 0,
+      workMinutesSinceRest: 0, driveMinutesSinceBreak: 0,
     });
     return;
   }
   if (decision.type === "accept_order") {
     if (!decision.revenueCents) return;
-    state.company.accountCents += decision.revenueCents;
-    state.bookings = state.bookings || [];
-    state.bookings.push({
-      min: state.gameTime, cause: "Filialleiter: Großauftrag",
-      amountCents: decision.revenueCents, account: "company", refId: "bm_order",
-    });
     const branch = state.branches.find((b: any) => b.id === decision.branchId);
-    if (branch) {
-      branch.stats = branch.stats || { revenueCents: 0, deliveries: 0, expensesCents: 0 };
-      branch.stats.revenueCents += decision.revenueCents;
-      branch.stats.deliveries += 3;
-    }
+    if (!branch) return;
+    // Echten Auftrag erstellen — muss disponiert und geliefert werden
+    const destCities = CITIES.filter((c: string) => c !== branch.city);
+    const toCity = destCities[Math.floor(Math.random() * destCities.length)];
+    const orderId = uid(state, "o");
+    state.orders = state.orders || [];
+    state.orders.push({
+      id: orderId,
+      customer: "Filialleiter-Akquise (" + branch.city + ")",
+      fromCity: branch.city,
+      toCity,
+      cargo: "Sonderfracht",
+      tons: 12,
+      paymentCents: decision.revenueCents,
+      status: "angenommen",
+      acceptedAtMin: state.gameTime,
+      acceptedById: decision.managerId,
+      acceptedByName: (state.employees || []).find((e: any) => e.id === decision.managerId)?.name || "Filialleiter",
+      acceptDeadlineMin: state.gameTime + 1440,
+      deliveryDeadlineMin: state.gameTime + 2880,
+      history: [{ type: "accepted", min: state.gameTime, actor: decision.managerId, auto: true }],
+    });
     return;
   }
   if (decision.type === "maintenance") {
