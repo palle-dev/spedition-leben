@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
 import { previewOrder, formatPricePlain, formatCents, formatQty } from "@/lib/investmentData";
 import { ArrowDown, ArrowUp, Loader2 } from "lucide-react";
+import PriceChart from "@/components/investment/PriceChart";
 
 // Order-Formular: Markt- und Limit-Orders, Kauf und Verkauf.
 export default function OrderTicket({ state, depotId, instrumentId }) {
@@ -83,6 +84,15 @@ export default function OrderTicket({ state, depotId, instrumentId }) {
           </div>
         </div>
       </div>
+
+      {/* Kursverlauf */}
+      <PriceChart
+        priceHistory={(inst.priceHistory || []).slice(-72)}
+        changePct={(() => {
+          const prev = inst.priceHistory.length > 1 ? inst.priceHistory[inst.priceHistory.length - 2] : inst.priceHistory[0];
+          return prev > 0 ? ((inst.currentQuote.mid - prev) / prev) * 100 : 0;
+        })()}
+      />
 
       {/* Depot-Kennzeichnung */}
       <div className={`text-[10px] uppercase tracking-wider mb-3 ${depotAccent}`}>{depotLabel}</div>

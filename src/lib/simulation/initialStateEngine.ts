@@ -4,7 +4,7 @@
 
 import {
   STANDARD_TRUCK, VEHICLE_PRICE, DRIVER_COST_PER_DAY, BRANCH_COST_PER_DAY,
-  PORTRAIT_IDS,
+  PORTRAIT_IDS, PRIVATE_WITHDRAWAL_PER_DAY,
 } from "./gameRules.ts";
 import { ACHIEVEMENTS } from "./achievementCatalog.ts";
 import {
@@ -61,7 +61,8 @@ export function createInitialState(names) {
       partnerName: p.partnerName || "Mara",
       accountCents: 750000,
       stress: 30, happiness: 60, relationship: 60,
-      residence: "Wohnung in Hamburg"
+      residence: "Wohnung in Hamburg",
+      dailyWithdrawalCents: PRIVATE_WITHDRAWAL_PER_DAY
     },
     branches: [{ id: "b1", name: "Hauptniederlassung Hamburg", city: "Hamburg", costPerDayCents: BRANCH_COST_PER_DAY, isHeadquarters: true, status: "active", openedAtMin: 480, stats: { revenueCents: 0, deliveries: 0, expensesCents: 0 }, cleanliness: 85, lastCleaningDay: 0 }],
     vehicles: [1, 2, 3].map(i => ({

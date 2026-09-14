@@ -20,6 +20,7 @@ const ROLE_ICON = {
   driver: Truck, dispatcher: Headset, dispatcher_senior: Headset,
   cleaner: Sparkles, mechanic: Wrench, accountant: Calculator,
   accountant_senior: Calculator,
+  assistant: Briefcase,
 };
 
 export default function Personnel() {
@@ -75,7 +76,7 @@ export default function Personnel() {
     return groups;
   }, [applicants]);
 
-  const roleOrder = ["dispatcher", "dispatcher_senior", "driver", "cleaner", "mechanic", "accountant"];
+  const roleOrder = ["assistant", "dispatcher", "dispatcher_senior", "driver", "cleaner", "mechanic", "accountant"];
 
   return (
     <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1600px] mx-auto space-y-5">

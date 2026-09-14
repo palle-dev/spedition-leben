@@ -256,11 +256,11 @@ function payCost(state, account, amountCents, cause, refId, min, opts) {
   return { paid: r.paidCents, unpaid: r.unpaidCents };
 }
 function doWithdrawal(state, min) {
-  const hasCompanyLiabilities = (state.accounting?.openItems || []).some(o => o.remainingCents > 0) || (state.openCosts || []).some(o => o.account === "company" && o.amountCents > 0);
-  if (hasCompanyLiabilities) return { done: false, reason: "offene betriebliche Kosten" };
-  if (state.company.accountCents < PRIVATE_WITHDRAWAL_PER_DAY) return { done: false, reason: "Firma kann Entnahme nach Tageskosten nicht bezahlen" };
-  addBooking(state, min, "Private Entnahme", -PRIVATE_WITHDRAWAL_PER_DAY, "company", "withdrawal");
-  state.private.accountCents += PRIVATE_WITHDRAWAL_PER_DAY;
+  const amt = state.private.dailyWithdrawalCents ?? PRIVATE_WITHDRAWAL_PER_DAY; if (amt <= 0) return { done: true };
+  const hasLiab = (state.accounting?.openItems || []).some(o => o.remainingCents > 0) || (state.openCosts || []).some(o => o.account === "company" && o.amountCents > 0);
+  if (hasLiab) return { done: false, reason: "offene betriebliche Kosten" };
+  if (state.company.accountCents < amt) return { done: false, reason: "Firma kann Entnahme nicht bezahlen" };
+  addBooking(state, min, "Private Entnahme", -amt, "company", "withdrawal"); state.private.accountCents += amt;
   return { done: true };
 }
 // Alt-Generator entfernt – durch marketEngine.ts ersetzt (Auftrag 19).
@@ -308,7 +308,7 @@ function doDailyAccounting(state, midnight) {
     const causeLabel = emp.role === "dispatcher" || emp.role === "dispatcher_senior" ? "Disposition"
       : emp.role === "cleaner" || emp.role === "mechanic" ? "Reinigung und Werkstatt"
       : emp.role === "accountant" || emp.role === "accountant_senior" ? "Buchhaltung"
-      : "Lohn";
+      : emp.role === "assistant" ? "Geschäftsführung" : "Lohn";
     const r = payCost(state, "company", emp.costPerDayCents, causeLabel + ": " + emp.name, emp.id, midnight, { employeeId: emp.id });
     log.push({ cause: causeLabel, employee: emp.name, role: emp.role, paid: r.paid, unpaid: r.unpaid });
   }

@@ -142,6 +142,7 @@ export default function DepotView({ state, depotId }) {
                   </div>
                   <div className="text-right shrink-0">
                     <div className="text-sm font-semibold tabular-nums">{formatCents(p.marketValueCents)}</div>
+                    <div className="text-[10px] text-muted-foreground/60 tabular-nums">Kurs: {formatPricePlain(p.currentMidCents)} €</div>
                     <div className={`text-[10px] tabular-nums ${p.unrealizedPnlCents >= 0 ? "text-lime" : "text-red-300"}`}>
                       {formatPct(p.unrealizedPct)} · {formatCents(p.unrealizedPnlCents)}
                     </div>

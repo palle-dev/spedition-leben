@@ -40,6 +40,13 @@ export async function executeCommand(state, command, params) {
 
   if (!state) return { error: "state erforderlich" };
 
+  // Geschäftsführergehalt setzen – rein clientseitig, keine Simulations-Engine nötig.
+  if (command === "setOwnerSalary") {
+    const amount = Math.max(0, Math.min(100000, Math.round((params || {}).dailyWithdrawalCents || 0)));
+    const newState = { ...state, private: { ...state.private, dailyWithdrawalCents: amount } };
+    return { state: newState, result: { ok: true, dailyWithdrawalCents: amount } };
+  }
+
   // serverNowMs für Zeitautomatik-Befehle ergänzen (früher serverseitig)
   const isTimeCommand = ["enableAutomation", "pauseAutomation", "syncAutomation", "getAutomationStatus"].includes(command);
   const paramsWithTime = isTimeCommand ? { ...(params || {}), serverNowMs: Date.now() } : (params || {});

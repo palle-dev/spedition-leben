@@ -25,6 +25,7 @@ export const ROLES = [
   { id: "mechanic",           label: "Werkstattmitarbeiter",    hireFeeCents: 50000,  costPerDayCents: 14000, capacity: 1,  profile: "standard" },
   { id: "accountant",         label: "Buchhalter/Buchhalterin", hireFeeCents: 40000,  costPerDayCents: 12000, capacity: 40, profile: "standard" },
   { id: "accountant_senior",  label: "Erfahrene Buchhaltungskraft", hireFeeCents: 70000, costPerDayCents: 19000, capacity: 80, profile: "senior" },
+  { id: "assistant",          label: "Assistent der Geschäftsführung", hireFeeCents: 80000, costPerDayCents: 22000, capacity: 0, profile: "standard" },
 ];
 
 export const ROLE_LABELS = {
@@ -35,6 +36,7 @@ export const ROLE_LABELS = {
   mechanic: "Werkstattmitarbeiter",
   accountant: "Buchhalter/Buchhalterin",
   accountant_senior: "Erf. Buchhaltungskraft",
+  assistant: "Assistent der Geschäftsführung",
 };
 
 export const ROLE_ICONS = {
@@ -45,6 +47,7 @@ export const ROLE_ICONS = {
   mechanic: "Wrench",
   accountant: "Calculator",
   accountant_senior: "Calculator",
+  assistant: "Briefcase",
 };
 
 // Kapazitäts-Label je Rolle

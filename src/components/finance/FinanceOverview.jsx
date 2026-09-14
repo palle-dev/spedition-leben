@@ -4,6 +4,7 @@ import { getBalanceSheet, getPnL, getCashFlow, getLiquidityProjection, periodOf,
 import { Wallet, Home, TrendingUp, TrendingDown, Scale, Banknote, ArrowUpRight, ArrowDownRight, Clock } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, ReferenceLine } from "recharts";
 import BranchFinanceSection from "@/components/finance/BranchFinanceSection";
+import OwnerSalaryControl from "@/components/finance/OwnerSalaryControl";
 
 export default function FinanceOverview({ state }) {
   const acc = state.accounting || {};
@@ -55,6 +56,9 @@ export default function FinanceOverview({ state }) {
           accent={pnl.result >= 0 ? "lime" : "red"}
         />
       </div>
+
+      {/* Geschäftsführergehalt */}
+      <OwnerSalaryControl />
 
       {/* Cashflow-Chart */}
       <div className="glass border border-white/10 rounded-xl p-4">

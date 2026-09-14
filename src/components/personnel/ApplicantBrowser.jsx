@@ -12,9 +12,10 @@ import { Search, RotateCcw, Briefcase, ChevronLeft, ChevronRight, Truck, Headset
 const ROLE_ICON = {
   driver: Truck, dispatcher: Headset, dispatcher_senior: Headset,
   cleaner: Sparkles, mechanic: Wrench, accountant: Calculator, accountant_senior: Calculator,
+  assistant: Briefcase,
 };
 
-const ROLE_ORDER = ["driver", "dispatcher", "dispatcher_senior", "mechanic", "cleaner", "accountant", "accountant_senior"];
+const ROLE_ORDER = ["assistant", "driver", "dispatcher", "dispatcher_senior", "mechanic", "cleaner", "accountant", "accountant_senior"];
 const PAGE_SIZE = 12;
 
 export default function ApplicantBrowser({ onPostJob, dailyCosts }) {

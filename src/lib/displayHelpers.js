@@ -46,6 +46,7 @@ export function roleLabel(role) {
     driver: "Fahrer", dispatcher: "Disponent", dispatcher_senior: "Erf. Disponent",
     cleaner: "Reinigungskraft", mechanic: "Werkstattmitarbeiter",
     accountant: "Buchhalter/Buchhalterin", accountant_senior: "Erf. Buchhaltungskraft",
+    assistant: "Assistent der Geschäftsführung",
   };
   return labels[role] || role;
 }
@@ -56,6 +57,7 @@ export function roleIconName(role) {
     driver: "Truck", dispatcher: "Headset", dispatcher_senior: "Headset",
     cleaner: "Sparkles", mechanic: "Wrench", accountant: "Calculator",
     accountant_senior: "Calculator",
+    assistant: "Briefcase",
   };
   return icons[role] || "User";
 }
