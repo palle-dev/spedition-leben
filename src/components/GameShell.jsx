@@ -12,8 +12,17 @@ import { EASE } from "@/lib/motion";
 import { formatGameTime } from "@/lib/gameData";
 import EventOverlay from "@/components/EventOverlay";
 import ToastStack from "@/components/notifications/ToastStack";
+import { HeaderSlotProvider } from "@/lib/headerSlot";
 
 export default function GameShell() {
+  return (
+    <HeaderSlotProvider>
+      <GameShellContent />
+    </HeaderSlotProvider>
+  );
+}
+
+function GameShellContent() {
   const { state, loading, toast, motionEnabled, overlay, dismissOverlay, toasts, dismissToast, connectionState } = useGame();
   const location = useLocation();
 

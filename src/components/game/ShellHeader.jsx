@@ -9,10 +9,12 @@ import SaveSlotsDialog from "@/components/game/SaveSlotsDialog";
 import { Building2, Heart, Sparkles, Mail as MailIcon, LineChart, Save, Loader2, HardDrive } from "lucide-react";
 import { getMailboxStats } from "@/lib/mailData";
 import { getAllNotifications } from "@/lib/eventLogClient";
+import { useHeaderSlot } from "@/lib/headerSlot";
 
 // Obere Statusleiste: FERNWERK-Marke, Welt-Umschaltung, beide Konten, Bewegungs-Toggle.
 export default function ShellHeader() {
   const { state, motionEnabled, toggleMotion, unseenCount, markAllEventsSeen, dirty, save, saving } = useGame();
+  const { slot } = useHeaderSlot();
   const navigate = useNavigate();
   const location = useLocation();
   const [slotsOpen, setSlotsOpen] = useState(false);
@@ -58,6 +60,14 @@ export default function ShellHeader() {
           <LineChart className="w-4 h-4" /> <span className="hidden sm:inline">Investment</span>
         </button>
       </div>
+
+      {/* Seiten-spezifische Steuerleiste (z.B. Disposition) */}
+      {slot && (
+        <>
+          <div className="w-px h-6 bg-white/10 shrink-0 hidden lg:block" />
+          {slot}
+        </>
+      )}
 
       {/* Konten */}
       <div className="ml-auto flex items-center gap-3 lg:gap-6">

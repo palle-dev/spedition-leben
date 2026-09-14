@@ -184,7 +184,7 @@ function setupLayers(map) {
     paint: {
       "line-color": "#FF9E7A",
       "line-width": ["case", ["get", "isSelected"], 4, 1.5],
-      "line-opacity": ["case", ["get", "isSelected"], 0.9, 0.06],
+      "line-opacity": ["case", ["get", "isSelected"], 0.9, 0.02],
       "line-dasharray": [3, 2]
     }
   });
@@ -196,7 +196,7 @@ function setupLayers(map) {
     paint: {
       "line-color": "#D5FB83",
       "line-width": ["case", ["get", "isSelected"], 5, 2],
-      "line-opacity": ["case", ["get", "isSelected"], 1, 0.07]
+      "line-opacity": ["case", ["get", "isSelected"], 1, 0.02]
     }
   });
   // Planungs-Vorschau (auch für Tour-Ketten mit mehreren Beinen)
@@ -246,8 +246,8 @@ function setupLayers(map) {
   });
   map.addLayer({
     id: "city-labels", type: "symbol", source: "cities",
-    layout: { "text-field": ["get", "name"], "text-size": 10, "text-offset": [0, -1.5], "text-anchor": "bottom" },
-    paint: { "text-color": "#aaa", "text-halo-color": "#000", "text-halo-width": 2 }
+    layout: { "text-field": ["get", "name"], "text-size": 9, "text-offset": [0, -1.3], "text-anchor": "bottom", "text-transform": "uppercase", "text-letter-spacing": 0.08 },
+    paint: { "text-color": "#777", "text-halo-color": "#000", "text-halo-width": 2 }
   });
   // Fahrzeuge — Glow für ausgewählte
   map.addLayer({
@@ -266,7 +266,8 @@ function setupLayers(map) {
   });
   map.addLayer({
     id: "vehicle-labels", type: "symbol", source: "vehicles",
-    layout: { "text-field": ["get", "name"], "text-size": 10, "text-offset": [0, -1.5], "text-anchor": "bottom" },
+    filter: ["==", ["get", "isSelected"], true],
+    layout: { "text-field": ["get", "name"], "text-size": 11, "text-offset": [0, -1.6], "text-anchor": "bottom" },
     paint: { "text-color": "#fff", "text-halo-color": "#000", "text-halo-width": 2 }
   });
 }

@@ -3,8 +3,9 @@ import { useGame } from "@/lib/gameContext";
 import { loadRouteGeometries, buildPlanRouteGeoJSON } from "@/lib/geoData";
 import DispatchMap from "@/components/dispatch/DispatchMap";
 import DispatchWorkspace from "@/components/dispatch/DispatchWorkspace";
-import MarketPriorityControl from "@/components/dispatch/MarketPriorityControl";
-import { Navigation, Truck, Home, Route as RouteIcon, Map, List, Search, X, Plus, Package } from "lucide-react";
+import { Truck, Home, Route as RouteIcon } from "lucide-react";
+import { useHeaderSlot } from "@/lib/headerSlot";
+import DispatchToolbar from "@/components/dispatch/DispatchToolbar";
 
 export default function Dispatch() {
   const { state } = useGame();
@@ -128,80 +129,29 @@ export default function Dispatch() {
 
   const isMapVisible = mobileView === "map";
 
+  // Steuerleiste in den globalen Header injizieren (kein separater Toolbar-Row)
+  const { setSlot } = useHeaderSlot();
+  useEffect(() => {
+    setSlot(
+      <DispatchToolbar
+        runningCount={runningCount}
+        acceptedCount={acceptedCount}
+        onPlan={handlePlanClick}
+        onZuzuweisen={handleZuzuweisenClick}
+        onTouren={() => { setActiveTab("touren"); setSelectedTripId(null); if (window.innerWidth < 1024) setMobileView("list"); }}
+        search={search}
+        setSearch={setSearch}
+        searchOpen={searchOpen}
+        setSearchOpen={setSearchOpen}
+        mobileView={mobileView}
+        setMobileView={setMobileView}
+      />
+    );
+    return () => setSlot(null);
+  }, [runningCount, acceptedCount, search, searchOpen, mobileView, state, setSlot]);
+
   return (
     <div className="h-full flex flex-col min-h-0 overflow-hidden">
-      {/* Werkzeugleiste — klar gruppiert: Aktionen links, Werkzeuge rechts */}
-      <div className="flex items-center gap-2 px-3 lg:px-4 py-2 border-b border-white/10 shrink-0 min-h-[48px]">
-        {/* Gruppe 1: Seitenkennung + Hauptaktion */}
-        <div className="flex items-center gap-2.5 shrink-0">
-          <Navigation className="w-4 h-4 text-lime" />
-          <span className="text-sm font-medium hidden sm:inline">Disposition</span>
-        </div>
-        <div className="w-px h-5 bg-white/10 shrink-0 hidden sm:block" />
-        <button
-          onClick={handlePlanClick}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-lime text-ink text-xs font-semibold hover:brightness-110 transition active:scale-95 shrink-0"
-        >
-          <Plus className="w-3.5 h-3.5" /> Auftrag planen
-        </button>
-
-        {/* Gruppe 2: Status-Zähler (kompakte Pillen) */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            onClick={() => { setActiveTab("touren"); setSelectedTripId(null); if (window.innerWidth < 1024) setMobileView("list"); }}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-surface-2/50 border border-white/10 text-[11px] text-muted-foreground hover:text-foreground hover:border-white/20 transition"
-            title={`${runningCount} Fahrten unterwegs`}
-          >
-            <Truck className="w-3.5 h-3.5" /> {runningCount}
-          </button>
-          <button
-            onClick={handleZuzuweisenClick}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-[11px] font-medium transition ${
-              acceptedCount > 0 ? "bg-lime/10 border-lime/30 text-lime hover:border-lime/50" : "bg-surface-2/50 border-white/10 text-muted-foreground hover:border-white/20"
-            }`}
-            title={`${acceptedCount} Aufträge zu disponieren`}
-          >
-            <Package className="w-3.5 h-3.5" /> {acceptedCount}
-          </button>
-        </div>
-
-        {/* Gruppe 3: Werkzeuge (rechts) */}
-        <div className="flex items-center gap-2 ml-auto shrink-0">
-          {searchOpen ? (
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <input
-                autoFocus
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                onBlur={() => !search && setSearchOpen(false)}
-                placeholder="Suchen…"
-                className="w-36 sm:w-48 pl-8 pr-7 py-1.5 rounded-lg bg-surface-2 border border-white/10 text-xs text-foreground focus:border-lime/50 outline-none"
-              />
-              {search && (
-                <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          ) : (
-            <button onClick={() => setSearchOpen(true)} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface-2/50 border border-white/10 text-xs text-muted-foreground hover:text-foreground hover:border-white/20 transition">
-              <Search className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Suchen</span>
-            </button>
-          )}
-          <div className="w-px h-5 bg-white/10 shrink-0 hidden md:block" />
-          <MarketPriorityControl />
-          <div className="lg:hidden flex gap-1 bg-ink/60 border border-white/10 rounded-full p-0.5 shrink-0">
-            <button onClick={() => setMobileView("map")} className={`px-3 py-1.5 rounded-full text-xs font-medium transition min-h-[36px] ${isMapVisible ? "bg-lime text-ink" : "text-muted-foreground"}`}>
-              <Map className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={() => setMobileView("list")} className={`px-3 py-1.5 rounded-full text-xs font-medium transition min-h-[36px] ${!isMapVisible ? "bg-lime text-ink" : "text-muted-foreground"}`}>
-              <List className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* Karte + Arbeitsbereich */}
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
         {/* Karte */}
