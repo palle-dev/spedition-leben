@@ -143,6 +143,7 @@ import {
   assignDispatcherToBranch, getBranchStats, processDriverTravels,
   getDriverTravelEventTimes, creditBranchDelivery,
 } from "./branchEngine.ts";
+import { processEmployees, triggerDispatcherPlanning } from "./dispatcherProcessor.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -208,18 +209,6 @@ function ensureNotBlocked(state) {
   }
 }
 
-// Prüft, ob ein Disponent innerhalb seiner Schicht ist (8-Stunden-Schicht).
-// Nachtschichten können über Mitternacht hinausgehen (startMin > endMin).
-function isDispatcherOnShift(emp, gameMinute) {
-  const clock = gameMinute % 1440;
-  const start = emp.shiftStart ?? SERVICE_START_MIN;
-  const end = emp.shiftEnd ?? SERVICE_END_MIN;
-  if (start <= end) {
-    return clock >= start && clock < end;
-  } else {
-    return clock >= start || clock < end;
-  }
-}
 function checkMilestones(state, min) {
   const set = (id, cond) => {
     const m = state.milestones.find(x => x.id === id);
@@ -392,18 +381,20 @@ function earliestEventAfter(state, t, maxMin) {
   for (const dueMin of getFinancingDueEvents(state, t, maxMin)) cand(dueMin);
   // Kündigungs-Austritte (Auftrag 18)
   for (const dueMin of getTerminationExitEvents(state, t, maxMin)) cand(dueMin);
-  // Dienstleistungsverträge (Auftrag 25)
-  for (const c of (state.serviceContracts || [])) {
-    if (c.status === "planned") cand(c.startMin);
-    if (c.status === "active" || c.status === "planned") cand(c.endMin);
+  // Dienstleistungsverträge (Auftrag 25) – nur bei vorhandenen Verträgen
+  if ((state.serviceContracts || []).length > 0) {
+    for (const c of state.serviceContracts) {
+      if (c.status === "planned") cand(c.startMin);
+      if (c.status === "active" || c.status === "planned") cand(c.endMin);
+    }
   }
-  // Krankheitsenden (Auftrag 25)
-  for (const s of (state.absences?.sicknesses || [])) {
-    if (s.status === "active") cand(s.expectedEndMin);
+  // Krankheitsenden (Auftrag 25) – nur bei aktiven Krankmeldungen
+  if ((state.absences?.sicknesses || []).length > 0) {
+    for (const s of state.absences.sicknesses) { if (s.status === "active") cand(s.expectedEndMin); }
   }
-  // Urlaubsbeginn und -ende (Auftrag 25)
-  for (const r of (state.absences?.vacationRequests || [])) {
-    if (r.status === "approved") { cand(r.startMin); cand(r.endMin); }
+  // Urlaubsbeginn und -ende (Auftrag 25) – nur bei genehmigten Anträgen
+  if ((state.absences?.vacationRequests || []).length > 0) {
+    for (const r of state.absences.vacationRequests) { if (r.status === "approved") { cand(r.startMin); cand(r.endMin); } }
   }
   // Werkstatt-Ereignisse (Auftrag 27)
   for (const wt of getWorkshopEventTimes(state, t, maxMin)) cand(wt);
@@ -414,10 +405,8 @@ function earliestEventAfter(state, t, maxMin) {
     const nextDemand = state.personnelMarket?.nextDemandWaveMin;
     if (nextDemand && nextDemand > t && nextDemand <= maxMin) cand(nextDemand);
   }
-  // Gespräche (Auftrag 30): Endzeit aktiver Gesprächstermine
-  for (const a of (state.appointments || [])) {
-    if (a.type === "conversation" && a.status === "active" && a.endMin > t && a.endMin <= maxMin) cand(a.endMin);
-  }
+  // Gespräche (Auftrag 30): active conversation appointments werden bereits
+  // durch die appointments-Schleife oben abgedeckt (status === "active" → cand(endMin)).
   // Aus- und Weiterbildung (Auftrag 31): Kursblöcke, Ausbildungen, Ablauf
   for (const tm of getTrainingEventTimes(state, t, maxMin)) cand(tm);
   // Gefahrgut (Auftrag 32): Tankreinigung, Ausrüstung, Spielprüfung
@@ -670,10 +659,13 @@ function processEventsAt(state, m, log) {
     // Auftrag 26: Taeglicher Unterhalt fuer Anschaffungen
     processDailyMaintenance(state, m);
   }
-  // Auftrag 25: Krankheitsgenesung und Dienstleistungsverarbeitung bei jedem Ereignis
-  processSicknessRecovery(state, m);
-  processServiceContracts(state, m, log);
-  processTempStaffBilling(state, m, log);
+  // Auftrag 25: Krankheitsgenesung – nur bei aktiven Krankmeldungen
+  if ((state.absences?.sicknesses || []).length > 0) processSicknessRecovery(state, m);
+  // Dienstleistungsverarbeitung – nur bei vorhandenen Verträgen
+  if ((state.serviceContracts || []).length > 0) {
+    processServiceContracts(state, m, log);
+    processTempStaffBilling(state, m, log);
+  }
   // Auftrag 27: Werkstatt-Verarbeitung und Automatik
   processWorkshop(state, m, log);
   evaluateWorkshopAutomation(state, m, log);
@@ -760,288 +752,6 @@ function planTrip(state, order, vehicle, driver) {
   const result = buildPhases(workSteps, counters, state.gameTime);
   const totalKm = workSteps.reduce((s, step) => s + (step.distanceKm || 0), 0);
   return { phases: result.phases, totalKm, totalDuration: result.endMin - state.gameTime, endMin: result.endMin };
-}
-
-// ---------- Angestellten-Verarbeitung ----------
-// Wird an Dienstzeitpunkten (08:00–16:00, alle 60 min) aufgerufen.
-// Disponenten erstellen Vorschläge (Modus A), disponieren (Modus B/C).
-// Reinigung, Werkstatt, Buchhaltung folgen in Etappe 2.
-function processEmployees(state, m, log) {
-  const clock = m % 1440;
-  const inServiceHours = clock >= SERVICE_START_MIN && clock < SERVICE_END_MIN;
-  for (const emp of (state.employees || [])) {
-    if (!isActivelyEmployed(emp)) continue;
-    if (emp.attendance !== "present") continue;
-    if (emp.role === "dispatcher" || emp.role === "dispatcher_senior") {
-      if (!isDispatcherOnShift(emp, m)) continue;
-      processDispatcher(state, emp, m, log);
-    } else if (inServiceHours && (emp.role === "accountant" || emp.role === "accountant_senior")) {
-      processAccountant(state, emp, m, log);
-    }
-  }
-}
-
-// Disponent verarbeitet seine zugewiesenen Lkw.
-// Modus A: erstellt Vorschläge für freie Fahrzeuge mit angenommenen Aufträgen.
-// Modus B/C: nutzt suggestTours für flottenweite Planung mit Erholung, Rückladungen,
-//   Liquiditätsprüfung und Rentabilitätsfilter. Berücksichtigt auch ruhende Fahrer
-//   und zurückkehrende Fahrzeuge über earliestAvailable.
-function processDispatcher(state, emp, m, log) {
-  // Firmenpool: Alle nicht verkauften, nicht vorgemerkten Fahrzeuge.
-  // Disponenten teilen sich den Pool — verschiedene Schichten können
-  // nacheinander auf dieselben Lkw zugreifen (24/7-Betrieb).
-  // Wenn ein Disponent einer Filiale zugeordnet ist, disponiert er nur
-  // deren Fahrzeuge (Filial-Modus). Ohne Zuordnung: gesamter Firmenpool.
-  let poolVehicles = state.vehicles.filter(v =>
-    v.status !== "sold" && v.status !== "archived" && !v.markedForSale
-  );
-  const _bf = emp.assignedBranchId !== undefined ? emp.assignedBranchId : (emp.branchId || null);
-  if (_bf) poolVehicles = poolVehicles.filter(v => v.branchId === _bf);
-  const poolVehicleIds = poolVehicles.map(v => v.id);
-  if (poolVehicles.length === 0) {
-    if ((emp.suggestions || []).length > 0) {
-      emp.suggestions = [];
-      log.push({ type: "dispatcher_suggestions_cleared", employee: emp.id, atMin: m, reason: "keine Lkw im Firmenpool" });
-    }
-    return;
-  }
-
-  // ---------- Modus A: Vorschläge vorbereiten ----------
-  if (emp.workMode === "suggestions") {
-    const hasAcceptedOrders = state.orders.some(o => o.status === "angenommen");
-    const hasFreeVehicles = poolVehicles.some(v => v.status === "free" || v.status === "resting");
-    if (!hasAcceptedOrders || !hasFreeVehicles) {
-      if ((emp.suggestions || []).length > 0) {
-        emp.suggestions = [];
-        log.push({ type: "dispatcher_suggestions_cleared", employee: emp.id, atMin: m, reason: "keine Aufträge oder freie Fahrzeuge" });
-      }
-      return;
-    }
-    const existingValid = (emp.suggestions || []).filter(s => s.status === "pending");
-    if (existingValid.length > 0) {
-      if (!hasSituationChanged(state, emp, existingValid)) return;
-    }
-    const result = suggestTours(state, {
-      vehicleIds: poolVehicleIds, earliestStart: m, horizonMin: 2880,
-      desiredEndCity: null, latestReturnMin: null, mode: state.marketPriority || "balanced", acceptNew: false,
-    });
-    emp.suggestions = (emp.suggestions || []).filter(s => s.status !== "pending");
-    for (const s of result.suggestions) {
-      const sug = {
-        id: uid(state, "sug"), employeeId: emp.id, employeeName: emp.name, createdAtMin: m,
-        vehicleId: s.vehicleId, driverId: s.driverId, orderIds: s.orderIds, plan: s.plan, status: "pending",
-      };
-      emp.suggestions.push(sug);
-      log.push({ type: "dispatcher_suggestion", employee: emp.id, suggestion: sug.id, vehicle: s.vehicleId, atMin: m });
-    }
-    emp.lastDecisionMin = m;
-    return;
-  }
-
-  // ---------- Modus B/C: flottenweite Planung mit suggestTours ----------
-  const acceptNew = emp.workMode === "autonomous";
-  // Prüfe, ob es angenommene Aufträge gibt, die noch nicht Teil einer
-  // aktiven Tour sind (verhindert unnötige Planversuche).
-  const hasUnplannedAccepted = state.orders.some(o =>
-    o.status === "angenommen" &&
-    !state.trips.some(t => t.orderId === o.id && t.status === "in_progress") &&
-    !(state.tours || []).some(t => t.status === "active" && (t.deployments || []).some(d => d.orderId === o.id && d.status !== "cancelled"))
-  );
-  const hasOfferedOrders = acceptNew && state.orders.some(o => o.status === "offered" && o.acceptDeadlineMin > m);
-  if (!hasUnplannedAccepted && !hasOfferedOrders) {
-    emp.lastIdleReason = acceptNew ? "Keine Aufträge auf dem Markt" : "Keine angenommenen Aufträge – autonomer Modus nötig";
-    emp.lastIdleReasonAtMin = m;
-    return;
-  }
-
-  // suggestTours berücksichtigt auch ruhende Fahrer und zurückkehrende Fahrzeuge
-  const result = suggestTours(state, {
-    vehicleIds: poolVehicleIds, earliestStart: m, horizonMin: 48 * 60,
-    desiredEndCity: null, latestReturnMin: null, mode: state.marketPriority || "balanced", acceptNew,
-  });
-
-  const usedVehicleIds = new Set();
-  const usedOrderIds = new Set();
-  let planned = 0;
-
-  // Kapazität: Mindestens so viele Touren wie Fahrzeuge im Pool, damit ein
-  // Disponent die gesamte Flotte in einem Zyklus verplanen kann (24/7-Betrieb).
-  const capacity = Math.max(emp.capacity || 6, poolVehicles.length);
-  for (const sug of result.suggestions) {
-    if (planned >= capacity) break;
-    if (usedVehicleIds.has(sug.vehicleId)) continue;
-    // Aufträge noch verfügbar?
-    const allAvailable = sug.orderIds.every(oid => {
-      if (usedOrderIds.has(oid)) return false;
-      const o = state.orders.find(x => x.id === oid);
-      if (!o || (o.status !== "offered" && o.status !== "angenommen")) return false;
-      // Prüfe, ob der Auftrag bereits Teil einer aktiven Tour ist (verhindert
-      // Doppelbuchung bei Pool-Modell: mehrere Disponenten könnten denselben
-      // Auftrag sehen, wenn die Tour-Deployment-Zeit in der Zukunft liegt).
-      if ((state.tours || []).some(t => t.status === "active" && (t.deployments || []).some(d => d.orderId === oid && d.status !== "cancelled"))) return false;
-      return true;
-    });
-    if (!allAvailable) continue;
-    // Rentabilitätsprüfung: Nur positive Beiträge bei Neuaufträgen
-    const newOrderIds = sug.plan.acceptedOrderIds || [];
-    if (newOrderIds.length > 0 && sug.plan.totalContributionCents <= 0) continue;
-    // DG-Annahmeprüfung (Auftrag 32): dispo_dg erforderlich
-    if (sug.orderIds.some(oid => state.orders.find(x => x.id === oid)?.isDangerousGoods) && !hasDgDispatch(state, emp.id)) continue;
-
-    try {
-      const r = doConfirmTour(state, {
-        vehicleId: sug.vehicleId, driverId: sug.driverId, orderIds: sug.orderIds,
-        desiredEndCity: sug.plan.desiredEndCity || null, latestReturnMin: sug.plan.latestReturnMin || null,
-      });
-      usedVehicleIds.add(sug.vehicleId);
-      sug.orderIds.forEach(oid => usedOrderIds.add(oid));
-      planned++;
-      const vehicle = state.vehicles.find(v => v.id === sug.vehicleId);
-      const driver = state.drivers.find(d => d.id === sug.driverId);
-      // Auftragsmetadaten aktualisieren und Annahme-Ereignisse erzeugen
-      const newlyAccepted = r.acceptedOrderIds || [];
-      for (const oid of sug.orderIds) {
-        const o = state.orders.find(x => x.id === oid);
-        if (!o) continue;
-        // Bei neu angenommenen Aufträgen: acceptedById setzen und Mail erzeugen
-        if (newlyAccepted.includes(oid)) {
-          o.acceptedById = emp.id; o.acceptedByName = emp.name;
-          o.history = o.history || [];
-          o.history.push({ type: "accepted", min: m, actor: emp.id, actorName: emp.name });
-          onOrderAccepted(state, o, emp.id, m);
-          pushEvent(state, {
-            type: "order_accepted_by_dispatcher",
-            gameTime: m, employeeId: emp.id, employeeName: emp.name, portraitId: emp.portraitId,
-            orderIds: [oid], tourId: r.tourId, vehicleId: sug.vehicleId, driverId: sug.driverId,
-            details: {
-              customer: o.customer, fromCity: o.fromCity, toCity: o.toCity,
-              cargo: o.cargo, tons: o.tons, paymentCents: o.paymentCents,
-              deliveryDeadlineMin: o.deliveryDeadlineMin,
-            },
-            dedupKey: "order_accepted:" + oid + ":" + emp.id,
-          });
-        }
-        o.plannedById = emp.id; o.plannedByName = emp.name;
-        o.history = o.history || [];
-        o.history.push({ type: "planned", min: m, actor: emp.id, actorName: emp.name, details: { vehicleId: sug.vehicleId, driverId: sug.driverId } });
-      }
-      // Planungs-Ereignis erzeugen
-      const primaryOrder = state.orders.find(x => x.id === sug.orderIds[0]);
-      pushEvent(state, {
-        type: "tour_planned_by_dispatcher",
-        gameTime: m, employeeId: emp.id, employeeName: emp.name, portraitId: emp.portraitId,
-        orderIds: sug.orderIds, tourId: r.tourId, vehicleId: sug.vehicleId, driverId: sug.driverId,
-        details: {
-          vehicleLabel: vehicle ? "Lkw " + String(parseInt(String(vehicle.id).replace(/[^0-9]/g, ""), 10) || 1).padStart(2, "0") : sug.vehicleId,
-          driverName: driver ? driver.name : sug.driverId,
-          startMin: m, endMin: r.endMin || m,
-          totalContributionCents: sug.plan.totalContributionCents,
-          totalKm: sug.plan.totalKm,
-          customer: primaryOrder?.customer,
-          fromCity: primaryOrder?.fromCity,
-          toCity: primaryOrder?.toCity,
-          paymentCents: primaryOrder?.paymentCents,
-        },
-        dedupKey: "tour_planned:" + r.tourId + ":" + emp.id,
-      });
-      // Tagesstatistik
-      emp.dailyStats = emp.dailyStats || { day: dayOf(m), offersChecked: 0, ordersAccepted: 0, ordersPlanned: 0, toursStarted: 0 };
-      if (emp.dailyStats.day !== dayOf(m)) emp.dailyStats = { day: dayOf(m), offersChecked: 0, ordersAccepted: 0, ordersPlanned: 0, toursStarted: 0 };
-      if (acceptNew) {
-        for (const oid of newlyAccepted) {
-          emp.dailyStats.ordersAccepted = (emp.dailyStats.ordersAccepted || 0) + 1;
-        }
-      }
-      emp.dailyStats.ordersPlanned = (emp.dailyStats.ordersPlanned || 0) + 1;
-      emp.dailyStats.toursStarted = (emp.dailyStats.toursStarted || 0) + 1;
-      // Mail-Benachrichtigung
-      const tour = r.tour || { id: r.tourId, vehicleId: sug.vehicleId, driverId: sug.driverId, orderIds: sug.orderIds, startMin: m, endMin: r.endMin };
-      onTourConfirmed(state, tour, emp.id, m);
-      log.push({ type: "dispatcher_planned", employee: emp.id, orders: sug.orderIds, vehicle: sug.vehicleId, atMin: m, contributionCents: sug.plan.totalContributionCents });
-    } catch (e) {
-      log.push({ type: "dispatcher_plan_failed", employee: emp.id, orders: sug.orderIds, error: e.message, atMin: m });
-    }
-  }
-
-  // Stillstandsgründe für ungenutzte Fahrzeuge dokumentieren.
-  // Unterscheidet: Unterwegs, Wartung, kein Fahrer, kein profitabler
-  // Auftrag, Bestätigung fehlgeschlagen, keine Aufträge.
-  const suggestedVehicleIds = new Set(result.suggestions.map(s => s.vehicleId));
-  for (const v of poolVehicles) {
-    if (usedVehicleIds.has(v.id)) { v.idleReason = null; continue; }
-    if (v.status === "on_trip") { v.idleReason = "Unterwegs"; continue; }
-    if (v.status === "maintenance") { v.idleReason = "Wartung bis " + formatGameTime(v.maintenanceUntil); continue; }
-    let reason = "Kein geeigneter Auftrag gefunden";
-    if (v.condition < 20) {
-      reason = "Zustand unter 20 – Wartung erforderlich";
-    } else if (suggestedVehicleIds.has(v.id)) {
-      // Fahrzeug war in den Vorschlägen, aber Bestätigung ist fehlgeschlagen
-      reason = "Tour-Bestätigung fehlgeschlagen";
-    } else {
-      // Fahrzeug war nicht in den Vorschlägen — Ursache ermitteln
-      const futureCity = futureLocation(state, v);
-      const hasDriverAtLocation = state.drivers.some(d =>
-        d.employmentStatus === "employed" &&
-        d.attendance !== "released" &&
-        (d.status === "free" || d.status === "resting" || d.status === "on_trip") &&
-        futureDriverLocation(state, d) === futureCity
-      );
-      if (!hasDriverAtLocation) {
-        const driverCount = state.drivers.filter(d => d.employmentStatus === "employed" && d.attendance !== "released").length;
-        const freeDriverCount = state.drivers.filter(d => d.employmentStatus === "employed" && d.attendance !== "released" && d.status === "free").length;
-        reason = driverCount === 0
-          ? "Keine Fahrer eingestellt"
-          : freeDriverCount === 0
-            ? "Alle Fahrer ruhen/auf Tour (" + driverCount + " Fahrer, keine freien für " + poolVehicles.length + " Lkw)"
-            : "Kein freier Fahrer am Standort " + v.locationCity + " (" + freeDriverCount + " freie Fahrer für " + poolVehicles.length + " Lkw, Cross-City-Suche eingeplant)";
-      } else if (!hasUnplannedAccepted && !hasOfferedOrders) {
-        reason = acceptNew ? "Keine (profitablen) Aufträge verfügbar" : "Keine angenommenen Aufträge – autonomer Modus oder manuelle Annahme nötig";
-      } else {
-        reason = "Kein profitabler Auftrag gefunden";
-      }
-    }
-    v.idleReason = reason;
-    v.idleReasonAtMin = m;
-  }
-  emp.lastDecisionMin = m;
-  emp.lastPlanningResult = { atMin: m, planned, totalVehicles: poolVehicles.length, usedVehicles: usedVehicleIds.size, suggested: result.suggestions.length };
-}
-
-// Ereignisgesteuerte Dispositionsplanung: ruft processDispatcher für alle
-// autonomen/disponierenden Disponenten außerhalb des regulären Diensttakts auf.
-// Vermeidet Doppelverarbeitung in derselben Spielminute.
-function triggerDispatcherPlanning(state, m, log) {
-  const clock = m % 1440;
-  if (clock % SERVICE_INTERVAL_MIN === 0) return; // Bereits durch processEmployees abgedeckt
-  for (const emp of (state.employees || [])) {
-    if (!isActivelyEmployed(emp)) continue;
-    if (emp.attendance !== "present") continue;
-    if (emp.role !== "dispatcher" && emp.role !== "dispatcher_senior") continue;
-    if (emp.workMode !== "autonomous" && emp.workMode !== "dispatch_accepted") continue;
-    if (!isDispatcherOnShift(emp, m)) continue;
-    // CPU-Schutz: höchstens alle 15 Spielminuten pro Disponent.
-    if (m - (emp.lastDecisionMin || 0) < 15) continue;
-    processDispatcher(state, emp, m, log);
-  }
-}
-
-// Prüft, ob sich die Situation seit der letzten Vorschlagserstellung geändert hat.
-function hasSituationChanged(state, emp, existingSuggestions) {
-  const acceptedOrders = state.orders.filter(o => o.status === "angenommen");
-  // Wenn es angenommene Aufträge gibt, die nicht in bestehenden Vorschlägen abgedeckt sind
-  const coveredOrderIds = new Set();
-  for (const s of existingSuggestions) {
-    for (const oid of s.orderIds) coveredOrderIds.add(oid);
-  }
-  const uncovered = acceptedOrders.filter(o => !coveredOrderIds.has(o.id));
-  // Wenn es neue ungedeckte angenommene Aufträge gibt oder die Vorschläge nicht mehr gültig sind
-  if (uncovered.length > 0) return true;
-  // Prüfe, ob bestehende Vorschläge noch gültig sind
-  for (const s of existingSuggestions) {
-    const v = state.vehicles.find(x => x.id === s.vehicleId);
-    if (!v || (v.status !== "free" && v.status !== "resting")) return true;
-  }
-  return false;
 }
 
 // ---------- Task-Parameter Extraktion ----------
