@@ -88,12 +88,20 @@ export function GameProvider({ children }) {
     }
   }, []);
 
-  // Speichert in localStorage (synchroner Fallback) und IndexedDB (primär).
-  const saveToStorage = useCallback(async (s) => {
+  // Dirty-Flag für debounced Speicherung — verhindert I/O auf jeden Befehl.
+  const dirtySaveRef = useRef(false);
+
+  // Sofortiges Speichern (für kritische Operationen: newGame, loadSlot, beforeunload).
+  const saveNow = useCallback(async (s) => {
     try { localStorage.setItem(LS_STATE, JSON.stringify(s)); } catch (e) {}
     if (!hasLockRef.current) return;
     try { await saveCurrent(s); } catch (e) {}
     dirtyAutosaveRef.current = true;
+  }, []);
+
+  // Markiert den Zustand als geändert — Speicherung erfolgt debounced (alle 3 s).
+  const markDirty = useCallback(() => {
+    dirtySaveRef.current = true;
   }, []);
 
   const processNewEvents = useCallback((newState) => {
@@ -153,7 +161,7 @@ export function GameProvider({ children }) {
       if (data.error) throw new Error(data.error);
       const newState = data.state; const result = data.result;
       stateRef.current = newState; setState(newState);
-      saveToStorage(newState);
+      markDirty();
       processNewEvents(newState);
       await processResult(newState, result, command);
       return result;
@@ -161,7 +169,7 @@ export function GameProvider({ children }) {
       showToast(e.message, "error");
       throw e;
     } finally { setBusy(false); sendInFlightRef.current = false; }
-  }, [saveToStorage, processNewEvents, processResult, showToast]);
+  }, [saveNow, processNewEvents, processResult, showToast]);
 
   // ---- Zeitautomatik (lokal) ----
   const syncAutomation = useCallback(async () => {
@@ -172,14 +180,14 @@ export function GameProvider({ children }) {
       if (data.error) throw new Error(data.error);
       const newState = data.state;
       stateRef.current = newState; setState(newState);
-      saveToStorage(newState);
+      markDirty();
       processNewEvents(newState);
       lastSyncGameTimeRef.current = newState.gameTime;
       lastSyncRealMsRef.current = Date.now();
     } catch (e) {
       // Automatik-Fehler werden nicht angezeigt
     } finally { syncInFlightRef.current = false; }
-  }, [saveToStorage, processNewEvents]);
+  }, [markDirty, processNewEvents]);
 
   const enableAutomation = useCallback(async (silent = false) => {
     if (!stateRef.current) return;
@@ -226,7 +234,7 @@ export function GameProvider({ children }) {
   useEffect(() => {
     const onBeforeUnload = () => {
       if (stateRef.current) {
-        saveToStorage(stateRef.current);
+        saveNow(stateRef.current);
         if (hasLockRef.current) {
           saveAutosave(autosaveIndexRef.current, stateRef.current).catch(() => {});
           releaseLock();
@@ -235,7 +243,7 @@ export function GameProvider({ children }) {
     };
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [saveToStorage]);
+  }, [saveNow]);
 
   // ---- Rotierende Autosaves (alle 60 s bei Änderung) ----
   useEffect(() => {
@@ -249,6 +257,21 @@ export function GameProvider({ children }) {
         setAutosaveMetas(await getAllAutosaveMetas());
       } catch (e) {}
     }, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // ---- Debounced Speicherung (alle 3 s bei Änderung) ----
+  // Verhindert localStorage/IndexedDB-I/O auf jeden Befehl. Der Zustand wird
+  // nur geschrieben, wenn er sich geändert hat, höchstens alle 3 Sekunden.
+  useEffect(() => {
+    const timer = setInterval(async () => {
+      if (!dirtySaveRef.current || !stateRef.current) return;
+      dirtySaveRef.current = false;
+      const s = stateRef.current;
+      try { localStorage.setItem(LS_STATE, JSON.stringify(s)); } catch (e) {}
+      if (hasLockRef.current) { try { await saveCurrent(s); } catch (e) {} }
+      dirtyAutosaveRef.current = true;
+    }, 3000);
     return () => clearInterval(timer);
   }, []);
 
@@ -279,7 +302,7 @@ export function GameProvider({ children }) {
 
       if (localState) {
         stateRef.current = localState; setState(localState);
-        saveToStorage(localState);
+        saveNow(localState);
         setAutomationEnabled(!!localState.timeControl?.enabled);
         lastSyncGameTimeRef.current = localState.gameTime || 0;
         lastSyncRealMsRef.current = Date.now();
@@ -288,7 +311,7 @@ export function GameProvider({ children }) {
         if (localState.timeControl?.enabled) {
           const paused = await executeCommand(stateRef.current, "pauseAutomation", { reason: "loaded" });
           if (!paused.error) {
-            stateRef.current = paused.state; setState(paused.state); saveToStorage(paused.state);
+            stateRef.current = paused.state; setState(paused.state); saveNow(paused.state);
           }
           setAutomationEnabled(false);
         }
@@ -297,7 +320,7 @@ export function GameProvider({ children }) {
       try { setAutosaveMetas(await getAllAutosaveMetas()); } catch (e) {}
       setLoading(false);
     })();
-  }, [processNewEvents, saveToStorage]);
+  }, [processNewEvents, saveNow]);
 
   const markAllEventsSeen = useCallback(async () => {
     if (!stateRef.current) return;
@@ -311,7 +334,7 @@ export function GameProvider({ children }) {
       if (data.error) throw new Error(data.error);
       const newState = data.state;
       stateRef.current = newState; setState(newState);
-      saveToStorage(newState);
+      saveNow(newState);
       setAutomationEnabled(!!newState.timeControl?.enabled);
       lastSyncGameTimeRef.current = newState.gameTime || 0;
       lastSyncRealMsRef.current = Date.now();
@@ -322,7 +345,7 @@ export function GameProvider({ children }) {
       showToast(e.message, "error");
       throw e;
     } finally { setBusy(false); }
-  }, [saveToStorage, processNewEvents, showToast]);
+  }, [saveNow, processNewEvents, showToast]);
 
   const reload = useCallback(async () => {
     let loaded = null;
@@ -344,12 +367,12 @@ export function GameProvider({ children }) {
     try {
       const imported = importSave(exportStr);
       stateRef.current = imported; setState(imported);
-      saveToStorage(imported);
+      saveNow(imported);
       return { ok: true };
     } catch (e) {
       return { ok: false, error: e.message };
     }
-  }, [saveToStorage]);
+  }, [saveNow]);
 
   const saveSlot = useCallback(async (name) => {
     if (!stateRef.current) return { ok: false, error: "Kein Spielstand" };
@@ -362,10 +385,10 @@ export function GameProvider({ children }) {
       const loaded = await loadManualSlot(name);
       if (!loaded) return { ok: false, error: "Slot nicht gefunden" };
       stateRef.current = loaded; setState(loaded);
-      saveToStorage(loaded);
+      saveNow(loaded);
       return { ok: true };
     } catch (e) { return { ok: false, error: e.message }; }
-  }, [saveToStorage]);
+  }, [saveNow]);
 
   const deleteSlot = useCallback(async (name) => {
     try { await deleteManualSlot(name); return { ok: true }; }
@@ -382,10 +405,10 @@ export function GameProvider({ children }) {
       const loaded = await loadAutosave(index);
       if (!loaded) return { ok: false, error: "Autosave-Slot leer" };
       stateRef.current = loaded; setState(loaded);
-      saveToStorage(loaded);
+      saveNow(loaded);
       return { ok: true };
     } catch (e) { return { ok: false, error: e.message }; }
-  }, [saveToStorage]);
+  }, [saveNow]);
 
   const value = {
     state, loading, busy, toast, showToast, send, newGame, reload,
