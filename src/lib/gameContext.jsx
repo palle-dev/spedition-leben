@@ -1,5 +1,21 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { executeCommand } from "@/lib/simulationAdapter";
+// Simulations-Engine läuft in einem Web Worker – der Haupt-Thread
+// bleibt für UI und Rendering frei, auch bei großen Flotten.
+const simWorker = new Worker(new URL("./simulationWorker.js", import.meta.url), { type: "module" });
+let _workerMsgId = 0;
+const _workerPending = new Map();
+simWorker.onmessage = (e) => {
+  const { id, data } = e.data;
+  const resolver = _workerPending.get(id);
+  if (resolver) { _workerPending.delete(id); resolver(data); }
+};
+function executeInWorker(state, command, params) {
+  const id = ++_workerMsgId;
+  return new Promise((resolve) => {
+    _workerPending.set(id, resolve);
+    simWorker.postMessage({ id, state, command, params });
+  });
+}
 import { saveCurrent, loadCurrent, saveAutosave, loadAutosave, getAllAutosaveMetas, listManualSlots, saveManualSlot, loadManualSlot, deleteManualSlot, exportSave, importSave } from "@/lib/persistence";
 import { acquireLock, refreshLock, releaseLock, LOCK_REFRESH } from "@/lib/tabLock";
 import { eventToToast } from "@/lib/eventNotifications";
@@ -161,7 +177,7 @@ export function GameProvider({ children }) {
     if (!stateRef.current) throw new Error("Kein Spielstand geladen");
     setBusy(true); sendInFlightRef.current = true;
     try {
-      const data = await executeCommand(stateRef.current, command, params || {});
+      const data = await executeInWorker(stateRef.current, command, params || {});
       if (data.error) throw new Error(data.error);
       const newState = data.state; const result = data.result;
       stateRef.current = newState; setState(newState);
@@ -180,7 +196,7 @@ export function GameProvider({ children }) {
     if (!stateRef.current || syncInFlightRef.current || sendInFlightRef.current) return;
     syncInFlightRef.current = true;
     try {
-      const data = await executeCommand(stateRef.current, "syncAutomation", {});
+      const data = await executeInWorker(stateRef.current, "syncAutomation", {});
       if (data.error) throw new Error(data.error);
       const newState = data.state;
       stateRef.current = newState; setState(newState);
@@ -313,7 +329,7 @@ export function GameProvider({ children }) {
         prevAchievementsRef.current = new Set((localState.achievements || []).filter(a => a.unlocked).map(a => a.id));
         processNewEvents(localState);
         if (localState.timeControl?.enabled) {
-          const paused = await executeCommand(stateRef.current, "pauseAutomation", { reason: "loaded" });
+          const paused = await executeInWorker(stateRef.current, "pauseAutomation", { reason: "loaded" });
           if (!paused.error) {
             stateRef.current = paused.state; setState(paused.state); saveNow(paused.state);
           }
@@ -334,7 +350,7 @@ export function GameProvider({ children }) {
   const newGame = useCallback(async (names) => {
     setBusy(true);
     try {
-      const data = await executeCommand(null, "newGame", names || {});
+      const data = await executeInWorker(null, "newGame", names || {});
       if (data.error) throw new Error(data.error);
       const newState = data.state;
       stateRef.current = newState; setState(newState);
