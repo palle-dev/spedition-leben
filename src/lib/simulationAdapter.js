@@ -8,7 +8,7 @@
 
 import { applyCommand, createInitialState } from "@/lib/simulation/simulationEngine";
 import { generateBranchDecisions, approveBranchDecision, rejectBranchDecision, setBranchManagerMode } from "@/lib/simulation/branchManagerEngine";
-import { processAssistant } from "@/lib/simulation/assistantEngine";
+import { processAssistant, migrateAssistant } from "@/lib/simulation/assistantEngine";
 
 // Reduziert die Zustandsgröße vor der Ausführung.
 // Entfernt gesehene Events (>1 Tag alt) und kappt das Legacy-Buchungs-Array.
@@ -50,7 +50,10 @@ export async function executeCommand(state, command, params) {
   }
 
   // Assistenten-Konfiguration aktualisieren – rein clientseitig.
+  // migrateAssistant stellt sicher, dass alle Default-Keys existieren,
+  // damit der Merge keine Defaults verliert.
   if (command === "setAssistantConfig") {
+    migrateAssistant(state);
     const updates = (params || {}).config || {};
     const current = state.assistantConfig || {};
     const newState = { ...state, assistantConfig: { ...current, ...updates } };

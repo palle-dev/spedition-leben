@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro } from "@/lib/gameData";
 import { Switch } from "@/components/ui/switch";
@@ -33,6 +33,10 @@ export default function AssistantConfig() {
   const config = state.assistantConfig || DEFAULTS;
   const [local, setLocal] = useState(config);
   const [submitting, setSubmitting] = useState(false);
+
+  // local mit config synchronisieren, wenn sich der externe Zustand ändert
+  // (z.B. nach Migration durch processAssistant oder nach Speichern).
+  useEffect(() => { setLocal(config); }, [config]);
 
   const hasAssistant = useMemo(
     () => (state.employees || []).some(e => e.role === "assistant" && e.employmentStatus === "employed"),
