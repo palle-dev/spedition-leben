@@ -359,7 +359,8 @@ function earliestEventAfter(state, t, maxMin) {
     for (let st = dayStart + SERVICE_START_MIN; st <= dayStart + SERVICE_END_MIN; st += SERVICE_INTERVAL_MIN) {
       cand(st);
     }
-    // Disponenten: Schicht-basierte Zeiten (inkl. Nacht, 2-Tage-Abdeckung für Mitternacht-Überlauf)
+    // Disponenten: Union-Set für Schichtzeiten (Performance bei vielen Disponenten)
+    const shiftTimes = new Set();
     for (const emp of (state.employees || [])) {
       if (emp.role !== "dispatcher" && emp.role !== "dispatcher_senior") continue;
       if (!isActivelyEmployed(emp) || emp.attendance !== "present") continue;
@@ -367,14 +368,11 @@ function earliestEventAfter(state, t, maxMin) {
       const sEnd = emp.shiftEnd ?? SERVICE_END_MIN;
       for (let day = 0; day <= 1; day++) {
         const base = dayStart + day * 1440;
-        if (sStart <= sEnd) {
-          for (let st = base + sStart; st <= base + sEnd; st += SERVICE_INTERVAL_MIN) cand(st);
-        } else {
-          for (let st = base + sStart; st < base + 1440; st += SERVICE_INTERVAL_MIN) cand(st);
-          for (let st = base; st <= base + sEnd; st += SERVICE_INTERVAL_MIN) cand(st);
-        }
+        if (sStart <= sEnd) { for (let st = base + sStart; st <= base + sEnd; st += SERVICE_INTERVAL_MIN) shiftTimes.add(st); }
+        else { for (let st = base + sStart; st < base + 1440; st += SERVICE_INTERVAL_MIN) shiftTimes.add(st); for (let st = base; st <= base + sEnd; st += SERVICE_INTERVAL_MIN) shiftTimes.add(st); }
       }
     }
+    for (const st of shiftTimes) cand(st);
   }
   // Tour-Deployment-Startzeiten
   for (const tour of state.tours || []) {

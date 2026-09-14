@@ -878,6 +878,20 @@ export function proactiveAutoDispatch(state, emp, m, log) {
   const config = state.assistantConfig || {};
   if (config.autoDispatch === false) return;
 
+  // Performance: Überspringen, wenn autonome Disponenten im Dienst sind —
+  // diese disponieren bereits über processDispatcher. Vermeidet redundante
+  // suggestTours-Aufrufe (welche bei großen Flotten sehr teuer sind).
+  const clock = m % 1440;
+  const hasAutonomousDispatcher = (state.employees || []).some(e =>
+    (e.role === "dispatcher" || e.role === "dispatcher_senior") &&
+    isActivelyEmployed(e) && e.attendance === "present" &&
+    e.workMode === "autonomous" &&
+    (e.shiftStart ?? SERVICE_START_MIN) <= (e.shiftEnd ?? SERVICE_END_MIN)
+      ? (clock >= (e.shiftStart ?? SERVICE_START_MIN) && clock < (e.shiftEnd ?? SERVICE_END_MIN))
+      : (clock >= (e.shiftStart ?? SERVICE_START_MIN) || clock < (e.shiftEnd ?? SERVICE_END_MIN))
+  );
+  if (hasAutonomousDispatcher) return;
+
   const busyOrderIds = new Set();
   for (const tr of state.trips) { if (tr.status === "in_progress" && tr.orderId) busyOrderIds.add(tr.orderId); }
   for (const tr of (state.tours || [])) {

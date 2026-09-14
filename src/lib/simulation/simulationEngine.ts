@@ -344,25 +344,34 @@ function earliestEventAfter(state, t, maxMin) {
   const hasNonDriverStaff = (state.employees || []).some(e => e.employmentStatus === "employed" && e.attendance === "present" && e.role !== "driver");
   if (hasNonDriverStaff) {
     const dayStart = Math.floor(t / 1440) * 1440;
-    // Buchhaltung, Reinigung etc.: feste Dienstzeiten 08:00–16:00
-    for (let st = dayStart + SERVICE_START_MIN; st <= dayStart + SERVICE_END_MIN; st += SERVICE_INTERVAL_MIN) {
-      cand(st);
-    }
-    // Disponenten: Schicht-basierte Zeiten (inkl. Nacht, 2-Tage-Abdeckung für Mitternacht-Überlauf)
+    // Performance: Union-Set für alle Disponenten-Schichtzeiten, statt pro
+    // Disponent einzeln zu iterieren. Reduziert O(dispatchers × shift_hours × 2)
+    // auf O(unique_shift_hours × 2) — bei vielen Disponenten ein Vielfaches.
+    const shiftTimes = new Set();
+    let hasDispatcher = false;
     for (const emp of (state.employees || [])) {
       if (emp.role !== "dispatcher" && emp.role !== "dispatcher_senior") continue;
       if (!isActivelyEmployed(emp) || emp.attendance !== "present") continue;
+      hasDispatcher = true;
       const sStart = emp.shiftStart ?? SERVICE_START_MIN;
       const sEnd = emp.shiftEnd ?? SERVICE_END_MIN;
       for (let day = 0; day <= 1; day++) {
         const base = dayStart + day * 1440;
         if (sStart <= sEnd) {
-          for (let st = base + sStart; st <= base + sEnd; st += SERVICE_INTERVAL_MIN) cand(st);
+          for (let st = base + sStart; st <= base + sEnd; st += SERVICE_INTERVAL_MIN) shiftTimes.add(st);
         } else {
-          for (let st = base + sStart; st < base + 1440; st += SERVICE_INTERVAL_MIN) cand(st);
-          for (let st = base; st <= base + sEnd; st += SERVICE_INTERVAL_MIN) cand(st);
+          for (let st = base + sStart; st < base + 1440; st += SERVICE_INTERVAL_MIN) shiftTimes.add(st);
+          for (let st = base; st <= base + sEnd; st += SERVICE_INTERVAL_MIN) shiftTimes.add(st);
         }
       }
+    }
+    // Buchhaltung, Reinigung etc.: feste Dienstzeiten 08:00–16:00
+    for (let st = dayStart + SERVICE_START_MIN; st <= dayStart + SERVICE_END_MIN; st += SERVICE_INTERVAL_MIN) {
+      cand(st);
+    }
+    // Disponenten: vereinigte Schichtzeiten
+    if (hasDispatcher) {
+      for (const st of shiftTimes) cand(st);
     }
   }
   // Tour-Deployment-Startzeiten
