@@ -1,11 +1,13 @@
-import React from "react";
+import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatGameTime, euroSigned } from "@/lib/gameData";
-import { BookOpen, Truck, Heart, Trophy, Package, Euro } from "lucide-react";
+import { BookOpen, Truck, Heart, Trophy, Package, Euro, Briefcase } from "lucide-react";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
+import AssistantLog from "@/components/journal/AssistantLog";
 
 export default function Journal() {
   const { state } = useGame();
+  const [tab, setTab] = useState("events");
   const events = [];
 
   state.bookings.forEach(b => events.push({ min: b.min, icon: "euro", text: `${b.cause} (${b.account === "company" ? "Firma" : "Privat"})`, amount: b.amountCents }));
@@ -31,13 +33,34 @@ export default function Journal() {
   events.sort((a, b) => b.min - a.min);
   const recent = events.slice(0, 60);
 
+  const hasAssistantLog = (state?.assistantLog || []).length > 0;
+
   return (
     <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-5xl mx-auto space-y-4">
       <div>
         <h1 className="text-2xl lg:text-3xl font-medium tracking-tight flex items-center gap-2"><BookOpen className="w-6 h-6 text-lime/70" /> Ereignisjournal</h1>
-        <p className="text-sm text-muted-foreground mt-1">Chronologischer Verlauf von Buchungen, Fahrten, Terminen und Meilensteinen.</p>
+        <p className="text-sm text-muted-foreground mt-1">Chronologischer Verlauf und Assistenten-Protokoll.</p>
       </div>
-      {recent.length === 0 ? <div className="text-sm text-muted-foreground/50">Noch keine Ereignisse.</div> : (
+
+      <div className="flex gap-1 border-b border-white/10">
+        <button
+          onClick={() => setTab("events")}
+          className={`flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 transition ${tab === "events" ? "border-lime text-lime" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+        >
+          <BookOpen className="w-4 h-4" /> Ereignisse
+        </button>
+        <button
+          onClick={() => setTab("assistant")}
+          className={`flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 transition ${tab === "assistant" ? "border-lime text-lime" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+        >
+          <Briefcase className="w-4 h-4" /> Assistent
+          {hasAssistantLog && <span className="w-1.5 h-1.5 rounded-full bg-lime" />}
+        </button>
+      </div>
+
+      {tab === "assistant" ? (
+        <AssistantLog />
+      ) : recent.length === 0 ? <div className="text-sm text-muted-foreground/50">Noch keine Ereignisse.</div> : (
         <div className="space-y-0.5">
           {recent.map((e, i) => (
             <div key={i} className="flex items-center gap-3 border-b border-white/5 py-2.5">

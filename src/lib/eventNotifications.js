@@ -125,6 +125,18 @@ export function eventToToast(ev) {
         eventSeq: ev.seq,
       };
 
+    case "order_accepted_by_assistant":
+      return {
+        id: ev.id,
+        kind: "success",
+        icon: "briefcase",
+        title: "Assistent: Auftrag angenommen",
+        body: `${ev.employeeName || "Assistent"} hat ${d.customer || "—"}: ${d.fromCity || "—"} → ${d.toCity || "—"} automatisch angenommen (Marge ${d.marginPct || 0}%).`,
+        action: { label: "Auftrag ansehen", targetType: "order", targetId: ev.orderIds?.[0] },
+        duration: 7000,
+        eventSeq: ev.seq,
+      };
+
     default:
       return null;
   }

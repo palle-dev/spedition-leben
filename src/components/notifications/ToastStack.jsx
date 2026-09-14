@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { EASE } from "@/lib/motion";
-import { Check, Calendar, Truck, Package, Info, X, Bell } from "lucide-react";
+import { Check, Calendar, Truck, Package, Info, X, Bell, Briefcase } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const MAX_VISIBLE = 3;
 const DEFAULT_DURATION = 7000;
 
-const ICONS = { check: Check, calendar: Calendar, truck: Truck, package: Package, info: Info, bell: Bell };
+const ICONS = { check: Check, calendar: Calendar, truck: Truck, package: Package, info: Info, bell: Bell, briefcase: Briefcase };
 const KIND_STYLES = {
   success: "bg-lime/15 border-lime/40 text-lime",
   info: "bg-surface/90 border-white/20 text-foreground",

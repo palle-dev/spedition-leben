@@ -8,6 +8,7 @@
 
 import { applyCommand, createInitialState } from "@/lib/simulation/simulationEngine";
 import { generateBranchDecisions, approveBranchDecision, rejectBranchDecision, setBranchManagerMode } from "@/lib/simulation/branchManagerEngine";
+import { processAssistant } from "@/lib/simulation/assistantEngine";
 
 // Reduziert die Zustandsgröße vor der Ausführung.
 // Entfernt gesehene Events (>1 Tag alt) und kappt das Legacy-Buchungs-Array.
@@ -71,7 +72,32 @@ export async function executeCommand(state, command, params) {
   try {
     const r = applyCommand(slim, command, paramsWithTime);
     let newState = r.state;
-    if (newState && command === "syncAutomation") newState = generateBranchDecisions(newState);
+    if (newState && command === "syncAutomation") {
+      newState = generateBranchDecisions(newState);
+      // Assistent der Geschäftsführung: stündliche Verarbeitung.
+      // Verfolgt die letzte verarbeitete Stunde und holt alle übersprungenen
+      // Stunden nach (Sync kann mehrere Stunden auf einmal abdecken).
+      if (!newState.assistantState) newState.assistantState = { lastProcessedHour: 0 };
+      const lastHour = newState.assistantState.lastProcessedHour || 0;
+      const currentHour = Math.floor(newState.gameTime / 60);
+      if (currentHour > lastHour) {
+        const assistants = (newState.employees || []).filter(e =>
+          e.role === "assistant" && e.employmentStatus === "employed" && e.attendance === "present"
+        );
+        if (assistants.length > 0) {
+          // Maximal 3 Stunden pro Sync abarbeiten (CPU-Schutz)
+          const maxHours = 3;
+          const startHour = Math.max(lastHour + 1, currentHour - maxHours + 1);
+          for (let h = startHour; h <= currentHour; h++) {
+            const t = h * 60;
+            for (const emp of assistants) {
+              try { processAssistant(newState, emp, t, []); } catch (e) { /* Fehler einzelner Assistent-Funktion ignorieren */ }
+            }
+          }
+        }
+        newState.assistantState.lastProcessedHour = currentHour;
+      }
+    }
     return { state: newState, result: r.result };
   } catch (e) {
     return { error: e.message };
