@@ -18,6 +18,9 @@ import {
 import { deliverMessage } from "./mailEngine.ts";
 import { pushEvent } from "./eventLog.ts";
 import { suggestTours, confirmTour as doConfirmTour } from "./tourEngine.ts";
+import { previewCourseBooking, bookCourse, COURSE_CATALOG, hasQualification, isPersonInTraining } from "./trainingEngine.ts";
+import { isActivelyEmployed } from "./terminationEngine.ts";
+import { isPersonAvailable } from "./absenceEngine.ts";
 
 // ---------- Migration ----------
 
@@ -39,6 +42,11 @@ export function migrateAssistant(state) {
       maxOrdersPerHour: 3,
       maxBacklogOrders: 5,
       backlogMonitoring: true,
+      staffDevelopment: true,
+      autoBookTraining: false,
+      trainingBudgetPerDay: 200,
+      fleetUtilizationMonitoring: true,
+      minFleetUtilizationPct: 60,
     };
   }
 }
@@ -625,6 +633,242 @@ export function monitorOrderBacklog(state, emp, m, log) {
   log.push({ type: "assistant_backlog_warning", employee: emp.id, backlogCount: backlog.length, atMin: m });
 }
 
+// ---------- H) Personalentwicklung ----------
+
+export function manageStaffDevelopment(state, emp, m, log) {
+  const config = state.assistantConfig || {};
+  if (config.staffDevelopment === false) return;
+
+  const day = dayOf(m);
+  const spendKey = "training_spend_" + day;
+  state.assistantState = state.assistantState || {};
+  let spentToday = state.assistantState[spendKey] || 0;
+  const budgetCents = (config.trainingBudgetPerDay ?? 200) * 100;
+  const autoBook = config.autoBookTraining === true;
+
+  // Alle beschäftigten Personen (Fahrer + Angestellte)
+  const allPersons = [];
+  for (const d of (state.drivers || [])) {
+    if (isActivelyEmployed(d)) allPersons.push({ id: d.id, role: "driver", name: d.name });
+  }
+  for (const e of (state.employees || [])) {
+    if (isActivelyEmployed(e)) allPersons.push({ id: e.id, role: e.role, name: e.name });
+  }
+
+  const bookedCourses = [];
+  const suggestedCourses = [];
+
+  for (const p of allPersons) {
+    if (isPersonInTraining(state, p.id)) continue;
+    if (!isPersonAvailable(state, p.id, m)) continue;
+
+    // Relevante Kurse für diese Rolle finden
+    const relevantCourses = COURSE_CATALOG.filter(c => {
+      if (c.targetRole === "any") return true;
+      const targetRoles = [c.targetRole];
+      if (c.targetRoleSenior) targetRoles.push(c.targetRoleSenior);
+      return targetRoles.includes(p.role);
+    });
+
+    for (const course of relevantCourses) {
+      // Überspringen wenn Qualifikation bereits vorhanden
+      if (course.effect && hasQualification(state, p.id, course.effect)) continue;
+
+      // Voraussetzungen prüfen
+      const preview = previewCourseBooking(state, p.id, course.id);
+      if (!preview.ok) continue;
+
+      // Promotions nur vorschlagen (brauchen Bestätigung)
+      if (course.isPromotion) {
+        suggestedCourses.push({
+          personId: p.id, personName: p.name, role: p.role,
+          courseLabel: course.label, feeCents: course.feeCents,
+          newRole: course.promotionNewRole,
+        });
+        continue;
+      }
+
+      // Auto-Buchung: Budget und Firmenmittel prüfen
+      if (autoBook && spentToday + course.feeCents <= budgetCents && state.company.accountCents >= course.feeCents) {
+        try {
+          bookCourse(state, p.id, course.id, {});
+          spentToday += course.feeCents;
+          bookedCourses.push({
+            personId: p.id, personName: p.name, role: p.role,
+            courseLabel: course.label, feeCents: course.feeCents, startMin: preview.startMin,
+          });
+          logAssistantActivity(state, {
+            gameTime: m, type: "training_booked",
+            assistantId: emp.id, assistantName: emp.name,
+            details: {
+              personId: p.id, personName: p.name,
+              courseLabel: course.label, feeCents: course.feeCents, startMin: preview.startMin,
+            },
+          });
+          pushEvent(state, {
+            type: "assistant_training_booked",
+            gameTime: m, employeeId: emp.id, employeeName: emp.name, portraitId: emp.portraitId,
+            personId: p.id,
+            details: { personName: p.name, courseLabel: course.label, feeCents: course.feeCents },
+            dedupKey: "training_booked:" + p.id + ":" + course.id,
+          });
+          break; // Nur ein Kurs pro Person pro Tag
+        } catch (e) { /* Buchung fehlgeschlagen – weitermachen */ }
+      } else if (!autoBook) {
+        suggestedCourses.push({
+          personId: p.id, personName: p.name, role: p.role,
+          courseLabel: course.label, feeCents: course.feeCents,
+        });
+        break; // Nur einen Kurs pro Person vorschlagen
+      }
+    }
+  }
+
+  state.assistantState[spendKey] = spentToday;
+
+  // Mail mit Buchungen und Vorschlägen
+  if (bookedCourses.length > 0 || suggestedCourses.length > 0) {
+    let body = "";
+    if (bookedCourses.length > 0) {
+      body += "Automatisch gebuchte Kurse:\n";
+      for (const c of bookedCourses) {
+        body += "  • " + c.personName + " (" + c.role + ") → " + c.courseLabel + " – " + (c.feeCents / 100).toFixed(0) + " €\n";
+      }
+      body += "\nTagesbudget Training: " + (spentToday / 100).toFixed(0) + " € / " + (config.trainingBudgetPerDay ?? 200) + " €\n\n";
+    }
+    if (suggestedCourses.length > 0) {
+      body += "Vorschläge (manuelle Buchung erforderlich):\n";
+      for (const c of suggestedCourses) {
+        const promo = c.newRole ? " → Beförderung zu " + c.newRole : "";
+        body += "  • " + c.personName + " (" + c.role + ") → " + c.courseLabel + " – " + (c.feeCents / 100).toFixed(0) + " €" + promo + "\n";
+      }
+    }
+    deliverMessage(state, {
+      fromId: emp.id, toId: "player",
+      subject: "Personalentwicklung – Tag " + day,
+      body,
+      gameTime: m, category: "personnel", priority: "normal",
+      dedupKey: "assistant_training_" + day,
+    });
+  }
+}
+
+// ---------- I) Flottenauslastung-Überwachung ----------
+
+export function monitorFleetUtilization(state, emp, m, log) {
+  const config = state.assistantConfig || {};
+  if (config.fleetUtilizationMonitoring === false) return;
+
+  const totalVehicles = (state.vehicles || []).filter(v =>
+    v.status !== "sold" && v.status !== "archived" && !v.markedForSale
+  );
+  if (totalVehicles.length === 0) return;
+
+  const onTour = totalVehicles.filter(v => v.status === "on_trip").length;
+  const inMaintenance = totalVehicles.filter(v => v.status === "maintenance").length;
+  const free = totalVehicles.filter(v => v.status === "free").length;
+  const available = totalVehicles.length - inMaintenance;
+  if (available === 0) return;
+
+  const utilization = onTour / available;
+  const threshold = (config.minFleetUtilizationPct ?? 60) / 100;
+  if (utilization >= threshold) return;
+
+  // Nur einmal pro Tag warnen
+  const day = dayOf(m);
+  const warnKey = "fleet_util_warn_" + day;
+  state.assistantState = state.assistantState || {};
+  if (state.assistantState[warnKey]) return;
+  state.assistantState[warnKey] = true;
+
+  const freeDrivers = (state.drivers || []).filter(d =>
+    d.employmentStatus === "employed" && d.attendance !== "released" && d.status === "free"
+  );
+  const acceptedOrders = (state.orders || []).filter(o => o.status === "angenommen");
+  const offeredOrders = (state.orders || []).filter(o => o.status === "offered" && o.acceptDeadlineMin > m);
+
+  // Prüfen ob angenommene Aufträge ungesplant sind
+  const busyOrderIds = new Set();
+  for (const tr of state.trips) { if (tr.status === "in_progress" && tr.orderId) busyOrderIds.add(tr.orderId); }
+  for (const tr of (state.tours || [])) {
+    if (tr.status !== "active") continue;
+    for (const d of (tr.deployments || [])) { if (d.orderId && d.status !== "cancelled") busyOrderIds.add(d.orderId); }
+  }
+  const unplannedAccepted = acceptedOrders.filter(o => !busyOrderIds.has(o.id));
+
+  let bottleneck, suggestion;
+  if (free > 0 && freeDrivers.length > 0 && unplannedAccepted.length > 0) {
+    const dispatchers = (state.employees || []).filter(e =>
+      (e.role === "dispatcher" || e.role === "dispatcher_senior") &&
+      isActivelyEmployed(e) && e.attendance === "present"
+    );
+    const hasAutonomous = dispatchers.some(d => d.workMode === "autonomous");
+    if (dispatchers.length === 0) {
+      bottleneck = free + " freie Lkw + " + freeDrivers.length + " freie Fahrer + " + unplannedAccepted.length + " ungesplante Aufträge, aber kein Disponent eingestellt";
+      suggestion = "Disponent einstellen oder Aufträge manuell disponieren";
+    } else if (!hasAutonomous) {
+      bottleneck = free + " freie Lkw + " + freeDrivers.length + " freie Fahrer + " + unplannedAccepted.length + " ungesplante Aufträge, aber Disponent nicht autonom";
+      suggestion = "Disponent auf 'autonomen Modus' umstellen, damit er selbstständig disponiert";
+    } else {
+      bottleneck = free + " freie Lkw + " + freeDrivers.length + " freie Fahrer + " + unplannedAccepted.length + " ungesplante Aufträge, Disposition läuft nicht";
+      suggestion = "Disponent-Modus prüfen oder manuell disponieren";
+    }
+  } else if (free > 0 && freeDrivers.length > 0 && acceptedOrders.length === 0) {
+    if (offeredOrders.length > 0) {
+      bottleneck = free + " freie Lkw + " + freeDrivers.length + " freie Fahrer, aber keine angenommenen Aufträge (" + offeredOrders.length + " Angebote offen)";
+      suggestion = config.autoAcceptOrders === false
+        ? "Auto-Auftragsannahme aktivieren oder Angebote manuell annehmen"
+        : "Angebote sind nicht profitabel genug – Marktpriorität oder Marge-Schwelle anpassen";
+    } else {
+      bottleneck = free + " freie Lkw + " + freeDrivers.length + " freie Fahrer, aber keine Aufträge auf dem Markt";
+      suggestion = "Auf neue Marktangebote warten oder Marktpriorität anpassen";
+    }
+  } else if (free > 0 && freeDrivers.length === 0) {
+    bottleneck = free + " freie Lkw aber keine freien Fahrer (alle auf Tour/Ruhe)";
+    suggestion = "Fahrer einstellen oder auf Ruhe-Ende warten";
+  } else if (free === 0 && onTour < totalVehicles.length) {
+    bottleneck = "Alle Lkw auf Tour oder in Wartung – Flotte voll ausgelastet";
+    suggestion = "Flotte erweitern (Lkw kaufen/leasen) für mehr Aufträge";
+  } else {
+    bottleneck = "Nur " + onTour + "/" + available + " Lkw auf Tour (" + Math.round(utilization * 100) + "%)";
+    suggestion = "Situation prüfen – möglicherweise Fahrer/Fahrzeug-Konflikt oder unprofitable Touren";
+  }
+
+  logAssistantActivity(state, {
+    gameTime: m, type: "fleet_utilization_warning",
+    assistantId: emp.id, assistantName: emp.name,
+    details: {
+      onTour, available, total: totalVehicles.length,
+      free, freeDrivers: freeDrivers.length,
+      utilizationPct: Math.round(utilization * 100),
+      thresholdPct: Math.round(threshold * 100),
+      bottleneck, suggestion,
+    },
+  });
+
+  deliverMessage(state, {
+    fromId: emp.id, toId: "player",
+    subject: "📉 Flottenauslastung niedrig: " + Math.round(utilization * 100) + "%",
+    body: "Nur " + onTour + " von " + available + " verfügbaren Lkw sind auf Tour (Schwellenwert: " + Math.round(threshold * 100) + "%).\n\n" +
+      "Freie Lkw: " + free + ", Freie Fahrer: " + freeDrivers.length + "\n" +
+      "Angenommene Aufträge: " + acceptedOrders.length + " (" + unplannedAccepted.length + " ungesplant)\n" +
+      "Marktangebote: " + offeredOrders.length + "\n\n" +
+      "Ursache: " + bottleneck + "\n" +
+      "Empfehlung: " + suggestion,
+    gameTime: m, category: "decisions", priority: "high",
+    dedupKey: warnKey,
+  });
+
+  pushEvent(state, {
+    type: "assistant_fleet_warning",
+    gameTime: m, employeeId: emp.id, employeeName: emp.name, portraitId: emp.portraitId,
+    details: { onTour, available, utilizationPct: Math.round(utilization * 100), bottleneck, suggestion },
+    dedupKey: warnKey,
+  });
+
+  log.push({ type: "assistant_fleet_warning", employee: emp.id, onTour, available, atMin: m });
+}
+
 // ---------- Haupt-Einstiegspunkte ----------
 
 // Wird stündlich vom Adapter aufgerufen (zur vollen Spielstunde).
@@ -664,6 +908,16 @@ export function processAssistant(state, emp, m, log) {
   // G) Auftragsrückstau-Überwachung: jede Stunde
   if (config.backlogMonitoring !== false) {
     monitorOrderBacklog(state, emp, m, log);
+  }
+
+  // H) Personalentwicklung: einmal pro Tag um 10:00
+  if (config.staffDevelopment !== false && clock === SERVICE_START_MIN + 120) {
+    manageStaffDevelopment(state, emp, m, log);
+  }
+
+  // I) Flottenauslastung-Überwachung: jede Stunde
+  if (config.fleetUtilizationMonitoring !== false) {
+    monitorFleetUtilization(state, emp, m, log);
   }
 }
 

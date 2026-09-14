@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatGameTime, formatEuro } from "@/lib/gameData";
-import { Briefcase, TrendingDown, FileText, Lightbulb, Calculator, Package, Sparkles, Truck, AlertTriangle, Layers } from "lucide-react";
+import { Briefcase, TrendingDown, FileText, Lightbulb, Calculator, Package, Sparkles, Truck, AlertTriangle, Layers, GraduationCap } from "lucide-react";
 import AssistantConfig from "./AssistantConfig";
 
 // Übersicht aller automatisierten Aufgaben des Assistenten der Geschäftsführung.
@@ -16,7 +16,7 @@ export default function AssistantLog() {
   }, [state?.assistantLog, filter]);
 
   const counts = useMemo(() => {
-    const c = { all: 0, order_accepted: 0, cost_optimization: 0, accounting_task: 0, daily_report: 0, decision_proposal: 0, order_deadline_warning: 0, order_auto_dispatched: 0, order_backlog_warning: 0 };
+    const c = { all: 0, order_accepted: 0, cost_optimization: 0, accounting_task: 0, daily_report: 0, decision_proposal: 0, order_deadline_warning: 0, order_auto_dispatched: 0, order_backlog_warning: 0, training_booked: 0, fleet_utilization_warning: 0 };
     for (const e of state?.assistantLog || []) {
       c.all++;
       if (c[e.type] !== undefined) c[e.type]++;
@@ -54,6 +54,8 @@ export default function AssistantLog() {
     { id: "order_auto_dispatched", label: "Dispo", icon: Truck, count: counts.order_auto_dispatched },
     { id: "order_deadline_warning", label: "Warnungen", icon: AlertTriangle, count: counts.order_deadline_warning },
     { id: "order_backlog_warning", label: "Rückstau", icon: Layers, count: counts.order_backlog_warning },
+    { id: "training_booked", label: "Schulung", icon: GraduationCap, count: counts.training_booked },
+    { id: "fleet_utilization_warning", label: "Flotte", icon: Truck, count: counts.fleet_utilization_warning },
   ];
 
   return (
@@ -131,6 +133,8 @@ function LogEntry({ entry }) {
     order_auto_dispatched: { Icon: Truck, bg: "bg-lime/10", color: "text-lime" },
     order_deadline_warning: { Icon: AlertTriangle, bg: "bg-amber-300/10", color: "text-amber-300" },
     order_backlog_warning: { Icon: Layers, bg: "bg-coral/10", color: "text-coral" },
+    training_booked: { Icon: GraduationCap, bg: "bg-lime/10", color: "text-lime" },
+    fleet_utilization_warning: { Icon: Truck, bg: "bg-amber-300/10", color: "text-amber-300" },
   };
   const cfg = configs[entry.type] || { Icon: Briefcase, bg: "bg-white/5", color: "text-foreground/60" };
 
@@ -266,6 +270,38 @@ function EntryContent({ type, entry, d }) {
         </div>
         <div className="text-xs text-muted-foreground mt-1">{d.bottleneck}</div>
         <div className="text-xs text-coral/70 mt-1 flex items-center gap-1">
+          <span>→</span> {d.suggestion}
+        </div>
+      </>
+    );
+  }
+
+  if (type === "training_booked") {
+    return (
+      <>
+        <div className="text-sm leading-snug">
+          <span className="text-foreground font-medium">{d.personName}</span>
+          <span className="text-muted-foreground"> für Kurs </span>
+          <span className="text-foreground">{d.courseLabel}</span>
+          <span className="text-muted-foreground"> angemeldet</span>
+        </div>
+        <div className="text-xs text-muted-foreground mt-1 flex items-center gap-3 flex-wrap">
+          <span className="text-lime/80 tabular-nums">{formatEuro(d.feeCents || 0)} Gebühr</span>
+        </div>
+      </>
+    );
+  }
+
+  if (type === "fleet_utilization_warning") {
+    return (
+      <>
+        <div className="text-sm leading-snug">
+          <span className="text-amber-300 font-medium">📉 Flottenauslastung: </span>
+          <span className="text-foreground tabular-nums">{d.onTour}/{d.available}</span>
+          <span className="text-muted-foreground"> Lkw auf Tour ({d.utilizationPct}%, Ziel: {d.thresholdPct}%)</span>
+        </div>
+        <div className="text-xs text-muted-foreground mt-1">{d.bottleneck}</div>
+        <div className="text-xs text-amber-300/70 mt-1 flex items-center gap-1">
           <span>→</span> {d.suggestion}
         </div>
       </>

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro } from "@/lib/gameData";
 import { Switch } from "@/components/ui/switch";
-import { Settings, Loader2, Package, TrendingDown, FileText, Lightbulb, Calculator, Clock, Truck, AlertTriangle } from "lucide-react";
+import { Settings, Loader2, Package, TrendingDown, FileText, Lightbulb, Calculator, Clock, Truck, AlertTriangle, GraduationCap, BookOpen } from "lucide-react";
 
 const FUNCTIONS = [
   { key: "dailyReport", label: "Tagesbericht", icon: FileText, desc: "Tägliche Zusammenfassung per Mail" },
@@ -13,6 +13,9 @@ const FUNCTIONS = [
   { key: "decisionProposals", label: "Entscheidungsvorschläge", icon: Lightbulb, desc: "Vorschläge für anstehende Entscheidungen" },
   { key: "accounting", label: "Buchhaltungs-Support", icon: Calculator, desc: "Buchhaltungsaufgaben vorbereiten" },
   { key: "backlogMonitoring", label: "Rückstau-Überwachung", icon: AlertTriangle, desc: "Warnt bei zu vielen ungesplanten Aufträgen" },
+  { key: "staffDevelopment", label: "Personalentwicklung", icon: GraduationCap, desc: "Personal automatisch schulen und entwickeln" },
+  { key: "autoBookTraining", label: "Kurse auto. buchen", icon: BookOpen, desc: "Schulungen automatisch buchen (sonst nur Vorschläge)" },
+  { key: "fleetUtilizationMonitoring", label: "Flottenauslastung", icon: Truck, desc: "Warnt bei zu wenigen Lkw auf Tour" },
 ];
 
 const DEFAULTS = {
@@ -29,6 +32,11 @@ const DEFAULTS = {
   maxOrdersPerHour: 3,
   maxBacklogOrders: 5,
   backlogMonitoring: true,
+  staffDevelopment: true,
+  autoBookTraining: false,
+  trainingBudgetPerDay: 200,
+  fleetUtilizationMonitoring: true,
+  minFleetUtilizationPct: 60,
 };
 
 export default function AssistantConfig() {
@@ -151,6 +159,24 @@ export default function AssistantConfig() {
           min={1}
           max={30}
           step={1}
+        />
+        <LimitInput
+          label="Trainingsbudget pro Tag"
+          value={local.trainingBudgetPerDay}
+          onChange={v => setLimit("trainingBudgetPerDay", v)}
+          unit=" €"
+          min={0}
+          max={2000}
+          step={50}
+        />
+        <LimitInput
+          label="Mindest-Flottenauslastung"
+          value={local.minFleetUtilizationPct}
+          onChange={v => setLimit("minFleetUtilizationPct", v)}
+          unit="%"
+          min={0}
+          max={100}
+          step={5}
         />
       </div>
 
