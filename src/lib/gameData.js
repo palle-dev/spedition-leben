@@ -99,6 +99,7 @@ export const PERSONNEL_ROLES = {
   mechanic:           { id: "mechanic",           label: "Werkstattmitarbeiter",    hireFeeCents: 50000,  costPerDayCents: 14000, capacity: 1 },
   accountant:         { id: "accountant",         label: "Buchhalter/Buchhalterin",       hireFeeCents: 40000,  costPerDayCents: 12000, capacity: 40 },
   accountant_senior:  { id: "accountant_senior",  label: "Erfahrene Buchhaltungskraft",   hireFeeCents: 70000,  costPerDayCents: 19000, capacity: 80 },
+  assistant:          { id: "assistant",          label: "Assistent der Geschäftsführung", hireFeeCents: 60000, costPerDayCents: 22000, capacity: 0 },
 };
 
 export const SERVICE_START_MIN = 480;
@@ -113,6 +114,7 @@ export const ROLE_LABELS = {
   mechanic: "Werkstatt",
   accountant: "Buchhaltung",
   accountant_senior: "Erf. Buchhaltung",
+  assistant: "Geschäftsführung",
 };
 
 export const ROLE_ICONS = {
@@ -123,4 +125,5 @@ export const ROLE_ICONS = {
   mechanic: "Wrench",
   accountant: "Calculator",
   accountant_senior: "Calculator",
+  assistant: "Briefcase",
 };

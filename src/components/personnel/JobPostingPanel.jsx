@@ -13,6 +13,7 @@ const ROLE_OPTIONS = [
   { id: "cleaner", label: "Reinigungskraft" },
   { id: "accountant", label: "Buchhalter/Buchhalterin" },
   { id: "accountant_senior", label: "Erfahrene Buchhaltungskraft" },
+  { id: "assistant", label: "Assistent der Geschäftsführung" },
 ];
 
 // Panel für Stellen-Ausschreibungen im Personalmarkt (Auftrag 29).

@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Search, Users, Truck, Headset, Sparkles, Wrench, Calculator, Settings, MapPin, Clock } from "lucide-react";
+import { Search, Users, Truck, Headset, Sparkles, Wrench, Calculator, Settings, MapPin, Clock, Briefcase } from "lucide-react";
 import Portrait from "@/components/ui/Portrait";
 import { formatEuro, formatGameTime } from "@/lib/gameData";
 import { roleLabel, satisfactionLabel, attendanceLabel, workModeLabel, employmentStatusLabel } from "@/lib/displayHelpers";
@@ -7,7 +7,7 @@ import { roleLabel, satisfactionLabel, attendanceLabel, workModeLabel, employmen
 const ROLE_ICON = {
   driver: Truck, dispatcher: Headset, dispatcher_senior: Headset,
   cleaner: Sparkles, mechanic: Wrench, accountant: Calculator,
-  accountant_senior: Calculator,
+  accountant_senior: Calculator, assistant: Briefcase,
 };
 
 // Rollen → Gruppen für Filter-Chips und Gruppierung
@@ -18,23 +18,25 @@ const FILTER_GROUPS = [
   { id: "cleaner", label: "Reinigung", icon: Sparkles },
   { id: "mechanic", label: "Werkstatt", icon: Wrench },
   { id: "accountant", label: "Buchhaltung", icon: Calculator },
+  { id: "assistant", label: "Geschäftsführung", icon: Briefcase },
 ];
 
 // Rolle → Gruppen-ID
 function roleGroup(role) {
   if (role === "dispatcher" || role === "dispatcher_senior") return "dispatcher";
   if (role === "accountant" || role === "accountant_senior") return "accountant";
-  return role; // driver, cleaner, mechanic
+  return role; // driver, cleaner, mechanic, assistant
 }
 
 // Gruppen-Reihenfolge für die Anzeige
-const GROUP_ORDER = ["driver", "dispatcher", "cleaner", "mechanic", "accountant"];
+const GROUP_ORDER = ["driver", "dispatcher", "cleaner", "mechanic", "accountant", "assistant"];
 const GROUP_LABELS = {
   driver: "Fahrer",
   dispatcher: "Disponenten",
   cleaner: "Reinigung",
   mechanic: "Werkstatt",
   accountant: "Buchhaltung",
+  assistant: "Geschäftsführung",
 };
 
 export default function TeamTab({ drivers, employees, state, filter, setFilter, search, setSearch, onManage, onSetup }) {

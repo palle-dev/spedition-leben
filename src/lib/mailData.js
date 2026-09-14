@@ -12,6 +12,7 @@ const PERSON_ROLE_LABELS = {
   mechanic: "Werkstattmitarbeiter",
   accountant: "Buchhalter/Buchhalterin",
   accountant_senior: "Erfahrene Buchhaltungskraft",
+  assistant: "Assistent der Geschäftsführung",
 };
 
 export function getPersonInfo(state, personId) {
