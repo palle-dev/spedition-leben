@@ -980,12 +980,11 @@ export function suggestTours(state, opts) {
     !activeTourOrderIds.has(o.id)
   ).length;
 
-  // Performance: Fahrzeug-Limit. Bei 100 freien Lkw und 10 Aufträgen
-  // brauchen wir nicht alle 100 zu prüfen. Limit auf max(orders×2, 12),
-  // damit jeder Auftrag mit 2 Fahrzeug-Kandidaten geprüft wird.
-  const maxVehicles = Math.min(effectiveVehicleIds.length, Math.max(totalAvailableOrders * 2, 12));
-
-  for (let vi = 0; vi < maxVehicles; vi++) {
+  // Early-Exit reicht als Performance-Optimierung: sobald alle Aufträge
+  // verplant sind, wird abgebrochen. Ein festes Fahrzeug-Limit würde
+  // Fahrzeuge an entfernten Standorten überspringen, wenn die ersten N
+  // Lkw alle am Hauptsitz stehen — das würde Filial-Disposition brechen.
+  for (let vi = 0; vi < effectiveVehicleIds.length; vi++) {
     const vehicleId = effectiveVehicleIds[vi];
     const vehicle = state.vehicles.find(v => v.id === vehicleId);
     if (!vehicle) continue;
@@ -1061,7 +1060,7 @@ export function suggestTours(state, opts) {
     // Reine Vergütungs-Sortierung bevorzugt Express-Aufträge mit hohen Preisen
     // aber unrealisierbar kurzen Lieferfristen, die dann alle durch buildTourPlan
     // abgelehnt werden und die machbaren Advance-Aufträge verdrängen.
-    if (allOrders.length > 8) {
+    if (allOrders.length > 12) {
       const vehicleCity = vehicleFutureCity;
       const scored = allOrders.map(o => {
         const emptyKm = getDistance(vehicleCity, o.fromCity);
@@ -1071,7 +1070,7 @@ export function suggestTours(state, opts) {
       });
       scored.sort((a, b) => b.score - a.score);
       allOrders.length = 0;
-      for (const s of scored.slice(0, 8)) allOrders.push(s.o);
+      for (const s of scored.slice(0, 12)) allOrders.push(s.o);
     }
 
     // Probiere jeden Kandidaten-Fahrer und wähle den mit dem besten Plan.
