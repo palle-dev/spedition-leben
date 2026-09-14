@@ -959,16 +959,20 @@ export function suggestTours(state, opts) {
     }
   }
 
-  // Performance: Wenn freie/ruhende Lkw verfügbar sind, plane nur für diese.
-  // on_trip-Vorausplanung ist teuer (futureLocation/earliestAvailable pro Lkw)
-  // und nur relevant, wenn alle Lkw beschäftigt sind.
+  // Freie/ruhende Lkw zuerst, dann on_trip-Rückkehrer. Der Early-Exit unten
+  // stoppt sobald alle Aufträge verplant sind — on_trip-Lkw werden nur
+  // erreicht, wenn die freien Lkw nicht ausreichen. Das ermöglicht
+  // Vorausplanung für Rückkehrer an Filialen, statt Aufträge aufzustauen.
   const allCandidateVehicles = (vehicleIds || state.vehicles.map(v => v.id))
     .map(vid => state.vehicles.find(v => v.id === vid))
     .filter(v => v && (v.status === "free" || v.status === "resting" || v.status === "on_trip"));
-  const hasFreeOrResting = allCandidateVehicles.some(v => v.status === "free" || v.status === "resting");
-  const effectiveVehicleIds = hasFreeOrResting
-    ? allCandidateVehicles.filter(v => v.status === "free" || v.status === "resting").map(v => v.id)
-    : allCandidateVehicles.map(v => v.id);
+  const effectiveVehicleIds = allCandidateVehicles
+    .sort((a, b) => {
+      const aFree = a.status === "free" || a.status === "resting" ? 0 : 1;
+      const bFree = b.status === "free" || b.status === "resting" ? 0 : 1;
+      return aFree - bFree;
+    })
+    .map(v => v.id);
 
   // Performance: Gesamtzahl verfügbarer Aufträge zählen für Early-Exit.
   // Wenn alle Aufträge verplant sind, müssen keine weiteren Fahrzeuge
