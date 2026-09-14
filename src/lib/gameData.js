@@ -115,6 +115,7 @@ export const ROLE_LABELS = {
   accountant: "Buchhaltung",
   accountant_senior: "Erf. Buchhaltung",
   assistant: "Geschäftsführung",
+  branch_manager: "Filialleiter",
 };
 
 export const ROLE_ICONS = {
@@ -126,4 +127,5 @@ export const ROLE_ICONS = {
   accountant: "Calculator",
   accountant_senior: "Calculator",
   assistant: "Briefcase",
+  branch_manager: "Building2",
 };

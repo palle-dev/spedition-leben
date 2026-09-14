@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Search, Users, Truck, Headset, Sparkles, Wrench, Calculator, Settings, MapPin, Clock, Briefcase } from "lucide-react";
+import { Search, Users, Truck, Headset, Sparkles, Wrench, Calculator, Settings, MapPin, Clock, Briefcase, Building2 } from "lucide-react";
 import Portrait from "@/components/ui/Portrait";
 import { formatEuro, formatGameTime } from "@/lib/gameData";
 import { roleLabel, satisfactionLabel, attendanceLabel, workModeLabel, employmentStatusLabel } from "@/lib/displayHelpers";
@@ -7,7 +7,7 @@ import { roleLabel, satisfactionLabel, attendanceLabel, workModeLabel, employmen
 const ROLE_ICON = {
   driver: Truck, dispatcher: Headset, dispatcher_senior: Headset,
   cleaner: Sparkles, mechanic: Wrench, accountant: Calculator,
-  accountant_senior: Calculator, assistant: Briefcase,
+  accountant_senior: Calculator, assistant: Briefcase, branch_manager: Building2,
 };
 
 // Rollen → Gruppen für Filter-Chips und Gruppierung
@@ -19,6 +19,7 @@ const FILTER_GROUPS = [
   { id: "mechanic", label: "Werkstatt", icon: Wrench },
   { id: "accountant", label: "Buchhaltung", icon: Calculator },
   { id: "assistant", label: "Geschäftsführung", icon: Briefcase },
+  { id: "branch_manager", label: "Filialleiter", icon: Building2 },
 ];
 
 // Rolle → Gruppen-ID
@@ -29,7 +30,7 @@ function roleGroup(role) {
 }
 
 // Gruppen-Reihenfolge für die Anzeige
-const GROUP_ORDER = ["driver", "dispatcher", "cleaner", "mechanic", "accountant", "assistant"];
+const GROUP_ORDER = ["driver", "dispatcher", "cleaner", "mechanic", "accountant", "assistant", "branch_manager"];
 const GROUP_LABELS = {
   driver: "Fahrer",
   dispatcher: "Disponenten",
@@ -37,6 +38,7 @@ const GROUP_LABELS = {
   mechanic: "Werkstatt",
   accountant: "Buchhaltung",
   assistant: "Geschäftsführung",
+  branch_manager: "Filialleiter",
 };
 
 export default function TeamTab({ drivers, employees, state, filter, setFilter, search, setSearch, onManage, onSetup }) {

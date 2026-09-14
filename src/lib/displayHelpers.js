@@ -47,6 +47,7 @@ export function roleLabel(role) {
     cleaner: "Reinigungskraft", mechanic: "Werkstattmitarbeiter",
     accountant: "Buchhalter/Buchhalterin", accountant_senior: "Erf. Buchhaltungskraft",
     assistant: "Assistent der Geschäftsführung",
+  branch_manager: "Filialleiter",
   };
   return labels[role] || role;
 }
@@ -58,6 +59,7 @@ export function roleIconName(role) {
     cleaner: "Sparkles", mechanic: "Wrench", accountant: "Calculator",
     accountant_senior: "Calculator",
     assistant: "Briefcase",
+  branch_manager: "Building2",
   };
   return icons[role] || "User";
 }

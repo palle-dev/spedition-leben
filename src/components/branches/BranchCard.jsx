@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime } from "@/lib/gameData";
-import { vehicleDisplayName } from "@/lib/displayHelpers";
-import { Building2, MapPin, Truck, Users, Headset, TrendingUp, Wallet, Edit2, X, ArrowRight, Crown, Check } from "lucide-react";
+import { vehicleDisplayName, roleLabel } from "@/lib/displayHelpers";
+import Portrait from "@/components/ui/Portrait";
+import { Building2, MapPin, Truck, Users, Headset, TrendingUp, Wallet, Edit2, X, ArrowRight, Crown, Check, Zap, ShieldCheck } from "lucide-react";
 
 export default function BranchCard({ branch, onMoveResource }) {
   const { state, send, showToast } = useGame();
@@ -14,6 +15,8 @@ export default function BranchCard({ branch, onMoveResource }) {
   const vehicles = (state.vehicles || []).filter(v => v.branchId === branch.id && v.status !== "sold" && v.status !== "archived");
   const drivers = (state.drivers || []).filter(d => d.branchId === branch.id && d.employmentStatus === "employed");
   const dispatchers = (state.employees || []).filter(e => e.assignedBranchId === branch.id && e.employmentStatus === "employed");
+  const manager = (state.employees || []).find(e => e.role === "branch_manager" && e.assignedBranchId === branch.id && e.employmentStatus === "employed");
+  const [modeBusy, setModeBusy] = useState(false);
   const activeVehicles = vehicles.filter(v => v.status === "on_trip").length;
   const utilization = vehicles.length > 0 ? Math.round(activeVehicles / vehicles.length * 100) : 0;
   const stats = branch.stats || { revenueCents: 0, deliveries: 0, expensesCents: 0 };
@@ -85,6 +88,40 @@ export default function BranchCard({ branch, onMoveResource }) {
         <ResourceChip icon={Users} label="Fahrer" value={drivers.length} />
         <ResourceChip icon={Headset} label="Dispo" value={dispatchers.length} />
       </div>
+
+      {/* Filialleiter */}
+      {manager && (
+        <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg bg-surface-2/40 border border-white/5">
+          <Portrait portraitId={manager.portraitId} name={manager.name} size="sm" />
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-medium text-foreground truncate">{manager.name}</div>
+            <div className="text-[10px] text-muted-foreground">Filialleiter</div>
+          </div>
+          <button
+            onClick={async () => {
+              setModeBusy(true);
+              try {
+                await send("setBranchManagerMode", {
+                  employeeId: manager.id,
+                  mode: manager.managementMode === "autonomous" ? "requests_approval" : "autonomous",
+                });
+                showToast(manager.managementMode === "autonomous" ? "Modus: Freigaben erforderlich" : "Modus: Autonom", "success");
+              } catch (e) { showToast(e.message, "error"); }
+              finally { setModeBusy(false); }
+            }}
+            disabled={modeBusy}
+            className={`flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-medium border transition disabled:opacity-50 ${
+              manager.managementMode === "autonomous"
+                ? "bg-lime/10 border-lime/30 text-lime hover:bg-lime/20"
+                : "bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20"
+            }`}
+            title={manager.managementMode === "autonomous" ? "Autonom: Kleine Entscheidungen selbstständig" : "Freigaben: Alle Entscheidungen müssen freigegeben werden"}
+          >
+            {manager.managementMode === "autonomous" ? <Zap className="w-3 h-3" /> : <ShieldCheck className="w-3 h-3" />}
+            {manager.managementMode === "autonomous" ? "Autonom" : "Freigabe"}
+          </button>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-2 text-xs mb-3">

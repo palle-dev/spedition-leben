@@ -7,15 +7,15 @@ import ApplicantCard from "@/components/personnel/ApplicantCard";
 import BranchSelector from "@/components/branches/BranchSelector";
 import Drawer from "@/components/ui/Drawer";
 import Portrait from "@/components/ui/Portrait";
-import { Search, RotateCcw, Briefcase, ChevronLeft, ChevronRight, Truck, Headset, Sparkles, Wrench, Calculator, Users, Star, UserPlus, MapPin, Clock } from "lucide-react";
+import { Search, RotateCcw, Briefcase, ChevronLeft, ChevronRight, Truck, Headset, Sparkles, Wrench, Building2, Calculator, Users, Star, UserPlus, MapPin, Clock } from "lucide-react";
 
 const ROLE_ICON = {
   driver: Truck, dispatcher: Headset, dispatcher_senior: Headset,
   cleaner: Sparkles, mechanic: Wrench, accountant: Calculator, accountant_senior: Calculator,
-  assistant: Briefcase,
+  assistant: Briefcase, branch_manager: Building2,
 };
 
-const ROLE_ORDER = ["assistant", "driver", "dispatcher", "dispatcher_senior", "mechanic", "cleaner", "accountant", "accountant_senior"];
+const ROLE_ORDER = ["assistant", "branch_manager", "driver", "dispatcher", "dispatcher_senior", "mechanic", "cleaner", "accountant", "accountant_senior"];
 const PAGE_SIZE = 12;
 
 export default function ApplicantBrowser({ onPostJob, dailyCosts }) {
@@ -55,8 +55,8 @@ export default function ApplicantBrowser({ onPostJob, dailyCosts }) {
       // Standort-Filter
       if (locationFilter !== "all" && a.locationCity !== locationFilter) return false;
       // Profil-Filter
-      if (profileFilter === "standard" && (a.role === "dispatcher_senior" || a.role === "accountant_senior")) return false;
-      if (profileFilter === "senior" && a.role !== "dispatcher_senior" && a.role !== "accountant_senior") return false;
+      if (profileFilter === "standard" && (a.role === "dispatcher_senior" || a.role === "accountant_senior" || a.role === "branch_manager")) return false;
+      if (profileFilter === "senior" && a.role !== "dispatcher_senior" && a.role !== "accountant_senior" && a.role !== "branch_manager") return false;
       return true;
     });
     // Sortierung
@@ -319,7 +319,7 @@ function ApplicantDetail({ app, state, onHire, busy, disabled, dailyCosts }) {
           <div className="font-medium truncate">{app.name}</div>
           <div className="text-xs text-muted-foreground mt-0.5">{roleLabel(app.role)}</div>
           <div className="text-[10px] text-muted-foreground/70 mt-1">
-            {app.role === "dispatcher_senior" || app.role === "accountant_senior" ? "Erfahrenes Profil" : "Standard-Profil"}
+            {app.role === "dispatcher_senior" || app.role === "accountant_senior" || app.role === "branch_manager" ? "Erfahrenes Profil" : "Standard-Profil"}
           </div>
         </div>
       </div>

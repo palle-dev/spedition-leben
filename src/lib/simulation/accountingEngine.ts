@@ -829,6 +829,7 @@ export function roleExpenseAccount(role) {
     cleaner: "5130", mechanic: "5130",
     accountant: "5120", accountant_senior: "5120",
     assistant: "5140",
+    branch_manager: "5140",
   };
   return map[role] || "5120";
 }

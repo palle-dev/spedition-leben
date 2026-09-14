@@ -141,6 +141,7 @@ export const PERSONNEL_ROLES = {
   accountant:         { id: "accountant",         label: "Buchhalter/Buchhalterin",       hireFeeCents: 40000,  costPerDayCents: 12000, capacity: 40 },
   accountant_senior:  { id: "accountant_senior",  label: "Erfahrene Buchhaltungskraft",   hireFeeCents: 70000,  costPerDayCents: 19000, capacity: 80 },
   assistant:          { id: "assistant",          label: "Assistent der Geschäftsführung", hireFeeCents: 80000,  costPerDayCents: 22000, capacity: 0 },
+  branch_manager:     { id: "branch_manager",     label: "Filialleiter",                    hireFeeCents: 120000, costPerDayCents: 35000, capacity: 0 },
 };
 
 // Dienstzeiten für nicht fahrende Mitarbeiter (Buchhaltung, Reinigung etc.)
@@ -165,6 +166,7 @@ export const APPLICANT_NAMES = {
   mechanic:          ["Manfred Brod", "Veit Karger"],
   accountant:        ["Greta Möller", "Tobias Brandt"],
   assistant:         ["Lorenz Greif", "Christine Stahl"],
+  branch_manager:    ["Max Becker", "Lena Walter", "Karl Herrmann", "Inge Keller"],
 };
 
 // Porträt-Katalog: 12 einheitliche Cartoon-Porträts.

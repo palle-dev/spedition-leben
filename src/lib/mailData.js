@@ -13,6 +13,7 @@ const PERSON_ROLE_LABELS = {
   accountant: "Buchhalter/Buchhalterin",
   accountant_senior: "Erfahrene Buchhaltungskraft",
   assistant: "Assistent der Geschäftsführung",
+  branch_manager: "Filialleiter",
 };
 
 export function getPersonInfo(state, personId) {

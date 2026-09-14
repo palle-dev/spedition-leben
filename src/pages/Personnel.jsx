@@ -14,13 +14,13 @@ import TeamClimate from "@/components/personnel/TeamClimate";
 import TeamTab from "@/components/personnel/TeamTab";
 import SatisfactionDetail from "@/components/personnel/SatisfactionDetail";
 import DevelopmentSection from "@/components/personnel/DevelopmentSection";
-import { UserPlus, Users, MapPin, Clock, Truck, Headset, Sparkles, Wrench, Calculator, Settings, Check, X, AlertCircle, Briefcase, LogOut, RotateCcw, HeartHandshake, GraduationCap, Search } from "lucide-react";
+import { UserPlus, Users, MapPin, Clock, Truck, Headset, Sparkles, Wrench, Calculator, Settings, Building2, Check, X, AlertCircle, Briefcase, LogOut, RotateCcw, HeartHandshake, GraduationCap, Search } from "lucide-react";
 
 const ROLE_ICON = {
   driver: Truck, dispatcher: Headset, dispatcher_senior: Headset,
   cleaner: Sparkles, mechanic: Wrench, accountant: Calculator,
   accountant_senior: Calculator,
-  assistant: Briefcase,
+  assistant: Briefcase, branch_manager: Building2,
 };
 
 export default function Personnel() {
@@ -76,7 +76,7 @@ export default function Personnel() {
     return groups;
   }, [applicants]);
 
-  const roleOrder = ["assistant", "dispatcher", "dispatcher_senior", "driver", "cleaner", "mechanic", "accountant"];
+  const roleOrder = ["assistant", "branch_manager", "dispatcher", "dispatcher_senior", "driver", "cleaner", "mechanic", "accountant", "accountant_senior"];
 
   return (
     <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1600px] mx-auto space-y-5">

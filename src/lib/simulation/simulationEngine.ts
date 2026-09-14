@@ -308,7 +308,7 @@ function doDailyAccounting(state, midnight) {
     const causeLabel = emp.role === "dispatcher" || emp.role === "dispatcher_senior" ? "Disposition"
       : emp.role === "cleaner" || emp.role === "mechanic" ? "Reinigung und Werkstatt"
       : emp.role === "accountant" || emp.role === "accountant_senior" ? "Buchhaltung"
-      : emp.role === "assistant" ? "Geschäftsführung" : "Lohn";
+      : emp.role === "assistant" || emp.role === "branch_manager" ? "Geschäftsführung" : "Lohn";
     const r = payCost(state, "company", emp.costPerDayCents, causeLabel + ": " + emp.name, emp.id, midnight, { employeeId: emp.id });
     log.push({ cause: causeLabel, employee: emp.name, role: emp.role, paid: r.paid, unpaid: r.unpaid });
   }
@@ -1497,7 +1497,7 @@ export function applyCommand(state, command, params) {
           attendance: "present", sickUntil: null, vacationUntil: null,
           vacationDaysAvailable: 3,
           activity: "idle", consecutiveLowSatisfactionDays: 0,
-          assignedVehicleIds: [], workMode: (role === "dispatcher" || role === "dispatcher_senior") ? "autonomous" : "suggestions", assignedBranchId: (role === "dispatcher" || role === "dispatcher_senior") ? hireBranchId2 : undefined,
+          assignedVehicleIds: [], workMode: (role === "dispatcher" || role === "dispatcher_senior" || role === "branch_manager") ? "autonomous" : "suggestions", managementMode: role === "branch_manager" ? "requests_approval" : undefined, assignedBranchId: (role === "dispatcher" || role === "dispatcher_senior" || role === "branch_manager") ? hireBranchId2 : undefined,
           capacity: app.capacity || roleDef.capacity,
           lastDecisionMin: null, suggestions: [],
           portraitId: app.portraitId || null,

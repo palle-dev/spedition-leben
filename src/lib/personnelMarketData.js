@@ -26,6 +26,7 @@ export const ROLES = [
   { id: "accountant",         label: "Buchhalter/Buchhalterin", hireFeeCents: 40000,  costPerDayCents: 12000, capacity: 40, profile: "standard" },
   { id: "accountant_senior",  label: "Erfahrene Buchhaltungskraft", hireFeeCents: 70000, costPerDayCents: 19000, capacity: 80, profile: "senior" },
   { id: "assistant",          label: "Assistent der Geschäftsführung", hireFeeCents: 80000, costPerDayCents: 22000, capacity: 0, profile: "standard" },
+  { id: "branch_manager",     label: "Filialleiter", hireFeeCents: 120000, costPerDayCents: 35000, capacity: 0, profile: "senior" },
 ];
 
 export const ROLE_LABELS = {
@@ -37,6 +38,7 @@ export const ROLE_LABELS = {
   accountant: "Buchhalter/Buchhalterin",
   accountant_senior: "Erf. Buchhaltungskraft",
   assistant: "Assistent der Geschäftsführung",
+  branch_manager: "Filialleiter",
 };
 
 export const ROLE_ICONS = {
@@ -48,6 +50,7 @@ export const ROLE_ICONS = {
   accountant: "Calculator",
   accountant_senior: "Calculator",
   assistant: "Briefcase",
+  branch_manager: "Building2",
 };
 
 // Kapazitäts-Label je Rolle
@@ -62,7 +65,7 @@ export function capacityLabel(role, capacity) {
 
 // Profil-Label
 export function profileLabel(role) {
-  if (role === "dispatcher_senior" || role === "accountant_senior") return "Erfahren";
+  if (role === "dispatcher_senior" || role === "accountant_senior" || role === "branch_manager") return "Erfahren";
   return "Standard";
 }
 

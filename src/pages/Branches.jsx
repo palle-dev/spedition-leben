@@ -7,6 +7,7 @@ import BranchMap from "@/components/branches/BranchMap";
 import BranchOverview from "@/components/branches/BranchOverview";
 import OpenBranchDialog from "@/components/branches/OpenBranchDialog";
 import MoveResourceDialog from "@/components/branches/MoveResourceDialog";
+import BranchDecisionsPanel from "@/components/branches/BranchDecisionsPanel";
 import { Building2, Plus, Truck, Users, MapPin, ArrowRight, LayoutGrid, List } from "lucide-react";
 
 export default function Branches() {
@@ -58,6 +59,9 @@ export default function Branches() {
           <Plus className="w-4 h-4" /> Filiale eröffnen
         </button>
       </div>
+
+      {/* Filialleiter-Entscheidungen */}
+      <BranchDecisionsPanel />
 
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-white/10">
