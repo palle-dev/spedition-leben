@@ -83,11 +83,12 @@ export async function executeCommand(state, command, params) {
   try {
     const r = applyCommand(slim, command, paramsWithTime);
     let newState = r.state;
-    if (newState && command === "syncAutomation") {
-      newState = generateBranchDecisions(newState);
-      // Assistent der Geschäftsführung: stündliche Verarbeitung.
-      // Verfolgt die letzte verarbeitete Stunde und holt alle übersprungenen
-      // Stunden nach (Sync kann mehrere Stunden auf einmal abdecken).
+    // Assistent der Geschäftsführung: stündliche Verarbeitung.
+    // Läuft bei Zeitautomatik (syncAutomation) UND manuellem Zeitvorlauf (advanceTo).
+    if (newState && (command === "syncAutomation" || command === "advanceTo")) {
+      if (command === "syncAutomation") {
+        newState = generateBranchDecisions(newState);
+      }
       if (!newState.assistantState) newState.assistantState = { lastProcessedHour: 0 };
       const lastHour = newState.assistantState.lastProcessedHour || 0;
       const currentHour = Math.floor(newState.gameTime / 60);
@@ -96,8 +97,8 @@ export async function executeCommand(state, command, params) {
           e.role === "assistant" && e.employmentStatus === "employed" && e.attendance === "present"
         );
         if (assistants.length > 0) {
-          // Maximal 3 Stunden pro Sync abarbeiten (CPU-Schutz)
-          const maxHours = 3;
+          // Maximal 8 Stunden pro Aufruf abarbeiten (CPU-Schutz)
+          const maxHours = 8;
           const startHour = Math.max(lastHour + 1, currentHour - maxHours + 1);
           for (let h = startHour; h <= currentHour; h++) {
             const t = h * 60;

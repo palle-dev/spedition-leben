@@ -869,6 +869,120 @@ export function monitorFleetUtilization(state, emp, m, log) {
   log.push({ type: "assistant_fleet_warning", employee: emp.id, onTour, available, atMin: m });
 }
 
+// ---------- Proaktive Auto-Disposition ----------
+
+// Versucht, alle ungesplanten angenommenen Aufträge zu disponieren — nicht nur
+// die kurz vor der Frist. Wird jede Stunde aufgerufen, wenn autoDispatch aktiv.
+// Ruft suggestTours einmal auf und bestätigt alle passenden Vorschläge.
+export function proactiveAutoDispatch(state, emp, m, log) {
+  const config = state.assistantConfig || {};
+  if (config.autoDispatch === false) return;
+
+  const busyOrderIds = new Set();
+  for (const tr of state.trips) { if (tr.status === "in_progress" && tr.orderId) busyOrderIds.add(tr.orderId); }
+  for (const tr of (state.tours || [])) {
+    if (tr.status !== "active") continue;
+    for (const d of (tr.deployments || [])) { if (d.orderId && d.status !== "cancelled") busyOrderIds.add(d.orderId); }
+  }
+  const unplanned = (state.orders || []).filter(o => o.status === "angenommen" && !busyOrderIds.has(o.id));
+  if (unplanned.length === 0) return;
+
+  const poolVehicles = (state.vehicles || []).filter(v =>
+    v.status !== "sold" && v.status !== "archived" && !v.markedForSale
+  );
+  const poolVehicleIds = poolVehicles.map(v => v.id);
+  if (poolVehicleIds.length === 0) return;
+
+  let result;
+  try {
+    result = suggestTours(state, {
+      vehicleIds: poolVehicleIds,
+      earliestStart: m,
+      horizonMin: 2880,
+      desiredEndCity: null,
+      latestReturnMin: null,
+      mode: state.marketPriority || "balanced",
+      acceptNew: false,
+    });
+  } catch (e) {
+    return;
+  }
+
+  const unplannedIds = new Set(unplanned.map(o => o.id));
+  const usedVehicleIds = new Set();
+  let dispatched = 0;
+  const maxPerHour = 3; // CPU-Schutz
+
+  for (const matching of (result.suggestions || [])) {
+    if (dispatched >= maxPerHour) break;
+    if (usedVehicleIds.has(matching.vehicleId)) continue;
+    const hasUnplanned = matching.orderIds.some(oid => unplannedIds.has(oid));
+    if (!hasUnplanned) continue;
+
+    try {
+      const r = doConfirmTour(state, {
+        vehicleId: matching.vehicleId,
+        driverId: matching.driverId,
+        orderIds: matching.orderIds,
+        desiredEndCity: matching.plan.desiredEndCity || null,
+        latestReturnMin: matching.plan.latestReturnMin || null,
+      });
+      usedVehicleIds.add(matching.vehicleId);
+
+      for (const oid of matching.orderIds) {
+        const o = state.orders.find(x => x.id === oid);
+        if (!o) continue;
+        o.plannedById = emp.id;
+        o.plannedByName = emp.name;
+        o.history = o.history || [];
+        o.history.push({ type: "planned", min: m, actor: emp.id, actorName: emp.name, details: { vehicleId: matching.vehicleId, driverId: matching.driverId, auto: true } });
+      }
+
+      const primaryOrder = state.orders.find(x => x.id === matching.orderIds[0]);
+      logAssistantActivity(state, {
+        gameTime: m,
+        type: "order_auto_dispatched",
+        assistantId: emp.id,
+        assistantName: emp.name,
+        details: {
+          orderId: primaryOrder?.id,
+          customer: primaryOrder?.customer,
+          fromCity: primaryOrder?.fromCity,
+          toCity: primaryOrder?.toCity,
+          vehicleId: matching.vehicleId,
+          driverId: matching.driverId,
+          tourId: r.tourId,
+        },
+      });
+
+      pushEvent(state, {
+        type: "order_auto_dispatched",
+        gameTime: m,
+        employeeId: emp.id,
+        employeeName: emp.name,
+        portraitId: emp.portraitId,
+        orderIds: matching.orderIds,
+        tourId: r.tourId,
+        vehicleId: matching.vehicleId,
+        driverId: matching.driverId,
+        details: {
+          customer: primaryOrder?.customer,
+          fromCity: primaryOrder?.fromCity,
+          toCity: primaryOrder?.toCity,
+        },
+        dedupKey: "order_auto_dispatched:" + matching.orderIds[0],
+      });
+
+      log.push({ type: "assistant_auto_dispatch", employee: emp.id, orders: matching.orderIds, vehicle: matching.vehicleId, atMin: m });
+      dispatched++;
+    } catch (e) {
+      // Bestätigung fehlgeschlagen – weitermachen
+    }
+  }
+
+  return dispatched;
+}
+
 // ---------- Haupt-Einstiegspunkte ----------
 
 // Wird stündlich vom Adapter aufgerufen (zur vollen Spielstunde).
@@ -902,7 +1016,12 @@ export function processAssistant(state, emp, m, log) {
     processAssistantAccounting(state, emp, m);
   }
 
-  // F) Auftragsüberwachung & Auto-Disposition: jede Stunde
+  // F) Proaktive Auto-Disposition: jede Stunde alle ungesplanten Aufträge versuchen
+  if (config.autoDispatch !== false) {
+    proactiveAutoDispatch(state, emp, m, log);
+  }
+
+  // F2) Frist-Überwachung & Warnungen: jede Stunde (Sicherheitsnetz für Rest-Aufträge)
   monitorOrderDeadlines(state, emp, m, log);
 
   // G) Auftragsrückstau-Überwachung: jede Stunde
