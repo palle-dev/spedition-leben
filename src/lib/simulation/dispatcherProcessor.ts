@@ -150,17 +150,24 @@ export function processDispatcher(state, emp, m, log) {
 
   // Skip-Cache: Vermeidet redundante suggestTours-Aufrufe wenn sich die Situation
   // seit dem letzten Planungsversuch nicht geändert hat.
-  // Stufe 1: Wenn 0 Touren geplant wurden und die Auftrags-/Fahrzeuglage
-  // unverändert ist, 2h überspringen.
+  // Stufe 1: Wenn 0 Touren geplant wurden und die Lage unverändert ist,
+  // 30 min überspringen (früher 120 min — das war zu lang und hat
+  // Aufträge aufgestaut, weil Fahrer-Rückkehr aus Ruhe nicht erfasst wurde).
   // Stufe 2: Wenn Touren geplant wurden, aber keine neuen Aufträge seitdem
   // (unplannedCount unverändert), 60min überspringen — die bestehenden
   // Vorschläge sind noch gültig.
+  // WICHTIG: freeDriverCount ist Teil des Context-Keys, damit die
+  // Rückkehr eines Fahrers aus der Pause den Cache sofort invalidiert.
   const unplannedCount = state.orders.filter(o => o.status === "angenommen" && !busyOrderIds.has(o.id)).length;
   const offeredCount = hasOfferedOrders ? state.orders.filter(o => o.status === "offered" && o.acceptDeadlineMin > m).length : 0;
   const freeVehicleCount = poolVehicles.filter(v => v.status === "free" || v.status === "resting").length;
-  const contextKey = unplannedCount + ":" + offeredCount + ":" + freeVehicleCount;
+  const freeDriverCount = (state.drivers || []).filter(d =>
+    d.employmentStatus === "employed" && d.attendance !== "released" &&
+    (d.status === "free" || d.status === "resting")
+  ).length;
+  const contextKey = unplannedCount + ":" + offeredCount + ":" + freeVehicleCount + ":" + freeDriverCount;
   if (emp._lastPlanContext === contextKey) {
-    if (emp._lastPlanPlanned === 0 && m - (emp.lastDecisionMin || 0) < 120) return;
+    if (emp._lastPlanPlanned === 0 && m - (emp.lastDecisionMin || 0) < 30) return;
     if (emp._lastPlanPlanned > 0 && unplannedCount === 0 && m - (emp.lastDecisionMin || 0) < 60) return;
   }
   emp._lastPlanContext = contextKey;

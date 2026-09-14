@@ -878,11 +878,12 @@ export function proactiveAutoDispatch(state, emp, m, log) {
   const config = state.assistantConfig || {};
   if (config.autoDispatch === false) return;
 
-  // Performance: Überspringen, wenn autonome Disponenten im Dienst sind —
-  // diese disponieren bereits über processDispatcher. Vermeidet redundante
-  // suggestTours-Aufrufe (welche bei großen Flotten sehr teuer sind).
+  // Performance: Überspringen, wenn autonome Disponenten im Dienst sind UND
+  // kürzlich erfolgreich Touren geplant haben. Wenn der Disponent jedoch 0
+  // Touren planen konnte (z.B. wegen Skip-Cache oder confirmTour-Fehlern),
+  // fungiert der Assistent als Sicherheitsnetz und versucht es ebenfalls.
   const clock = m % 1440;
-  const hasAutonomousDispatcher = (state.employees || []).some(e =>
+  const autonomousDispatchers = (state.employees || []).filter(e =>
     (e.role === "dispatcher" || e.role === "dispatcher_senior") &&
     isActivelyEmployed(e) && e.attendance === "present" &&
     e.workMode === "autonomous" &&
@@ -890,7 +891,10 @@ export function proactiveAutoDispatch(state, emp, m, log) {
       ? (clock >= (e.shiftStart ?? SERVICE_START_MIN) && clock < (e.shiftEnd ?? SERVICE_END_MIN))
       : (clock >= (e.shiftStart ?? SERVICE_START_MIN) || clock < (e.shiftEnd ?? SERVICE_END_MIN))
   );
-  if (hasAutonomousDispatcher) return;
+  const dispatcherRecentlySucceeded = autonomousDispatchers.some(e =>
+    (e._lastPlanPlanned || 0) > 0 && m - (e.lastDecisionMin || 0) < 60
+  );
+  if (dispatcherRecentlySucceeded) return;
 
   const busyOrderIds = new Set();
   for (const tr of state.trips) { if (tr.status === "in_progress" && tr.orderId) busyOrderIds.add(tr.orderId); }
