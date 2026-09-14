@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro } from "@/lib/gameData";
 import { Switch } from "@/components/ui/switch";
-import { Settings, Loader2, Package, TrendingDown, FileText, Lightbulb, Calculator, Clock, Truck } from "lucide-react";
+import { Settings, Loader2, Package, TrendingDown, FileText, Lightbulb, Calculator, Clock, Truck, AlertTriangle } from "lucide-react";
 
 const FUNCTIONS = [
   { key: "dailyReport", label: "Tagesbericht", icon: FileText, desc: "Tägliche Zusammenfassung per Mail" },
@@ -12,6 +12,7 @@ const FUNCTIONS = [
   { key: "costOptimization", label: "Gemeinkostenoptimierung", icon: TrendingDown, desc: "Standortkosten bei Leerstand senken" },
   { key: "decisionProposals", label: "Entscheidungsvorschläge", icon: Lightbulb, desc: "Vorschläge für anstehende Entscheidungen" },
   { key: "accounting", label: "Buchhaltungs-Support", icon: Calculator, desc: "Buchhaltungsaufgaben vorbereiten" },
+  { key: "backlogMonitoring", label: "Rückstau-Überwachung", icon: AlertTriangle, desc: "Warnt bei zu vielen ungesplanten Aufträgen" },
 ];
 
 const DEFAULTS = {
@@ -26,6 +27,8 @@ const DEFAULTS = {
   autoAcceptMinLiquidityCents: 50000,
   autoDispatchHoursBeforeDeadline: 4,
   maxOrdersPerHour: 3,
+  maxBacklogOrders: 5,
+  backlogMonitoring: true,
 };
 
 export default function AssistantConfig() {
@@ -138,6 +141,15 @@ export default function AssistantConfig() {
           unit=""
           min={1}
           max={20}
+          step={1}
+        />
+        <LimitInput
+          label="Rückstau-Schwellenwert"
+          value={local.maxBacklogOrders}
+          onChange={v => setLimit("maxBacklogOrders", v)}
+          unit=" Aufträge"
+          min={1}
+          max={30}
           step={1}
         />
       </div>

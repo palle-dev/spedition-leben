@@ -266,6 +266,11 @@ export function processDispatcher(state, emp, m, log) {
     v.idleReason = reason;
     v.idleReasonAtMin = m;
   }
+  // Backlog für Assistent und UI dokumentieren
+  const stillBusy = new Set(busyOrderIds);
+  for (const oid of usedOrderIds) stillBusy.add(oid);
+  emp.backlogCount = (state.orders || []).filter(o => o.status === "angenommen" && !stillBusy.has(o.id)).length;
+
   emp.lastDecisionMin = m;
   emp._lastPlanPlanned = planned;
   emp.lastPlanningResult = { atMin: m, planned, totalVehicles: poolVehicles.length, usedVehicles: usedVehicleIds.size, suggested: result.suggestions.length };

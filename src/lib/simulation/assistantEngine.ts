@@ -37,6 +37,8 @@ export function migrateAssistant(state) {
       autoAcceptMinLiquidityCents: 50000,
       autoDispatchHoursBeforeDeadline: 4,
       maxOrdersPerHour: 3,
+      maxBacklogOrders: 5,
+      backlogMonitoring: true,
     };
   }
 }
@@ -133,6 +135,18 @@ export function autoAcceptOrders(state, emp, m, log) {
     o.status === "offered" && o.acceptDeadlineMin > m
   );
   if (offered.length === 0) return;
+
+  // Backlog-Schutz: keine neuen Aufträge annehmen, wenn bereits zu viele
+  // ungesplante angenommene Aufträge vorliegen (verhindert Aufstau).
+  const busyOrderIds = new Set();
+  for (const tr of state.trips) { if (tr.status === "in_progress" && tr.orderId) busyOrderIds.add(tr.orderId); }
+  for (const tr of (state.tours || [])) {
+    if (tr.status !== "active") continue;
+    for (const d of (tr.deployments || [])) { if (d.orderId && d.status !== "cancelled") busyOrderIds.add(d.orderId); }
+  }
+  const unplannedBacklog = (state.orders || []).filter(o => o.status === "angenommen" && !busyOrderIds.has(o.id)).length;
+  const maxBacklog = config.maxBacklogOrders ?? 5;
+  if (unplannedBacklog >= maxBacklog) return;
 
   let accepted = 0;
   for (const o of offered) {
@@ -521,6 +535,96 @@ function tryAutoDispatch(state, emp, order, m, log) {
   }
 }
 
+// ---------- G) Auftragsrückstau-Überwachung ----------
+
+export function monitorOrderBacklog(state, emp, m, log) {
+  const config = state.assistantConfig || {};
+  if (config.backlogMonitoring === false) return;
+
+  const busyOrderIds = new Set();
+  for (const tr of state.trips) { if (tr.status === "in_progress" && tr.orderId) busyOrderIds.add(tr.orderId); }
+  for (const tr of (state.tours || [])) {
+    if (tr.status !== "active") continue;
+    for (const d of (tr.deployments || [])) { if (d.orderId && d.status !== "cancelled") busyOrderIds.add(d.orderId); }
+  }
+  const backlog = (state.orders || []).filter(o => o.status === "angenommen" && !busyOrderIds.has(o.id));
+  const threshold = config.maxBacklogOrders ?? 5;
+  if (backlog.length < threshold) return;
+
+  // Nur einmal pro Tag warnen
+  const day = dayOf(m);
+  const warnKey = "backlog_warn_" + day;
+  state.assistantState = state.assistantState || {};
+  if (state.assistantState[warnKey]) return;
+  state.assistantState[warnKey] = true;
+
+  // Ursachenanalyse
+  const freeVehicles = (state.vehicles || []).filter(v =>
+    v.status === "free" && v.condition >= 20 && !v.markedForSale
+  );
+  const freeDrivers = (state.drivers || []).filter(d =>
+    d.employmentStatus === "employed" && d.attendance !== "released" && d.status === "free"
+  );
+
+  let bottleneck, suggestion;
+  if (freeVehicles.length === 0) {
+    const totalVehicles = (state.vehicles || []).filter(v => v.status !== "sold" && v.status !== "archived").length;
+    bottleneck = "Keine freien Fahrzeuge (" + totalVehicles + " gesamt, alle auf Tour/Wartung)";
+    suggestion = "Fahrzeug kaufen oder leasen, oder bestehende Touren abschließen lassen";
+  } else if (freeDrivers.length === 0) {
+    const totalDrivers = (state.drivers || []).filter(d => d.employmentStatus === "employed").length;
+    bottleneck = "Keine freien Fahrer (" + totalDrivers + " beschäftigt, alle auf Tour/Ruhe)";
+    suggestion = "Fahrer einstellen oder bestehende Touren abschließen lassen";
+  } else {
+    bottleneck = "Fahrer/Fahrzeug nicht am gleichen Ort oder Touren nicht profitabel";
+    suggestion = "Marktpriorität anpassen, Leerfahrten planen oder unrentable Aufträge stornieren";
+  }
+
+  logAssistantActivity(state, {
+    gameTime: m,
+    type: "order_backlog_warning",
+    assistantId: emp.id,
+    assistantName: emp.name,
+    details: {
+      backlogCount: backlog.length,
+      threshold,
+      bottleneck,
+      suggestion,
+      freeVehicles: freeVehicles.length,
+      freeDrivers: freeDrivers.length,
+    },
+  });
+
+  deliverMessage(state, {
+    fromId: emp.id,
+    toId: "player",
+    subject: "⚠️ Auftragsrückstau: " + backlog.length + " ungesplante Aufträge",
+    body: "Es liegen " + backlog.length + " angenommene Aufträge ohne geplante Tour vor (Schwellenwert: " + threshold + ").\n\n" +
+      "Ursache: " + bottleneck + "\n" +
+      "Freie Lkw: " + freeVehicles.length + ", Freie Fahrer: " + freeDrivers.length + "\n\n" +
+      "Empfehlung: " + suggestion + "\n\n" +
+      (config.autoAcceptOrders !== false
+        ? "Die Auto-Auftragsannahme wurde aufgrund des Rückstaus automatisch gestoppt. Aktivieren Sie sie erneut, sobald der Rückstau abgebaut ist."
+        : ""),
+    gameTime: m,
+    category: "decisions",
+    priority: "high",
+    dedupKey: warnKey,
+  });
+
+  pushEvent(state, {
+    type: "assistant_backlog_warning",
+    gameTime: m,
+    employeeId: emp.id,
+    employeeName: emp.name,
+    portraitId: emp.portraitId,
+    details: { backlogCount: backlog.length, bottleneck, suggestion },
+    dedupKey: warnKey,
+  });
+
+  log.push({ type: "assistant_backlog_warning", employee: emp.id, backlogCount: backlog.length, atMin: m });
+}
+
 // ---------- Haupt-Einstiegspunkte ----------
 
 // Wird stündlich vom Adapter aufgerufen (zur vollen Spielstunde).
@@ -556,6 +660,11 @@ export function processAssistant(state, emp, m, log) {
 
   // F) Auftragsüberwachung & Auto-Disposition: jede Stunde
   monitorOrderDeadlines(state, emp, m, log);
+
+  // G) Auftragsrückstau-Überwachung: jede Stunde
+  if (config.backlogMonitoring !== false) {
+    monitorOrderBacklog(state, emp, m, log);
+  }
 }
 
 // Wird beim Tagesabschluss (Mitternacht) aufgerufen.
