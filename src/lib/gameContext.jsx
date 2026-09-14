@@ -110,17 +110,19 @@ export function GameProvider({ children }) {
       for (const ev of events) { seenEventIdsRef.current.add(ev.id); if (ev.seq > lastEventSeqRef.current) lastEventSeqRef.current = ev.seq; }
       isInitialLoadRef.current = false;
     } else {
-      const newEvents = events.filter(ev => !seenEventIdsRef.current.has(ev.id) && ev.seq > lastEventSeqRef.current);
-      if (newEvents.length > 0) {
-        const newToasts = [];
-        for (const ev of newEvents) {
-          const t = eventToToast(ev);
-          if (t) newToasts.push(t);
-          seenEventIdsRef.current.add(ev.id);
-          if (ev.seq > lastEventSeqRef.current) lastEventSeqRef.current = ev.seq;
-        }
-        if (newToasts.length > 0) setToasts(prev => [...prev, ...newToasts].slice(-20));
+      // Events sind sortiert (seq aufsteigend) — vom Ende iterieren bis
+      // der letzte verarbeitete seq erreicht ist. O(k) statt O(n).
+      const newToasts = [];
+      for (let i = events.length - 1; i >= 0; i--) {
+        const ev = events[i];
+        if (ev.seq <= lastEventSeqRef.current) break;
+        if (seenEventIdsRef.current.has(ev.id)) { if (ev.seq > lastEventSeqRef.current) lastEventSeqRef.current = ev.seq; continue; }
+        const t = eventToToast(ev);
+        if (t) newToasts.unshift(t);
+        seenEventIdsRef.current.add(ev.id);
+        if (ev.seq > lastEventSeqRef.current) lastEventSeqRef.current = ev.seq;
       }
+      if (newToasts.length > 0) setToasts(prev => [...prev, ...newToasts].slice(-20));
     }
     setUnseenCount(getUnseenEventCount(newState));
   }, []);
@@ -169,7 +171,7 @@ export function GameProvider({ children }) {
       showToast(e.message, "error");
       throw e;
     } finally { setBusy(false); sendInFlightRef.current = false; }
-  }, [saveNow, processNewEvents, processResult, showToast]);
+  }, [markDirty, processNewEvents, processResult, showToast]);
 
   // ---- Zeitautomatik (lokal) ----
   const syncAutomation = useCallback(async () => {
