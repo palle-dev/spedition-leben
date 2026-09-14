@@ -947,6 +947,18 @@ export function suggestTours(state, opts) {
   const usedDriverIds = new Set();
   const usedOrderIds = new Set();
 
+  // Performance: Active-tour-Auftrags-IDs einmal pro suggestTours-Aufruf
+  // vorberechnen (statt pro Fahrzeug pro Auftrag). Eliminiert O(vehicles ×
+  // orders × tours × deployments) und ersetzt es durch O(tours × deployments)
+  // + O(1) Lookups.
+  const activeTourOrderIds = new Set();
+  for (const t of (state.tours || [])) {
+    if (t.status !== "active") continue;
+    for (const d of (t.deployments || [])) {
+      if (d.orderId && d.status !== "cancelled") activeTourOrderIds.add(d.orderId);
+    }
+  }
+
   // Performance: Wenn freie/ruhende Lkw verfügbar sind, plane nur für diese.
   // on_trip-Vorausplanung ist teuer (futureLocation/earliestAvailable pro Lkw)
   // und nur relevant, wenn alle Lkw beschäftigt sind.
@@ -958,7 +970,23 @@ export function suggestTours(state, opts) {
     ? allCandidateVehicles.filter(v => v.status === "free" || v.status === "resting").map(v => v.id)
     : allCandidateVehicles.map(v => v.id);
 
-  for (const vehicleId of effectiveVehicleIds) {
+  // Performance: Gesamtzahl verfügbarer Aufträge zählen für Early-Exit.
+  // Wenn alle Aufträge verplant sind, müssen keine weiteren Fahrzeuge
+  // geprüft werden — das spart bei 100 Fahrzeugen mit 10 Aufträgen 90%
+  // der buildTourPlan-Aufrufe.
+  const totalAvailableOrders = state.orders.filter(o =>
+    (o.status === "angenommen" || (acceptNew && o.status === "offered")) &&
+    o.deliveryDeadlineMin > startMin &&
+    !activeTourOrderIds.has(o.id)
+  ).length;
+
+  // Performance: Fahrzeug-Limit. Bei 100 freien Lkw und 10 Aufträgen
+  // brauchen wir nicht alle 100 zu prüfen. Limit auf max(orders×2, 12),
+  // damit jeder Auftrag mit 2 Fahrzeug-Kandidaten geprüft wird.
+  const maxVehicles = Math.min(effectiveVehicleIds.length, Math.max(totalAvailableOrders * 2, 12));
+
+  for (let vi = 0; vi < maxVehicles; vi++) {
+    const vehicleId = effectiveVehicleIds[vi];
     const vehicle = state.vehicles.find(v => v.id === vehicleId);
     if (!vehicle) continue;
     if (vehicle.status !== "free" && vehicle.status !== "resting" && vehicle.status !== "on_trip") continue;
@@ -977,10 +1005,10 @@ export function suggestTours(state, opts) {
       if (d.employmentStatus !== "employed") return false;
       if (usedDriverIds.has(d.id)) return false;
       if (d.status !== "free" && d.status !== "resting" && d.status !== "on_trip") return false;
-      const driverFutureCity = futureDriverLocation(state, d);
+      const driverFutureCity = _cached("futD:" + d.id, () => futureDriverLocation(state, d));
       if (driverFutureCity !== vehicleFutureCity) return false;
       if (d.status === "on_trip" || vehicle.status === "on_trip") {
-        const driverAvail = earliestAvailable(state, { id: null }, d);
+        const driverAvail = _cached("eaD:" + d.id, () => earliestAvailable(state, { id: null }, d));
         if (Math.abs(driverAvail - vehicleAvail) > 120) return false;
       }
       return true;
@@ -993,7 +1021,7 @@ export function suggestTours(state, opts) {
       if (d.employmentStatus !== "employed") return false;
       if (usedDriverIds.has(d.id)) return false;
       if (d.status !== "free") return false; // Nur freie Fahrer für Cross-City
-      const driverFutureCity = futureDriverLocation(state, d);
+      const driverFutureCity = _cached("futD:" + d.id, () => futureDriverLocation(state, d));
       if (driverFutureCity === vehicleFutureCity) return false; // bereits in sameCityDrivers
       return true;
     }) : [];
@@ -1010,7 +1038,7 @@ export function suggestTours(state, opts) {
       o.deliveryDeadlineMin > startMin &&
       o.tons <= vehicle.capacityTons &&
       !usedOrderIds.has(o.id) &&
-      !(state.tours || []).some(t => t.status === "active" && (t.deployments || []).some(d => d.orderId === o.id && d.status !== "cancelled"))
+      !activeTourOrderIds.has(o.id)
     );
 
     // 2. Offene Angebote (nur wenn acceptNew, nicht bereits zugewiesen)
@@ -1021,7 +1049,7 @@ export function suggestTours(state, opts) {
       o.deliveryDeadlineMin > startMin &&
       o.tons <= vehicle.capacityTons &&
       !usedOrderIds.has(o.id) &&
-      !(state.tours || []).some(t => t.status === "active" && (t.deployments || []).some(d => d.orderId === o.id && d.status !== "cancelled"))
+      !activeTourOrderIds.has(o.id)
     ) : [];
 
     const allOrders = [...acceptedOrders, ...offeredOrders];
@@ -1033,7 +1061,7 @@ export function suggestTours(state, opts) {
     // Reine Vergütungs-Sortierung bevorzugt Express-Aufträge mit hohen Preisen
     // aber unrealisierbar kurzen Lieferfristen, die dann alle durch buildTourPlan
     // abgelehnt werden und die machbaren Advance-Aufträge verdrängen.
-    if (allOrders.length > 12) {
+    if (allOrders.length > 8) {
       const vehicleCity = vehicleFutureCity;
       const scored = allOrders.map(o => {
         const emptyKm = getDistance(vehicleCity, o.fromCity);
@@ -1043,7 +1071,7 @@ export function suggestTours(state, opts) {
       });
       scored.sort((a, b) => b.score - a.score);
       allOrders.length = 0;
-      for (const s of scored.slice(0, 12)) allOrders.push(s.o);
+      for (const s of scored.slice(0, 8)) allOrders.push(s.o);
     }
 
     // Probiere jeden Kandidaten-Fahrer und wähle den mit dem besten Plan.
@@ -1118,6 +1146,10 @@ export function suggestTours(state, opts) {
         mode,
       });
     }
+
+    // Performance: Early-Exit wenn alle verfügbaren Aufträge verplant sind.
+    // Bei 100 Fahrzeugen und 10 Aufträgen spart das 90% der buildTourPlan-Aufrufe.
+    if (usedOrderIds.size >= totalAvailableOrders) break;
   }
 
   return { suggestions };
