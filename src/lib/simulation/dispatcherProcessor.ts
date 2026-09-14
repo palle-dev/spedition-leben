@@ -13,7 +13,7 @@ import {
 import { isActivelyEmployed } from "./terminationEngine.ts";
 import { pushEvent } from "./eventLog.ts";
 import { onOrderAccepted, onTourConfirmed } from "./mailReports.ts";
-import { hasDgDispatch } from "./dangerousGoodsEngine.ts";
+import { hasDgDispatch } from "./trainingEngine.ts";
 import { processAccountant } from "./accountingEngine.ts";
 
 // Lokale Kopie von uid (inkrementiert state.idCounter).
