@@ -7,20 +7,30 @@ import {
   getTripBounds, getFleetBounds
 } from "@/lib/geoData";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
+import { getTrafficLevel } from "@/lib/trafficSystem";
 import { AlertTriangle } from "lucide-react";
 
-// OpenFreeMap Dark-Stil (öffentlich, kein API-Schlüssel nötig).
-// Stil und Anbieter zentral konfigurierbar.
 const MAP_STYLE = "https://tiles.openfreemap.org/styles/dark";
 const MAP_CENTER = [10.2, 51.0];
 const MAP_ZOOM = 5.0;
 const MAX_BOUNDS = [[4, 46], [16, 56]];
+
+// Verkehrsbasierte Farbexpression für MapLibre
+const TRAFFIC_COLOR_EXPR = [
+  "match", ["get", "trafficLevel"],
+  0, "#4ADE80",
+  1, "#FBBF24",
+  2, "#FB923C",
+  3, "#EF4444",
+  "#D5FB83"
+];
 
 export default function DispatchMap({
   routeData,
   selectedTripId,
   selectedVehicleId,
   planRoute,
+  showTraffic = true,
   onSelectTrip,
   onSelectVehicle,
   focusAction,
@@ -94,6 +104,20 @@ export default function DispatchMap({
     };
   }, []);
 
+  // --- Verkehrslage ein/ausschalten ---
+  useEffect(() => {
+    if (!mapLoaded || !mapRef.current) return;
+    const map = mapRef.current;
+    const driveColor = showTraffic ? TRAFFIC_COLOR_EXPR : "#D5FB83";
+    const emptyColor = showTraffic ? TRAFFIC_COLOR_EXPR : "#FF9E7A";
+    try {
+      map.setPaintProperty("tour-drive", "line-color", driveColor);
+      map.setPaintProperty("tour-empty", "line-color", emptyColor);
+      map.setPaintProperty("plan-drive", "line-color", driveColor);
+      map.setPaintProperty("plan-empty", "line-color", emptyColor);
+    } catch (e) { /* Layer evtl. noch nicht ready */ }
+  }, [mapLoaded, showTraffic]);
+
   // --- Daten-Update bei Zustandsänderung ---
   useEffect(() => {
     if (!mapLoaded || !mapRef.current) return;
@@ -101,7 +125,7 @@ export default function DispatchMap({
     updateCities(map);
     updateVehicles(map, state, routeData, selectedTripId, selectedVehicleId);
     updateTours(map, state, routeData, selectedTripId);
-    updatePlanRoute(map, planRoute);
+    updatePlanRoute(map, planRoute, state);
   }, [mapLoaded, state, routeData, selectedTripId, selectedVehicleId, planRoute]);
 
   // --- Fokus-Aktionen (fitBounds / flyTo) ---
@@ -132,11 +156,9 @@ export default function DispatchMap({
     onFocusDone?.();
   }, [mapLoaded, focusAction, state, routeData]);
 
-  // --- Render ---
   return (
     <div className="relative h-full w-full overflow-hidden bg-ink">
       <div ref={containerRef} className="absolute inset-0" />
-
       {mapError && (
         <div className="absolute inset-0 flex items-center justify-center p-6 z-20 bg-ink/80">
           <div className="glass border border-white/15 rounded-xl p-5 max-w-sm text-center">
@@ -144,7 +166,6 @@ export default function DispatchMap({
             <div className="text-sm font-medium text-foreground">Karte nicht verfügbar</div>
             <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
               Die Basiskarte konnte nicht geladen werden. Die Disposition bleibt über die Listen nutzbar.
-              Geometrien und Spielwerte sind davon nicht betroffen.
             </p>
             <button
               onClick={() => { setMapError(false); setMapLoaded(false); setTimeout(() => window.location.reload(), 100); }}
@@ -174,9 +195,9 @@ function setupLayers(map) {
     id: "tour-glow", type: "line", source: "tours",
     filter: ["all", ["==", ["get", "isSelected"], true], ["==", ["get", "legType"], "drive"]],
     layout: { "line-cap": "round" },
-    paint: { "line-color": "#D5FB83", "line-width": 14, "line-opacity": 0.18, "line-blur": 4 }
+    paint: { "line-color": "#D5FB83", "line-width": 16, "line-opacity": 0.15, "line-blur": 6 }
   });
-  // Tour-Linien: Leerfahrt (Korall, gestrichelt) — nicht ausgewählt fast unsichtbar
+  // Tour-Linien: Leerfahrt (gestrichelt) — nicht ausgewählt fast unsichtbar
   map.addLayer({
     id: "tour-empty", type: "line", source: "tours",
     filter: ["==", ["get", "legType"], "empty"],
@@ -184,33 +205,33 @@ function setupLayers(map) {
     paint: {
       "line-color": "#FF9E7A",
       "line-width": ["case", ["get", "isSelected"], 4, 1.5],
-      "line-opacity": ["case", ["get", "isSelected"], 0.9, 0.02],
+      "line-opacity": ["case", ["get", "isSelected"], 0.85, 0.03],
       "line-dasharray": [3, 2]
     }
   });
-  // Tour-Linien: Beladene Fahrt (Lime, durchgezogen) — nicht ausgewählt fast unsichtbar
+  // Tour-Linien: Beladene Fahrt (durchgezogen) — nicht ausgewählt fast unsichtbar
   map.addLayer({
     id: "tour-drive", type: "line", source: "tours",
     filter: ["==", ["get", "legType"], "drive"],
     layout: { "line-cap": "round" },
     paint: {
       "line-color": "#D5FB83",
-      "line-width": ["case", ["get", "isSelected"], 5, 2],
-      "line-opacity": ["case", ["get", "isSelected"], 1, 0.02]
+      "line-width": ["case", ["get", "isSelected"], 5.5, 2.5],
+      "line-opacity": ["case", ["get", "isSelected"], 1, 0.03]
     }
   });
-  // Planungs-Vorschau (auch für Tour-Ketten mit mehreren Beinen)
+  // Planungs-Vorschau
   map.addLayer({
     id: "plan-empty", type: "line", source: "plan-route",
     filter: ["match", ["get", "legType"], ["empty", "empty_drive"], true, false],
     layout: { "line-cap": "round" },
-    paint: { "line-color": "#FF9E7A", "line-width": 3, "line-opacity": 0.7, "line-dasharray": [3, 2] }
+    paint: { "line-color": "#FF9E7A", "line-width": 3.5, "line-opacity": 0.75, "line-dasharray": [3, 2] }
   });
   map.addLayer({
     id: "plan-drive", type: "line", source: "plan-route",
     filter: ["==", ["get", "legType"], "drive"],
     layout: { "line-cap": "round" },
-    paint: { "line-color": "#D5FB83", "line-width": 4, "line-opacity": 0.7 }
+    paint: { "line-color": "#D5FB83", "line-width": 4.5, "line-opacity": 0.75 }
   });
   // Tour-Stopps (nummeriert)
   map.addLayer({
@@ -219,7 +240,7 @@ function setupLayers(map) {
     paint: {
       "circle-radius": 9,
       "circle-color": ["case", ["get", "isReturn"], "#FF9E7A", "#D5FB83"],
-      "circle-stroke-width": 2,
+      "circle-stroke-width": 2.5,
       "circle-stroke-color": "#0b1011"
     }
   });
@@ -234,41 +255,41 @@ function setupLayers(map) {
     },
     paint: { "text-color": "#0b1011" }
   });
-  // Städte — HQ hervorgehoben,其余 dezent
+  // Städte — HQ hervorgehoben, Rest dezent
   map.addLayer({
     id: "cities", type: "circle", source: "cities",
     paint: {
-      "circle-radius": ["case", ["get", "isHQ"], 6, 4],
-      "circle-color": ["case", ["get", "isHQ"], "#D5FB83", "#666"],
-      "circle-stroke-width": ["case", ["get", "isHQ"], 2, 1],
-      "circle-stroke-color": ["case", ["get", "isHQ"], "rgba(213,251,131,0.3)", "rgba(255,255,255,0.15)"]
+      "circle-radius": ["case", ["get", "isHQ"], 7, 4],
+      "circle-color": ["case", ["get", "isHQ"], "#D5FB83", "#555"],
+      "circle-stroke-width": ["case", ["get", "isHQ"], 2.5, 1],
+      "circle-stroke-color": ["case", ["get", "isHQ"], "rgba(213,251,131,0.4)", "rgba(255,255,255,0.12)"]
     }
   });
   map.addLayer({
     id: "city-labels", type: "symbol", source: "cities",
-    layout: { "text-field": ["get", "name"], "text-size": 9, "text-offset": [0, -1.3], "text-anchor": "bottom", "text-transform": "uppercase", "text-letter-spacing": 0.08 },
-    paint: { "text-color": "#777", "text-halo-color": "#000", "text-halo-width": 2 }
+    layout: { "text-field": ["get", "name"], "text-size": 10, "text-offset": [0, -1.4], "text-anchor": "bottom", "text-transform": "uppercase", "text-letter-spacing": 0.1 },
+    paint: { "text-color": "#888", "text-halo-color": "#000", "text-halo-width": 2.5 }
   });
   // Fahrzeuge — Glow für ausgewählte
   map.addLayer({
     id: "vehicles-glow", type: "circle", source: "vehicles",
     filter: ["==", ["get", "isSelected"], true],
-    paint: { "circle-radius": 16, "circle-color": "#FCD34D", "circle-opacity": 0.2, "circle-blur": 1 }
+    paint: { "circle-radius": 18, "circle-color": "#FCD34D", "circle-opacity": 0.18, "circle-blur": 1.5 }
   });
   map.addLayer({
     id: "vehicles", type: "circle", source: "vehicles",
     paint: {
-      "circle-radius": ["case", ["get", "isSelected"], 9, 6],
+      "circle-radius": ["case", ["get", "isSelected"], 10, 7],
       "circle-color": ["match", ["get", "status"], "free", "#D5FB83", "on_trip", "#FCD34D", "maintenance", "#7DD3FC", "#888"],
-      "circle-stroke-width": ["case", ["get", "isSelected"], 2.5, 1.5],
-      "circle-stroke-color": ["case", ["get", "isSelected"], "#fff", "rgba(0,0,0,0.5)"]
+      "circle-stroke-width": ["case", ["get", "isSelected"], 3, 2],
+      "circle-stroke-color": ["case", ["get", "isSelected"], "#fff", "rgba(0,0,0,0.6)"]
     }
   });
   map.addLayer({
     id: "vehicle-labels", type: "symbol", source: "vehicles",
     filter: ["==", ["get", "isSelected"], true],
-    layout: { "text-field": ["get", "name"], "text-size": 11, "text-offset": [0, -1.6], "text-anchor": "bottom" },
-    paint: { "text-color": "#fff", "text-halo-color": "#000", "text-halo-width": 2 }
+    layout: { "text-field": ["get", "name"], "text-size": 11, "text-offset": [0, -1.7], "text-anchor": "bottom" },
+    paint: { "text-color": "#fff", "text-halo-color": "#000", "text-halo-width": 2.5 }
   });
 }
 
@@ -328,12 +349,29 @@ function updateTours(map, state, routeData, selectedTripId) {
     const geo = buildTripRouteGeoJSON(trip, routeData);
     for (const f of geo.features) {
       f.properties.isSelected = trip.id === selectedTripId;
+      // Verkehrslage für Fahr-Abschnitte berechnen
+      const t = f.properties.legType;
+      if (t === "drive" || t === "empty") {
+        f.properties.trafficLevel = getTrafficLevel(state.gameTime, f.properties.fromCity, f.properties.toCity);
+      } else {
+        f.properties.trafficLevel = 0;
+      }
       features.push(f);
     }
   }
   map.getSource("tours").setData({ type: "FeatureCollection", features });
 }
 
-function updatePlanRoute(map, planRoute) {
-  map.getSource("plan-route").setData(planRoute || { type: "FeatureCollection", features: [] });
+function updatePlanRoute(map, planRoute, state) {
+  if (!planRoute) {
+    map.getSource("plan-route").setData({ type: "FeatureCollection", features: [] });
+    return;
+  }
+  // Verkehrslage zu Plan-Route-Features hinzufügen
+  for (const f of (planRoute.features || [])) {
+    if (f.properties && f.properties.fromCity && f.properties.toCity) {
+      f.properties.trafficLevel = getTrafficLevel(state.gameTime, f.properties.fromCity, f.properties.toCity);
+    }
+  }
+  map.getSource("plan-route").setData(planRoute);
 }

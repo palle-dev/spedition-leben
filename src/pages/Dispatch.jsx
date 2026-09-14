@@ -3,9 +3,12 @@ import { useGame } from "@/lib/gameContext";
 import { loadRouteGeometries, buildPlanRouteGeoJSON } from "@/lib/geoData";
 import DispatchMap from "@/components/dispatch/DispatchMap";
 import DispatchWorkspace from "@/components/dispatch/DispatchWorkspace";
-import { Truck, Home, Route as RouteIcon } from "lucide-react";
+import { Truck, Home, Route as RouteIcon, TrafficCone, Sparkles } from "lucide-react";
 import { useHeaderSlot } from "@/lib/headerSlot";
 import DispatchToolbar from "@/components/dispatch/DispatchToolbar";
+import RouteDetailOverlay from "@/components/dispatch/RouteDetailOverlay";
+import AutoOptimizePanel from "@/components/dispatch/AutoOptimizePanel";
+import MapLegend from "@/components/dispatch/MapLegend";
 
 export default function Dispatch() {
   const { state } = useGame();
@@ -19,6 +22,9 @@ export default function Dispatch() {
   const [search, setSearch] = useState("");
   const [mobileView, setMobileView] = useState("map");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [showTraffic, setShowTraffic] = useState(true);
+  const [overlayTripId, setOverlayTripId] = useState(null);
+  const [optimizeOpen, setOptimizeOpen] = useState(false);
 
   // Routengeometrien laden (einmalig)
   useEffect(() => {
@@ -57,6 +63,7 @@ export default function Dispatch() {
 
   function handleSelectTrip(tripId) {
     setSelectedTripId(tripId);
+    setOverlayTripId(tripId);
     setSelectedVehicleId(null);
     if (tripId) {
       setActiveTab("touren");
@@ -139,6 +146,7 @@ export default function Dispatch() {
         onPlan={handlePlanClick}
         onZuzuweisen={handleZuzuweisenClick}
         onTouren={() => { setActiveTab("touren"); setSelectedTripId(null); if (window.innerWidth < 1024) setMobileView("list"); }}
+        onOptimize={() => setOptimizeOpen(true)}
         search={search}
         setSearch={setSearch}
         searchOpen={searchOpen}
@@ -160,6 +168,7 @@ export default function Dispatch() {
             routeData={routeData}
             selectedTripId={selectedTripId}
             selectedVehicleId={selectedVehicleId}
+            showTraffic={showTraffic}
             planRoute={planRoute}
             onSelectTrip={handleSelectTrip}
             onSelectVehicle={handleSelectVehicle}
@@ -169,12 +178,24 @@ export default function Dispatch() {
           {/* Karten-Aktionen */}
           {routeData && (
             <div className="absolute top-3 right-3 flex flex-col gap-1.5 z-10">
+              <MapActionButton onClick={() => setShowTraffic(v => !v)} title="Verkehrslage" highlight={showTraffic}><TrafficCone className="w-4 h-4" /></MapActionButton>
               <MapActionButton onClick={() => setFocusAction({ type: "fleet" })} title="Flotte zeigen"><Truck className="w-4 h-4" /></MapActionButton>
               <MapActionButton onClick={() => setFocusAction({ type: "hq" })} title="Hauptsitz"><Home className="w-4 h-4" /></MapActionButton>
               {selectedTripId && (
                 <MapActionButton onClick={() => setFocusAction({ type: "trip", tripId: selectedTripId })} title="Route zeigen" highlight><RouteIcon className="w-4 h-4" /></MapActionButton>
               )}
             </div>
+          )}
+          {routeData && <MapLegend showTraffic={showTraffic} />}
+          {overlayTripId && state.trips.find(t => t.id === overlayTripId) && (
+            <RouteDetailOverlay
+              trip={state.trips.find(t => t.id === overlayTripId)}
+              state={state}
+              routeData={routeData}
+              onClose={() => setOverlayTripId(null)}
+              onShowOnMap={() => setFocusAction({ type: "trip", tripId: overlayTripId })}
+              onShowInWorkspace={() => { setSelectedTripId(overlayTripId); setActiveTab("touren"); if (window.innerWidth < 1024) setMobileView("list"); }}
+            />
           )}
         </div>
 
@@ -200,6 +221,7 @@ export default function Dispatch() {
           />
         </div>
       </div>
+      <AutoOptimizePanel open={optimizeOpen} onClose={() => setOptimizeOpen(false)} />
     </div>
   );
 }

@@ -1,11 +1,11 @@
 import React from "react";
-import { Plus, Truck, Package, Search, X, Map, List } from "lucide-react";
+import { Plus, Truck, Package, Search, X, Map, List, Sparkles } from "lucide-react";
 import MarketPriorityControl from "./MarketPriorityControl";
 
 // Kompakte Werkzeugleiste für den globalen Header (nur auf /disposition sichtbar).
 // Alle Steuerelemente der Disposition in einer Zeile — kein separater Toolbar-Row.
 export default function DispatchToolbar({
-  runningCount, acceptedCount, onPlan, onZuzuweisen, onTouren,
+  runningCount, acceptedCount, onPlan, onZuzuweisen, onTouren, onOptimize,
   search, setSearch, searchOpen, setSearchOpen,
   mobileView, setMobileView,
 }) {
@@ -66,6 +66,17 @@ export default function DispatchToolbar({
           title="Suchen"
         >
           <Search className="w-3.5 h-3.5" />
+        </button>
+      )}
+
+      {onOptimize && (
+        <button
+          onClick={onOptimize}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-lime/10 border border-lime/30 text-lime text-xs font-semibold hover:border-lime/50 transition active:scale-95 shrink-0"
+          title="Intelligente Routen-Optimierung"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span className="hidden xl:inline">Optimieren</span>
         </button>
       )}
 
