@@ -869,6 +869,32 @@ export function applyCommand(state, command, params) {
       break;
     }
 
+    case "clearOpenOrders": {
+      ensureNotBlocked(state);
+      // Auftrags-IDs sammeln, die bereits disponiert sind (aktive Tour oder laufende Fahrt)
+      const busyOrderIds = new Set();
+      for (const tr of (state.trips || [])) {
+        if (tr.status === "in_progress" && tr.orderId) busyOrderIds.add(tr.orderId);
+      }
+      for (const tr of (state.tours || [])) {
+        if (tr.status !== "active") continue;
+        for (const d of (tr.deployments || [])) {
+          if (d.orderId && d.status !== "cancelled") busyOrderIds.add(d.orderId);
+        }
+      }
+      const before = state.orders.length;
+      // Lösche: offene Marktangebote (offered) und ungesplante angenommene Aufträge.
+      // Behalte: unterwegs/abgeschlossen/storniert/abgelaufen + bereits disponierte Aufträge.
+      state.orders = state.orders.filter(o => {
+        if (o.status !== "offered" && o.status !== "angenommen") return true;
+        if (o.status === "angenommen" && busyOrderIds.has(o.id)) return true;
+        return false;
+      });
+      const removed = before - state.orders.length;
+      result = { ok: true, removedCount: removed };
+      break;
+    }
+
     case "startTransport": {
       ensureNotBlocked(state);
       const o = state.orders.find(x => x.id === p.orderId);

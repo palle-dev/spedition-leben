@@ -49,6 +49,21 @@ export default function Orders() {
     finally { setBusyId(null); }
   }
 
+  const [clearing, setClearing] = useState(false);
+  async function clearOpenOrders() {
+    const offeredCount = state.orders.filter(o => o.status === "offered").length;
+    const acceptedCount = state.orders.filter(o => o.status === "angenommen").length;
+    const total = offeredCount + acceptedCount;
+    if (total === 0) { showToast("Keine offenen Aufträge zum Löschen.", "info"); return; }
+    if (!window.confirm(`${total} offene Aufträge löschen?\n(${offeredCount} Marktangebote, ${acceptedCount} angenommen, ungesplant)\n\nBereits disponierte Aufträge bleiben erhalten.`)) return;
+    setClearing(true);
+    try {
+      const r = await send("clearOpenOrders", {});
+      showToast(`${r.removedCount} Aufträge gelöscht.`, "success");
+    } catch (e) { showToast(e.message, "error"); }
+    finally { setClearing(false); }
+  }
+
   const offered = useMemo(() => {
     let list = state.orders.filter(o => o.status === "offered");
     if (search) {
@@ -147,6 +162,10 @@ export default function Orders() {
             </select>
             <button onClick={resetFilter} className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-muted-foreground hover:bg-white/10 transition">
               Filter zurücksetzen
+            </button>
+            <button onClick={clearOpenOrders} disabled={clearing}
+              className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-400/25 text-red-200 text-xs hover:bg-red-500/20 disabled:opacity-50 transition ml-auto">
+              {clearing ? "Lösche…" : "Alle offenen löschen"}
             </button>
           </div>
 
