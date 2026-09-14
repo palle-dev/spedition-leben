@@ -49,6 +49,14 @@ export async function executeCommand(state, command, params) {
     return { state: newState, result: { ok: true, dailyWithdrawalCents: amount } };
   }
 
+  // Assistenten-Konfiguration aktualisieren – rein clientseitig.
+  if (command === "setAssistantConfig") {
+    const updates = (params || {}).config || {};
+    const current = state.assistantConfig || {};
+    const newState = { ...state, assistantConfig: { ...current, ...updates } };
+    return { state: newState, result: { ok: true } };
+  }
+
   // Filialleiter-Entscheidungen
   if (command === "approveBranchDecision") {
     try { const result = approveBranchDecision(state, (params || {}).decisionId); return { state: { ...state }, result }; }

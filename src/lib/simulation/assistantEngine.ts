@@ -11,17 +11,34 @@
 
 import {
   dayOf,
+  formatGameTime,
   BRANCH_COST_PER_DAY,
   SERVICE_START_MIN,
 } from "./gameRules.ts";
 import { deliverMessage } from "./mailEngine.ts";
 import { pushEvent } from "./eventLog.ts";
+import { suggestTours, confirmTour as doConfirmTour } from "./tourEngine.ts";
 
 // ---------- Migration ----------
 
 export function migrateAssistant(state) {
   if (!state.assistantLog) state.assistantLog = [];
   if (!state.assistantState) state.assistantState = { lastReportDay: 0, lastOptimizationDay: 0 };
+  if (!state.assistantConfig) {
+    state.assistantConfig = {
+      dailyReport: true,
+      autoAcceptOrders: true,
+      costOptimization: true,
+      decisionProposals: true,
+      accounting: true,
+      orderMonitoring: true,
+      autoDispatch: false,
+      autoAcceptMarginPct: 15,
+      autoAcceptMinLiquidityCents: 50000,
+      autoDispatchHoursBeforeDeadline: 4,
+      maxOrdersPerHour: 3,
+    };
+  }
 }
 
 function logAssistantActivity(state, entry) {
@@ -95,9 +112,22 @@ export function generateDailyReport(state, emp, m) {
 // ---------- B) Auto-Auftragsannahme ----------
 
 export function autoAcceptOrders(state, emp, m, log) {
+  const config = state.assistantConfig || {};
+  if (config.autoAcceptOrders === false) return;
+
   // Nur zur vollen Stunde ausführen (wird vom Adapter sichergestellt)
   const clock = m % 1440;
   if (clock % 60 !== 0) return;
+
+  const minMarginPct = (config.autoAcceptMarginPct ?? 15) / 100;
+  const minLiquidityCents = config.autoAcceptMinLiquidityCents ?? 50000;
+  const maxPerHour = config.maxOrdersPerHour ?? 3;
+
+  // Stunden-Zähler (verhindert Massenannahme)
+  const hourBucket = "autoAccept_h" + Math.floor(m / 60);
+  state.assistantState = state.assistantState || {};
+  const acceptedThisHour = state.assistantState[hourBucket] || 0;
+  if (acceptedThisHour >= maxPerHour) return;
 
   const offered = (state.orders || []).filter(o =>
     o.status === "offered" && o.acceptDeadlineMin > m
@@ -106,15 +136,17 @@ export function autoAcceptOrders(state, emp, m, log) {
 
   let accepted = 0;
   for (const o of offered) {
+    if (acceptedThisHour + accepted >= maxPerHour) break;
+
     // Rentabilitätsschwelle: Beitrag muss positiv sein
     // Grobe Schätzung: 30% der Zahlung als Kosten (Kraftstoff + Maut)
     const estimatedCostCents = Math.round(o.paymentCents * 0.3);
     const marginCents = o.paymentCents - estimatedCostCents;
     const marginPct = o.paymentCents > 0 ? marginCents / o.paymentCents : 0;
 
-    // Nur annehmen, wenn Marge > 15% und Firma flüssig genug für Kraftstoff/Maut
-    if (marginPct < 0.15) continue;
-    if ((state.company?.accountCents || 0) < estimatedCostCents) continue;
+    // Nur annehmen, wenn Marge >= Schwelle und Firma flüssig genug
+    if (marginPct < minMarginPct) continue;
+    if ((state.company?.accountCents || 0) - estimatedCostCents < minLiquidityCents) continue;
 
     // Auftrag annehmen
     o.status = "angenommen";
@@ -160,6 +192,7 @@ export function autoAcceptOrders(state, emp, m, log) {
     accepted++;
   }
 
+  state.assistantState[hourBucket] = acceptedThisHour + accepted;
   return accepted;
 }
 
@@ -336,31 +369,193 @@ export function processAssistantAccounting(state, emp, m) {
   }
 }
 
+// ---------- F) Auftragsüberwachung & Auto-Disposition ----------
+
+export function monitorOrderDeadlines(state, emp, m, log) {
+  const config = state.assistantConfig || {};
+  if (config.orderMonitoring === false) return;
+
+  const hoursBefore = config.autoDispatchHoursBeforeDeadline ?? 4;
+  const thresholdMin = hoursBefore * 60;
+
+  // Angenommene Aufträge, die noch nicht Teil einer aktiven Tour sind
+  const atRisk = (state.orders || []).filter(o => {
+    if (o.status !== "angenommen") return false;
+    const hasTour = (state.tours || []).some(t =>
+      t.status === "active" && (t.deployments || []).some(d => d.orderId === o.id && d.status !== "cancelled")
+    );
+    const hasTrip = (state.trips || []).some(t => t.orderId === o.id && t.status === "in_progress");
+    return !hasTour && !hasTrip;
+  });
+  if (atRisk.length === 0) return;
+
+  for (const o of atRisk) {
+    const timeLeft = o.deliveryDeadlineMin - m;
+    if (timeLeft <= 0 || timeLeft > thresholdMin) continue;
+
+    // Auto-Dispatch versuchen, wenn aktiviert
+    if (config.autoDispatch !== false) {
+      const dispatched = tryAutoDispatch(state, emp, o, m, log);
+      if (dispatched) continue;
+    }
+
+    // Warnung protokollieren (nur einmal pro Auftrag)
+    const warnKey = "deadline_warn_" + o.id;
+    state.assistantState = state.assistantState || {};
+    if (state.assistantState[warnKey]) continue;
+    state.assistantState[warnKey] = true;
+
+    logAssistantActivity(state, {
+      gameTime: m,
+      type: "order_deadline_warning",
+      assistantId: emp.id,
+      assistantName: emp.name,
+      details: {
+        orderId: o.id,
+        customer: o.customer,
+        fromCity: o.fromCity,
+        toCity: o.toCity,
+        hoursLeft: Math.floor(timeLeft / 60),
+        deliveryDeadlineMin: o.deliveryDeadlineMin,
+      },
+    });
+
+    deliverMessage(state, {
+      fromId: emp.id,
+      toId: "player",
+      subject: "⚠️ Auftragsfrist droht abzulaufen: " + o.customer,
+      body: "Der angenommene Auftrag von " + o.customer + " (" + o.fromCity + " → " + o.toCity + ") muss bis " +
+        formatGameTime(o.deliveryDeadlineMin) + " geliefert werden.\n\n" +
+        "Verbleibende Zeit: " + Math.floor(timeLeft / 60) + " Stunden.\n\n" +
+        "Bitte sorgen Sie für eine umgehende Disposition, sonst verfällt die Vergütung.",
+      gameTime: m,
+      category: "decisions",
+      priority: "high",
+      dedupKey: warnKey,
+    });
+  }
+}
+
+function tryAutoDispatch(state, emp, order, m, log) {
+  const poolVehicles = (state.vehicles || []).filter(v =>
+    v.status !== "sold" && v.status !== "archived" && !v.markedForSale
+  );
+  const poolVehicleIds = poolVehicles.map(v => v.id);
+  if (poolVehicleIds.length === 0) return false;
+
+  let result;
+  try {
+    result = suggestTours(state, {
+      vehicleIds: poolVehicleIds,
+      earliestStart: m,
+      horizonMin: 2880,
+      desiredEndCity: null,
+      latestReturnMin: null,
+      mode: state.marketPriority || "balanced",
+      acceptNew: false,
+    });
+  } catch (e) {
+    return false;
+  }
+
+  // Finde eine Tour, die den gefährdeten Auftrag enthält
+  const matching = (result.suggestions || []).find(s => s.orderIds.includes(order.id));
+  if (!matching) return false;
+
+  try {
+    const r = doConfirmTour(state, {
+      vehicleId: matching.vehicleId,
+      driverId: matching.driverId,
+      orderIds: matching.orderIds,
+      desiredEndCity: matching.plan.desiredEndCity || null,
+      latestReturnMin: matching.plan.latestReturnMin || null,
+    });
+
+    for (const oid of matching.orderIds) {
+      const o = state.orders.find(x => x.id === oid);
+      if (!o) continue;
+      o.plannedById = emp.id;
+      o.plannedByName = emp.name;
+      o.history = o.history || [];
+      o.history.push({ type: "planned", min: m, actor: emp.id, actorName: emp.name, details: { vehicleId: matching.vehicleId, driverId: matching.driverId, auto: true } });
+    }
+
+    logAssistantActivity(state, {
+      gameTime: m,
+      type: "order_auto_dispatched",
+      assistantId: emp.id,
+      assistantName: emp.name,
+      details: {
+        orderId: order.id,
+        customer: order.customer,
+        fromCity: order.fromCity,
+        toCity: order.toCity,
+        vehicleId: matching.vehicleId,
+        driverId: matching.driverId,
+        tourId: r.tourId,
+      },
+    });
+
+    pushEvent(state, {
+      type: "order_auto_dispatched",
+      gameTime: m,
+      employeeId: emp.id,
+      employeeName: emp.name,
+      portraitId: emp.portraitId,
+      orderIds: [order.id],
+      tourId: r.tourId,
+      vehicleId: matching.vehicleId,
+      driverId: matching.driverId,
+      details: {
+        customer: order.customer,
+        fromCity: order.fromCity,
+        toCity: order.toCity,
+      },
+      dedupKey: "order_auto_dispatched:" + order.id,
+    });
+
+    log.push({ type: "assistant_auto_dispatch", employee: emp.id, order: order.id, vehicle: matching.vehicleId, atMin: m });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 // ---------- Haupt-Einstiegspunkte ----------
 
 // Wird stündlich vom Adapter aufgerufen (zur vollen Spielstunde).
 export function processAssistant(state, emp, m, log) {
   migrateAssistant(state);
+  const config = state.assistantConfig || {};
   const clock = m % 1440;
 
   // A) Tagesbericht: einmal pro Tag um 08:00
-  if (clock === SERVICE_START_MIN) {
+  if (config.dailyReport !== false && clock === SERVICE_START_MIN) {
     generateDailyReport(state, emp, m);
   }
 
   // B) Auto-Auftragsannahme: jede Stunde
-  autoAcceptOrders(state, emp, m, log);
+  if (config.autoAcceptOrders !== false) {
+    autoAcceptOrders(state, emp, m, log);
+  }
 
   // C) Gemeinkostenoptimierung: einmal pro Tag um 09:00
-  if (clock === SERVICE_START_MIN + 60) {
+  if (config.costOptimization !== false && clock === SERVICE_START_MIN + 60) {
     optimizeOverheadCosts(state, emp, m);
   }
 
   // D) Entscheidungsvorbereitung: jede Stunde
-  prepareDecisionProposals(state, emp, m);
+  if (config.decisionProposals !== false) {
+    prepareDecisionProposals(state, emp, m);
+  }
 
   // E) Buchhaltungs-Support: jede Stunde
-  processAssistantAccounting(state, emp, m);
+  if (config.accounting !== false) {
+    processAssistantAccounting(state, emp, m);
+  }
+
+  // F) Auftragsüberwachung & Auto-Disposition: jede Stunde
+  monitorOrderDeadlines(state, emp, m, log);
 }
 
 // Wird beim Tagesabschluss (Mitternacht) aufgerufen.

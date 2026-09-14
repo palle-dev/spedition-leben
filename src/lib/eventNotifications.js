@@ -137,6 +137,18 @@ export function eventToToast(ev) {
         eventSeq: ev.seq,
       };
 
+    case "order_auto_dispatched":
+      return {
+        id: ev.id,
+        kind: "info",
+        icon: "briefcase",
+        title: "Assistent: Tour disponiert",
+        body: `${ev.employeeName || "Assistent"} hat ${d.customer || "—"}: ${d.fromCity || "—"} → ${d.toCity || "—"} automatisch disponiert.`,
+        action: { label: "In Dispo öffnen", targetType: "dispatch", targetId: ev.tourId },
+        duration: 7000,
+        eventSeq: ev.seq,
+      };
+
     default:
       return null;
   }

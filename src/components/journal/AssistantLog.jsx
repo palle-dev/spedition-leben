@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatGameTime, formatEuro } from "@/lib/gameData";
-import { Briefcase, TrendingDown, FileText, Lightbulb, Calculator, Package, Sparkles } from "lucide-react";
+import { Briefcase, TrendingDown, FileText, Lightbulb, Calculator, Package, Sparkles, Truck, AlertTriangle } from "lucide-react";
+import AssistantConfig from "./AssistantConfig";
 
 // Übersicht aller automatisierten Aufgaben des Assistenten der Geschäftsführung.
 export default function AssistantLog() {
@@ -15,7 +16,7 @@ export default function AssistantLog() {
   }, [state?.assistantLog, filter]);
 
   const counts = useMemo(() => {
-    const c = { all: 0, order_accepted: 0, cost_optimization: 0, accounting_task: 0, daily_report: 0, decision_proposal: 0 };
+    const c = { all: 0, order_accepted: 0, cost_optimization: 0, accounting_task: 0, daily_report: 0, decision_proposal: 0, order_deadline_warning: 0, order_auto_dispatched: 0 };
     for (const e of state?.assistantLog || []) {
       c.all++;
       if (c[e.type] !== undefined) c[e.type]++;
@@ -50,10 +51,15 @@ export default function AssistantLog() {
     { id: "accounting_task", label: "Buchhaltung", icon: Calculator, count: counts.accounting_task },
     { id: "daily_report", label: "Berichte", icon: FileText, count: counts.daily_report },
     { id: "decision_proposal", label: "Vorschläge", icon: Lightbulb, count: counts.decision_proposal },
+    { id: "order_auto_dispatched", label: "Dispo", icon: Truck, count: counts.order_auto_dispatched },
+    { id: "order_deadline_warning", label: "Warnungen", icon: AlertTriangle, count: counts.order_deadline_warning },
   ];
 
   return (
     <div className="space-y-5">
+      {/* Konfiguration */}
+      <AssistantConfig />
+
       {/* Zusammenfassungs-Karten */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <SummaryCard icon={Package} label="Auto-angenommen" value={counts.order_accepted} sub="Aufträge" color="text-lime" bg="bg-lime/10" />
@@ -121,6 +127,8 @@ function LogEntry({ entry }) {
     accounting_task: { Icon: Calculator, bg: "bg-white/5", color: "text-foreground/60" },
     daily_report: { Icon: FileText, bg: "bg-white/5", color: "text-foreground/60" },
     decision_proposal: { Icon: Lightbulb, bg: "bg-amber-300/10", color: "text-amber-300" },
+    order_auto_dispatched: { Icon: Truck, bg: "bg-lime/10", color: "text-lime" },
+    order_deadline_warning: { Icon: AlertTriangle, bg: "bg-amber-300/10", color: "text-amber-300" },
   };
   const cfg = configs[entry.type] || { Icon: Briefcase, bg: "bg-white/5", color: "text-foreground/60" };
 
@@ -209,6 +217,38 @@ function EntryContent({ type, entry, d }) {
         <div className="text-xs text-muted-foreground mt-1">{d.reasoning}</div>
         <div className="text-xs text-amber-300/70 mt-1 flex items-center gap-1">
           <span>→</span> {d.action}
+        </div>
+      </>
+    );
+  }
+
+  if (type === "order_auto_dispatched") {
+    return (
+      <>
+        <div className="text-sm leading-snug">
+          <span className="text-foreground font-medium">{entry.assistantName}</span>
+          <span className="text-muted-foreground"> hat Auftrag von </span>
+          <span className="text-foreground">{d.customer}</span>
+          <span className="text-muted-foreground"> automatisch disponiert</span>
+        </div>
+        <div className="text-xs text-muted-foreground mt-1 flex items-center gap-3 flex-wrap">
+          <span className="text-foreground/70">{d.fromCity} → {d.toCity}</span>
+          <span className="text-lime/60">Tour erstellt</span>
+        </div>
+      </>
+    );
+  }
+
+  if (type === "order_deadline_warning") {
+    return (
+      <>
+        <div className="text-sm leading-snug">
+          <span className="text-amber-300 font-medium">⚠️ Frist warnung: </span>
+          <span className="text-foreground">{d.customer}</span>
+        </div>
+        <div className="text-xs text-muted-foreground mt-1 flex items-center gap-3 flex-wrap">
+          <span className="text-foreground/70">{d.fromCity} → {d.toCity}</span>
+          <span className="text-amber-300/80">noch {d.hoursLeft} Std bis Lieferfrist</span>
         </div>
       </>
     );
