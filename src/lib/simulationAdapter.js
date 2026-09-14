@@ -44,7 +44,7 @@ export async function executeCommand(state, command, params) {
 
   // Geschäftsführergehalt setzen – rein clientseitig, keine Simulations-Engine nötig.
   if (command === "setOwnerSalary") {
-    const amount = Math.max(0, Math.min(100000, Math.round((params || {}).dailyWithdrawalCents || 0)));
+    const amount = Math.max(0, Math.round((params || {}).dailyWithdrawalCents || 0));
     const newState = { ...state, private: { ...state.private, dailyWithdrawalCents: amount } };
     return { state: newState, result: { ok: true, dailyWithdrawalCents: amount } };
   }

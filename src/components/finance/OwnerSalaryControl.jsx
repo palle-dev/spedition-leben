@@ -13,8 +13,8 @@ export default function OwnerSalaryControl() {
 
   async function save() {
     const cents = Math.round(parseFloat(amount) * 100);
-    if (isNaN(cents) || cents < 0 || cents > 100000) {
-      showToast("Betrag muss zwischen 0 € und 1.000 € liegen.", "error");
+    if (isNaN(cents) || cents < 0) {
+      showToast("Betrag muss mindestens 0 € betragen.", "error");
       return;
     }
     setSubmitting(true);
@@ -52,7 +52,6 @@ export default function OwnerSalaryControl() {
             onChange={e => setAmount(e.target.value)}
             placeholder={(current / 100).toString()}
             min="0"
-            max="1000"
             className="flex-1 min-w-0 bg-surface-2/50 border border-white/10 rounded-lg px-3 py-2 text-sm tabular-nums focus:outline-none focus:border-coral/30"
           />
           <button
