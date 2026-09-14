@@ -23,11 +23,11 @@ export default function GameShell() {
 }
 
 function GameShellContent() {
-  const { state, loading, toast, motionEnabled, overlay, dismissOverlay, toasts, dismissToast, connectionState } = useGame();
+  const { state, loading, showStart, toast, motionEnabled, overlay, dismissOverlay, toasts, dismissToast, connectionState } = useGame();
   const location = useLocation();
 
   if (loading) return <LoadingScreen />;
-  if (!state) return <StartScreen />;
+  if (showStart || !state) return <StartScreen />;
 
   const isHome = location.pathname === "/zuhause";
   const scene = isHome ? "home" : "office";

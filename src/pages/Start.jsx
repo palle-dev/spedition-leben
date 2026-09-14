@@ -6,7 +6,7 @@ import FernwerkLogo from "@/components/brand/FernwerkLogo";
 const OFFICE_URL = "https://media.base44.com/images/public/6aa52ebc01a939da57f8b78f/af8b503ab_office_cinematic.png";
 
 export default function StartScreen() {
-  const { newGame, listSlots, loadSlot, importGame, busy, showToast } = useGame();
+  const { state, newGame, listSlots, loadSlot, loadAutosaveSlot, autosaveMetas, importGame, busy, showToast, dismissStart } = useGame();
   const [slots, setSlots] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [names, setNames] = useState({ companyName: "", playerName: "", partnerName: "Mara" });
@@ -28,6 +28,11 @@ export default function StartScreen() {
 
   async function handleLoad(name) {
     const r = await loadSlot(name);
+    if (!r.ok) showToast(r.error, "error");
+  }
+
+  async function handleLoadAutosave(index) {
+    const r = await loadAutosaveSlot(index);
     if (!r.ok) showToast(r.error, "error");
   }
 
@@ -64,7 +69,16 @@ export default function StartScreen() {
           <p className="text-muted-foreground mt-3 text-sm max-w-xs mx-auto">Die Wirtschaftssimulation über Transport, Unternehmertum und das Leben dahinter.</p>
         </div>
 
-        {slots.length > 0 && !showForm && (
+        {state && !showForm && (
+          <button
+            onClick={dismissStart}
+            className="w-full mb-4 px-4 py-3.5 rounded-xl bg-lime text-ink font-semibold hover:brightness-110 transition active:scale-[0.98] flex items-center justify-center gap-2 shadow-[0_0_20px_-4px_hsl(var(--lime)/0.4)]"
+          >
+            <Play className="w-5 h-5" /> Weiter spielen
+          </button>
+        )}
+
+        {!showForm && (slots.length > 0 || autosaveMetas.some(m => m)) && (
           <div className="space-y-2 mb-4">
             <h2 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Spielstand laden</h2>
             {slots.map((s) => (
@@ -73,6 +87,16 @@ export default function StartScreen() {
                 <div>
                   <div className="font-medium text-foreground">{s.name}</div>
                   <div className="text-xs text-muted-foreground">{fmt(s.savedAt)}</div>
+                </div>
+                <Play className="w-4 h-4 text-lime" />
+              </button>
+            ))}
+            {autosaveMetas.map((m, i) => m && (
+              <button key={"auto" + i} onClick={() => handleLoadAutosave(i)}
+                className="w-full text-left px-4 py-3 rounded-xl glass border border-white/10 hover:border-lime/30 transition flex items-center justify-between">
+                <div>
+                  <div className="font-medium text-foreground">Automatisch · Slot {i + 1}</div>
+                  <div className="text-xs text-muted-foreground">{fmt(m.savedAt)}</div>
                 </div>
                 <Play className="w-4 h-4 text-lime" />
               </button>
@@ -105,7 +129,7 @@ export default function StartScreen() {
           </button>
         )}
 
-        {slots.length === 0 && !showForm && (
+        {!showForm && slots.length === 0 && !autosaveMetas.some(m => m) && (
           <button
             onClick={() => fileRef.current?.click()}
             className="w-full mt-2 px-4 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground transition flex items-center justify-center gap-2"

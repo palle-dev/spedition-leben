@@ -35,6 +35,7 @@ export function GameProvider({ children }) {
     return true;
   });
   const [overlay, setOverlay] = useState(null);
+  const [showStart, setShowStart] = useState(true);
   const prevAchievementsRef = useRef(new Set());
   const pendingAchievementsRef = useRef([]);
   const stateRef = useRef(null);
@@ -95,6 +96,8 @@ export function GameProvider({ children }) {
       setTimeout(() => setOverlay({ type: "achievement", data: next }), 300);
     }
   }, []);
+
+  const dismissStart = useCallback(() => setShowStart(false), []);
 
   // Dirty-Flag für debounced Speicherung — verhindert I/O auf jeden Befehl.
   const dirtySaveRef = useRef(false);
@@ -344,6 +347,7 @@ export function GameProvider({ children }) {
       if (data.error) throw new Error(data.error);
       const newState = data.state;
       stateRef.current = newState; setState(newState);
+      setShowStart(false);
       saveNow(newState);
       setAutomationEnabled(!!newState.timeControl?.enabled);
       lastSyncGameTimeRef.current = newState.gameTime || 0;
@@ -377,6 +381,7 @@ export function GameProvider({ children }) {
     try {
       const imported = importSave(exportStr);
       stateRef.current = imported; setState(imported);
+      setShowStart(false);
       saveNow(imported);
       return { ok: true };
     } catch (e) {
@@ -395,6 +400,7 @@ export function GameProvider({ children }) {
       const loaded = await loadManualSlot(name);
       if (!loaded) return { ok: false, error: "Slot nicht gefunden" };
       stateRef.current = loaded; setState(loaded);
+      setShowStart(false);
       saveNow(loaded);
       return { ok: true };
     } catch (e) { return { ok: false, error: e.message }; }
@@ -415,6 +421,7 @@ export function GameProvider({ children }) {
       const loaded = await loadAutosave(index);
       if (!loaded) return { ok: false, error: "Autosave-Slot leer" };
       stateRef.current = loaded; setState(loaded);
+      setShowStart(false);
       saveNow(loaded);
       return { ok: true };
     } catch (e) { return { ok: false, error: e.message }; }
@@ -427,13 +434,13 @@ export function GameProvider({ children }) {
     send, newGame, reload,
     enableAutomation, pauseAutomation,
     markAllEventsSeen,
-    showToast, dismissToast, dismissOverlay, toggleMotion,
+    showToast, dismissToast, dismissOverlay, dismissStart, toggleMotion,
     exportGame, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
   }), [
     send, newGame, reload,
     enableAutomation, pauseAutomation,
     markAllEventsSeen,
-    showToast, dismissToast, dismissOverlay, toggleMotion,
+    showToast, dismissToast, dismissOverlay, dismissStart, toggleMotion,
     exportGame, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
   ]);
 
@@ -444,6 +451,7 @@ export function GameProvider({ children }) {
     displayGameTime,
     dirty: false, save: async () => {}, saving: false,
     toasts, unseenCount,
+    showStart,
     connectionState: "connected",
     hasLock, autosaveMetas,
   };
