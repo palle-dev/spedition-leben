@@ -211,7 +211,7 @@ export function GameProvider({ children }) {
     syncTimerRef.current = setTimeout(() => { syncTimerRef.current = null; syncToServer(); }, 10000);
   }, [syncToServer]);
 
-  // ---- Befehl über applyCommandRemote (Simulation serverseitig, kein DB-Zugriff) ----
+  // ---- Befehl über Web-Worker (Simulation außerhalb des Main-Threads) ----
   const send = useCallback(async (command, params) => {
     // Warte auf laufende Automatik-Synchronisation, um Race-Conditions zu vermeiden:
     // syncAutomation und send nutzen denselben stateRef als Eingabe. Ohne Synchronisation
