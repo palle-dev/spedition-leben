@@ -139,17 +139,8 @@ export function GameProvider({ children }) {
   }, []);
 
   const processResult = useCallback(async (newState, result, command) => {
-    if (result?.events) {
-      const delivery = result.events.find(e => e.type === "delivery");
-      if (delivery) {
-        const order = newState.orders.find(o => o.id === delivery.order);
-        const trip = newState.trips.find(t => t.id === delivery.trip);
-        setOverlay({
-          type: "delivery",
-          data: { customer: order?.customer, fromCity: order?.fromCity, toCity: order?.toCity, paymentCents: delivery.paymentCents, onTime: delivery.onTime, contributionCents: trip ? delivery.paymentCents - trip.fuelCents - trip.tollCents : null },
-        });
-      }
-    }
+    // Lieferungen werden nur gebucht (in der Engine) und als Toast angezeigt —
+    // kein modales Overlay mehr. Toast erfolgt über processNewEvents → eventToToast.
     const newAchs = (newState.achievements || []).filter(a => a.unlocked && !prevAchievementsRef.current.has(a.id));
     if (newAchs.length > 0) {
       const ACHIEVEMENT_DEFS = await import("@/lib/achievementCatalog.js").then(m => m.ACHIEVEMENTS).catch(() => []);
