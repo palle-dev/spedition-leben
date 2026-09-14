@@ -9,6 +9,7 @@ import DispatchToolbar from "@/components/dispatch/DispatchToolbar";
 import RouteDetailOverlay from "@/components/dispatch/RouteDetailOverlay";
 import AutoOptimizePanel from "@/components/dispatch/AutoOptimizePanel";
 import MapLegend from "@/components/dispatch/MapLegend";
+import PageHint from "@/components/help/PageHint";
 
 export default function Dispatch() {
   const { state } = useGame();
@@ -160,6 +161,7 @@ export default function Dispatch() {
 
   return (
     <div className="h-full flex flex-col min-h-0 overflow-hidden">
+      <div className="px-4 sm:px-6 lg:px-12 pt-3 shrink-0"><PageHint pageKey="dispatch" /></div>
       {/* Karte + Arbeitsbereich */}
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
         {/* Karte */}

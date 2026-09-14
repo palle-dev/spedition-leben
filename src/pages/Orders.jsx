@@ -5,6 +5,7 @@ import { formatEuro, formatGameTime, CITIES, getDistance } from "@/lib/gameData"
 import { getMarketStats } from "@/lib/marketData";
 import StatusBadge from "@/components/ui/StatusBadge";
 import OfferCard from "@/components/orders/OfferCard";
+import PageHint from "@/components/help/PageHint";
 import { Check, X, MapPin, ArrowRight, Clock, Route as RouteIcon, Truck, TrendingUp, Calendar, Package } from "lucide-react";
 
 // Ermittelt die zuständige Filiale für einen Abholort (nächste aktive Filiale).
@@ -82,6 +83,7 @@ export default function Orders() {
 
   return (
     <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1600px] mx-auto space-y-6">
+      <PageHint pageKey="orders" />
       <div>
         <h1 className="text-2xl lg:text-3xl font-medium tracking-tight">Aufträge</h1>
         <p className="text-sm text-muted-foreground mt-1">Der Auftragsmarkt – nimm Angebote an, bevor die Annahmefrist abläuft.</p>

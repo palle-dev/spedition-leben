@@ -5,6 +5,7 @@ import OfficeKPIs from "@/components/office/OfficeKPIs";
 import FleetSummary from "@/components/office/FleetSummary";
 import DecisionsPanel from "@/components/office/DecisionsPanel";
 import OfficeBottom from "@/components/office/OfficeBottom";
+import PageHint from "@/components/help/PageHint";
 import OfficeTrends from "@/components/office/OfficeTrends";
 import OfficeBranches from "@/components/office/OfficeBranches";
 
@@ -17,6 +18,8 @@ export default function Office() {
 
   return (
     <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-8 max-w-[1600px] mx-auto space-y-6">
+      <PageHint pageKey="office" />
+
       {/* Kopfzeile */}
       <OfficeHeader state={state} period={period} setPeriod={setPeriod} />
 

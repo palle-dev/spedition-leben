@@ -14,6 +14,7 @@ import TeamClimate from "@/components/personnel/TeamClimate";
 import TeamTab from "@/components/personnel/TeamTab";
 import SatisfactionDetail from "@/components/personnel/SatisfactionDetail";
 import DevelopmentSection from "@/components/personnel/DevelopmentSection";
+import PageHint from "@/components/help/PageHint";
 import { UserPlus, Users, MapPin, Clock, Truck, Headset, Sparkles, Wrench, Calculator, Settings, Building2, Check, X, AlertCircle, Briefcase, LogOut, RotateCcw, HeartHandshake, GraduationCap, Search } from "lucide-react";
 
 const ROLE_ICON = {
@@ -80,6 +81,7 @@ export default function Personnel() {
 
   return (
     <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1600px] mx-auto space-y-5">
+      <PageHint pageKey="personnel" />
       {/* Header */}
       <div className="flex items-end justify-between flex-wrap gap-3">
         <div>

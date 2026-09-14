@@ -9,6 +9,7 @@ import OpenBranchDialog from "@/components/branches/OpenBranchDialog";
 import MoveResourceDialog from "@/components/branches/MoveResourceDialog";
 import BranchDecisionsPanel from "@/components/branches/BranchDecisionsPanel";
 import { Building2, Plus, Truck, Users, MapPin, ArrowRight, LayoutGrid, List } from "lucide-react";
+import PageHint from "@/components/help/PageHint";
 
 export default function Branches() {
   const { state, send, showToast } = useGame();
@@ -44,6 +45,7 @@ export default function Branches() {
 
   return (
     <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1600px] mx-auto space-y-6">
+      <PageHint pageKey="branches" />
       {/* Header */}
       <div className="flex items-end justify-between flex-wrap gap-3">
         <div>

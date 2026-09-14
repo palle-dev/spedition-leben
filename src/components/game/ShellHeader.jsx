@@ -6,7 +6,8 @@ import FernwerkSignet from "@/components/brand/FernwerkSignet";
 import AutomationControl from "@/components/game/AutomationControl";
 import NotificationCenter from "@/components/notifications/NotificationCenter";
 import SaveSlotsDialog from "@/components/game/SaveSlotsDialog";
-import { Sparkles, Mail as MailIcon, Save, Loader2, HardDrive } from "lucide-react";
+import { Sparkles, Mail as MailIcon, Save, Loader2, HardDrive, HelpCircle } from "lucide-react";
+import HelpPanel from "@/components/help/HelpPanel";
 import { getMailboxStats } from "@/lib/mailData";
 import { getAllNotifications } from "@/lib/eventLogClient";
 import { useHeaderSlot } from "@/lib/headerSlot";
@@ -19,6 +20,7 @@ export default function ShellHeader() {
   const navigate = useNavigate();
   const location = useLocation();
   const [slotsOpen, setSlotsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const mailStats = state?.mail ? getMailboxStats(state) : null;
   const unreadCount = mailStats?.unread || 0;
   const notifications = useMemo(() => getAllNotifications(state, 50), [state?.events]);
@@ -97,6 +99,14 @@ export default function ShellHeader() {
           )}
         </button>
         <button
+          onClick={() => setHelpOpen(true)}
+          className="w-9 h-9 grid place-items-center rounded-full border border-white/10 bg-white/5 text-muted-foreground hover:text-lime transition shrink-0"
+          aria-label="Hilfe öffnen"
+          title="Hilfe & Erklärungen"
+        >
+          <HelpCircle className="w-4 h-4" />
+        </button>
+        <button
           onClick={toggleMotion}
           className="w-9 h-9 grid place-items-center rounded-full border border-white/10 bg-white/5 text-muted-foreground hover:text-lime transition shrink-0"
           aria-label={motionEnabled ? "Animationen ausschalten" : "Animationen einschalten"}
@@ -107,6 +117,7 @@ export default function ShellHeader() {
         </button>
       </div>
       <SaveSlotsDialog open={slotsOpen} onOpenChange={setSlotsOpen} />
+      <HelpPanel open={helpOpen} onClose={() => setHelpOpen(false)} />
     </header>
   );
 }

@@ -4,6 +4,7 @@ import { formatGameTime, euroSigned, formatEuro } from "@/lib/gameData";
 import { BookOpen, Truck, Heart, Trophy, Package, Euro, Briefcase, TrendingUp, TrendingDown, Calendar } from "lucide-react";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
 import AssistantLog from "@/components/journal/AssistantLog";
+import PageHint from "@/components/help/PageHint";
 
 const EASE = [0.2, 0.75, 0.2, 1];
 
@@ -65,6 +66,7 @@ export default function Journal() {
 
   return (
     <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 w-full space-y-5">
+      <PageHint pageKey="journal" />
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>

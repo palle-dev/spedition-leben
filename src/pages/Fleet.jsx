@@ -10,6 +10,7 @@ import DgSection from "@/components/fleet/DgSection";
 import BranchSelector from "@/components/branches/BranchSelector";
 import { Wrench, Plus, Truck, MapPin, Gauge, FileText, TrendingUp, FileCheck, Settings, Flame } from "lucide-react";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
+import PageHint from "@/components/help/PageHint";
 
 export default function Fleet() {
   const { state, send, showToast } = useGame();
@@ -58,6 +59,7 @@ export default function Fleet() {
 
   return (
     <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1600px] mx-auto space-y-6">
+      <PageHint pageKey="fleet" />
       <div className="flex items-end justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl lg:text-3xl font-medium tracking-tight">Fuhrpark</h1>

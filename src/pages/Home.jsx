@@ -10,6 +10,7 @@ import PurchaseCatalog from "@/components/home/PurchaseCatalog";
 import PossessionsSection from "@/components/home/PossessionsSection";
 import ActivityPanel from "@/components/home/ActivityPanel";
 import GoalsPanel from "@/components/home/GoalsPanel";
+import PageHint from "@/components/help/PageHint";
 
 export default function Home() {
   const { state, send, showToast } = useGame();
@@ -42,6 +43,7 @@ export default function Home() {
 
   return (
     <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1600px] mx-auto">
+      <PageHint pageKey="home" />
       <div className="flex flex-col lg:flex-row gap-6 lg:gap-10 items-start lg:items-center">
         {/* Hero */}
         <motion.div variants={heroStagger} initial="initial" animate="animate" className="flex-1 max-w-2xl">

@@ -9,6 +9,7 @@ import AssetRegister from "@/components/finance/AssetRegister";
 import AccountingTeam from "@/components/finance/AccountingTeam";
 import FinancingPanel from "@/components/finance/FinancingPanel";
 import { Landmark } from "lucide-react";
+import PageHint from "@/components/help/PageHint";
 
 const TABS = [
   { id: "overview", label: "Übersicht", icon: LayoutDashboard },
@@ -29,6 +30,7 @@ export default function Finances() {
 
   return (
     <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1600px] mx-auto space-y-5">
+      <PageHint pageKey="finances" />
       <div>
         <h1 className="text-2xl lg:text-3xl font-medium tracking-tight">Finanzen</h1>
         <p className="text-sm text-muted-foreground mt-1">

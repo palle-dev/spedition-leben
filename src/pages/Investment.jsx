@@ -6,6 +6,7 @@ import DepotView from "@/components/investment/DepotView";
 import OrderTicket from "@/components/investment/OrderTicket";
 import OrdersTable from "@/components/investment/OrdersTable";
 import { LineChart, Store, Wallet, ListOrdered, Building2, User } from "lucide-react";
+import PageHint from "@/components/help/PageHint";
 
 // Investment – dritte Hauptwelt: Firmen- und Privatvermögen in Aktien und Krypto.
 export default function Investment() {
@@ -25,6 +26,7 @@ export default function Investment() {
 
   return (
     <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-8 max-w-[1600px] mx-auto space-y-4">
+      <PageHint pageKey="investment" />
       {/* Header mit Depot-Umschalter */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
