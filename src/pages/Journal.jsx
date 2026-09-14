@@ -64,7 +64,7 @@ export default function Journal() {
   const hasAssistantLog = (state?.assistantLog || []).length > 0;
 
   return (
-    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1400px] mx-auto space-y-5">
+    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 w-full space-y-5">
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
@@ -98,16 +98,16 @@ export default function Journal() {
             <StatCard icon={Package} label="Lieferungen" value={stats.deliveries} color="text-foreground" />
           </div>
 
-          {/* Tagesgruppierte Ereignisliste — zweispaltig auf breiten Bildschirmen */}
-          <div className="grid lg:grid-cols-2 gap-5">
+          {/* Tagesgruppierte Ereignisliste — mehrspaltig auf breiten Bildschirmen */}
+          <div className="space-y-5">
             {grouped.map(([day, items]) => (
-              <div key={day} className="space-y-1">
-                <div className="flex items-center gap-2.5 px-1 pb-1">
+              <div key={day} className="space-y-1.5">
+                <div className="flex items-center gap-2.5 px-1 pb-0.5">
                   <Calendar className="w-3.5 h-3.5 text-muted-foreground/50" />
                   <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">Tag {day}</span>
                   <div className="flex-1 h-px bg-white/5" />
                 </div>
-                <div className="glass border border-white/10 rounded-xl divide-y divide-white/5 overflow-hidden">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-2">
                   {items.map((e, i) => (
                     <EventRow key={i} event={e} />
                   ))}
@@ -162,14 +162,14 @@ function EventRow({ event }) {
   const positive = event.amount != null && event.amount >= 0;
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors">
-      <span className="text-muted-foreground/40 text-xs tabular-nums w-20 shrink-0">{formatGameTime(event.min).split(", ")[1]}</span>
-      <span className={`grid place-items-center w-7 h-7 rounded-lg shrink-0 ${cls}`}>
-        <Icon className="w-3.5 h-3.5" />
+    <div className="glass border border-white/10 rounded-lg px-3 py-2.5 flex items-center gap-2.5 hover:bg-white/[0.03] transition-colors">
+      <span className="text-muted-foreground/40 text-[11px] tabular-nums w-12 shrink-0">{formatGameTime(event.min).split(", ")[1]}</span>
+      <span className={`grid place-items-center w-6 h-6 rounded-md shrink-0 ${cls}`}>
+        <Icon className="w-3 h-3" />
       </span>
-      <span className="text-foreground/80 flex-1 text-sm leading-snug">{event.text}</span>
+      <span className="text-foreground/80 flex-1 text-xs leading-snug line-clamp-2">{event.text}</span>
       {event.amount != null && (
-        <span className={`tabular-nums text-sm font-medium shrink-0 ${positive ? "text-lime" : "text-red-300"}`}>
+        <span className={`tabular-nums text-xs font-medium shrink-0 ${positive ? "text-lime" : "text-red-300"}`}>
           {euroSigned(event.amount)}
         </span>
       )}
