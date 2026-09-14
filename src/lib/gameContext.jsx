@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { executeCommand } from "@/lib/simulationAdapter";
 import { saveCurrent, loadCurrent, saveAutosave, loadAutosave, getAllAutosaveMetas, listManualSlots, saveManualSlot, loadManualSlot, deleteManualSlot, exportSave, importSave } from "@/lib/persistence";
 import { acquireLock, refreshLock, releaseLock, LOCK_REFRESH } from "@/lib/tabLock";
@@ -6,10 +6,18 @@ import { eventToToast } from "@/lib/eventNotifications";
 import { getUnseenEventCount } from "@/lib/eventLogClient";
 
 const GameContext = createContext(null);
+const GameActionsContext = createContext(null);
 
 export function useGame() {
   const ctx = useContext(GameContext);
+  const actions = useContext(GameActionsContext);
   if (!ctx) throw new Error("useGame muss innerhalb von GameProvider verwendet werden");
+  return { ...ctx, ...actions };
+}
+
+export function useGameActions() {
+  const ctx = useContext(GameActionsContext);
+  if (!ctx) throw new Error("useGameActions muss innerhalb von GameProvider verwendet werden");
   return ctx;
 }
 
@@ -412,16 +420,36 @@ export function GameProvider({ children }) {
     } catch (e) { return { ok: false, error: e.message }; }
   }, [saveNow]);
 
+  // Actions sind stabil (alle Callbacks haben stabile Deps) — eigener Context,
+  // damit Komponenten, die nur Aktionen brauchen, nicht bei jeder Zustandsänderung
+  // neu rendern.
+  const actions = useMemo(() => ({
+    send, newGame, reload,
+    enableAutomation, pauseAutomation,
+    markAllEventsSeen,
+    showToast, dismissToast, dismissOverlay, toggleMotion,
+    exportGame, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
+  }), [
+    send, newGame, reload,
+    enableAutomation, pauseAutomation,
+    markAllEventsSeen,
+    showToast, dismissToast, dismissOverlay, toggleMotion,
+    exportGame, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
+  ]);
+
   const value = {
-    state, loading, busy, toast, showToast, send, newGame, reload,
-    motionEnabled, toggleMotion, overlay, dismissOverlay,
-    automationEnabled, automationBusy, enableAutomation, pauseAutomation,
+    state, loading, busy, toast,
+    motionEnabled, overlay,
+    automationEnabled, automationBusy,
     displayGameTime,
     dirty: false, save: async () => {}, saving: false,
-    toasts, dismissToast, unseenCount, markAllEventsSeen,
+    toasts, unseenCount,
     connectionState: "connected",
     hasLock, autosaveMetas,
-    exportGame, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
   };
-  return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
+  return (
+    <GameActionsContext.Provider value={actions}>
+      <GameContext.Provider value={value}>{children}</GameContext.Provider>
+    </GameActionsContext.Provider>
+  );
 }
