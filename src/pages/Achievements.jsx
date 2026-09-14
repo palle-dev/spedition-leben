@@ -10,6 +10,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { EASE } from "@/lib/motion";
 import { Trophy, Target, Plus, Building2, TrendingUp, X } from "lucide-react";
 
+const STAGES = [
+  { id: "gruendung", label: "Gründung", threshold: 0 },
+  { id: "aufbau", label: "250k", threshold: 25000000 },
+  { id: "millionengeschaeft", label: "1 Mio.", threshold: 100000000 },
+  { id: "grossunternehmen", label: "5 Mio.", threshold: 500000000 },
+];
+
 export default function Achievements() {
   const { state, send, showToast } = useGame();
   const [activeCategory, setActiveCategory] = useState("unternehmen");
@@ -70,23 +77,30 @@ export default function Achievements() {
           <Building2 className="w-4 h-4 text-lime/70" />
           <span className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground">Unternehmensentwicklung</span>
         </div>
-        <div className="flex items-baseline gap-3">
+        <div className="flex items-baseline gap-3 mb-5">
           <span className="text-2xl lg:text-3xl font-medium tabular-nums">{formatEuro(companyValue)}</span>
           <span className="text-sm text-lime">{stage.name}</span>
         </div>
-        <div className="flex gap-1 mt-4">
-          {["gruendung", "aufbau", "millionengeschaeft", "grossunternehmen"].map((sid, i) => {
-            const reached = companyValue >= [0, 25000000, 100000000, 500000000][i];
-            return (
-              <div key={sid} className={`flex-1 h-1.5 rounded-full ${reached ? "bg-lime" : "bg-white/10"}`} />
-            );
-          })}
-        </div>
-        <div className="grid grid-cols-4 gap-1 mt-2 text-[9px] text-muted-foreground/60">
-          <span>Gründung</span>
-          <span className="text-center">250k</span>
-          <span className="text-center">1 Mio.</span>
-          <span className="text-right">5 Mio.</span>
+        {/* Stufen-Track mit Tick-Marks */}
+        <div className="relative">
+          <div className="flex gap-1">
+            {STAGES.map((s, i) => {
+              const reached = companyValue >= s.threshold;
+              return (
+                <div key={s.id} className="flex-1 flex flex-col gap-1.5">
+                  <div className="flex items-center gap-1">
+                    <div className={`w-2.5 h-2.5 rounded-full shrink-0 border-2 transition ${
+                      reached ? "bg-lime border-lime" : "bg-transparent border-white/20"
+                    }`} />
+                    {i < STAGES.length - 1 && (
+                      <div className={`flex-1 h-0.5 rounded-full ${reached && companyValue >= STAGES[i + 1].threshold ? "bg-lime" : "bg-white/10"}`} />
+                    )}
+                  </div>
+                  <span className={`text-[9px] ${reached ? "text-lime/80" : "text-muted-foreground/50"}`}>{s.label}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -96,21 +110,24 @@ export default function Achievements() {
           <div className="flex items-center gap-2">
             <Target className="w-4 h-4 text-coral/70" />
             <span className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground">Persönliche Ziele</span>
-            <span className="text-[10px] text-muted-foreground/50">{goals.length}/3</span>
+            <span className="text-[10px] text-muted-foreground/50 tabular-nums">{goals.length}/3</span>
           </div>
           {goals.length < 3 && (
             <button
               onClick={() => setShowGoalPicker(true)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-coral/10 border border-coral/30 text-coral text-xs font-medium hover:border-coral/50 transition active:scale-95"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-coral/10 border border-coral/30 text-coral text-xs font-medium hover:border-coral/50 hover:bg-coral/15 transition active:scale-95"
             >
               <Plus className="w-3.5 h-3.5" /> Ziel hinzufügen
             </button>
           )}
         </div>
         {goals.length === 0 ? (
-          <div className="glass border border-white/10 rounded-xl p-5 text-center">
-            <Target className="w-6 h-6 text-muted-foreground/30 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">Noch kein Ziel angeheftet. Wähle bis zu drei Ziele, die du verfolgen möchtest.</p>
+          <div className="glass border border-white/10 rounded-xl p-10 text-center">
+            <div className="grid place-items-center w-12 h-12 rounded-2xl bg-white/5 mx-auto mb-3">
+              <Target className="w-6 h-6 text-muted-foreground/30" />
+            </div>
+            <p className="text-sm text-muted-foreground">Noch kein Ziel angeheftet.</p>
+            <p className="text-xs text-muted-foreground/50 mt-1">Wähle bis zu drei Ziele, die du verfolgen möchtest.</p>
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -130,7 +147,7 @@ export default function Achievements() {
           <span className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground">Erfolge</span>
         </div>
         {/* Kategorie-Tabs */}
-        <div className="flex gap-1 mb-4 overflow-x-auto scrollbar-none">
+        <div className="flex gap-1.5 mb-4 overflow-x-auto scrollbar-none">
           {ACHIEVEMENT_CATEGORIES.map(cat => {
             const count = ACHIEVEMENTS.filter(a => a.category === cat.id).length;
             const unlocked = (state.achievements || []).filter(a => a.unlocked && ACHIEVEMENTS.find(d => d.id === a.id)?.category === cat.id).length;
@@ -138,11 +155,14 @@ export default function Achievements() {
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
-                className={`px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition ${
-                  activeCategory === cat.id ? "bg-lime/15 text-lime border border-lime/30" : "text-muted-foreground hover:text-foreground border border-white/10"
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-200 ${
+                  activeCategory === cat.id
+                    ? "bg-lime/15 text-lime border border-lime/30"
+                    : "text-muted-foreground hover:text-foreground border border-white/10 hover:border-white/20"
                 }`}
               >
-                {cat.label} <span className="text-[10px] opacity-60">{unlocked}/{count}</span>
+                {cat.label}
+                <span className={`tabular-nums text-[10px] ${activeCategory === cat.id ? "text-lime/60" : "opacity-50"}`}>{unlocked}/{count}</span>
               </button>
             );
           })}
@@ -172,7 +192,7 @@ export default function Achievements() {
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium">Ziel wählen</h3>
-                <button onClick={() => setShowGoalPicker(false)} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+                <button onClick={() => setShowGoalPicker(false)} className="text-muted-foreground hover:text-foreground p-1"><X className="w-5 h-5" /></button>
               </div>
               {availableTemplates.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">Alle Ziele bereits angeheftet.</p>
@@ -183,7 +203,7 @@ export default function Achievements() {
                       key={t.id}
                       onClick={() => attachGoal(t.id)}
                       disabled={busy}
-                      className="w-full text-left rounded-xl p-3 border border-white/10 hover:border-coral/30 bg-surface/30 transition active:scale-[0.99] disabled:opacity-50"
+                      className="w-full text-left rounded-xl p-3 border border-white/10 hover:border-coral/30 bg-surface/30 hover:bg-surface/50 transition active:scale-[0.99] disabled:opacity-50"
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">{t.title}</span>
