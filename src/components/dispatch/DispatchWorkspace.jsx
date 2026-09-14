@@ -70,7 +70,7 @@ export default function DispatchWorkspace({
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Tab bar – vier Bereiche */}
-      <div className="flex border-b border-white/10 shrink-0 px-2 pt-1 overflow-x-auto scrollbar-none">
+      <div className="flex border-b border-white/10 shrink-0 px-2 pt-1.5 overflow-x-auto scrollbar-none bg-surface-2/40">
         <TabButton active={activeTab === "auftraege"} onClick={() => setActiveTab("auftraege")} label="Aufträge" count={accepted.length} icon={Package} />
         <TabButton active={activeTab === "touren"} onClick={() => setActiveTab("touren")} label="Touren" count={running.length} icon={Truck} />
         <TabButton active={activeTab === "flotte"} onClick={() => setActiveTab("flotte")} label="Flotte" count={state.vehicles.length} icon={Users} />

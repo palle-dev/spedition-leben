@@ -201,8 +201,8 @@ export default function Dispatch() {
           )}
         </div>
 
-        {/* Arbeitsbereich */}
-        <div className={`min-h-0 flex flex-col ${mobileView === "map" ? "hidden" : "flex-1"} lg:flex lg:flex-none lg:w-[460px] xl:w-[500px] 2xl:w-[560px] lg:shrink-0 border-t lg:border-t-0 lg:border-l border-white/10 bg-ink/95 backdrop-blur-xl`}>
+        {/* Arbeitsbereich — eigenes Panel mit Höhenwirkung */}
+        <div className={`min-h-0 flex flex-col ${mobileView === "map" ? "hidden" : "flex-1"} lg:flex lg:flex-none lg:w-[460px] xl:w-[500px] 2xl:w-[560px] lg:shrink-0 border-t lg:border-t-0 lg:border-l border-white/10 bg-surface/90 backdrop-blur-2xl lg:shadow-[-12px_0_40px_-8px_rgba(0,0,0,0.6)] lg:relative lg:z-20`}>
           <DispatchWorkspace
             activeTab={activeTab}
             setActiveTab={setActiveTab}
@@ -234,8 +234,8 @@ function MapActionButton({ onClick, title, children, highlight }) {
       onClick={onClick}
       title={title}
       aria-label={title}
-      className={`w-10 h-10 rounded-lg grid place-items-center transition backdrop-blur-md border active:scale-95 ${
-        highlight ? "bg-lime text-ink border-lime" : "bg-ink/70 text-foreground/80 border-white/15 hover:border-white/30 hover:text-foreground"
+      className={`w-10 h-10 rounded-xl grid place-items-center transition backdrop-blur-xl border shadow-lg shadow-black/40 active:scale-95 ${
+        highlight ? "bg-lime text-ink border-lime shadow-lime/20" : "bg-surface/80 text-foreground/80 border-white/15 hover:border-white/30 hover:text-foreground hover:bg-surface"
       }`}
     >
       {children}

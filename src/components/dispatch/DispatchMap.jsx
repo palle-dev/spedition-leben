@@ -157,8 +157,10 @@ export default function DispatchMap({
   }, [mapLoaded, focusAction, state, routeData]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-ink">
+    <div className="relative h-full w-full overflow-hidden bg-ink ring-1 ring-white/[0.06]">
       <div ref={containerRef} className="absolute inset-0" />
+      {/* Vignette für Tiefenwirkung */}
+      <div className="pointer-events-none absolute inset-0 shadow-[inset_0_0_140px_rgba(0,0,0,0.55)] z-[1]" />
       {mapError && (
         <div className="absolute inset-0 flex items-center justify-center p-6 z-20 bg-ink/80">
           <div className="glass border border-white/15 rounded-xl p-5 max-w-sm text-center">

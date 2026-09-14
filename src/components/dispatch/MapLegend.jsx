@@ -8,7 +8,7 @@ export default function MapLegend({ showTraffic }) {
 
   return (
     <div className="absolute bottom-3 left-3 z-10 max-w-[220px]">
-      <div className="glass border border-white/10 rounded-xl overflow-hidden">
+      <div className="glass border border-white/10 rounded-xl overflow-hidden shadow-xl shadow-black/40">
         <button
           onClick={() => setExpanded(v => !v)}
           className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-foreground hover:bg-white/5 transition"
