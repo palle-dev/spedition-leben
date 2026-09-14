@@ -13,7 +13,7 @@ import {
   dayOf,
   formatGameTime,
   BRANCH_COST_PER_DAY,
-  SERVICE_START_MIN,
+  SERVICE_START_MIN, SERVICE_END_MIN,
 } from "./gameRules.ts";
 import { deliverMessage } from "./mailEngine.ts";
 import { pushEvent } from "./eventLog.ts";

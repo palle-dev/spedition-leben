@@ -947,14 +947,22 @@ export function suggestTours(state, opts) {
   const usedDriverIds = new Set();
   const usedOrderIds = new Set();
 
-  for (const vehicleId of vehicleIds || state.vehicles.map(v => v.id)) {
+  // Performance: Wenn freie/ruhende Lkw verfügbar sind, plane nur für diese.
+  // on_trip-Vorausplanung ist teuer (futureLocation/earliestAvailable pro Lkw)
+  // und nur relevant, wenn alle Lkw beschäftigt sind.
+  const allCandidateVehicles = (vehicleIds || state.vehicles.map(v => v.id))
+    .map(vid => state.vehicles.find(v => v.id === vid))
+    .filter(v => v && (v.status === "free" || v.status === "resting" || v.status === "on_trip"));
+  const hasFreeOrResting = allCandidateVehicles.some(v => v.status === "free" || v.status === "resting");
+  const effectiveVehicleIds = hasFreeOrResting
+    ? allCandidateVehicles.filter(v => v.status === "free" || v.status === "resting").map(v => v.id)
+    : allCandidateVehicles.map(v => v.id);
+
+  for (const vehicleId of effectiveVehicleIds) {
     const vehicle = state.vehicles.find(v => v.id === vehicleId);
     if (!vehicle) continue;
-    // Für 24/7-Vorausplanung: Erlaube auch on_trip — earliestAvailable
-    // gibt den Zeitpunkt nach Tourende zurück, buildTourPlan startet
-    // die neue Tour dann erst danach.
     if (vehicle.status !== "free" && vehicle.status !== "resting" && vehicle.status !== "on_trip") continue;
-    if (vehicle.status === "on_trip" && vehicle.condition < 20) continue; // nach Tour erst warten
+    if (vehicle.status === "on_trip" && vehicle.condition < 20) continue;
     if (vehicle.status !== "on_trip" && vehicle.condition < 20) continue;
 
     // Zukünftige Stadt nach Abschluss aller laufenden Touren
@@ -1025,7 +1033,7 @@ export function suggestTours(state, opts) {
     // Reine Vergütungs-Sortierung bevorzugt Express-Aufträge mit hohen Preisen
     // aber unrealisierbar kurzen Lieferfristen, die dann alle durch buildTourPlan
     // abgelehnt werden und die machbaren Advance-Aufträge verdrängen.
-    if (allOrders.length > 18) {
+    if (allOrders.length > 12) {
       const vehicleCity = vehicleFutureCity;
       const scored = allOrders.map(o => {
         const emptyKm = getDistance(vehicleCity, o.fromCity);
@@ -1035,7 +1043,7 @@ export function suggestTours(state, opts) {
       });
       scored.sort((a, b) => b.score - a.score);
       allOrders.length = 0;
-      for (const s of scored.slice(0, 18)) allOrders.push(s.o);
+      for (const s of scored.slice(0, 12)) allOrders.push(s.o);
     }
 
     // Probiere jeden Kandidaten-Fahrer und wähle den mit dem besten Plan.
