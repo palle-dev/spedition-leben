@@ -41,7 +41,15 @@ const GROUP_LABELS = {
   branch_manager: "Filialleiter",
 };
 
-export default function TeamTab({ drivers, employees, state, filter, setFilter, search, setSearch, onManage, onSetup }) {
+export default function TeamTab({ drivers, employees, state, filter, setFilter, search, setSearch, branchFilter, setBranchFilter, onManage, onSetup }) {
+  const branches = state.branches || [];
+  const activeBranches = branches.filter(b => b.status === "active");
+
+  // Filiale einer Person ermitteln: Fahrer → branchId, Angestellte → assignedBranchId (Fallback branchId)
+  function personBranchId(p) {
+    return p._kind === "driver" ? p.branchId : (p.assignedBranchId || p.branchId);
+  }
+
   // Alle Personen (Fahrer + Angestellte) mit einheitlichem Typ-Marker
   const allPersons = useMemo(() => {
     const list = [
@@ -56,10 +64,21 @@ export default function TeamTab({ drivers, employees, state, filter, setFilter, 
     const q = search.trim().toLowerCase();
     return allPersons.filter(p => {
       if (filter !== "all" && p._group !== filter) return false;
-      if (q && !p.name.toLowerCase().includes(q) && !(p.locationCity || "").toLowerCase().includes(q)) return false;
+      // Filialfilter: nach zugewiesener Filiale (nicht physischem Ort)
+      if (branchFilter !== "all") {
+        const pid = personBranchId(p);
+        if (pid !== branchFilter) return false;
+      }
+      if (q) {
+        const branch = branches.find(b => b.id === personBranchId(p));
+        const branchName = (branch?.name || "").toLowerCase();
+        const branchCity = (branch?.city || "").toLowerCase();
+        const locCity = (p.locationCity || "").toLowerCase();
+        if (!p.name.toLowerCase().includes(q) && !locCity.includes(q) && !branchName.includes(q) && !branchCity.includes(q)) return false;
+      }
       return true;
     });
-  }, [allPersons, filter, search]);
+  }, [allPersons, filter, search, branchFilter, branches]);
 
   // Zählungen pro Gruppe
   const counts = useMemo(() => {
@@ -106,15 +125,32 @@ export default function TeamTab({ drivers, employees, state, filter, setFilter, 
             );
           })}
         </div>
-        <div className="relative flex-1 min-w-[180px] max-w-xs ml-auto">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50" />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Name oder Ort suchen…"
-            className="w-full rounded-lg pl-9 pr-3 py-2 text-sm bg-white/5 border border-white/10 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-lime/30 transition"
-          />
+        <div className="flex items-center gap-2 ml-auto">
+          {activeBranches.length > 1 && (
+            <div className="relative">
+              <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
+              <select
+                value={branchFilter}
+                onChange={e => setBranchFilter(e.target.value)}
+                className="appearance-none rounded-lg pl-9 pr-8 py-2 text-sm bg-white/5 border border-white/10 text-foreground focus:outline-none focus:border-lime/30 transition cursor-pointer"
+              >
+                <option value="all">Alle Filialen</option>
+                {activeBranches.map(b => (
+                  <option key={b.id} value={b.id}>{b.name} · {b.city}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="relative flex-1 min-w-[160px] max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Name, Filiale oder Ort…"
+              className="w-full rounded-lg pl-9 pr-3 py-2 text-sm bg-white/5 border border-white/10 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-lime/30 transition"
+            />
+          </div>
         </div>
       </div>
 

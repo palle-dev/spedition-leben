@@ -35,6 +35,7 @@ export default function Personnel() {
   const [jobPrefill, setJobPrefill] = useState(null);
   const [teamFilter, setTeamFilter] = useState("all");
   const [teamSearch, setTeamSearch] = useState("");
+  const [teamBranchFilter, setTeamBranchFilter] = useState("all");
   const [hireBranchId, setHireBranchId] = useState(null);
   const activeBranches = (state.branches || []).filter(b => b.status === "active");
   const selectedHireBranchId = hireBranchId || (activeBranches[0]?.id || null);
@@ -135,6 +136,8 @@ export default function Personnel() {
           setFilter={setTeamFilter}
           search={teamSearch}
           setSearch={setTeamSearch}
+          branchFilter={teamBranchFilter}
+          setBranchFilter={setTeamBranchFilter}
           onManage={setManagePerson}
           onSetup={setSetupEmp}
         />
