@@ -12,7 +12,8 @@ import DispatchActiveTours from "./DispatchActiveTours";
 import DriverWorkBudget from "./DriverWorkBudget";
 import DispatcherPanel from "./DispatcherPanel";
 import DispatchLiveLog from "./DispatchLiveLog";
-import { Truck, Users, Package, ArrowRight, Play, AlertTriangle, Route, X, Headset, Activity } from "lucide-react";
+import LocationOverviewTab from "./LocationOverviewTab";
+import { Truck, Users, Package, ArrowRight, Play, AlertTriangle, Route, X, Headset, Activity, MapPin } from "lucide-react";
 
 // Vier gleichrangige Bereiche: Aufträge, Touren, Flotte, Disponenten.
 // Tour-Planung und Assistent sind in den fachlichen Kontext integriert.
@@ -74,6 +75,7 @@ export default function DispatchWorkspace({
         <TabButton active={activeTab === "auftraege"} onClick={() => setActiveTab("auftraege")} label="Aufträge" count={accepted.length} icon={Package} />
         <TabButton active={activeTab === "touren"} onClick={() => setActiveTab("touren")} label="Touren" count={running.length} icon={Truck} />
         <TabButton active={activeTab === "flotte"} onClick={() => setActiveTab("flotte")} label="Flotte" count={state.vehicles.length} icon={Users} />
+        <TabButton active={activeTab === "standort"} onClick={() => setActiveTab("standort")} label="Standort" icon={MapPin} />
         <TabButton active={activeTab === "disponenten"} onClick={() => setActiveTab("disponenten")} label="Disponenten" count={pendingSuggestions} icon={Headset} />
         <TabButton active={activeTab === "verlauf"} onClick={() => setActiveTab("verlauf")} label="Verlauf" icon={Activity} />
       </div>
@@ -232,6 +234,9 @@ export default function DispatchWorkspace({
             })()}
           </div>
         )}
+
+        {/* ---------- Standort-Filter ---------- */}
+        {activeTab === "standort" && <LocationOverviewTab />}
 
         {/* ---------- Disponenten ---------- */}
         {activeTab === "disponenten" && <DispatcherPanel />}
