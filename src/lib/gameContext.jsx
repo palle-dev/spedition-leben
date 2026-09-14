@@ -155,10 +155,40 @@ export function GameProvider({ children }) {
       setConnectionState("connected");
       syncFailCountRef.current = 0;
     } catch (e) {
-      if (e.conflict && e.current_revision != null) { serverRevRef.current = e.current_revision; localStorage.setItem(LS_SERVER_REV, String(e.current_revision)); }
-      dirtyRef.current = true; setDirty(true);
-      syncFailCountRef.current++;
-      if (syncFailCountRef.current >= 3) setConnectionState("reconnecting");
+      if (e.conflict && e.current_revision != null) {
+        serverRevRef.current = e.current_revision;
+        localStorage.setItem(LS_SERVER_REV, String(e.current_revision));
+        // Konflikt: Server hat eine neuere Revision. Prüfe, ob der Serverstand
+        // auch zeitlich neuer ist (z.B. durch processAutomationTick im Hintergrund).
+        // Nur dann den Clientstand durch den Serverstand ersetzen — sonst behalten
+        // wir den lokalen Stand (enthält aktuelle Spielaktionen) und speichern erneut.
+        try {
+          const serverData = await gameCommand({ command: "load", stateId: stateIdRef.current });
+          const serverTime = serverData.state?.gameTime || 0;
+          const localTime = stateRef.current?.gameTime || 0;
+          if (serverTime > localTime) {
+            stateRef.current = serverData.state; setState(serverData.state);
+            saveToStorage(serverData.state);
+            serverRevRef.current = serverData.revision;
+            localStorage.setItem(LS_SERVER_REV, String(serverData.revision));
+            setRevision(serverData.revision);
+            syncFailCountRef.current = 0;
+            setConnectionState("connected");
+          } else {
+            dirtyRef.current = true; setDirty(true);
+            syncFailCountRef.current++;
+            if (syncFailCountRef.current >= 3) setConnectionState("reconnecting");
+          }
+        } catch (e2) {
+          dirtyRef.current = true; setDirty(true);
+          syncFailCountRef.current++;
+          if (syncFailCountRef.current >= 3) setConnectionState("reconnecting");
+        }
+      } else {
+        dirtyRef.current = true; setDirty(true);
+        syncFailCountRef.current++;
+        if (syncFailCountRef.current >= 3) setConnectionState("reconnecting");
+      }
     } finally { setSaving(false); }
   }, []);
 
@@ -252,8 +282,12 @@ export function GameProvider({ children }) {
 
   useEffect(() => {
     const handleVisibility = () => {
-      if (document.hidden) { if (automationEnabled) pauseAutomation(true, "tab_hidden"); syncToServer(); }
-      else { if (userWantsAutomationRef.current && !automationEnabled && !automationBusy) enableAutomation(true); }
+      if (document.hidden) {
+        // Pausieren und erst danach speichern — sonst bekommt der Server den
+        // unpausierten Stand und processAutomationTick treibt ihn weiter voran.
+        if (automationEnabled) pauseAutomation(true, "tab_hidden").then(() => syncToServer());
+        else syncToServer();
+      } else { if (userWantsAutomationRef.current && !automationEnabled && !automationBusy) enableAutomation(true); }
     };
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);
@@ -271,49 +305,59 @@ export function GameProvider({ children }) {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [saveToStorage]);
 
-  // ---- Startup: localStorage laden ----
+  // ---- Startup: Server- und localStorage-Stand abgleichen ----
+  // Verhindert, dass ein veralteter lokaler Stand einen neueren Serverstand
+  // überschreibt (z.B. wenn processAutomationTick im Hintergrund Zeit vorgetrieben hat).
   useEffect(() => {
     (async () => {
+      const sid = localStorage.getItem(LS_STATE_ID);
       const savedState = localStorage.getItem(LS_STATE);
-      if (savedState) {
+      let localState = null;
+      try { localState = savedState ? JSON.parse(savedState) : null; } catch (e) {}
+
+      let chosenState = null;
+      let chosenRev = parseInt(localStorage.getItem(LS_SERVER_REV) || "0", 10);
+
+      if (sid) {
         try {
-          const parsed = JSON.parse(savedState);
-          stateRef.current = parsed; setState(parsed);
-          const sid = localStorage.getItem(LS_STATE_ID);
-          if (sid) { stateIdRef.current = sid; setStateId(sid); serverRevRef.current = parseInt(localStorage.getItem(LS_SERVER_REV) || "0", 10); }
-          setAutomationEnabled(!!parsed.timeControl?.enabled);
-          lastSyncGameTimeRef.current = parsed.gameTime || 0;
-          lastSyncRealMsRef.current = Date.now();
-          prevAchievementsRef.current = new Set((parsed.achievements || []).filter(a => a.unlocked).map(a => a.id));
-          processNewEvents(parsed);
-          if (parsed.timeControl?.enabled) {
-            const data = await applyCommandRemote({ state: stateRef.current, command: "pauseAutomation", params: { reason: "loaded" } });
-            stateRef.current = data.state; setState(data.state); saveToStorage(data.state);
-            setAutomationEnabled(false);
+          const serverData = await gameCommand({ command: "load", stateId: sid });
+          const serverTime = serverData.state?.gameTime || 0;
+          const localTime = localState?.gameTime || 0;
+          if (serverTime > localTime) {
+            // Serverstand ist zeitlich neuer — verwende ihn.
+            chosenState = serverData.state;
+            chosenRev = serverData.revision;
+          } else {
+            // Lokaler Stand ist aktueller (enthält letzte Spielaktionen) — behalte ihn,
+            // aber nutze die Server-Revision für den nächsten Save.
+            chosenState = localState;
+            chosenRev = serverData.revision;
           }
-          userWantsAutomationRef.current = false;
-        } catch (e) {}
-      } else {
-        const sid = localStorage.getItem(LS_STATE_ID);
-        if (sid) {
-          try {
-            const data = await gameCommand({ command: "load", stateId: sid });
-            stateRef.current = data.state; setState(data.state);
-            stateIdRef.current = sid; setStateId(sid); serverRevRef.current = data.revision;
-            localStorage.setItem(LS_SERVER_REV, String(data.revision));
-            saveToStorage(data.state);
-            setAutomationEnabled(!!data.state.timeControl?.enabled);
-            lastSyncGameTimeRef.current = data.state.gameTime || 0;
-            prevAchievementsRef.current = new Set((data.state.achievements || []).filter(a => a.unlocked).map(a => a.id));
-            processNewEvents(data.state);
-            if (data.state.timeControl?.enabled) {
-              const paused = await applyCommandRemote({ state: stateRef.current, command: "pauseAutomation", params: { reason: "loaded" } });
-              stateRef.current = paused.state; setState(paused.state); saveToStorage(paused.state);
-              setAutomationEnabled(false);
-            }
-            userWantsAutomationRef.current = false;
-          } catch (e) {}
+        } catch (e) {
+          // Server nicht erreichbar — verwende lokalen Stand.
+          chosenState = localState;
         }
+      } else {
+        chosenState = localState;
+      }
+
+      if (chosenState) {
+        stateRef.current = chosenState; setState(chosenState);
+        if (sid) { stateIdRef.current = sid; setStateId(sid); }
+        serverRevRef.current = chosenRev;
+        localStorage.setItem(LS_SERVER_REV, String(chosenRev));
+        saveToStorage(chosenState);
+        setAutomationEnabled(!!chosenState.timeControl?.enabled);
+        lastSyncGameTimeRef.current = chosenState.gameTime || 0;
+        lastSyncRealMsRef.current = Date.now();
+        prevAchievementsRef.current = new Set((chosenState.achievements || []).filter(a => a.unlocked).map(a => a.id));
+        processNewEvents(chosenState);
+        if (chosenState.timeControl?.enabled) {
+          const paused = await applyCommandRemote({ state: stateRef.current, command: "pauseAutomation", params: { reason: "loaded" } });
+          stateRef.current = paused.state; setState(paused.state); saveToStorage(paused.state);
+          setAutomationEnabled(false);
+        }
+        userWantsAutomationRef.current = false;
       }
       setLoading(false);
     })();
