@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
-import { applyCommandRemote, gameCommand } from "@/lib/gameClient";
+import { gameCommand } from "@/lib/gameClient";
+import { executeCommand } from "@/lib/simulationAdapter";
+import { saveCurrent, loadCurrent, saveAutosave, loadAutosave, getAutosaveMeta, getAllAutosaveMetas, listManualSlots, saveManualSlot, loadManualSlot, deleteManualSlot, exportSave, importSave } from "@/lib/persistence";
+import { acquireLock, refreshLock, releaseLock, LOCK_REFRESH } from "@/lib/tabLock";
 import { eventToToast } from "@/lib/eventNotifications";
 import { getUnseenEventCount } from "@/lib/eventLogClient";
 
@@ -56,6 +59,11 @@ export function GameProvider({ children }) {
   const syncInFlightRef = useRef(false);
   const sendInFlightRef = useRef(false);
   const syncFailCountRef = useRef(0);
+  const [hasLock, setHasLock] = useState(true);
+  const hasLockRef = useRef(true);
+  const autosaveIndexRef = useRef(0);
+  const dirtyAutosaveRef = useRef(false);
+  const [autosaveMetas, setAutosaveMetas] = useState([null, null, null]);
 
   useEffect(() => {
     document.body.classList.toggle("no-motion", !motionEnabled);
@@ -94,8 +102,13 @@ export function GameProvider({ children }) {
     }
   }, []);
 
-  const saveToStorage = useCallback((s) => {
+  // Speichert in localStorage (synchroner Fallback) und IndexedDB (primär).
+  // Setzt dirtyAutosaveRef, damit der 60-s-Autosave-Timer Änderungen erfasst.
+  const saveToStorage = useCallback(async (s) => {
     try { localStorage.setItem(LS_STATE, JSON.stringify(s)); } catch (e) {}
+    if (!hasLockRef.current) return;
+    try { await saveCurrent(s); } catch (e) {}
+    dirtyAutosaveRef.current = true;
   }, []);
 
   const processNewEvents = useCallback((newState) => {
@@ -210,7 +223,8 @@ export function GameProvider({ children }) {
     if (!stateRef.current) throw new Error("Kein Spielstand geladen");
     setBusy(true); sendInFlightRef.current = true;
     try {
-      const data = await applyCommandRemote({ state: stateRef.current, command, params: params || {} });
+      const data = await executeCommand(stateRef.current, command, params || {});
+      if (data.error) throw new Error(data.error);
       const newState = data.state; const result = data.result;
       stateRef.current = newState; setState(newState);
       localRevRef.current++; setRevision(localRevRef.current);
@@ -230,7 +244,8 @@ export function GameProvider({ children }) {
     if (!stateRef.current || syncInFlightRef.current || sendInFlightRef.current) return;
     syncInFlightRef.current = true;
     try {
-      const data = await applyCommandRemote({ state: stateRef.current, command: "syncAutomation", params: {} });
+      const data = await executeCommand(stateRef.current, "syncAutomation", {});
+      if (data.error) throw new Error(data.error);
       // Zustand IMMER aktualisieren — auch ohne Ereignisse advanced die Spielzeit.
       // Früher wurde hier übersprungen, was dazu führte, dass die Automatik stehen blieb.
       const newState = data.state;
@@ -300,20 +315,59 @@ export function GameProvider({ children }) {
   }, [state, syncToServer]);
 
   useEffect(() => {
-    const onBeforeUnload = () => { if (stateRef.current) saveToStorage(stateRef.current); };
+    const onBeforeUnload = () => {
+      if (stateRef.current) {
+        saveToStorage(stateRef.current);
+        if (hasLockRef.current) {
+          saveAutosave(autosaveIndexRef.current, stateRef.current).catch(() => {});
+          releaseLock();
+        }
+      }
+    };
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [saveToStorage]);
 
-  // ---- Startup: Server- und localStorage-Stand abgleichen ----
-  // Verhindert, dass ein veralteter lokaler Stand einen neueren Serverstand
-  // überschreibt (z.B. wenn processAutomationTick im Hintergrund Zeit vorgetrieben hat).
+  // ---- Rotierende Autosaves (alle 60 s bei Änderung) ----
+  useEffect(() => {
+    const timer = setInterval(async () => {
+      if (!dirtyAutosaveRef.current || !stateRef.current || !hasLockRef.current) return;
+      dirtyAutosaveRef.current = false;
+      const idx = autosaveIndexRef.current;
+      try {
+        await saveAutosave(idx, stateRef.current);
+        autosaveIndexRef.current = (idx + 1) % 3;
+        setAutosaveMetas(await getAllAutosaveMetas());
+      } catch (e) {}
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // ---- Tab-Schreibsperre über localStorage ----
+  useEffect(() => {
+    const acquired = acquireLock();
+    hasLockRef.current = acquired;
+    setHasLock(acquired);
+    const heartbeat = setInterval(() => {
+      if (hasLockRef.current) refreshLock();
+      else {
+        const got = acquireLock();
+        if (got) { hasLockRef.current = true; setHasLock(true); }
+      }
+    }, LOCK_REFRESH);
+    return () => { clearInterval(heartbeat); releaseLock(); };
+  }, []);
+
+  // ---- Startup: IndexedDB, localStorage und Server abgleichen ----
   useEffect(() => {
     (async () => {
       const sid = localStorage.getItem(LS_STATE_ID);
-      const savedState = localStorage.getItem(LS_STATE);
       let localState = null;
-      try { localState = savedState ? JSON.parse(savedState) : null; } catch (e) {}
+      try { localState = await loadCurrent(); } catch (e) {}
+      if (!localState) {
+        const savedState = localStorage.getItem(LS_STATE);
+        if (savedState) { try { localState = JSON.parse(savedState); } catch (e) {} }
+      }
 
       let chosenState = null;
       let chosenRev = parseInt(localStorage.getItem(LS_SERVER_REV) || "0", 10);
@@ -324,17 +378,13 @@ export function GameProvider({ children }) {
           const serverTime = serverData.state?.gameTime || 0;
           const localTime = localState?.gameTime || 0;
           if (serverTime > localTime) {
-            // Serverstand ist zeitlich neuer — verwende ihn.
             chosenState = serverData.state;
             chosenRev = serverData.revision;
           } else {
-            // Lokaler Stand ist aktueller (enthält letzte Spielaktionen) — behalte ihn,
-            // aber nutze die Server-Revision für den nächsten Save.
             chosenState = localState;
             chosenRev = serverData.revision;
           }
         } catch (e) {
-          // Server nicht erreichbar — verwende lokalen Stand.
           chosenState = localState;
         }
       } else {
@@ -353,12 +403,15 @@ export function GameProvider({ children }) {
         prevAchievementsRef.current = new Set((chosenState.achievements || []).filter(a => a.unlocked).map(a => a.id));
         processNewEvents(chosenState);
         if (chosenState.timeControl?.enabled) {
-          const paused = await applyCommandRemote({ state: stateRef.current, command: "pauseAutomation", params: { reason: "loaded" } });
-          stateRef.current = paused.state; setState(paused.state); saveToStorage(paused.state);
+          const paused = await executeCommand(stateRef.current, "pauseAutomation", { reason: "loaded" });
+          if (!paused.error) {
+            stateRef.current = paused.state; setState(paused.state); saveToStorage(paused.state);
+          }
           setAutomationEnabled(false);
         }
         userWantsAutomationRef.current = false;
       }
+      try { setAutosaveMetas(await getAllAutosaveMetas()); } catch (e) {}
       setLoading(false);
     })();
   }, [processNewEvents, saveToStorage]);
@@ -428,19 +481,79 @@ export function GameProvider({ children }) {
     prevAchievementsRef.current = new Set((data.state.achievements || []).filter(a => a.unlocked).map(a => a.id));
     processNewEvents(data.state);
     if (data.state.timeControl?.enabled) {
-      const paused = await applyCommandRemote({ state: stateRef.current, command: "pauseAutomation", params: { reason: "loaded" } });
-      stateRef.current = paused.state; setState(paused.state); saveToStorage(paused.state);
+      const paused = await executeCommand(stateRef.current, "pauseAutomation", { reason: "loaded" });
+      if (!paused.error) {
+        stateRef.current = paused.state; setState(paused.state); saveToStorage(paused.state);
+      }
       setAutomationEnabled(false);
     }
     userWantsAutomationRef.current = false;
   }, [saveToStorage, processNewEvents]);
 
   const reload = useCallback(async () => {
-    const savedState = localStorage.getItem(LS_STATE);
-    if (savedState) { try { const parsed = JSON.parse(savedState); stateRef.current = parsed; setState(parsed); processNewEvents(parsed); } catch (e) {} }
+    let loaded = null;
+    try { loaded = await loadCurrent(); } catch (e) {}
+    if (!loaded) {
+      const savedState = localStorage.getItem(LS_STATE);
+      if (savedState) { try { loaded = JSON.parse(savedState); } catch (e) {} }
+    }
+    if (loaded) { stateRef.current = loaded; setState(loaded); processNewEvents(loaded); }
   }, [processNewEvents]);
 
   const save = useCallback(async () => { await syncToServer(); }, [syncToServer]);
+
+  // ---- Export / Import / Manuelle Slots ----
+  const exportGame = useCallback(() => {
+    if (!stateRef.current) return null;
+    return exportSave(stateRef.current);
+  }, []);
+
+  const importGame = useCallback(async (exportStr) => {
+    try {
+      const imported = importSave(exportStr);
+      stateRef.current = imported; setState(imported);
+      saveToStorage(imported);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }, [saveToStorage]);
+
+  const saveSlot = useCallback(async (name) => {
+    if (!stateRef.current) return { ok: false, error: "Kein Spielstand" };
+    try { await saveManualSlot(name, stateRef.current); return { ok: true }; }
+    catch (e) { return { ok: false, error: e.message }; }
+  }, []);
+
+  const loadSlot = useCallback(async (name) => {
+    try {
+      const loaded = await loadManualSlot(name);
+      if (!loaded) return { ok: false, error: "Slot nicht gefunden" };
+      stateRef.current = loaded; setState(loaded);
+      saveToStorage(loaded);
+      return { ok: true };
+    } catch (e) { return { ok: false, error: e.message }; }
+  }, [saveToStorage]);
+
+  const deleteSlot = useCallback(async (name) => {
+    try { await deleteManualSlot(name); return { ok: true }; }
+    catch (e) { return { ok: false, error: e.message }; }
+  }, []);
+
+  const listSlots = useCallback(async () => {
+    try { return await listManualSlots(); }
+    catch (e) { return []; }
+  }, []);
+
+  const loadAutosaveSlot = useCallback(async (index) => {
+    try {
+      const loaded = await loadAutosave(index);
+      if (!loaded) return { ok: false, error: "Autosave-Slot leer" };
+      stateRef.current = loaded; setState(loaded);
+      saveToStorage(loaded);
+      return { ok: true };
+    } catch (e) { return { ok: false, error: e.message }; }
+  }, [saveToStorage]);
 
   const value = {
     state, revision, stateId, loading, busy, toast, showToast, send, newGame, listGames, loadGame, reload,
@@ -449,6 +562,8 @@ export function GameProvider({ children }) {
     displayGameTime,
     dirty, save, saving,
     toasts, dismissToast, unseenCount, markAllEventsSeen, connectionState,
+    hasLock, autosaveMetas,
+    exportGame, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
   };
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }
