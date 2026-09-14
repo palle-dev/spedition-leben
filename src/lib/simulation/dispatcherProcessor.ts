@@ -323,8 +323,9 @@ export function triggerDispatcherPlanning(state, m, log) {
     if (emp.role !== "dispatcher" && emp.role !== "dispatcher_senior") continue;
     if (emp.workMode !== "autonomous" && emp.workMode !== "dispatch_accepted") continue;
     if (!isDispatcherOnShift(emp, m)) continue;
-    // CPU-Schutz: höchstens alle 30 Spielminuten pro Disponent.
-    if (m - (emp.lastDecisionMin || 0) < 30) continue;
+    // Keine harte Sperre mehr — die kontextsensitive Skip-Cache in processDispatcher
+    // verhindert redundante suggestTours-Aufrufe, wenn sich die Lage nicht geändert hat.
+    // Eine harte 30-Minuten-Sperre hat Lkw nach Tour-Ende bis zu 30 Min stillstehen lassen.
     processDispatcher(state, emp, m, log);
   }
 }

@@ -929,7 +929,10 @@ export function proactiveAutoDispatch(state, emp, m, log) {
   const unplannedIds = new Set(unplanned.map(o => o.id));
   const usedVehicleIds = new Set();
   let dispatched = 0;
-  const maxPerHour = 3; // CPU-Schutz
+  // suggestTours wird nur einmal pro Aufruf ausgeführt — die Bestätigung einzelner
+  // Touren ist billig. Ein Limit von 3 hat bei großen Flotten zu Aufstau geführt,
+  // weil pro Stunde nur 3 Lkw verplant wurden. Höheres Limit für volle Auslastung.
+  const maxPerHour = 20;
 
   for (const matching of (result.suggestions || [])) {
     if (dispatched >= maxPerHour) break;
