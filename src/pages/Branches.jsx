@@ -3,7 +3,7 @@ import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime } from "@/lib/gameData";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
 import BranchCard from "@/components/branches/BranchCard";
-import BranchMap from "@/components/branches/BranchMap";
+import BranchMapLibre from "@/components/branches/BranchMapLibre";
 import BranchOverview from "@/components/branches/BranchOverview";
 import OpenBranchDialog from "@/components/branches/OpenBranchDialog";
 import MoveResourceDialog from "@/components/branches/MoveResourceDialog";
@@ -90,12 +90,14 @@ export default function Branches() {
             <SummaryCard label="Tageskosten" value={formatEuro(totalDailyCost)} icon={Users} />
           </div>
 
-          <div className="grid lg:grid-cols-[320px_1fr] gap-6">
+          <div className="grid lg:grid-cols-[380px_1fr] gap-6">
             {/* Map */}
-            <div className="space-y-3">
-              <BranchMap branches={activeBranches} selectedId={selectedBranchId} onSelect={setSelectedBranchId} />
+            <div className="space-y-3 lg:sticky lg:top-4 lg:self-start">
+              <div className="h-[500px]">
+                <BranchMapLibre branches={activeBranches} selectedId={selectedBranchId} onSelect={setSelectedBranchId} />
+              </div>
               <div className="text-xs text-muted-foreground/60 text-center">
-                Lime-Marker zeigen aktive Filialen. Klicke auf eine Stadt, um die Filialkarte zu fokussieren.
+                Klicke auf einen Marker, um die Filialkarte zu fokussieren.
               </div>
             </div>
 
