@@ -140,7 +140,7 @@ import {
 import {
   migrateBranches, checkBranchRequirements, openBranch, renameBranch, closeBranch,
   moveVehicle, moveDriver, previewMoveVehicle, previewMoveDriver,
-  assignDispatcherToBranch, getBranchStats, processDriverTravels,
+  assignDispatcherToBranch, assignEmployeeToBranch, getBranchStats, processDriverTravels,
   getDriverTravelEventTimes, creditBranchDelivery,
 } from "./branchEngine.ts";
 import { processEmployees, triggerDispatcherPlanning } from "./dispatcherProcessor.ts";
@@ -2282,7 +2282,8 @@ export function applyCommand(state, command, params) {
       break;
     }
 
-    case "assignDispatcherToBranch": {
+    case "assignDispatcherToBranch":
+    case "assignEmployeeToBranch": {
       ensureNotBlocked(state);
       const r = assignDispatcherToBranch(state, { employeeId: p.employeeId, branchId: p.branchId });
       result = r;

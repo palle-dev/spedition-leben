@@ -7,8 +7,9 @@ import BranchMap from "@/components/branches/BranchMap";
 import BranchOverview from "@/components/branches/BranchOverview";
 import OpenBranchDialog from "@/components/branches/OpenBranchDialog";
 import MoveResourceDialog from "@/components/branches/MoveResourceDialog";
+import AssignEmployeeDialog from "@/components/branches/AssignEmployeeDialog";
 import BranchDecisionsPanel from "@/components/branches/BranchDecisionsPanel";
-import { Building2, Plus, Truck, Users, MapPin, ArrowRight, LayoutGrid, List } from "lucide-react";
+import { Building2, Plus, Truck, Users, MapPin, ArrowRight, LayoutGrid, List, Briefcase } from "lucide-react";
 import PageHint from "@/components/help/PageHint";
 
 export default function Branches() {
@@ -34,14 +35,20 @@ export default function Branches() {
         v.status === "free" &&
         v.status !== "sold" && v.status !== "archived"
       );
-    } else {
+    } else if (moveContext.type === "driver") {
       return (state.drivers || []).filter(d =>
         d.branchId === moveContext.branchId &&
         d.employmentStatus === "employed" &&
         d.status === "free"
       );
+    } else {
+      // Personal: alle Angestellten an dieser Filiale
+      return (state.employees || []).filter(e =>
+        (e.assignedBranchId || e.branchId) === moveContext.branchId &&
+        e.employmentStatus === "employed"
+      );
     }
-  }, [moveContext, branchForMove, state.vehicles, state.drivers]);
+  }, [moveContext, branchForMove, state.vehicles, state.drivers, state.employees]);
 
   return (
     <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1600px] mx-auto space-y-6">
@@ -126,13 +133,18 @@ export default function Branches() {
       )}
 
       {/* Move Resource Dialog (when a resource is selected) */}
-      {selectedResource && (
+      {selectedResource && moveContext.type === "employee" ? (
+        <AssignEmployeeDialog
+          employee={selectedResource}
+          onClose={() => { setSelectedResource(null); setMoveContext(null); }}
+        />
+      ) : selectedResource ? (
         <MoveResourceDialog
           resource={selectedResource}
           resourceType={moveContext.type}
           onClose={() => { setSelectedResource(null); setMoveContext(null); }}
         />
-      )}
+      ) : null}
     </div>
   );
 }
@@ -172,22 +184,23 @@ function TabButton({ active, onClick, icon: Icon, label }) {
 }
 
 function ResourcePicker({ moveContext, branch, resources, onSelect, onClose }) {
+  const isEmployee = moveContext.type === "employee";
+  const Icon = moveContext.type === "vehicle" ? Truck : isEmployee ? Briefcase : Users;
+  const title = moveContext.type === "vehicle" ? "Lkw verschieben" : isEmployee ? "Personal verschieben" : "Fahrer verschieben";
+  const emptyLabel = isEmployee ? "Kein Personal an diesem Standort." : `Keine freie ${moveContext.type === "vehicle" ? "Fahrzeuge" : "Fahrer"} an diesem Standort.`;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/80 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="glass border border-white/15 rounded-2xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-2 mb-1">
-          {moveContext.type === "vehicle" ? <Truck className="w-5 h-5 text-lime" /> : <Users className="w-5 h-5 text-lime" />}
-          <h2 className="text-lg font-medium">
-            {moveContext.type === "vehicle" ? "Lkw verschieben" : "Fahrer verschieben"}
-          </h2>
+          <Icon className="w-5 h-5 text-lime" />
+          <h2 className="text-lg font-medium">{title}</h2>
         </div>
         <p className="text-sm text-muted-foreground mb-4">
           Wähle eine Ressource aus {branch?.name} ({branch?.city}):
         </p>
         {resources.length === 0 ? (
-          <div className="text-sm text-muted-foreground text-center py-6">
-            Keine freie {moveContext.type === "vehicle" ? "Fahrzeuge" : "Fahrer"} an diesem Standort.
-          </div>
+          <div className="text-sm text-muted-foreground text-center py-6">{emptyLabel}</div>
         ) : (
           <div className="space-y-1.5 max-h-60 overflow-y-auto">
             {resources.map(r => (
@@ -197,7 +210,7 @@ function ResourcePicker({ moveContext, branch, resources, onSelect, onClose }) {
                 className="w-full text-left rounded-lg px-3 py-2.5 border border-white/10 hover:border-lime/30 hover:bg-lime/5 transition flex items-center justify-between"
               >
                 <span className="flex items-center gap-2 text-sm">
-                  {moveContext.type === "vehicle" ? <Truck className="w-3.5 h-3.5 text-muted-foreground" /> : <Users className="w-3.5 h-3.5 text-muted-foreground" />}
+                  {moveContext.type === "vehicle" ? <Truck className="w-3.5 h-3.5 text-muted-foreground" /> : isEmployee ? <Briefcase className="w-3.5 h-3.5 text-muted-foreground" /> : <Users className="w-3.5 h-3.5 text-muted-foreground" />}
                   {moveContext.type === "vehicle" ? vehicleDisplayName(r) : r.name}
                 </span>
                 <span className="text-xs text-muted-foreground flex items-center gap-1">

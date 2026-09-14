@@ -339,9 +339,16 @@ export function getDriverTravelEventTimes(state, t, maxMin) {
 // ---------- Disponent Filiale zuordnen ----------
 
 export function assignDispatcherToBranch(state, { employeeId, branchId }) {
+  return assignEmployeeToBranch(state, { employeeId, branchId });
+}
+
+// Allgemeine Zuweisung eines Angestellten (Mechaniker, Reinigung, Buchhaltung,
+// Disponent, Filialleiter) zu einer anderen Filiale. Erfolgt sofort –
+// Angestellte pendeln selbstständig, keine Überstellung nötig.
+export function assignEmployeeToBranch(state, { employeeId, branchId }) {
   const emp = (state.employees || []).find(e => e.id === employeeId);
   if (!emp) throw new Error("Angestellter nicht gefunden.");
-  if (emp.role !== "dispatcher" && emp.role !== "dispatcher_senior") throw new Error("Diese Person ist kein Disponent.");
+  if (emp.employmentStatus !== "employed") throw new Error("Diese Person ist nicht beschäftigt.");
   if (branchId !== null) {
     const b = state.branches.find(x => x.id === branchId);
     if (!b) throw new Error("Filiale nicht gefunden.");

@@ -3,7 +3,7 @@ import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime } from "@/lib/gameData";
 import { vehicleDisplayName, roleLabel } from "@/lib/displayHelpers";
 import Portrait from "@/components/ui/Portrait";
-import { Building2, MapPin, Truck, Users, Headset, TrendingUp, Wallet, Edit2, X, ArrowRight, Crown, Check, Zap, ShieldCheck, Wrench, Sparkles, Calculator } from "lucide-react";
+import { Building2, MapPin, Truck, Users, Headset, TrendingUp, Wallet, Edit2, X, ArrowRight, Crown, Check, Zap, ShieldCheck, Wrench, Sparkles, Calculator, Briefcase } from "lucide-react";
 
 export default function BranchCard({ branch, onMoveResource }) {
   const { state, send, showToast } = useGame();
@@ -163,14 +163,21 @@ export default function BranchCard({ branch, onMoveResource }) {
           disabled={vehicles.length === 0}
           className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 bg-white/5 border border-white/10 text-xs hover:bg-white/10 disabled:opacity-40 transition"
         >
-          <Truck className="w-3.5 h-3.5" /> Lkw verschieben
+          <Truck className="w-3.5 h-3.5" /> Lkw
         </button>
         <button
           onClick={() => onMoveResource({ type: "driver", branchId: branch.id })}
           disabled={drivers.length === 0}
           className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 bg-white/5 border border-white/10 text-xs hover:bg-white/10 disabled:opacity-40 transition"
         >
-          <Users className="w-3.5 h-3.5" /> Fahrer verschieben
+          <Users className="w-3.5 h-3.5" /> Fahrer
+        </button>
+        <button
+          onClick={() => onMoveResource({ type: "employee", branchId: branch.id })}
+          disabled={allStaff.length === 0}
+          className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 bg-white/5 border border-white/10 text-xs hover:bg-white/10 disabled:opacity-40 transition"
+        >
+          <Briefcase className="w-3.5 h-3.5" /> Personal
         </button>
         {!branch.isHeadquarters && (
           <button
