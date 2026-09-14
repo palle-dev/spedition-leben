@@ -169,27 +169,34 @@ function setupSources(map) {
 }
 
 function setupLayers(map) {
-  // Tour-Linien: Leerfahrt (Korall, gestrichelt)
+  // Tour-Glow (nur ausgewählte Tour — breiter, halbtransparenter Halo)
+  map.addLayer({
+    id: "tour-glow", type: "line", source: "tours",
+    filter: ["all", ["==", ["get", "isSelected"], true], ["==", ["get", "legType"], "drive"]],
+    layout: { "line-cap": "round" },
+    paint: { "line-color": "#D5FB83", "line-width": 14, "line-opacity": 0.18, "line-blur": 4 }
+  });
+  // Tour-Linien: Leerfahrt (Korall, gestrichelt) — nicht ausgewählt fast unsichtbar
   map.addLayer({
     id: "tour-empty", type: "line", source: "tours",
     filter: ["==", ["get", "legType"], "empty"],
     layout: { "line-cap": "round" },
     paint: {
       "line-color": "#FF9E7A",
-      "line-width": ["case", ["get", "isSelected"], 4, 2],
-      "line-opacity": ["case", ["get", "isSelected"], 1, 0.25],
+      "line-width": ["case", ["get", "isSelected"], 4, 1.5],
+      "line-opacity": ["case", ["get", "isSelected"], 0.9, 0.06],
       "line-dasharray": [3, 2]
     }
   });
-  // Tour-Linien: Beladene Fahrt (Lime, durchgezogen)
+  // Tour-Linien: Beladene Fahrt (Lime, durchgezogen) — nicht ausgewählt fast unsichtbar
   map.addLayer({
     id: "tour-drive", type: "line", source: "tours",
     filter: ["==", ["get", "legType"], "drive"],
     layout: { "line-cap": "round" },
     paint: {
       "line-color": "#D5FB83",
-      "line-width": ["case", ["get", "isSelected"], 5, 3],
-      "line-opacity": ["case", ["get", "isSelected"], 1, 0.2]
+      "line-width": ["case", ["get", "isSelected"], 5, 2],
+      "line-opacity": ["case", ["get", "isSelected"], 1, 0.07]
     }
   });
   // Planungs-Vorschau (auch für Tour-Ketten mit mehreren Beinen)
@@ -227,28 +234,34 @@ function setupLayers(map) {
     },
     paint: { "text-color": "#0b1011" }
   });
-  // Städte
+  // Städte — HQ hervorgehoben,其余 dezent
   map.addLayer({
     id: "cities", type: "circle", source: "cities",
     paint: {
-      "circle-radius": ["case", ["get", "isHQ"], 7, 5],
-      "circle-color": ["case", ["get", "isHQ"], "#D5FB83", "#555"],
-      "circle-stroke-width": 1, "circle-stroke-color": "rgba(255,255,255,0.4)"
+      "circle-radius": ["case", ["get", "isHQ"], 6, 4],
+      "circle-color": ["case", ["get", "isHQ"], "#D5FB83", "#666"],
+      "circle-stroke-width": ["case", ["get", "isHQ"], 2, 1],
+      "circle-stroke-color": ["case", ["get", "isHQ"], "rgba(213,251,131,0.3)", "rgba(255,255,255,0.15)"]
     }
   });
   map.addLayer({
     id: "city-labels", type: "symbol", source: "cities",
-    layout: { "text-field": ["get", "name"], "text-size": 11, "text-offset": [0, -1.7], "text-anchor": "bottom" },
-    paint: { "text-color": "#ccc", "text-halo-color": "#000", "text-halo-width": 2 }
+    layout: { "text-field": ["get", "name"], "text-size": 10, "text-offset": [0, -1.5], "text-anchor": "bottom" },
+    paint: { "text-color": "#aaa", "text-halo-color": "#000", "text-halo-width": 2 }
   });
-  // Fahrzeuge
+  // Fahrzeuge — Glow für ausgewählte
+  map.addLayer({
+    id: "vehicles-glow", type: "circle", source: "vehicles",
+    filter: ["==", ["get", "isSelected"], true],
+    paint: { "circle-radius": 16, "circle-color": "#FCD34D", "circle-opacity": 0.2, "circle-blur": 1 }
+  });
   map.addLayer({
     id: "vehicles", type: "circle", source: "vehicles",
     paint: {
-      "circle-radius": ["case", ["get", "isSelected"], 10, 7],
+      "circle-radius": ["case", ["get", "isSelected"], 9, 6],
       "circle-color": ["match", ["get", "status"], "free", "#D5FB83", "on_trip", "#FCD34D", "maintenance", "#7DD3FC", "#888"],
-      "circle-stroke-width": ["case", ["get", "isSelected"], 3, 1.5],
-      "circle-stroke-color": ["case", ["get", "isSelected"], "#fff", "rgba(0,0,0,0.6)"]
+      "circle-stroke-width": ["case", ["get", "isSelected"], 2.5, 1.5],
+      "circle-stroke-color": ["case", ["get", "isSelected"], "#fff", "rgba(0,0,0,0.5)"]
     }
   });
   map.addLayer({
@@ -260,12 +273,15 @@ function setupLayers(map) {
 
 function setupClickHandlers(map, cbRef) {
   const cursor = (enter) => () => { map.getCanvas().style.cursor = enter ? "pointer" : ""; };
-  for (const layer of ["vehicles", "tour-empty", "tour-drive", "cities"]) {
+  for (const layer of ["vehicles", "tour-glow", "tour-empty", "tour-drive", "cities"]) {
     map.on("mouseenter", layer, cursor(true));
     map.on("mouseleave", layer, cursor(false));
   }
   map.on("click", "vehicles", (e) => {
     if (e.features.length) cbRef.current.onSelectVehicle?.(e.features[0].properties.vehicleId);
+  });
+  map.on("click", "tour-glow", (e) => {
+    if (e.features.length) cbRef.current.onSelectTrip?.(e.features[0].properties.tripId);
   });
   map.on("click", "tour-empty", (e) => {
     if (e.features.length) cbRef.current.onSelectTrip?.(e.features[0].properties.tripId);
