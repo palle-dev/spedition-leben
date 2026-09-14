@@ -1,20 +1,20 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useGame } from "@/lib/gameContext";
-import { Plus, Play } from "lucide-react";
+import { Plus, Play, Upload, FolderOpen } from "lucide-react";
 import FernwerkLogo from "@/components/brand/FernwerkLogo";
-import { formatGameTime, formatEuro } from "@/lib/gameData";
 
 const OFFICE_URL = "https://media.base44.com/images/public/6aa52ebc01a939da57f8b78f/af8b503ab_office_cinematic.png";
 
 export default function StartScreen() {
-  const { newGame, listGames, loadGame, busy, showToast } = useGame();
-  const [games, setGames] = useState([]);
+  const { newGame, listSlots, loadSlot, importGame, busy, showToast } = useGame();
+  const [slots, setSlots] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [names, setNames] = useState({ companyName: "", playerName: "", partnerName: "Mara" });
+  const fileRef = useRef(null);
 
   useEffect(() => {
-    listGames().then((r) => setGames(r.games || [])).catch(() => {});
-  }, [listGames]);
+    listSlots().then(setSlots).catch(() => {});
+  }, [listSlots]);
 
   async function create() {
     try {
@@ -25,6 +25,27 @@ export default function StartScreen() {
       });
     } catch (e) { showToast(e.message, "error"); }
   }
+
+  async function handleLoad(name) {
+    const r = await loadSlot(name);
+    if (!r.ok) showToast(r.error, "error");
+  }
+
+  function handleFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const r = await importGame(reader.result);
+      if (!r.ok) showToast(r.error, "error");
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
+
+  const fmt = (savedAt) => savedAt
+    ? new Date(savedAt).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+    : "";
 
   return (
     <div className="relative min-h-screen flex items-center justify-center p-6 overflow-hidden">
@@ -43,19 +64,26 @@ export default function StartScreen() {
           <p className="text-muted-foreground mt-3 text-sm max-w-xs mx-auto">Die Wirtschaftssimulation über Transport, Unternehmertum und das Leben dahinter.</p>
         </div>
 
-        {games.length > 0 && !showForm && (
+        {slots.length > 0 && !showForm && (
           <div className="space-y-2 mb-4">
-            <h2 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Spielstand fortsetzen</h2>
-            {games.map((g) => (
-              <button key={g.id} onClick={() => loadGame(g.id)}
+            <h2 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Spielstand laden</h2>
+            {slots.map((s) => (
+              <button key={s.name} onClick={() => handleLoad(s.name)}
                 className="w-full text-left px-4 py-3 rounded-xl glass border border-white/10 hover:border-lime/30 transition flex items-center justify-between">
                 <div>
-                  <div className="font-medium text-foreground">{g.company || "Unbenannt"}</div>
-                  <div className="text-xs text-muted-foreground">{g.gameTime != null ? formatGameTime(g.gameTime) : ""}</div>
+                  <div className="font-medium text-foreground">{s.name}</div>
+                  <div className="text-xs text-muted-foreground">{fmt(s.savedAt)}</div>
                 </div>
                 <Play className="w-4 h-4 text-lime" />
               </button>
             ))}
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="w-full text-left px-4 py-3 rounded-xl glass border border-white/10 hover:border-lime/30 transition flex items-center gap-3"
+            >
+              <Upload className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-foreground">Save-Datei importieren</span>
+            </button>
           </div>
         )}
 
@@ -76,6 +104,16 @@ export default function StartScreen() {
             <Plus className="w-5 h-5" /> Neues Spiel beginnen
           </button>
         )}
+
+        {slots.length === 0 && !showForm && (
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="w-full mt-2 px-4 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground transition flex items-center justify-center gap-2"
+          >
+            <Upload className="w-4 h-4" /> Save-Datei importieren
+          </button>
+        )}
+        <input ref={fileRef} type="file" accept="application/json,.json" onChange={handleFile} className="hidden" />
 
         <p className="text-xs text-muted-foreground/50 mt-6 text-center">
           Start: Hamburg · 75.000 € Firma · 7.500 € Privat · 3 Lkw · 3 Fahrer · 8 Angebote

@@ -3,7 +3,7 @@
 // Der Client erhält den neuen Zustand sofort (Echtzeit-Anzeige) und
 // persistiert später separat über saveGameState.
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
-import { applyCommand } from "../../shared/simulationEngine.ts";
+import { applyCommand, createInitialState } from "../../shared/simulationEngine.ts";
 
 export default async function (req) {
   try {
@@ -13,7 +13,15 @@ export default async function (req) {
 
     const body = await req.json();
     const { state, command, params } = body || {};
-    if (!state || !command) return Response.json({ error: "state und command erforderlich" }, { status: 400 });
+    if (!command) return Response.json({ error: "command erforderlich" }, { status: 400 });
+
+    // Neues Spiel erstellen (kein State erforderlich, keine DB) — liefert Initialzustand.
+    if (command === "newGame") {
+      const init = createInitialState(params || {});
+      return Response.json({ state: init.state, result: { ok: true, command: "newGame" } });
+    }
+
+    if (!state) return Response.json({ error: "state erforderlich" }, { status: 400 });
 
     // serverNowMs für Zeitautomatik-Befehle ergänzen
     const isTimeCommand = ["enableAutomation", "pauseAutomation", "syncAutomation", "getAutomationStatus"].includes(command);
