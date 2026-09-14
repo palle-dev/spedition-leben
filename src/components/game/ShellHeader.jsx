@@ -1,11 +1,12 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import MoneyText from "@/components/MoneyText";
 import FernwerkSignet from "@/components/brand/FernwerkSignet";
 import AutomationControl from "@/components/game/AutomationControl";
 import NotificationCenter from "@/components/notifications/NotificationCenter";
-import { Building2, Heart, Sparkles, Mail as MailIcon, LineChart, Save, Loader2 } from "lucide-react";
+import SaveSlotsDialog from "@/components/game/SaveSlotsDialog";
+import { Building2, Heart, Sparkles, Mail as MailIcon, LineChart, Save, Loader2, HardDrive } from "lucide-react";
 import { getMailboxStats } from "@/lib/mailData";
 import { getAllNotifications } from "@/lib/eventLogClient";
 
@@ -14,6 +15,7 @@ export default function ShellHeader() {
   const { state, motionEnabled, toggleMotion, unseenCount, markAllEventsSeen, dirty, save, saving } = useGame();
   const navigate = useNavigate();
   const location = useLocation();
+  const [slotsOpen, setSlotsOpen] = useState(false);
   const isHome = location.pathname === "/zuhause";
   const isInvestment = location.pathname.startsWith("/investment");
   const mailStats = state?.mail ? getMailboxStats(state) : null;
@@ -60,6 +62,15 @@ export default function ShellHeader() {
       {/* Konten */}
       <div className="ml-auto flex items-center gap-3 lg:gap-6">
         <AutomationControl />
+        <button
+          onClick={() => setSlotsOpen(true)}
+          className="flex items-center gap-1.5 rounded-lg px-2.5 lg:px-3 py-1.5 text-xs font-medium bg-white/5 text-muted-foreground border border-white/10 hover:text-foreground hover:bg-white/10 transition shrink-0"
+          aria-label="Spielstände verwalten"
+          title="Spielstände sichern und laden"
+        >
+          <HardDrive className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Spielstände</span>
+        </button>
         {dirty && (
           <button
             onClick={() => save()}
@@ -108,6 +119,7 @@ export default function ShellHeader() {
           <Sparkles className={`w-4 h-4 ${motionEnabled ? "text-lime" : ""}`} />
         </button>
       </div>
+      <SaveSlotsDialog open={slotsOpen} onOpenChange={setSlotsOpen} />
     </header>
   );
 }
