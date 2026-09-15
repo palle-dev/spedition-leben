@@ -335,6 +335,7 @@ function doDailyAccounting(state, midnight) {
 
 // ---------- Zeitverarbeitung ----------
 import { earliestEventAfter } from "./eventScheduler.ts";
+import { reportProgress } from "./progressHook.js";
 function completeTrip(state, trip, m, log) {
   trip.status = "completed";
   trip.endMin = m;
@@ -636,7 +637,7 @@ function processEventsAt(state, m, log) {
   // das alle Fahrzeuge/Anlagen iteriert — bei der Zeitautomatik mit vielen
   // Ereignissen pro Tick war das der CPU-Flaschenhals.
 }
-function advanceTo(state, targetMin, log) {
+function advanceTo(state, targetMin, log, reportStart) {
   let t = state.gameTime;
   // CPU-Schutz: begrenzt Verarbeitungsdauer und Ereignisanzahl pro Aufruf.
   // Verhindert cpu-exceeded bei sehr langen Zeit-Sprüngen oder vielen Ereignissen.
@@ -655,9 +656,16 @@ function advanceTo(state, targetMin, log) {
     processEventsAt(state, next, log);
     t = next;
     eventCount++;
+    // Live-Fortschritt an den Haupt-Thread melden (alle 3 Ereignisse)
+    if (reportStart !== undefined && eventCount % 3 === 0) {
+      reportProgress(t - reportStart, targetMin - reportStart, eventCount);
+    }
   }
   state.gameTime = stopped ? t : targetMin;
   if (stopped) log.push({ type: "advance_stopped", atMin: t, targetMin, reason: eventCount >= MAX_EVENTS ? "max_events" : "cpu_budget" });
+  if (reportStart !== undefined) {
+    reportProgress(state.gameTime - reportStart, targetMin - reportStart, eventCount);
+  }
 }
 
 // ---------- Dispositionsplanung ----------
@@ -1471,13 +1479,14 @@ export function applyCommand(state, command, params) {
     case "advanceTime": {
       const minutes = Math.max(0, Math.min(p.minutes || 0, 1440));
       const target = state.gameTime + minutes;
+      const startMin = state.gameTime;
       const log = [];
       // advanceTo kann vorzeitig abbrechen (CPU/Event-Budget). Schleife
       // fortsetzen bis Ziel erreicht — jeder Durchlauf bekommt frisches Budget.
       let guard = 0;
       while (state.gameTime < target && guard < 20) {
         const before = state.gameTime;
-        advanceTo(state, target, log);
+        advanceTo(state, target, log, startMin);
         if (state.gameTime <= before) break; // kein Fortschritt — Sicherheitsabbruch
         guard++;
       }

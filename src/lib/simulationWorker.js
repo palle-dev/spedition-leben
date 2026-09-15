@@ -3,15 +3,22 @@
 //
 // Protokoll: { id, state, command, params } → { id, data }
 // data ist entweder { state, result } oder { error }.
+// Während advanceTime werden Zwischenfortschritte als
+// { id, type: "progress", progress } gesendet.
 
 import { executeCommand } from "./simulationAdapter";
+import { setProgressHook } from "./simulation/progressHook";
 
 self.onmessage = async (e) => {
   const { id, state, command, params } = e.data;
+  // Fortschritts-Callback für lange Zeitvorläufe einrichten
+  setProgressHook((progress) => self.postMessage({ id, type: "progress", progress }));
   try {
     const data = await executeCommand(state, command, params || {});
+    setProgressHook(null);
     self.postMessage({ id, data });
   } catch (err) {
+    setProgressHook(null);
     self.postMessage({ id, data: { error: err.message } });
   }
 };
