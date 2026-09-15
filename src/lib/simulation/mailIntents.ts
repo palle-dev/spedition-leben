@@ -5,6 +5,7 @@
 import { deliverMessage, getPersonInfo, isEmployeeAvailable } from "./mailEngine.ts";
 import { formatGameTime, dayOf, SERVICE_START_MIN, SERVICE_END_MIN } from "./gameRules.ts";
 import { findReturnLoads, suggestTours } from "./tourEngine.ts";
+import { autoAcceptOrders, proactiveAutoDispatch, generateDailyReport, optimizeOverheadCosts } from "./assistantEngine.ts";
 
 // ---------- Text-Normalisierung ----------
 
@@ -32,6 +33,11 @@ const INTENT_PATTERNS = [
   { type: "approve_plan", keywords: ["freigeben", "freigabe", "plan bestaetigen", "bestaetigen", "plan freigeben", "tour freigeben"], label: "Plan freigeben", requiresDecision: true, roles: ["dispatcher", "dispatcher_senior"] },
   { type: "blockade_reason", keywords: ["grund", "warum", "wieso", "weshalb", "blockade", "blockiert", "warum nicht", "warum geht nicht"], label: "Grund erfragen", requiresDecision: false, createsTask: true },
   { type: "status_request", keywords: ["status", "wie geht", "stand", "lage", "uebersicht", "wie laeuft", "wie laufen"], label: "Status erfragen", requiresDecision: false, createsTask: true },
+  // Assistent-spezifische Intents
+  { type: "assistant_accept_orders", keywords: ["auftraege annehmen", "angebote annehmen", "nimm auftraege", "auftraege akzeptieren", "aufträge annehmen", "angebote akzeptieren", "nimm aufträge", "nimm aufgaben"], label: "Aufträge annehmen", requiresDecision: false, createsTask: true, roles: ["assistant"] },
+  { type: "assistant_dispatch", keywords: ["disponiere", "disposition", "touren planen", "tour planen", "dispo", "disponier", "disponieren"], label: "Aufträge disponieren", requiresDecision: false, createsTask: true, roles: ["assistant"] },
+  { type: "assistant_report", keywords: ["tagesbericht", "bericht", "report", "zusammenfassung"], label: "Bericht erstellen", requiresDecision: false, createsTask: true, roles: ["assistant"] },
+  { type: "assistant_optimize_costs", keywords: ["kosten optimieren", "gemeinkosten senken", "kosten senken", "overhead", "betriebskosten senken"], label: "Kosten optimieren", requiresDecision: false, createsTask: true, roles: ["assistant"] },
 ];
 
 export function detectIntent(text, context) {
@@ -97,6 +103,13 @@ export function getQuickReplies(recipientRoleKey) {
     ],
     driver: [
       { intent: "blockade_reason", label: "Grund der Blockade erfragen" },
+    ],
+    assistant: [
+      { intent: "assistant_accept_orders", label: "Auftraege annehmen" },
+      { intent: "assistant_dispatch", label: "Auftraege disponieren" },
+      { intent: "assistant_report", label: "Tagesbericht anfordern" },
+      { intent: "assistant_optimize_costs", label: "Kosten optimieren" },
+      { intent: "status_request", label: "Status erfragen" },
     ],
   };
   return [...(roleSpecific[recipientRoleKey] || []), ...base];
@@ -175,6 +188,22 @@ function executeTask(state, task, m) {
       }
       case "acknowledge": {
         body = "Vielen Dank f\u00fcr Deine Nachricht. Ich habe sie zur Kenntnis genommen.";
+        break;
+      }
+      case "assistant_accept_orders": {
+        body = executeAssistantAcceptOrders(state, task, m);
+        break;
+      }
+      case "assistant_dispatch": {
+        body = executeAssistantDispatch(state, task, m);
+        break;
+      }
+      case "assistant_report": {
+        body = executeAssistantReport(state, task, m);
+        break;
+      }
+      case "assistant_optimize_costs": {
+        body = executeAssistantOptimizeCosts(state, task, m);
         break;
       }
       default: {
@@ -258,6 +287,32 @@ function generateStatusReport(state, personId, m) {
     if (driver?.status === "resting" && driver.restUntil) {
       lines.push("Erholung bis: " + formatGameTime(driver.restUntil));
     }
+  } else if (info.roleKey === "assistant") {
+    const config = state.assistantConfig || {};
+    const activeFeatures = [];
+    if (config.autoAcceptOrders !== false) activeFeatures.push("Auto-Auftragsannahme");
+    if (config.autoDispatch !== false) activeFeatures.push("Auto-Disposition");
+    if (config.dailyReport !== false) activeFeatures.push("Tagesbericht");
+    if (config.costOptimization !== false) activeFeatures.push("Gemeinkostenoptimierung");
+    if (config.accounting !== false) activeFeatures.push("Buchhaltungs-Support");
+    if (config.decisionProposals !== false) activeFeatures.push("Entscheidungsvorschlaege");
+    if (config.backlogMonitoring !== false) activeFeatures.push("Rueckstau-Ueberwachung");
+    if (config.fleetUtilizationMonitoring !== false) activeFeatures.push("Flottenauslastung");
+    if (config.staffDevelopment !== false) activeFeatures.push("Personalentwicklung");
+    const busyOrderIds = new Set();
+    for (const tr of state.trips) { if (tr.status === "in_progress" && tr.orderId) busyOrderIds.add(tr.orderId); }
+    for (const tr of (state.tours || [])) { if (tr.status !== "active") continue; for (const d of (tr.deployments || [])) { if (d.orderId && d.status !== "cancelled") busyOrderIds.add(d.orderId); } }
+    const unplanned = (state.orders || []).filter(o => o.status === "angenommen" && !busyOrderIds.has(o.id)).length;
+    const offered = (state.orders || []).filter(o => o.status === "offered").length;
+    lines.push("");
+    lines.push("Aktive Funktionen: " + (activeFeatures.length > 0 ? activeFeatures.join(", ") : "keine"));
+    lines.push("Mindestmarge: " + (config.autoAcceptMarginPct ?? 15) + "%");
+    lines.push("Max. Annahmen/Stunde: " + (config.maxOrdersPerHour ?? 3));
+    lines.push("Rueckstau-Schwellenwert: " + (config.maxBacklogOrders ?? 5));
+    lines.push("");
+    lines.push("Offene Angebote: " + offered);
+    lines.push("Ungesplante Auftraege: " + unplanned);
+    lines.push("Assistenten-Protokoll: " + (state.assistantLog || []).length + " Eintraege");
   } else {
     lines.push("");
     lines.push("Aktivitaet: " + (info.attendance || "unbekannt"));
@@ -302,6 +357,27 @@ function generateBlockadeReason(state, personId, m) {
     } else {
       lines.push("");
       lines.push("Es gibt aktuell keine Blockade. Ich bin verfuegbar.");
+    }
+  } else if (info.roleKey === "assistant") {
+    const config = state.assistantConfig || {};
+    const busyOrderIds = new Set();
+    for (const tr of state.trips) { if (tr.status === "in_progress" && tr.orderId) busyOrderIds.add(tr.orderId); }
+    for (const tr of (state.tours || [])) { if (tr.status !== "active") continue; for (const d of (tr.deployments || [])) { if (d.orderId && d.status !== "cancelled") busyOrderIds.add(d.orderId); } }
+    const unplanned = (state.orders || []).filter(o => o.status === "angenommen" && !busyOrderIds.has(o.id)).length;
+    const offered = (state.orders || []).filter(o => o.status === "offered").length;
+    const maxBacklog = config.maxBacklogOrders ?? 5;
+    if (config.autoAcceptOrders === false && offered > 0) {
+      lines.push("");
+      lines.push("Die Auto-Auftragsannahme ist deaktiviert. Ich nehme keine Angebote automatisch an. Du kannst sie im Journal unter 'Assistent' aktivieren oder mich per E-Mail bitten, Auftraege anzunehmen.");
+    } else if (unplanned >= maxBacklog) {
+      lines.push("");
+      lines.push("Es liegen " + unplanned + " ungesplante Auftraege vor (Rueckstau-Schwellenwert: " + maxBacklog + "). Ich nehme keine weiteren Auftraege an, bis diese verplant sind. Frage mich, Auftraege zu disponieren.");
+    } else if (offered === 0) {
+      lines.push("");
+      lines.push("Aktuell gibt es keine Angebote auf dem Markt. Ich kann keine Auftraege annehmen.");
+    } else {
+      lines.push("");
+      lines.push("Es gibt aktuell keine Blockade. Ich arbeite automatisch zur vollen Stunde. Du kannst mir auch per E-Mail Auftraege annehmen, disponieren oder einen Bericht anfordern.");
     }
   } else {
     lines.push("");
@@ -477,4 +553,79 @@ function formatEuroBackend(cents) {
   const euros = Math.floor(abs / 100);
   const frac = abs % 100;
   return sign + euros.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "," + String(frac).padStart(2, "0") + " EUR";
+}
+
+// ---------- Assistent-Task-Implementierungen ----------
+
+function executeAssistantAcceptOrders(state, task, m) {
+  const emp = (state.employees || []).find(e => e.id === task.employeeId);
+  if (!emp) return "Ich konnte leider nicht ermittelt werden. Bitte wende Dich an die Personalabteilung.";
+  const log = [];
+  const accepted = autoAcceptOrders(state, emp, m, log, true);
+  if (accepted && accepted > 0) {
+    return "Ich habe " + accepted + " Auftrag/Auftraege angenommen. Die Details findest Du im Journal unter 'Assistent'. Die Disposition wird automatisch oder durch den Disponenten veranlasst.";
+  }
+  // Erklaeren, warum nichts angenommen wurde
+  const config = state.assistantConfig || {};
+  const offered = (state.orders || []).filter(o => o.status === "offered" && o.acceptDeadlineMin > m);
+  if (offered.length === 0) return "Aktuell gibt es keine Angebote auf dem Markt. Sobald neue Frachtangebote erscheinen, kann ich sie pruefen.";
+  const busyOrderIds = new Set();
+  for (const tr of state.trips) { if (tr.status === "in_progress" && tr.orderId) busyOrderIds.add(tr.orderId); }
+  for (const tr of (state.tours || [])) { if (tr.status !== "active") continue; for (const d of (tr.deployments || [])) { if (d.orderId && d.status !== "cancelled") busyOrderIds.add(d.orderId); } }
+  const unplannedBacklog = (state.orders || []).filter(o => o.status === "angenommen" && !busyOrderIds.has(o.id)).length;
+  const maxBacklog = config.maxBacklogOrders ?? 5;
+  if (unplannedBacklog >= maxBacklog) return "Es liegen bereits " + unplannedBacklog + " ungesplante Auftraege vor (Rueckstau-Schwellenwert: " + maxBacklog + "). Ich nehme keine weiteren an, bis diese verplant sind. Frage mich spaeter erneut oder disponiere die offenen Auftraege.";
+  const minMarginPct = (config.autoAcceptMarginPct ?? 15);
+  const minLiquidityCents = config.autoAcceptMinLiquidityCents ?? 50000;
+  if ((state.company?.accountCents || 0) < minLiquidityCents) return "Die Firmensoliditaet liegt unter dem Mindestbetrag von " + formatEuroBackend(minLiquidityCents) + ". Ich kann keine Aufträge annehmen, bis die Liquiditaet wiederhergestellt ist.";
+  return "Keines der " + offered.length + " Angebote erfuellt die Mindestmarge von " + minMarginPct + "%. Du kannst die Schwelle im Journal unter 'Assistent' anpassen.";
+}
+
+function executeAssistantDispatch(state, task, m) {
+  const emp = (state.employees || []).find(e => e.id === task.employeeId);
+  if (!emp) return "Ich konnte leider nicht ermittelt werden. Bitte wende Dich an die Personalabteilung.";
+  const log = [];
+  const dispatched = proactiveAutoDispatch(state, emp, m, log, true);
+  if (dispatched && dispatched > 0) {
+    return "Ich habe " + dispatched + " Tour/Touren disponiert. Die Details findest Du im Journal unter 'Assistent'.";
+  }
+  const busyOrderIds = new Set();
+  for (const tr of state.trips) { if (tr.status === "in_progress" && tr.orderId) busyOrderIds.add(tr.orderId); }
+  for (const tr of (state.tours || [])) { if (tr.status !== "active") continue; for (const d of (tr.deployments || [])) { if (d.orderId && d.status !== "cancelled") busyOrderIds.add(d.orderId); } }
+  const unplanned = (state.orders || []).filter(o => o.status === "angenommen" && !busyOrderIds.has(o.id));
+  if (unplanned.length === 0) return "Es sind keine ungesplanten Auftraege vorhanden. Nimm zuerst Auftraege an oder frage mich, Auftraege anzunehmen.";
+  const freeVehicles = (state.vehicles || []).filter(v => v.status === "free" && !v.markedForSale);
+  if (freeVehicles.length === 0) return "Es sind aktuell keine freien Lkw verfuegbar. Alle Fahrzeuge sind unterwegs oder in Wartung.";
+  const freeDrivers = (state.drivers || []).filter(d => d.employmentStatus === "employed" && d.attendance !== "released" && (d.status === "free" || d.status === "resting"));
+  if (freeDrivers.length === 0) return "Es sind aktuell keine freien Fahrer verfuegbar. Alle Fahrer sind unterwegs oder in der Erholung.";
+  return "Ich konnte keine passende Tour-Kombination finden. Moegliche Gruende: Fahrer und Lkw an unterschiedlichen Orten, unzureichende Marge oder Lieferfristen nicht erfuellbar.";
+}
+
+function executeAssistantReport(state, task, m) {
+  const emp = (state.employees || []).find(e => e.id === task.employeeId);
+  if (!emp) return "Ich konnte leider nicht ermittelt werden. Bitte wende Dich an die Personalabteilung.";
+  const day = dayOf(m);
+  const ast = state.assistantState || {};
+  if (ast.lastReportDay === day) {
+    return "Der Tagesbericht fuer Tag " + day + " wurde bereits versendet. Du findest ihn im Postfach.";
+  }
+  generateDailyReport(state, emp, m);
+  return "Ich habe Dir den Tagesbericht fuer Tag " + day + " per E-Mail gesendet. Bitte pruefe Dein Postfach.";
+}
+
+function executeAssistantOptimizeCosts(state, task, m) {
+  const emp = (state.employees || []).find(e => e.id === task.employeeId);
+  if (!emp) return "Ich konnte leider nicht ermittelt werden. Bitte wende Dich an die Personalabteilung.";
+  const day = dayOf(m);
+  const ast = state.assistantState || {};
+  if (ast.lastOptimizationDay === day) {
+    return "Die Gemeinkosten wurden heute bereits geprueft. Wenn es Optimierungspotenzial gibt, findest Du die Details im Journal unter 'Assistent'.";
+  }
+  optimizeOverheadCosts(state, emp, m);
+  const log = (state.assistantLog || []).filter(e => e.type === "cost_optimization" && dayOf(e.gameTime) === day);
+  if (log.length > 0) {
+    const saving = log.reduce((s, e) => s + (e.details?.savingCents || 0), 0);
+    return "Ich habe die Gemeinkosten geprueft und Einsparpotenzial von " + formatEuroBackend(saving) + " gefunden. Die Details findest Du im Journal unter 'Assistent'.";
+  }
+  return "Ich habe die Gemeinkosten geprueft. Aktuell gibt es keine Filialen mit Leerstand, die optimiert werden koennten.";
 }

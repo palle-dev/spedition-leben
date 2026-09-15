@@ -121,13 +121,14 @@ export function generateDailyReport(state, emp, m) {
 
 // ---------- B) Auto-Auftragsannahme ----------
 
-export function autoAcceptOrders(state, emp, m, log) {
+export function autoAcceptOrders(state, emp, m, log, force) {
   const config = state.assistantConfig || {};
-  if (config.autoAcceptOrders === false) return;
+  if (!force && config.autoAcceptOrders === false) return;
 
-  // Nur zur vollen Stunde ausführen (wird vom Adapter sichergestellt)
+  // Nur zur vollen Stunde ausführen (wird vom Adapter sichergestellt),
+  // außer bei erzwungener Ausführung (z.B. per E-Mail angefragt)
   const clock = m % 1440;
-  if (clock % 60 !== 0) return;
+  if (!force && clock % 60 !== 0) return;
 
   const minMarginPct = (config.autoAcceptMarginPct ?? 15) / 100;
   const minLiquidityCents = config.autoAcceptMinLiquidityCents ?? 50000;
@@ -874,9 +875,9 @@ export function monitorFleetUtilization(state, emp, m, log) {
 // Versucht, alle ungesplanten angenommenen Aufträge zu disponieren — nicht nur
 // die kurz vor der Frist. Wird jede Stunde aufgerufen, wenn autoDispatch aktiv.
 // Ruft suggestTours einmal auf und bestätigt alle passenden Vorschläge.
-export function proactiveAutoDispatch(state, emp, m, log) {
+export function proactiveAutoDispatch(state, emp, m, log, force) {
   const config = state.assistantConfig || {};
-  if (config.autoDispatch === false) return;
+  if (!force && config.autoDispatch === false) return;
 
   // Performance: Überspringen, wenn autonome Disponenten im Dienst sind UND
   // kürzlich erfolgreich Touren geplant haben. Wenn der Disponent jedoch 0

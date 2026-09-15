@@ -198,6 +198,13 @@ export function getQuickReplies(roleKey) {
     cleaner: [
       { intent: "check_cleaning_need", label: "Reinigungsbedarf prüfen" },
     ],
+    assistant: [
+      { intent: "assistant_accept_orders", label: "Aufträge annehmen" },
+      { intent: "assistant_dispatch", label: "Aufträge disponieren" },
+      { intent: "assistant_report", label: "Tagesbericht anfordern" },
+      { intent: "assistant_optimize_costs", label: "Kosten optimieren" },
+      { intent: "status_request", label: "Status erfragen" },
+    ],
   };
   return [...(roleSpecific[roleKey] || []), ...base];
 }
@@ -216,6 +223,10 @@ const INTENT_PATTERNS = [
   { type: "approve_payment", keywords: ["bezahlen", "zahlung freigeben", "ueberweisen", "begleichen", "rechnung bezahlen"], roles: ["accountant", "accountant_senior"] },
   { type: "approve_plan", keywords: ["freigeben", "freigabe", "plan bestaetigen", "bestaetigen", "plan freigeben", "tour freigeben"], roles: ["dispatcher", "dispatcher_senior"] },
   { type: "status_request", keywords: ["status", "wie geht", "stand", "lage", "uebersicht", "wie laeuft"] },
+  { type: "assistant_accept_orders", keywords: ["auftraege annehmen", "angebote annehmen", "nimm auftraege", "auftraege akzeptieren", "nimm aufträge"], roles: ["assistant"] },
+  { type: "assistant_dispatch", keywords: ["disponiere", "disposition", "touren planen", "tour planen", "dispo", "disponieren"], roles: ["assistant"] },
+  { type: "assistant_report", keywords: ["tagesbericht", "bericht", "report", "zusammenfassung"], roles: ["assistant"] },
+  { type: "assistant_optimize_costs", keywords: ["kosten optimieren", "gemeinkosten senken", "kosten senken", "overhead", "betriebskosten senken"], roles: ["assistant"] },
 ];
 
 function normalize(text) {
