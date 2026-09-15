@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
 import { X, Search, ChevronDown } from "lucide-react";
 import { HELP_TOPICS, PAGE_HINTS } from "@/lib/helpContent";
@@ -52,7 +53,7 @@ export default function HelpPanel({ open, onClose }) {
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex justify-end">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
@@ -135,6 +136,7 @@ export default function HelpPanel({ open, onClose }) {
           </p>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
