@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import { dayOf, clockOf } from "@/lib/gameData";
-import { Building2, Package, Map, Truck, Users, Wallet, Home as HomeIcon, BookOpen, Clock, MoreHorizontal, Trophy, Mail as MailIcon, LineChart, Network, Calendar, Loader2 } from "lucide-react";
+import { Building2, Package, Map, Truck, Users, Wallet, Home as HomeIcon, BookOpen, Clock, MoreHorizontal, Trophy, Mail as MailIcon, LineChart, Network, Calendar, Loader2, BarChart3 } from "lucide-react";
 import AdvanceProgressModal from "@/components/game/AdvanceProgressModal";
 
 const PRIMARY_NAV = [
@@ -15,6 +15,7 @@ const SECONDARY_NAV = [
   { to: "/fuhrpark", label: "Fuhrpark", icon: Truck },
   { to: "/personal", label: "Personal", icon: Users },
   { to: "/filialen", label: "Filialen", icon: Network },
+  { to: "/auslastung", label: "Auslastung", icon: BarChart3 },
   { to: "/finanzen", label: "Finanzen", icon: Wallet },
   { to: "/investment", label: "Investment", icon: LineChart },
   { to: "/postfach", label: "Postfach", icon: MailIcon },
