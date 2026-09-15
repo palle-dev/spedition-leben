@@ -651,18 +651,18 @@ function processEventsAt(state, m, log) {
 function advanceTo(state, targetMin, log, reportStart) {
   let t = state.gameTime;
   const startTime = Date.now();
-  // CPU-Budget und Event-Limit erhöht: Ein 24h-Vorlauf muss in einem Durchlauf
-  // abgeschlossen werden. Die äußere while-Schleife in advanceTime wurde entfernt,
-  // daher darf advanceTo nicht vorzeitig abbrechen — sonst bliebe der Vorlauf
-  // unvollständig. 45s reichen selbst für große Flotten; die UI bleibt dank
-  // Web-Worker responsiv.
-  const CPU_BUDGET_MS = 45000;
-  const MAX_EVENTS = 100000;
+  // Der Vorlauf läuft im Web-Worker — der Haupt-Thread bleibt frei, daher gibt
+  // es KEIN CPU-Zeitbudget. Alle Vorgänge müssen verarbeitet werden, sonst wäre
+  // die Funktion wertlos (unvollständige Buchungen, fehlende Lieferungen).
+  // MAX_EVENTS ist eine reine Sicherheitsgrenze gegen Endlosschleifen-Bugs
+  // (earliestEventAfter gibt immer m > t zurück, daher ist ein Stillstand
+  // ausgeschlossen — die Grenze liegt hoch genug für jede reale Flotte).
+  const MAX_EVENTS = 5000000;
   let eventCount = 0;
   let lastReportMs = startTime;
   let stopped = false;
   while (true) {
-    if (eventCount >= MAX_EVENTS || Date.now() - startTime > CPU_BUDGET_MS) { stopped = true; break; }
+    if (eventCount >= MAX_EVENTS) { stopped = true; break; }
     const next = earliestEventAfter(state, t, targetMin);
     if (next === null) break;
     processEventsAt(state, next, log);
@@ -679,7 +679,7 @@ function advanceTo(state, targetMin, log, reportStart) {
     }
   }
   state.gameTime = stopped ? t : targetMin;
-  if (stopped) log.push({ type: "advance_stopped", atMin: t, targetMin, reason: eventCount >= MAX_EVENTS ? "max_events" : "cpu_budget" });
+  if (stopped) log.push({ type: "advance_stopped", atMin: t, targetMin, reason: "max_events_safety" });
   if (reportStart !== undefined) {
     reportProgress(state.gameTime - reportStart, targetMin - reportStart, eventCount, null);
   }
