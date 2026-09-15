@@ -40,16 +40,13 @@ function isDispatcherOnShift(emp, gameMinute) {
 export function processEmployees(state, m, log) {
   const clock = m % 1440;
   const inServiceHours = clock >= SERVICE_START_MIN && clock < SERVICE_END_MIN;
-  // Während bulk-Vorläufen: Disponenten nur alle 2 Stunden planen lassen
-  // (statt stündlich). Halbiert suggestTours-Aufrufe von ~24 auf ~12 pro Tag.
-  // Marktwellen-Orders werden erst beim nächsten Planungszyklus disponiert
-  // (max. 2h Verzögerung — akzeptabel für Vorläufe).
-  const skipDispatchers = state._largeAdvance && (Math.floor(m / SERVICE_INTERVAL_MIN) % 2 !== 0);
+  // Inkrementelle Disposition: completeTrip löst planSingleVehicle aus,
+  // sobald ein Fahrzeug frei wird. Die stündliche processEmployees-Runde
+  // dient nur noch als Fallback (Fahrer aus Ruhe, Marktwellen-Orders).
   for (const emp of (state.employees || [])) {
     if (!isActivelyEmployed(emp)) continue;
     if (emp.attendance !== "present") continue;
     if (emp.role === "dispatcher" || emp.role === "dispatcher_senior") {
-      if (skipDispatchers) continue;
       if (!isDispatcherOnShift(emp, m)) continue;
       processDispatcher(state, emp, m, log);
     } else if (inServiceHours && (emp.role === "accountant" || emp.role === "accountant_senior")) {
@@ -325,6 +322,73 @@ export function processDispatcher(state, emp, m, log) {
   emp.lastDecisionMin = m;
   emp._lastPlanPlanned = planned;
   emp.lastPlanningResult = { atMin: m, planned, totalVehicles: poolVehicles.length, usedVehicles: usedVehicleIds.size, suggested: result.suggestions.length };
+}
+
+// Inkrementelle Disposition: Plant sofort für ein einzelnes Fahrzeug,
+// das gerade frei geworden ist (Tour-Ende). Deutlich effizienter als
+// die stündliche Flotten-Vollscan über processDispatcher, da nur ein
+// Fahrzeug × Fahrer × Aufträge durchsucht werden.
+export function planSingleVehicle(state, vehicle, m, log) {
+  if (vehicle.status !== "free" || vehicle.condition < 20 || vehicle.markedForSale) return;
+  if (vehicle.ownership_type === "sold" || vehicle.ownership_type === "archived") return;
+
+  // Finde autonomen/dispatch_accepted Disponenten für diese Filiale
+  const dispatcher = (state.employees || []).find(e => {
+    if (!isActivelyEmployed(e) || e.attendance !== "present") return false;
+    if (e.role !== "dispatcher" && e.role !== "dispatcher_senior") return false;
+    if (e.workMode !== "autonomous" && e.workMode !== "dispatch_accepted") return false;
+    if (!isDispatcherOnShift(e, m)) return false;
+    const dispBranch = e.assignedBranchId !== undefined ? e.assignedBranchId : (e.branchId || null);
+    if (dispBranch && dispBranch !== vehicle.branchId) return false;
+    return true;
+  });
+  if (!dispatcher) return;
+
+  const acceptNew = dispatcher.workMode === "autonomous";
+  const result = suggestTours(state, {
+    vehicleIds: [vehicle.id], earliestStart: m, horizonMin: 48 * 60,
+    desiredEndCity: null, latestReturnMin: null,
+    mode: state.marketPriority || "balanced", acceptNew,
+  });
+  if (result.suggestions.length === 0) return;
+
+  const sug = result.suggestions[0];
+  const newOrderIds = sug.plan.acceptedOrderIds || [];
+  if (newOrderIds.length > 0 && sug.plan.totalContributionCents <= 0) return;
+  if (sug.orderIds.some(oid => state.orders.find(x => x.id === oid)?.isDangerousGoods) && !hasDgDispatch(state, dispatcher.id)) return;
+
+  // Auftragsverfügbarkeit prüfen
+  const busyOrderIds = new Set();
+  for (const tr of state.trips) { if (tr.status === "in_progress" && tr.orderId) busyOrderIds.add(tr.orderId); }
+  for (const tr of (state.tours || [])) {
+    if (tr.status !== "active") continue;
+    for (const d of (tr.deployments || [])) { if (d.orderId && d.status !== "cancelled") busyOrderIds.add(d.orderId); }
+  }
+  if (sug.orderIds.some(oid => busyOrderIds.has(oid))) return;
+
+  try {
+    const r = doConfirmTour(state, {
+      vehicleId: sug.vehicleId, driverId: sug.driverId, orderIds: sug.orderIds,
+      desiredEndCity: sug.plan.desiredEndCity || null, latestReturnMin: sug.plan.latestReturnMin || null,
+    });
+    const newlyAccepted = r.acceptedOrderIds || [];
+    for (const oid of sug.orderIds) {
+      const o = state.orders.find(x => x.id === oid);
+      if (!o) continue;
+      if (newlyAccepted.includes(oid)) {
+        o.acceptedById = dispatcher.id; o.acceptedByName = dispatcher.name;
+        o.history = o.history || [];
+        o.history.push({ type: "accepted", min: m, actor: dispatcher.id, actorName: dispatcher.name });
+        onOrderAccepted(state, o, dispatcher.id, m);
+      }
+      o.plannedById = dispatcher.id; o.plannedByName = dispatcher.name;
+    }
+    const tour = r.tour || { id: r.tourId, vehicleId: sug.vehicleId, driverId: sug.driverId, orderIds: sug.orderIds, startMin: m, endMin: r.endMin };
+    onTourConfirmed(state, tour, dispatcher.id, m);
+    log.push({ type: "dispatcher_planned", employee: dispatcher.id, orders: sug.orderIds, vehicle: sug.vehicleId, atMin: m, contributionCents: sug.plan.totalContributionCents });
+  } catch (e) {
+    // skip failed tour
+  }
 }
 
 // Ereignisgesteuerte Dispositionsplanung außerhalb des regulären Diensttakts.

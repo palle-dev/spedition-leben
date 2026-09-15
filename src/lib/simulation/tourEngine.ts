@@ -1034,10 +1034,8 @@ export function suggestTours(state, opts) {
       return true;
     }) : [];
     const candidateDrivers = [...sameCityDrivers, ...crossCityDrivers];
-    // CPU-Schutz: höchstens 4 Fahrer pro Fahrzeug probieren (2 während
-    // bulk-Vorläufen — halbiert buildTourPlan-Aufrufe bei minimaler
-    // Einbuße bei der Fahrerwahl).
-    const maxDrivers = state._bulkAdvance ? 2 : 4;
+    // CPU-Schutz: höchstens 4 Fahrer pro Fahrzeug probieren.
+    const maxDrivers = 4;
     if (candidateDrivers.length > maxDrivers) candidateDrivers.length = maxDrivers;
     if (candidateDrivers.length === 0) continue;
 
@@ -1079,10 +1077,8 @@ export function suggestTours(state, opts) {
     // aber unrealisierbar kurzen Lieferfristen, die dann alle durch buildTourPlan
     // abgelehnt werden und die machbaren Advance-Aufträge verdrängen.
     // CPU-Schutz: die Doppel-Tour-Suche ist O(n²). Bei vielen Aufträgen
-    // wird die Liste begrenzt. Während bulk-Vorläufen stärker begrenzen
-    // (8 statt 12), reduziert die kombinatorische Explosion der Doppel-
-    // Tour-Suche von 66 auf 28 Paare — ~2,4× weniger buildTourPlan-Aufrufe.
-    const orderLimit = state._bulkAdvance ? 8 : 12;
+    // wird die Liste begrenzt, damit die kombinatorische Explosion vermieden wird.
+    const orderLimit = 12;
     if (allOrders.length > orderLimit) {
       const vehicleCity = vehicleFutureCity;
       const scored = allOrders.map(o => {

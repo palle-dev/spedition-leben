@@ -145,7 +145,7 @@ import {
   assignDispatcherToBranch, assignEmployeeToBranch, getBranchStats, processDriverTravels,
   getDriverTravelEventTimes, creditBranchDelivery,
 } from "./branchEngine.ts";
-import { processEmployees, triggerDispatcherPlanning } from "./dispatcherProcessor.ts";
+import { processEmployees, triggerDispatcherPlanning, planSingleVehicle } from "./dispatcherProcessor.ts";
 import {
   migrateRelationship, getRelationshipStatus, proposeMarriage, getMarried,
   planChild, processPregnancy, getPregnancyEventTimes, processDailyRelationship,
@@ -383,6 +383,7 @@ function completeTrip(state, trip, m, log) {
   if (trip.type === "empty") {
     onTripCompleted(state, trip, m, log);
     log.push({ type: "emptytrip_completed", trip: trip.id, vehicle: vehicle.id, driver: driver.id, atCity: finalCity });
+    planSingleVehicle(state, vehicle, m, log);
     return;
   }
   const order = state.orders.find(o => o.id === trip.orderId);
@@ -435,6 +436,8 @@ function completeTrip(state, trip, m, log) {
       dedupKey: "dg_delivery:" + trip.id,
     });
   }
+  // Inkrementelle Disposition: Fahrzeug ist frei → sofort neu planen
+  planSingleVehicle(state, vehicle, m, log);
 }
 function processEventsAt(state, m, log) {
   // Spielzeit auf Ereigniszeit aktualisieren (startDeployment nutzt state.gameTime)
