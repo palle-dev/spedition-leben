@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
-import { BookOpen, FileText, Package, Users, LayoutDashboard, AlertCircle } from "lucide-react";
+import { BookOpen, FileText, Package, Users, LayoutDashboard, AlertCircle, TrendingUp } from "lucide-react";
 import FinanceOverview from "@/components/finance/FinanceOverview";
 import JournalView from "@/components/finance/JournalView";
 import OpenItemsPanel from "@/components/finance/OpenItemsPanel";
@@ -8,10 +8,12 @@ import ReportsView from "@/components/finance/ReportsView";
 import AssetRegister from "@/components/finance/AssetRegister";
 import AccountingTeam from "@/components/finance/AccountingTeam";
 import FinancingPanel from "@/components/finance/FinancingPanel";
+import FinanceTrendChart from "@/components/finance/FinanceTrendChart";
 import { Landmark } from "lucide-react";
 import PageHint from "@/components/help/PageHint";
 
 const TABS = [
+  { id: "trend", label: "Zeitverlauf", icon: TrendingUp },
   { id: "overview", label: "Übersicht", icon: LayoutDashboard },
   { id: "financing", label: "Finanzierung", icon: Landmark },
   { id: "journal", label: "Journal", icon: BookOpen },
@@ -23,7 +25,7 @@ const TABS = [
 
 export default function Finances() {
   const { state } = useGame();
-  const [tab, setTab] = useState("overview");
+  const [tab, setTab] = useState("trend");
 
   const openItems = (state.accounting?.openItems || []).filter(i => i.remainingCents > 0);
   const openBadge = openItems.length > 0 ? openItems.length : null;
@@ -64,6 +66,7 @@ export default function Finances() {
       </div>
 
       <div className="min-h-[400px]">
+        {tab === "trend" && <FinanceTrendChart state={state} />}
         {tab === "overview" && <FinanceOverview state={state} />}
         {tab === "financing" && <FinancingPanel />}
         {tab === "journal" && <JournalView state={state} />}
