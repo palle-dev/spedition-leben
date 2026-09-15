@@ -625,6 +625,19 @@ function processEventsAt(state, m, log) {
   }
   // 5. Angebotsablauf
   for (const o of state.orders) { if (o.status === "offered" && o.acceptDeadlineMin === m) { o.status = "expired"; log.push({ type: "order_expired", order: o.id }); } }
+  // 5a. Angenommene Aufträge mit überschrittener Lieferfrist als "failed" markieren.
+  // suggestTours/buildTourPlan lassen Aufträge bis zu 4h (LATE_GRACE_MIN = 240)
+  // nach der Lieferfrist noch zu. Danach sind sie nicht mehr planbar, bleiben aber
+  // sonst ewig als "angenommen" stehen — sie blähen die UI-Zahl auf, blockieren
+  // den Dispatcher-Skip-Cache (unplannedCount bleibt konstant → keine Neuplanung)
+  // und verhindern, dass die Disposition freie Lkw tatsächlich einsetzt.
+  for (const o of state.orders) {
+    if (o.status === "angenommen" && o.deliveryDeadlineMin + 240 <= m) {
+      o.status = "failed";
+      o.failedAtMin = m;
+      log.push({ type: "order_failed", order: o.id, customer: o.customer, reason: "Lieferfrist überschritten" });
+    }
+  }
   // 5b. Marktwelle zu jeder vollen Spielstunde (Auftrag 19)
   if (m % 60 === 0) {
     generateMarketWave(state, m, log);
