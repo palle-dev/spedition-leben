@@ -16,6 +16,58 @@ const CHILD_NAMES = [
   "Marie", "Felix", "Hannah", "Maximilian", "Lina", "Theo", "Ida", "Bruno",
 ];
 
+// ---------- Geschenke (sofortige Beziehungs-Steigerung) ----------
+
+const GIFTS = [
+  { id: "chocolate", label: "Schokolade", costCents: 800, contactDelta: 2, happinessDelta: 1, maxPerDay: 2 },
+  { id: "flowers_small", label: "Blumenstrauß", costCents: 2500, contactDelta: 4, happinessDelta: 2, maxPerDay: 1 },
+  { id: "jewelry", label: "Schmuck", costCents: 20000, contactDelta: 8, happinessDelta: 4, maxPerDay: 1 },
+  { id: "surprise", label: "Überraschungsgeschenk", costCents: 5000, contactDelta: 5, happinessDelta: 3, maxPerDay: 1 },
+];
+
+export function getGiftOptions(state) {
+  migrateRelationship(state);
+  const day = Math.floor(state.gameTime / DAY_MIN);
+  const todayGifts = (state.private.giftLog || []).filter(g => Math.floor(g.min / DAY_MIN) === day);
+  return GIFTS.map(g => {
+    const usedToday = todayGifts.filter(t => t.giftId === g.id).length;
+    return {
+      ...g,
+      usedToday,
+      remaining: Math.max(0, g.maxPerDay - usedToday),
+      available: usedToday < g.maxPerDay && state.private.accountCents >= g.costCents,
+    };
+  });
+}
+
+export function giveGift(state, { giftId }) {
+  migrateRelationship(state);
+  const gift = GIFTS.find(g => g.id === giftId);
+  if (!gift) throw new Error("Unbekanntes Geschenk: " + giftId);
+  if (state.private.accountCents < gift.costCents) {
+    throw new Error("Privatkonto reicht fuer " + gift.label + " nicht aus (" + (gift.costCents / 100).toLocaleString("de-DE") + " EUR).");
+  }
+  const day = Math.floor(state.gameTime / DAY_MIN);
+  if (!state.private.giftLog) state.private.giftLog = [];
+  const usedToday = state.private.giftLog.filter(g => Math.floor(g.min / DAY_MIN) === day && g.giftId === giftId).length;
+  if (usedToday >= gift.maxPerDay) {
+    throw new Error(gift.label + " wurde heute bereits maximal oft verschenkt.");
+  }
+  state.private.accountCents -= gift.costCents;
+  state.private.relationship = Math.min(100, (state.private.relationship || 0) + gift.contactDelta);
+  state.private.happiness = Math.min(100, (state.private.happiness || 0) + gift.happinessDelta);
+  state.private.stress = Math.max(0, (state.private.stress || 0) - 1);
+  state.private.giftLog.push({ giftId, min: state.gameTime });
+  if (state.private.giftLog.length > 100) state.private.giftLog = state.private.giftLog.slice(-100);
+  state.bookings.push({ min: state.gameTime, cause: "Geschenk: " + gift.label, amountCents: -gift.costCents, account: "private", refId: "gift:" + giftId });
+  pushEvent(state, {
+    type: "gift_given", gameTime: state.gameTime, isSystem: true,
+    details: { gift: gift.label, costCents: gift.costCents, contactDelta: gift.contactDelta },
+    dedupKey: "gift_given:" + state.gameTime + ":" + giftId,
+  });
+  return { ok: true, gift: gift.label, contactDelta: gift.contactDelta, relationship: state.private.relationship };
+}
+
 // ---------- Migration ----------
 
 export function migrateRelationship(state) {
@@ -25,6 +77,7 @@ export function migrateRelationship(state) {
   if (state.private.pregnancy === undefined) state.private.pregnancy = null;
   if (state.private.marriageDate === undefined) state.private.marriageDate = null;
   if (state.private.engagementDate === undefined) state.private.engagementDate = null;
+  if (!state.private.giftLog) state.private.giftLog = [];
 }
 
 // ---------- Abfragen ----------

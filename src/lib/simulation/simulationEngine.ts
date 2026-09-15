@@ -149,6 +149,7 @@ import { processEmployees, triggerDispatcherPlanning } from "./dispatcherProcess
 import {
   migrateRelationship, getRelationshipStatus, proposeMarriage, getMarried,
   planChild, processPregnancy, getPregnancyEventTimes, processDailyRelationship,
+  getGiftOptions, giveGift,
 } from "./relationshipEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
@@ -1492,6 +1493,18 @@ export function applyCommand(state, command, params) {
 
     case "getRelationshipStatus": {
       result = { ok: true, ...getRelationshipStatus(state) };
+      break;
+    }
+
+    case "getGiftOptions": {
+      result = { ok: true, gifts: getGiftOptions(state) };
+      break;
+    }
+
+    case "giveGift": {
+      ensureNotBlocked(state);
+      const r = giveGift(state, { giftId: p.giftId });
+      result = r;
       break;
     }
 
