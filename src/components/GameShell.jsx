@@ -11,6 +11,7 @@ import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { EASE } from "@/lib/motion";
 import { formatGameTime } from "@/lib/gameData";
 import EventOverlay from "@/components/EventOverlay";
+import DecisionModal from "@/components/game/DecisionModal";
 import ToastStack from "@/components/notifications/ToastStack";
 import { HeaderSlotProvider } from "@/lib/headerSlot";
 
@@ -62,6 +63,7 @@ function GameShellContent() {
           {toast && <ToastView key={toast.id} toast={toast} />}
         </AnimatePresence>
         <EventOverlay overlay={overlay} onDismiss={dismissOverlay} />
+        <DecisionModal />
       </div>
     </MotionConfig>
   );
