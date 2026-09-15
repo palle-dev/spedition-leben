@@ -704,16 +704,17 @@ export function processTours(state, m, log) {
   // hat sich von selbst ausgeruht. Seine Arbeitszeit-Zähler werden
   // zurückgesetzt, damit er für neue Touren voll verfügbar ist.
   // Verhindert, dass Fahrer mit hohem workMin dauerhaft unbrauchbar werden.
-  for (const d of state.drivers || []) {
-    if (d.status !== "free") continue;
-    // Migration: freeSinceMin wird beim ersten Mal auf m - REST_MIN gesetzt
-    // (annimmt 12h Ruhe), damit bestehende Fahrer sofort zurückgesetzt werden.
-    // Neu freigegebene Fahrer erhalten freeSinceMin in completeTrip.
-    if (!d.freeSinceMin) { d.freeSinceMin = m - REST_MIN; d.workMinutesSinceRest = 0; d.driveMinutesSinceBreak = 0; }
-    if (m - d.freeSinceMin >= REST_MIN) {
-      d.workMinutesSinceRest = 0;
-      d.driveMinutesSinceBreak = 0;
-      d.freeSinceMin = m;
+  // Performance: Nur bei vollen Stunden prüfen (statt bei jedem Event),
+  // da die Ruhe-Rücksetzung stundenbasiert ist (12h Schwelle).
+  if (m % 60 === 0) {
+    for (const d of state.drivers || []) {
+      if (d.status !== "free") continue;
+      if (!d.freeSinceMin) { d.freeSinceMin = m - REST_MIN; d.workMinutesSinceRest = 0; d.driveMinutesSinceBreak = 0; }
+      if (m - d.freeSinceMin >= REST_MIN) {
+        d.workMinutesSinceRest = 0;
+        d.driveMinutesSinceBreak = 0;
+        d.freeSinceMin = m;
+      }
     }
   }
 

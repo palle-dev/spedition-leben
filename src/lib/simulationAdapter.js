@@ -78,7 +78,19 @@ export async function executeCommand(state, command, params) {
   const isTimeCommand = ["enableAutomation", "pauseAutomation", "syncAutomation", "getAutomationStatus"].includes(command);
   const paramsWithTime = isTimeCommand ? { ...(params || {}), serverNowMs: Date.now() } : (params || {});
 
-  const slim = slimState(state);
+  let slim = slimState(state);
+
+  // Pre-Dispatch für große Zeitvorläufe (≥ 1 Tag): Alle freien Fahrzeuge
+  // einmalig verplanen, bevor der Vorlauf startet. Während des Vorlaufs
+  // übernimmt planSingleVehicle (bei Tour-Ende) die inkrementelle Disposition,
+  // processDispatcher läuft nur noch alle 6h. Reduziert suggestTours-Aufrufe
+  // bei 72 Fahrzeugen von ~24/Tag auf ~4/Tag + inkrementelle Einzelaufrufe.
+  if (command === "advanceTime" && (params || {}).minutes >= 1440) {
+    try {
+      const dr = applyCommand(slim, "dispatchAllNow", {});
+      slim = dr.state;
+    } catch (e) { /* Spieler blockiert oder keine freien Fahrzeuge — trotzdem vorlaufen */ }
+  }
 
   try {
     const r = applyCommand(slim, command, paramsWithTime);
