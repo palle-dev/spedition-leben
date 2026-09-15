@@ -602,8 +602,10 @@ function tryExecuteOrder(state, order, min) {
   const marketOpen = isStock ? isStockTradingHour(min) : isCryptoTradingHour(min);
   if (!marketOpen) return { filled: false, reason: "Markt geschlossen" };
 
+  // Quote ist gültig, sobald der Markt offen ist — der letzte bekannte
+  // Preis gilt auch zwischen Ticks (Quote-Status wird erst zur vollen
+  // Stunde auf "open" aktualisiert, aber der Preis davor ist handelbar).
   const quote = inst.currentQuote;
-  if (quote.status !== "open") return { filled: false, reason: "Keine offene Quote" };
 
   const remainingQty = order.qty - order.filledQty;
   if (remainingQty <= 0) return { filled: false };
