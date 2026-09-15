@@ -47,23 +47,23 @@ const STOCK_DEFS: InstrumentDef[] = [
 
 const CRYPTO_DEFS: InstrumentDef[] = [
   { id: "FAUR", name: "Aurora Coin", sector: "Krypto", type: "crypto", initialPriceCents: 2400000, dividendPerShareCents: 0, riskClass: "mittel", stakingRate: null, tradeable: true },
-  { id: "FNOV", name: "Nova Network", sector: "Krypto", type: "crypto", initialPriceCents: 145000, dividendPerShareCents: 0, riskClass: "mittel", stakingRate: 0.04, tradeable: true },
-  { id: "FHBR", name: "Harbor Chain", sector: "Krypto", type: "crypto", initialPriceCents: 2000, dividendPerShareCents: 0, riskClass: "mittel", stakingRate: 0.06, tradeable: true },
-  { id: "FQNT", name: "Quanta Token", sector: "Krypto", type: "crypto", initialPriceCents: 480, dividendPerShareCents: 0, riskClass: "hoch", stakingRate: null, tradeable: true },
-  { id: "FPLS", name: "Pulse Coin", sector: "Krypto", type: "crypto", initialPriceCents: 25, dividendPerShareCents: 0, riskClass: "hoch", stakingRate: null, tradeable: true },
-  { id: "FORB", name: "Orbit Network", sector: "Krypto", type: "crypto", initialPriceCents: 9500, dividendPerShareCents: 0, riskClass: "hoch", stakingRate: null, tradeable: true },
-  { id: "FLUM", name: "Lumen Ledger", sector: "Krypto", type: "crypto", initialPriceCents: 8, dividendPerShareCents: 0, riskClass: "hoch", stakingRate: null, tradeable: true },
-  { id: "FCDR", name: "Cedar Protocol", sector: "Krypto", type: "crypto", initialPriceCents: 1200, dividendPerShareCents: 0, riskClass: "mittel", stakingRate: null, tradeable: true },
+  { id: "FNOV", name: "Nova Network", sector: "Krypto", type: "crypto", initialPriceCents: 145000, dividendPerShareCents: 0, riskClass: "mittel", stakingRate: 0.08, tradeable: true },
+  { id: "FHBR", name: "Harbor Chain", sector: "Krypto", type: "crypto", initialPriceCents: 2000, dividendPerShareCents: 0, riskClass: "mittel", stakingRate: 0.12, tradeable: true },
+  { id: "FQNT", name: "Quanta Token", sector: "Krypto", type: "crypto", initialPriceCents: 480, dividendPerShareCents: 0, riskClass: "hoch", stakingRate: 0.15, tradeable: true },
+  { id: "FPLS", name: "Pulse Coin", sector: "Krypto", type: "crypto", initialPriceCents: 25, dividendPerShareCents: 0, riskClass: "hoch", stakingRate: 0.20, tradeable: true },
+  { id: "FORB", name: "Orbit Network", sector: "Krypto", type: "crypto", initialPriceCents: 9500, dividendPerShareCents: 0, riskClass: "hoch", stakingRate: 0.10, tradeable: true },
+  { id: "FLUM", name: "Lumen Ledger", sector: "Krypto", type: "crypto", initialPriceCents: 8, dividendPerShareCents: 0, riskClass: "hoch", stakingRate: 0.18, tradeable: true },
+  { id: "FCDR", name: "Cedar Protocol", sector: "Krypto", type: "crypto", initialPriceCents: 1200, dividendPerShareCents: 0, riskClass: "mittel", stakingRate: 0.07, tradeable: true },
 ];
 
 export const ALL_INSTRUMENT_DEFS = [...STOCK_DEFS, ...CRYPTO_DEFS];
 
 // ---------- Konstanten ----------
-const SIGMA_BY_RISK = { niedrig: 0.003, mittel: 0.007, hoch: 0.015 };
-const SIGMA_CRYPTO = { mittel: 0.012, hoch: 0.025 };
-const MU_BY_REGIME = { neutral: 0, positive: 0.00015, negative: -0.00015 };
-const REGIME_INTERVAL_DAYS = 20;
-const REGIME_PROBS = { neutral: 0.50, positive: 0.25, negative: 0.25 };
+const SIGMA_BY_RISK = { niedrig: 0.008, mittel: 0.020, hoch: 0.040 };
+const SIGMA_CRYPTO = { mittel: 0.035, hoch: 0.070 };
+const MU_BY_REGIME = { neutral: 0, positive: 0.001, negative: -0.001 };
+const REGIME_INTERVAL_DAYS = 14;
+const REGIME_PROBS = { neutral: 0.30, positive: 0.40, negative: 0.30 };
 
 const STOCK_SPREAD = { bid: 0.999, ask: 1.001 };
 const CRYPTO_SPREAD = { bid: 0.997, ask: 1.003 };
@@ -256,8 +256,12 @@ function computeLogReturn(state, inst, min) {
   const zSector = drawZ(state);
   const zInstrument = drawZ(state);
 
-  const weighted = 0.40 * zMarkt + 0.25 * zSector + 0.35 * zInstrument;
-  const limit = def.type === "crypto" ? 0.30 : 0.15;
+  // Normalisierung: Die gewichtete Summe aus 3 unabhängigen Ziehungen hat
+  // nur ~59 % der Varianz einer einzelnen Ziehung. Der Faktor 1.702 hebt
+  // die Varianz an, sodass das eingestellte Sigma der tatsächlichen
+  // pro-Tick-Volatilität entspricht.
+  const weighted = 1.702 * (0.40 * zMarkt + 0.25 * zSector + 0.35 * zInstrument);
+  const limit = def.type === "crypto" ? 0.40 : 0.20;
   let logReturn = mu + sigma * weighted;
   logReturn = clamp(logReturn, -limit, limit);
 

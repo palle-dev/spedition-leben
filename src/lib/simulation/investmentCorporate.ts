@@ -20,8 +20,8 @@ export function processDividends(state, min, log) {
     const inst = m.instruments[def.id];
     if (!inst) continue;
 
-    // Dividenden-Kalender: alle 90 Tage
-    const divIntervalDays = 90;
+    // Dividenden-Kalender: alle 60 Tage
+    const divIntervalDays = 60;
     const divIntervalMin = divIntervalDays * 1440;
     const lastDivMin = inst.lastDividendMin || 0;
     if (lastDivMin === 0) {
@@ -32,7 +32,10 @@ export function processDividends(state, min, log) {
 
     // Ex-Dividende-Tag
     inst.lastDividendMin = min;
-    const divPerShare = def.dividendPerShareCents;
+    // Dividenden-Boost: Verdoppelt die effektive Ausschüttung gegenüber
+    // der Definition, damit Dividendenaktien als passive Einkommensquelle
+    // spürbar werden (2–4 % p.a. statt 1–2 %).
+    const divPerShare = def.dividendPerShareCents * 2;
 
     // Kursbereinigung: Mid um Dividende senken
     const oldMid = inst.currentQuote.mid;
