@@ -944,7 +944,8 @@ export function findReturnLoads(state, primaryOrderId, vehicleId, driverId) {
 // mode: "balanced" | "high_margin" | "low_empty"
 export function suggestTours(state, opts) {
   _clearPlanCache();
-  const { vehicleIds, earliestStart, horizonMin, desiredEndCity, latestReturnMin, mode, acceptNew } = opts;
+  const { vehicleIds, earliestStart, horizonMin, desiredEndCity, latestReturnMin, mode, acceptNew, restrictOrderIds } = opts;
+  const restrictSet = restrictOrderIds ? new Set(restrictOrderIds) : null;
   const suggestions = [];
 
   const startMin = earliestStart || state.gameTime;
@@ -986,7 +987,8 @@ export function suggestTours(state, opts) {
   const totalAvailableOrders = state.orders.filter(o =>
     (o.status === "angenommen" || (acceptNew && o.status === "offered")) &&
     o.deliveryDeadlineMin > startMin - 240 &&
-    !activeTourOrderIds.has(o.id)
+    !activeTourOrderIds.has(o.id) &&
+    (!restrictSet || restrictSet.has(o.id))
   ).length;
 
   // Early-Exit reicht als Performance-Optimierung: sobald alle Aufträge
@@ -1053,7 +1055,8 @@ export function suggestTours(state, opts) {
       o.deliveryDeadlineMin > startMin - 240 &&
       o.tons <= vehicle.capacityTons &&
       !usedOrderIds.has(o.id) &&
-      !activeTourOrderIds.has(o.id)
+      !activeTourOrderIds.has(o.id) &&
+      (!restrictSet || restrictSet.has(o.id))
     ).sort((a, b) => a.deliveryDeadlineMin - b.deliveryDeadlineMin);
 
     // 2. Offene Angebote (nur wenn acceptNew, nicht bereits zugewiesen)
@@ -1064,7 +1067,8 @@ export function suggestTours(state, opts) {
       o.deliveryDeadlineMin > startMin &&
       o.tons <= vehicle.capacityTons &&
       !usedOrderIds.has(o.id) &&
-      !activeTourOrderIds.has(o.id)
+      !activeTourOrderIds.has(o.id) &&
+      (!restrictSet || restrictSet.has(o.id))
     ) : [];
 
     const allOrders = [...acceptedOrders, ...offeredOrders];
