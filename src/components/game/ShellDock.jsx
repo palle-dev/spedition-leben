@@ -47,7 +47,8 @@ export default function ShellDock() {
     setAdvancing(true);
     try {
       const res = await send("advanceTime", { minutes: 60 });
-      summarizeEvents(res?.events);
+      if (res?.stopped) showToast("Vorlauf abgebrochen – nicht alle Vorgänge verarbeitet.", "error");
+      else summarizeEvents(res?.events);
     } catch (e) { showToast(e.message, "error"); }
     finally { setAdvancing(false); }
   }
@@ -84,8 +85,10 @@ export default function ShellDock() {
     stats: backgroundAdvance.result.stats || null,
     eventCount: backgroundAdvance.result.events?.length || 0,
     done: true,
-    error: !!backgroundAdvance.error,
-    status: backgroundAdvance.error ? "Fehler: " + backgroundAdvance.error : "Abgeschlossen",
+    error: !!backgroundAdvance.error || !!backgroundAdvance.result.stopped,
+    status: backgroundAdvance.error ? "Fehler: " + backgroundAdvance.error
+      : backgroundAdvance.result.stopped ? "Abgebrochen – nicht alle Vorgänge verarbeitet"
+      : "Abgeschlossen",
   } : null;
 
   return (
