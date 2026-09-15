@@ -43,7 +43,7 @@ export function migrateAssistant(state) {
       maxBacklogOrders: 5,
       backlogMonitoring: true,
       staffDevelopment: true,
-      autoBookTraining: false,
+      autoBookTraining: true,
       trainingBudgetPerDay: 200,
       fleetUtilizationMonitoring: true,
       minFleetUtilizationPct: 60,

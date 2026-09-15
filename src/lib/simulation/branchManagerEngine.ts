@@ -4,6 +4,10 @@
 // und legen wichtige Entscheidungen dem Geschäftsführer zur Freigabe vor.
 
 import { dayOf, HIRE_FEE, DRIVER_COST_PER_DAY, CITIES, PORTRAIT_IDS, APPLICANT_NAMES } from "./gameRules.ts";
+import { previewCourseBooking, bookCourse, COURSE_CATALOG, hasQualification, isPersonInTraining } from "./trainingEngine.ts";
+import { isActivelyEmployed, findPerson } from "./terminationEngine.ts";
+import { isPersonAvailable } from "./absenceEngine.ts";
+import { pushEvent } from "./eventLog.ts";
 
 function uid(state: any, prefix: string): string {
   state.idCounter = (state.idCounter || 100) + 1;
@@ -96,7 +100,7 @@ export function generateBranchDecisions(state: any): any {
 }
 
 function createDecision(state: any, manager: any, branch: any): any | null {
-  const types = ["hire_driver", "accept_order", "maintenance", "cost_optimization"];
+  const types = ["hire_driver", "accept_order", "maintenance", "cost_optimization", "staff_training"];
   const type = types[Math.floor(Math.random() * types.length)];
   const id = uid(state, "bd");
 
@@ -146,8 +150,77 @@ function createDecision(state: any, manager: any, branch: any): any | null {
       createdAt: state.gameTime, status: "pending",
     };
   }
+  if (type === "staff_training") {
+    const candidate = findTrainingCandidate(state, branch);
+    if (!candidate) return null;
+    return {
+      id, branchId: branch.id, managerId: manager.id, type,
+      title: "Mitarbeiter schulen",
+      description: `${manager.name} empfiehlt, ${candidate.personName} (${candidate.roleLabel}) in ${branch.name} (${branch.city}) für den Kurs "${candidate.courseLabel}" anzumelden.`,
+      costCents: candidate.feeCents,
+      benefitDesc: candidate.effectDesc,
+      personId: candidate.personId,
+      courseId: candidate.courseId,
+      createdAt: state.gameTime, status: "pending",
+    };
+  }
   return null;
 }
+
+// Findet eine schulungsfähige Person und einen passenden Kurs für eine Filiale.
+function findTrainingCandidate(state: any, branch: any): any | null {
+  const persons: any[] = [];
+  for (const d of (state.drivers || [])) {
+    if (isActivelyEmployed(d) && d.branchId === branch.id) {
+      persons.push({ id: d.id, role: "driver", name: d.name });
+    }
+  }
+  for (const e of (state.employees || [])) {
+    if (!isActivelyEmployed(e)) continue;
+    const branchMatch = e.assignedBranchId === branch.id || e.branchId === branch.id;
+    if (!branchMatch) continue;
+    if (e.role === "branch_manager") continue;
+    persons.push({ id: e.id, role: e.role, name: e.name });
+  }
+
+  for (const p of persons) {
+    if (isPersonInTraining(state, p.id)) continue;
+    if (!isPersonAvailable(state, p.id, state.gameTime)) continue;
+
+    for (const course of COURSE_CATALOG) {
+      if (course.isPromotion) continue;
+      if (course.effect && hasQualification(state, p.id, course.effect)) continue;
+      const targetRoles = [course.targetRole];
+      if (course.targetRoleSenior) targetRoles.push(course.targetRoleSenior);
+      if (!targetRoles.includes(p.role)) continue;
+
+      const preview = previewCourseBooking(state, p.id, course.id);
+      if (!preview.ok) continue;
+
+      const roleLabel = p.role === "driver" ? "Fahrer" : PERSONNEL_ROLE_LABELS[p.role] || p.role;
+      return {
+        personId: p.id,
+        personName: p.name,
+        roleLabel,
+        courseId: course.id,
+        courseLabel: course.label,
+        feeCents: course.feeCents,
+        effectDesc: course.effectDesc || "Neue Qualifikation",
+      };
+    }
+  }
+  return null;
+}
+
+const PERSONNEL_ROLE_LABELS: Record<string, string> = {
+  dispatcher: "Disponent",
+  dispatcher_senior: "Erf. Disponent",
+  cleaner: "Reinigung",
+  mechanic: "Werkstatt",
+  accountant: "Buchhaltung",
+  accountant_senior: "Erf. Buchhaltung",
+  assistant: "Assistent",
+};
 
 // ---------- Entscheidung anwenden ----------
 
@@ -227,6 +300,34 @@ function applyDecision(state: any, decision: any) {
     const branch = state.branches.find((b: any) => b.id === decision.branchId);
     if (branch) {
       branch.costPerDayCents = Math.max(1000, (branch.costPerDayCents || 5000) - decision.savingPerDayCents);
+    }
+    return;
+  }
+  if (decision.type === "staff_training") {
+    if (!decision.personId || !decision.courseId) return;
+    const found = findPerson(state, decision.personId);
+    if (!found || !isActivelyEmployed(found.person)) return;
+    if (isPersonInTraining(state, decision.personId)) return;
+    const course = COURSE_CATALOG.find((c: any) => c.id === decision.courseId);
+    if (!course) return;
+    if (state.company.accountCents < course.feeCents) return;
+    try {
+      bookCourse(state, decision.personId, decision.courseId, {});
+      pushEvent(state, {
+        type: "branch_training_booked",
+        gameTime: state.gameTime,
+        employeeId: decision.managerId,
+        personId: decision.personId,
+        details: {
+          personName: found.person.name,
+          courseLabel: course.label,
+          feeCents: course.feeCents,
+          branchName: (state.branches || []).find((b: any) => b.id === decision.branchId)?.name || "",
+        },
+        dedupKey: "branch_training:" + decision.id,
+      });
+    } catch (e: any) {
+      // Buchung fehlgeschlagen – still überspringen
     }
     return;
   }

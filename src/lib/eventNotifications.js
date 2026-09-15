@@ -219,6 +219,30 @@ export function eventToToast(ev) {
         eventSeq: ev.seq,
       };
 
+    case "assistant_training_booked":
+      return {
+        id: ev.id,
+        kind: "success",
+        icon: "briefcase",
+        title: "Assistent: Schulung gebucht",
+        body: `${ev.employeeName || "Assistent"} hat für ${d.personName || "Mitarbeiter"} den Kurs „${d.courseLabel || "Weiterbildung"}" gebucht (${formatEuro(d.feeCents || 0)}).`,
+        action: { label: "Personal", targetType: "personnel", targetId: null },
+        duration: 7000,
+        eventSeq: ev.seq,
+      };
+
+    case "branch_training_booked":
+      return {
+        id: ev.id,
+        kind: "success",
+        icon: "briefcase",
+        title: "Filialleiter: Schulung gebucht",
+        body: `${d.personName || "Mitarbeiter"} wurde für den Kurs „${d.courseLabel || "Weiterbildung"}" angemeldet (${formatEuro(d.feeCents || 0)}).`,
+        action: { label: "Personal", targetType: "personnel", targetId: null },
+        duration: 7000,
+        eventSeq: ev.seq,
+      };
+
     default:
       return null;
   }

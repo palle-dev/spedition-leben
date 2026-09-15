@@ -2,13 +2,14 @@ import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime } from "@/lib/gameData";
 import Portrait from "@/components/ui/Portrait";
-import { Check, X, Building2, TrendingUp, Wrench, Users, Lightbulb, Loader2 } from "lucide-react";
+import { Check, X, Building2, TrendingUp, Wrench, Users, Lightbulb, GraduationCap, Loader2 } from "lucide-react";
 
 const DECISION_ICON = {
   hire_driver: Users,
   accept_order: TrendingUp,
   maintenance: Wrench,
   cost_optimization: Lightbulb,
+  staff_training: GraduationCap,
 };
 
 export default function BranchDecisionsPanel() {
