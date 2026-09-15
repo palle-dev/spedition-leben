@@ -48,6 +48,16 @@ export function processEmployees(state, m, log) {
     if (emp.attendance !== "present") continue;
     if (emp.role === "dispatcher" || emp.role === "dispatcher_senior") {
       if (!isDispatcherOnShift(emp, m)) continue;
+      // Während großer Zeitvorläufe (≥ 2h): Reduzierte Planungsfrequenz
+      // (alle 6 Stunden statt alle 60 Minuten). planSingleVehicle bei
+      // Tour-Ende übernimmt die inkrementelle Disposition — es wird bei
+      // jedem delivery_completed/emptytrip_completed automatisch aufgerufen.
+      // Bei 72 Fahrzeugen reduziert das die suggestTours-Aufrufe von
+      // ~24/Tag auf ~4/Tag, was den Haupt-CPU-Flaschenhals beseitigt.
+      if (state._largeAdvance) {
+        const hourOfDay = Math.floor((m % 1440) / 60);
+        if (hourOfDay % 6 !== 0) continue;
+      }
       processDispatcher(state, emp, m, log);
     } else if (inServiceHours && (emp.role === "accountant" || emp.role === "accountant_senior")) {
       processAccountant(state, emp, m, log);
