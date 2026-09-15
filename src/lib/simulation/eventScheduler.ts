@@ -83,7 +83,7 @@ export function earliestEventAfter(state, t, maxMin) {
       (e.role === "dispatcher" || e.role === "dispatcher_senior") &&
       (e.workMode === "autonomous" || e.workMode === "dispatch_accepted")
     );
-    if (hasAutoDispatcher) {
+    if (hasAutoDispatcher && !state._bulkAdvance) {
       const next15 = Math.ceil((t + 1) / 15) * 15;
       cand(next15);
     }

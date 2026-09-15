@@ -40,10 +40,16 @@ function isDispatcherOnShift(emp, gameMinute) {
 export function processEmployees(state, m, log) {
   const clock = m % 1440;
   const inServiceHours = clock >= SERVICE_START_MIN && clock < SERVICE_END_MIN;
+  // Während bulk-Vorläufen: Disponenten nur alle 2 Stunden planen lassen
+  // (statt stündlich). Halbiert suggestTours-Aufrufe von ~24 auf ~12 pro Tag.
+  // Marktwellen-Orders werden erst beim nächsten Planungszyklus disponiert
+  // (max. 2h Verzögerung — akzeptabel für Vorläufe).
+  const skipDispatchers = state._largeAdvance && (Math.floor(m / SERVICE_INTERVAL_MIN) % 2 !== 0);
   for (const emp of (state.employees || [])) {
     if (!isActivelyEmployed(emp)) continue;
     if (emp.attendance !== "present") continue;
     if (emp.role === "dispatcher" || emp.role === "dispatcher_senior") {
+      if (skipDispatchers) continue;
       if (!isDispatcherOnShift(emp, m)) continue;
       processDispatcher(state, emp, m, log);
     } else if (inServiceHours && (emp.role === "accountant" || emp.role === "accountant_senior")) {
@@ -323,6 +329,11 @@ export function processDispatcher(state, emp, m, log) {
 
 // Ereignisgesteuerte Dispositionsplanung außerhalb des regulären Diensttakts.
 export function triggerDispatcherPlanning(state, m, log) {
+  // Während eines bulk-Vorlaufs: ereignisgesteuerte Planung überspringen.
+  // Die reguläre Planung läuft ohnehin alle 60 Min über processEmployees.
+  // Die 15-Min-Ticks wurden bereits in earliestEventAfter entfernt, aber
+  // andere Events (Phasenabschlüsse etc.) können auf m % 15 === 0 fallen.
+  if (state._bulkAdvance) return;
   const clock = m % 1440;
   if (clock % SERVICE_INTERVAL_MIN === 0) return;
   for (const emp of (state.employees || [])) {

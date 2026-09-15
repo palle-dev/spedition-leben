@@ -654,6 +654,10 @@ function advanceTo(state, targetMin, log, reportStart) {
   // erfasst alle handlungsrelevanten Änderungen, sodass 15-Min-Ticks mit
   // unverändertem Context reine Verschwendung wären.
   state._bulkAdvance = reportStart !== undefined;
+  // _largeAdvance: nur für Vorläufe ≥ 120 Min (Tagesvorlauf). Steuert die
+  // 2-Stunden-Skip für Disponenten — bei 1-Stunden-Schritten würden
+  // Disponenten sonst bei jedem zweiten Schritt gar nicht planen.
+  state._largeAdvance = reportStart !== undefined && (targetMin - state.gameTime) >= 120;
   let t = state.gameTime;
   const startTime = Date.now();
   // Der Vorlauf läuft im Web-Worker — der Haupt-Thread bleibt frei, daher gibt
@@ -685,6 +689,7 @@ function advanceTo(state, targetMin, log, reportStart) {
   }
   state.gameTime = stopped ? t : targetMin;
   state._bulkAdvance = false;
+  state._largeAdvance = false;
   if (stopped) log.push({ type: "advance_stopped", atMin: t, targetMin, reason: "max_events_safety" });
   if (reportStart !== undefined) {
     reportProgress(state.gameTime - reportStart, targetMin - reportStart, eventCount, null);

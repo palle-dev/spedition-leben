@@ -1034,8 +1034,11 @@ export function suggestTours(state, opts) {
       return true;
     }) : [];
     const candidateDrivers = [...sameCityDrivers, ...crossCityDrivers];
-    // CPU-Schutz: höchstens 4 Fahrer pro Fahrzeug probieren.
-    if (candidateDrivers.length > 4) candidateDrivers.length = 4;
+    // CPU-Schutz: höchstens 4 Fahrer pro Fahrzeug probieren (2 während
+    // bulk-Vorläufen — halbiert buildTourPlan-Aufrufe bei minimaler
+    // Einbuße bei der Fahrerwahl).
+    const maxDrivers = state._bulkAdvance ? 2 : 4;
+    if (candidateDrivers.length > maxDrivers) candidateDrivers.length = maxDrivers;
     if (candidateDrivers.length === 0) continue;
 
     // 1. Bereits angenommene, unzugewiesene Aufträge (nicht bereits zugewiesen,
@@ -1075,7 +1078,12 @@ export function suggestTours(state, opts) {
     // Reine Vergütungs-Sortierung bevorzugt Express-Aufträge mit hohen Preisen
     // aber unrealisierbar kurzen Lieferfristen, die dann alle durch buildTourPlan
     // abgelehnt werden und die machbaren Advance-Aufträge verdrängen.
-    if (allOrders.length > 12) {
+    // CPU-Schutz: die Doppel-Tour-Suche ist O(n²). Bei vielen Aufträgen
+    // wird die Liste begrenzt. Während bulk-Vorläufen stärker begrenzen
+    // (8 statt 12), reduziert die kombinatorische Explosion der Doppel-
+    // Tour-Suche von 66 auf 28 Paare — ~2,4× weniger buildTourPlan-Aufrufe.
+    const orderLimit = state._bulkAdvance ? 8 : 12;
+    if (allOrders.length > orderLimit) {
       const vehicleCity = vehicleFutureCity;
       const scored = allOrders.map(o => {
         const emptyKm = getDistance(vehicleCity, o.fromCity);
@@ -1085,7 +1093,7 @@ export function suggestTours(state, opts) {
       });
       scored.sort((a, b) => b.score - a.score);
       allOrders.length = 0;
-      for (const s of scored.slice(0, 12)) allOrders.push(s.o);
+      for (const s of scored.slice(0, orderLimit)) allOrders.push(s.o);
     }
 
     // Probiere jeden Kandidaten-Fahrer und wähle den mit dem besten Plan.
