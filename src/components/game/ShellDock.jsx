@@ -4,6 +4,7 @@ import { useGame } from "@/lib/gameContext";
 import { formatGameTime, dayOf, clockOf } from "@/lib/gameData";
 import { getNextEvent } from "@/lib/displayHelpers";
 import { Building2, Package, Map, Truck, Users, Wallet, Home as HomeIcon, BookOpen, Play, Clock, SkipForward, MoreHorizontal, Trophy, Mail as MailIcon, LineChart, Network, Calendar } from "lucide-react";
+import AdvanceProgressModal from "@/components/game/AdvanceProgressModal";
 
 const PRIMARY_NAV = [
   { to: "/", label: "Büro", icon: Building2 },
@@ -29,6 +30,7 @@ export default function ShellDock() {
   const location = useLocation();
   const [advancing, setAdvancing] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [progressModal, setProgressModal] = useState(null);
   const moreRef = useRef(null);
 
   const nextEvent = getNextEvent(state);
@@ -43,12 +45,48 @@ export default function ShellDock() {
   }, [moreOpen]);
 
   async function advance(minutes) {
+    const CHUNK = 60;
+    const chunks = Math.ceil(minutes / CHUNK);
+    if (chunks <= 1) {
+      setAdvancing(true);
+      try {
+        const res = await send("advanceTime", { minutes });
+        summarizeEvents(res.events);
+      } catch (e) { showToast(e.message, "error"); }
+      finally { setAdvancing(false); }
+      return;
+    }
+
     setAdvancing(true);
+    setProgressModal({ current: 0, total: minutes, events: [], done: false, status: "Starte Verarbeitung…" });
+    const allEvents = [];
     try {
-      const res = await send("advanceTime", { minutes });
-      summarizeEvents(res.events);
-    } catch (e) { showToast(e.message, "error"); }
-    finally { setAdvancing(false); }
+      for (let i = 0; i < chunks; i++) {
+        const chunkMin = Math.min(CHUNK, minutes - i * CHUNK);
+        const res = await send("advanceTime", { minutes: chunkMin });
+        if (res?.events) allEvents.push(...res.events);
+        const current = (i + 1) * CHUNK;
+        setProgressModal(prev => prev ? ({
+          ...prev,
+          current,
+          events: [...allEvents],
+          status: `Verarbeite Stunde ${i + 2} von ${chunks}…`,
+        }) : prev);
+      }
+      setProgressModal(prev => prev ? ({
+        ...prev,
+        current: minutes,
+        events: [...allEvents],
+        done: true,
+        status: "Abgeschlossen",
+      }) : prev);
+      summarizeEvents(allEvents);
+    } catch (e) {
+      showToast(e.message, "error");
+      setProgressModal(prev => prev ? { ...prev, done: true, error: true, status: "Fehler: " + e.message } : prev);
+    } finally {
+      setAdvancing(false);
+    }
   }
 
   async function nextEventAction() {
@@ -178,6 +216,7 @@ export default function ShellDock() {
           </button>
         </div>
       </div>
+      {progressModal && <AdvanceProgressModal progress={progressModal} onClose={() => setProgressModal(null)} />}
     </footer>
   );
 }
