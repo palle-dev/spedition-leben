@@ -696,8 +696,8 @@ function processEventsAt(state, m, log) {
     calculateDepreciation(state, m);
     processMonthEnd(state, m, log);
   }
-  // 5. Angebotsablauf
-  for (const o of state.orders) { if (o.status === "offered" && o.acceptDeadlineMin === m) { o.status = "expired"; log.push({ type: "order_expired", order: o.id }); } }
+  // 5. Angebotsablauf + überfällige angenommene Aufträge als "failed" markieren
+  for (const o of state.orders) { if (o.status === "offered" && o.acceptDeadlineMin === m) { o.status = "expired"; log.push({ type: "order_expired", order: o.id }); } if (o.status === "angenommen" && o.deliveryDeadlineMin + 240 <= m) { o.status = "failed"; o.failedAtMin = m; log.push({ type: "order_failed", order: o.id, customer: o.customer, reason: "Lieferfrist überschritten" }); } }
   // 5b. Marktwelle zu jeder vollen Spielstunde (Auftrag 19)
   if (m % 60 === 0) {
     generateMarketWave(state, m, log);
@@ -841,7 +841,7 @@ function processDispatcher(state, emp, m, log) {
   // Prüfe, ob es angenommene Aufträge gibt, die noch nicht Teil einer
   // aktiven Tour sind (verhindert unnötige Planversuche).
   const hasUnplannedAccepted = state.orders.some(o =>
-    o.status === "angenommen" &&
+    o.status === "angenommen" && o.deliveryDeadlineMin > m - 240 &&
     !state.trips.some(t => t.orderId === o.id && t.status === "in_progress") &&
     !(state.tours || []).some(t => t.status === "active" && (t.deployments || []).some(d => d.orderId === o.id && d.status !== "cancelled"))
   );

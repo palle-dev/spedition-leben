@@ -455,6 +455,7 @@ export function checkTourLiquidity(state, deployments, returnDeployment, startMi
 export function confirmTour(state, params) {
   const { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin } = params;
 
+  _clearPlanCache();
   // 1. Plane die Tour (Validierung)
   const plan = buildTourPlan(state, { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin });
   if (plan.error) throw new Error(plan.error);
