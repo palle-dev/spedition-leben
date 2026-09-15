@@ -337,27 +337,6 @@ function doDailyAccounting(state, midnight) {
 import { earliestEventAfter } from "./eventScheduler.ts";
 import { reportProgress } from "./progressHook.js";
 
-// Aggregiert Log-Events zu Standort-Statistiken für die Fortschrittsanzeige.
-function computeLogStats(log) {
-  const branches = {};
-  let totalDeliveries = 0, totalRevenue = 0, totalTours = 0;
-  for (const ev of log) {
-    if (ev.type === "delivery") {
-      totalDeliveries++;
-      totalRevenue += ev.paymentCents || 0;
-      const bid = ev.branchId || "_haupt";
-      if (!branches[bid]) branches[bid] = { deliveries: 0, revenue: 0, tours: 0 };
-      branches[bid].deliveries++;
-      branches[bid].revenue += ev.paymentCents || 0;
-    } else if (ev.type === "tour_deployment_started") {
-      totalTours++;
-      const bid = ev.branchId || "_haupt";
-      if (!branches[bid]) branches[bid] = { deliveries: 0, revenue: 0, tours: 0 };
-      branches[bid].tours++;
-    }
-  }
-  return { totalDeliveries, totalRevenue, totalTours, branches };
-}
 function completeTrip(state, trip, m, log) {
   trip.status = "completed";
   trip.endMin = m;
@@ -542,9 +521,13 @@ function processEventsAt(state, m, log) {
     }
   }
   // 3b. Tour-automatische Folge-Einsätze starten (nach Erholung, vor Tagesabrechnung)
+  const _logLenBeforeTours = log.length;
   processTours(state, m, log);
   // 3b.1 Tour-Start-Ereignisse aus Log in dauerhaftes Ereignisprotokoll übernehmen
-  for (const le of log) {
+  // Nur die in diesem processTours-Aufruf neu hinzugefügten Einträge durchsuchen
+  // (verhindert O(n²) bei Tausenden Log-Einträgen).
+  for (let li = _logLenBeforeTours; li < log.length; li++) {
+    const le = log[li];
     if (le.type === "tour_deployment_started" && le.atMin === m) {
       const tour = (state.tours || []).find(t => t.id === le.tour);
       const vehicle = state.vehicles.find(v => v.id === tour?.vehicleId);
@@ -1504,12 +1487,6 @@ export function applyCommand(state, command, params) {
       const minutes = Math.max(0, Math.min(p.minutes || 0, 1440));
       const target = state.gameTime + minutes;
       const startMin = state.gameTime;
-      // Snapshot kumulativer Zähler vor dem Vorlauf — für exakte Delta-Statistik
-      const beforeDeliveries = state.stats.totalDeliveries || 0;
-      const beforeRevenue = state.stats.totalRevenueCents || 0;
-      const beforeBranchStats = state.branches.map(b => ({
-        id: b.id, deliveries: b.stats?.deliveries || 0, revenueCents: b.stats?.revenueCents || 0,
-      }));
       const log = [];
       let guard = 0;
       while (state.gameTime < target && guard < 60) {
@@ -1518,30 +1495,23 @@ export function applyCommand(state, command, params) {
         if (state.gameTime <= before) break;
         guard++;
       }
-      // Statistik aus kumulativen Zählern (Delta) — zuverlässig unabhängig
-      // vom Log-Trimming. Touren aus dem vollen Log (vor Trimming) zählen.
-      const branchTours = {};
-      let totalTours = 0;
+      // Statistik direkt aus dem vollen Log (vor Trimming) ableiten.
+      // delivery-Events tragen branchId und paymentCents direkt im Log,
+      // tour_deployment_started-Events tragen branchId und atMin.
+      const stats = { totalDeliveries: 0, totalRevenue: 0, totalTours: 0, branches: {} };
       for (const ev of log) {
-        if (ev.type === "tour_deployment_started") {
-          totalTours++;
+        if (ev.type === "delivery") {
+          stats.totalDeliveries++;
+          stats.totalRevenue += ev.paymentCents || 0;
           const bid = ev.branchId || "_haupt";
-          branchTours[bid] = (branchTours[bid] || 0) + 1;
-        }
-      }
-      const stats = {
-        totalDeliveries: (state.stats.totalDeliveries || 0) - beforeDeliveries,
-        totalRevenue: (state.stats.totalRevenueCents || 0) - beforeRevenue,
-        totalTours,
-        branches: {},
-      };
-      for (const b of state.branches) {
-        const before = beforeBranchStats.find(x => x.id === b.id) || { deliveries: 0, revenueCents: 0 };
-        const dDel = (b.stats?.deliveries || 0) - before.deliveries;
-        const dRev = (b.stats?.revenueCents || 0) - before.revenueCents;
-        const dTours = branchTours[b.id] || 0;
-        if (dDel > 0 || dRev > 0 || dTours > 0) {
-          stats.branches[b.id] = { deliveries: dDel, revenue: dRev, tours: dTours };
+          if (!stats.branches[bid]) stats.branches[bid] = { deliveries: 0, revenue: 0, tours: 0 };
+          stats.branches[bid].deliveries++;
+          stats.branches[bid].revenue += ev.paymentCents || 0;
+        } else if (ev.type === "tour_deployment_started") {
+          stats.totalTours++;
+          const bid = ev.branchId || "_haupt";
+          if (!stats.branches[bid]) stats.branches[bid] = { deliveries: 0, revenue: 0, tours: 0 };
+          stats.branches[bid].tours++;
         }
       }
       const MAX_LOG = 200;

@@ -812,7 +812,7 @@ export function processTours(state, m, log) {
     nextDep.dep.status = "active";
     nextDep.dep.actualStartMin = m;
     tour.currentDepIndex = nextDep.index;
-    log.push({ type: "tour_deployment_started", tour: tour.id, deployment: nextDep.dep.id, trip: startResult.tripId, customer: nextDep.dep.customer });
+    log.push({ type: "tour_deployment_started", tour: tour.id, deployment: nextDep.dep.id, trip: startResult.tripId, customer: nextDep.dep.customer, atMin: m, branchId: vehicle.branchId });
   }
 }
 
