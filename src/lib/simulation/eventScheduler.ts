@@ -70,6 +70,23 @@ export function earliestEventAfter(state, t, maxMin) {
     if (hasDispatcher) {
       for (const st of shiftTimes) cand(st);
     }
+    // Ereignisgesteuerte Dispositionsplanung (triggerDispatcherPlanning):
+    // processEventsAt ruft triggerDispatcherPlanning alle 15 Min auf
+    // (m % 15 === 0). Ohne diese Tick-Marken würde der Ereignis-Loop
+    // zwischen zwei vollen Stunden keine 15/30/45-Minuten-Marke ansteuern,
+    // sodass autonome Disponenten nicht regelmäßig planen und Aufträge
+    // liegen bleiben — der Umsatz pro Tag bleibt zu gering.
+    // Nur erzeugen, wenn ein autonomer/dispatch_accepted Disponent
+    // vorhanden ist (sonst ist triggerDispatcherPlanning ein No-Op).
+    const hasAutoDispatcher = (state.employees || []).some(e =>
+      isActivelyEmployed(e) && e.attendance === "present" &&
+      (e.role === "dispatcher" || e.role === "dispatcher_senior") &&
+      (e.workMode === "autonomous" || e.workMode === "dispatch_accepted")
+    );
+    if (hasAutoDispatcher) {
+      const next15 = Math.ceil((t + 1) / 15) * 15;
+      cand(next15);
+    }
   }
   // Tour-Deployment-Startzeiten
   for (const tour of state.tours || []) {
