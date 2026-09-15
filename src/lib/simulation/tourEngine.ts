@@ -460,6 +460,13 @@ export function checkTourLiquidity(state, deployments, returnDeployment, startMi
 export function confirmTour(state, params) {
   const { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin } = params;
 
+  // Plan-Cache löschen: suggestTours bevölkert den Cache, aber zwischen
+  // suggestTours und confirmTour ändert sich der Zustand (andere Touren werden
+  // bestätigt, Fahrzeuge wechseln den Status). Stale Cache-Werte für
+  // futureLocation/earliestAvailable/nextReservationStart können die
+  // Bestätigung fälschlich fehlschlagen lassen ("Tour-Bestätigung fehlgeschlagen").
+  _clearPlanCache();
+
   // 1. Plane die Tour (Validierung)
   const plan = buildTourPlan(state, { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin });
   if (plan.error) throw new Error(plan.error);

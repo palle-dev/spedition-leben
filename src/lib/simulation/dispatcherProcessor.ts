@@ -153,6 +153,20 @@ export function processDispatcher(state, emp, m, log) {
       if (d.orderId && d.status !== "cancelled") busyOrderIds.add(d.orderId);
     }
   }
+  // Überfällige angenommene Aufträge bereinigen: Aufträge deren Lieferfrist
+  // + 4h Gnadenfrist abgelaufen ist, werden als "failed" markiert. Ohne diese
+  // Bereinigung blieben sie ewig als "angenommen" stehen, blähen die
+  // unplannedCount auf (→ Skip-Cache blockiert Neuplanung) und verhindern,
+  // dass freie Lkw tatsächlich eingesetzt werden. Die Bereinigung in
+  // processEventsAt läuft nur bei Zeitvorläufen — hier läuft sie bei jeder
+  // Dispatcher-Runde, auch ohne Zeitvorlauf.
+  for (const o of state.orders) {
+    if (o.status === "angenommen" && o.deliveryDeadlineMin + 240 <= m) {
+      o.status = "failed";
+      o.failedAtMin = m;
+      log.push({ type: "order_failed", order: o.id, customer: o.customer, reason: "Lieferfrist überschritten (Dispatcher-Bereinigung)" });
+    }
+  }
   const hasUnplannedAccepted = state.orders.some(o => o.status === "angenommen" && !busyOrderIds.has(o.id));
   const hasOfferedOrders = acceptNew && state.orders.some(o => o.status === "offered" && o.acceptDeadlineMin > m);
   if (!hasUnplannedAccepted && !hasOfferedOrders) {
@@ -342,6 +356,15 @@ export function processDispatcher(state, emp, m, log) {
 export function planSingleVehicle(state, vehicle, m, log) {
   if (vehicle.status !== "free" || vehicle.condition < 20 || vehicle.markedForSale) return;
   if (vehicle.ownership_type === "sold" || vehicle.ownership_type === "archived") return;
+
+  // Überfällige angenommene Aufträge bereinigen (siehe processDispatcher).
+  for (const o of state.orders) {
+    if (o.status === "angenommen" && o.deliveryDeadlineMin + 240 <= m) {
+      o.status = "failed";
+      o.failedAtMin = m;
+      log.push({ type: "order_failed", order: o.id, customer: o.customer, reason: "Lieferfrist überschritten (planSingleVehicle-Bereinigung)" });
+    }
+  }
 
   // Finde autonomen/dispatch_accepted Disponenten für diese Filiale
   const dispatcher = (state.employees || []).find(e => {
