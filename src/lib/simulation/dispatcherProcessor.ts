@@ -167,10 +167,15 @@ export function processDispatcher(state, emp, m, log) {
   ).length;
   const contextKey = unplannedCount + ":" + offeredCount + ":" + freeVehicleCount + ":" + freeDriverCount;
   if (emp._lastPlanContext === contextKey) {
-    // Wenn 0 Touren geplant wurden, nur 10 Min überspringen (früher 30).
-    // Die Lage erfordert häufigere Neuversuche — neue Aufträge erscheinen,
-    // Fahrer kehren aus Ruhe/Tour zurück. 30 Min ließen Lkw zu lange leer.
-    if (emp._lastPlanPlanned === 0 && m - (emp.lastDecisionMin || 0) < 10) return;
+    // Wenn 0 Touren geplant wurden, überspringen. Der Context-Key erfasst
+    // alle handlungsrelevanten Änderungen (neue Aufträge, freie Fahrzeuge,
+    // zurückkehrende Fahrer) — bei unverändertem Context ist suggestTours
+    // garantiert ergebnislos. Während eines bulk-Vorlaufs (state._bulkAdvance)
+    // wird 60 Min übersprungen statt 10 — das reduziert suggestTours-Aufrufe
+    // pro Tag von ~96 auf ~24, ohne dass Touren oder Lieferungen verloren
+    // gehen. Außerhalb von Vorläufen bleibt die kurze 10-Min-Schwelle.
+    const skipMin = state._bulkAdvance ? 60 : 10;
+    if (emp._lastPlanPlanned === 0 && m - (emp.lastDecisionMin || 0) < skipMin) return;
     if (emp._lastPlanPlanned > 0 && unplannedCount === 0 && m - (emp.lastDecisionMin || 0) < 60) return;
   }
   emp._lastPlanContext = contextKey;

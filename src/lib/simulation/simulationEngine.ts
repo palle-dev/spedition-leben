@@ -649,6 +649,11 @@ function processEventsAt(state, m, log) {
   // Ereignissen pro Tick war das der CPU-Flaschenhals.
 }
 function advanceTo(state, targetMin, log, reportStart) {
+  // Flag für processDispatcher: während eines Vorlaufs (reportStart definiert)
+  // wird die Skip-Cache-Schwelle von 10 auf 60 Min angehoben — der Context-Key
+  // erfasst alle handlungsrelevanten Änderungen, sodass 15-Min-Ticks mit
+  // unverändertem Context reine Verschwendung wären.
+  state._bulkAdvance = reportStart !== undefined;
   let t = state.gameTime;
   const startTime = Date.now();
   // Der Vorlauf läuft im Web-Worker — der Haupt-Thread bleibt frei, daher gibt
@@ -679,6 +684,7 @@ function advanceTo(state, targetMin, log, reportStart) {
     }
   }
   state.gameTime = stopped ? t : targetMin;
+  state._bulkAdvance = false;
   if (stopped) log.push({ type: "advance_stopped", atMin: t, targetMin, reason: "max_events_safety" });
   if (reportStart !== undefined) {
     reportProgress(state.gameTime - reportStart, targetMin - reportStart, eventCount, null);
