@@ -1490,7 +1490,13 @@ export function applyCommand(state, command, params) {
         if (state.gameTime <= before) break; // kein Fortschritt — Sicherheitsabbruch
         guard++;
       }
-      result = { ok: true, events: log, gameTime: state.gameTime };
+      // Log begrenzen: bei großen Zeitvorläufen (z.B. 24 h) können Tausende
+      // Events anfallen. Das vollständige Log würde den postMessage-Clone
+      // zwischen Worker und Haupt-Thread überlasten. Nur die letzten 200
+      // Events behalten — reicht für Zusammenfassung und Diagnose.
+      const MAX_LOG = 200;
+      const trimmedLog = log.length > MAX_LOG ? log.slice(-MAX_LOG) : log;
+      result = { ok: true, events: trimmedLog, gameTime: state.gameTime };
       break;
     }
 
@@ -1504,7 +1510,9 @@ export function applyCommand(state, command, params) {
       const target = next === null ? state.gameTime + 1440 : next;
       const log = [];
       advanceTo(state, target, log);
-      result = { ok: true, events: log, gameTime: state.gameTime, target };
+      const MAX_LOG = 200;
+      const trimmedLog = log.length > MAX_LOG ? log.slice(-MAX_LOG) : log;
+      result = { ok: true, events: trimmedLog, gameTime: state.gameTime, target };
       break;
     }
 

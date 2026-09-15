@@ -15,6 +15,14 @@ simWorker.onmessage = (e) => {
   const resolver = _workerPending.get(id);
   if (resolver) { _workerPending.delete(id); _workerProgress.delete(id); resolver(data); }
 };
+simWorker.onerror = (e) => {
+  // Worker-Absturz: alle pending Promises mit Fehler auflösen
+  for (const [id, resolver] of _workerPending) {
+    _workerPending.delete(id);
+    _workerProgress.delete(id);
+    resolver({ error: "Simulations-Worker abgestürzt: " + (e.message || "Unbekannter Fehler") });
+  }
+};
 function executeInWorker(state, command, params, onProgress) {
   const id = ++_workerMsgId;
   return new Promise((resolve) => {
@@ -185,6 +193,7 @@ export function GameProvider({ children }) {
     setBusy(true); sendInFlightRef.current = true;
     try {
       const data = await executeInWorker(stateRef.current, command, params || {}, onProgress);
+      if (!data) throw new Error("Simulations-Worker hat keine Antwort gesendet.");
       if (data.error) throw new Error(data.error);
       const newState = data.state; const result = data.result;
       stateRef.current = newState; setState(newState);
@@ -204,6 +213,7 @@ export function GameProvider({ children }) {
     syncInFlightRef.current = true;
     try {
       const data = await executeInWorker(stateRef.current, "syncAutomation", {});
+      if (!data) throw new Error("Simulations-Worker hat keine Antwort gesendet.");
       if (data.error) throw new Error(data.error);
       const newState = data.state;
       stateRef.current = newState; setState(newState);
@@ -337,7 +347,7 @@ export function GameProvider({ children }) {
         processNewEvents(localState);
         if (localState.timeControl?.enabled) {
           const paused = await executeInWorker(stateRef.current, "pauseAutomation", { reason: "loaded" });
-          if (!paused.error) {
+          if (paused && !paused.error) {
             stateRef.current = paused.state; setState(paused.state); saveNow(paused.state);
           }
           setAutomationEnabled(false);

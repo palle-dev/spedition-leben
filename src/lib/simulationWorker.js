@@ -19,6 +19,6 @@ self.onmessage = async (e) => {
     self.postMessage({ id, data });
   } catch (err) {
     setProgressHook(null);
-    self.postMessage({ id, data: { error: err.message } });
+    self.postMessage({ id, data: { error: (err && err.message) || "Unbekannter Fehler im Worker" } });
   }
 };
