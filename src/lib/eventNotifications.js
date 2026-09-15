@@ -243,6 +243,42 @@ export function eventToToast(ev) {
         eventSeq: ev.seq,
       };
 
+    case "branch_vehicle_purchased":
+      return {
+        id: ev.id,
+        kind: "success",
+        icon: "truck",
+        title: "Filialleiter: Lkw gekauft",
+        body: `Neuer Lkw für ${d.branchName || "Filiale"} wurde angeschafft (${formatEuro(d.costCents || 0)}).`,
+        action: { label: "Fuhrpark", targetType: "fleet", targetId: null },
+        duration: 7000,
+        eventSeq: ev.seq,
+      };
+
+    case "branch_workshop_built":
+      return {
+        id: ev.id,
+        kind: "success",
+        icon: "wrench",
+        title: "Filialleiter: Werkstatt gebaut",
+        body: `Werkstattplatz in ${d.branchName || "Filiale"} wurde errichtet (${formatEuro(d.costCents || 0)}).`,
+        action: { label: "Filialen", targetType: "branches", targetId: null },
+        duration: 7000,
+        eventSeq: ev.seq,
+      };
+
+    case "branch_employee_hired":
+      return {
+        id: ev.id,
+        kind: "success",
+        icon: "briefcase",
+        title: "Filialleiter: Personal eingestellt",
+        body: `${d.personName || "Mitarbeiter"} wurde als ${d.role || "Mitarbeiter"} für ${d.branchName || "Filiale"} eingestellt (${formatEuro(d.feeCents || 0)}).`,
+        action: { label: "Personal", targetType: "personnel", targetId: null },
+        duration: 7000,
+        eventSeq: ev.seq,
+      };
+
     default:
       return null;
   }

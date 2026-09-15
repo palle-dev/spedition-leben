@@ -3,11 +3,13 @@
 // Sie treffen selbstständig Entscheidungen im Rahmen ihrer Befugnisse
 // und legen wichtige Entscheidungen dem Geschäftsführer zur Freigabe vor.
 
-import { dayOf, HIRE_FEE, DRIVER_COST_PER_DAY, CITIES, PORTRAIT_IDS, APPLICANT_NAMES } from "./gameRules.ts";
+import { dayOf, HIRE_FEE, DRIVER_COST_PER_DAY, CITIES, PORTRAIT_IDS, APPLICANT_NAMES, PERSONNEL_ROLES, VEHICLE_PRICE, STANDARD_TRUCK } from "./gameRules.ts";
 import { previewCourseBooking, bookCourse, COURSE_CATALOG, hasQualification, isPersonInTraining } from "./trainingEngine.ts";
 import { isActivelyEmployed, findPerson } from "./terminationEngine.ts";
 import { isPersonAvailable } from "./absenceEngine.ts";
 import { pushEvent } from "./eventLog.ts";
+import { buildWorkshopSlot, WORKSHOP_SLOT_PRICE } from "./workshopEngine.ts";
+import { registerAsset } from "./accountingEngine.ts";
 
 function uid(state: any, prefix: string): string {
   state.idCounter = (state.idCounter || 100) + 1;
@@ -18,11 +20,23 @@ function uid(state: any, prefix: string): string {
 const AUTONOMOUS_THRESHOLD = 500000;
 
 function pickDriverName(state: any): string {
-  const pool = APPLICANT_NAMES.driver || ["Fahrer"];
+  const pool = (APPLICANT_NAMES as any).driver || ["Fahrer"];
   const used = new Set([...(state.drivers || []).map((d: any) => d.name)]);
   const available = pool.filter((n: string) => !used.has(n));
   if (available.length > 0) return available[Math.floor(Math.random() * available.length)];
   return "Fahrer " + ((state.drivers || []).length + 1);
+}
+
+function pickEmployeeName(state: any, role: string): string {
+  const pool = (APPLICANT_NAMES as any)[role] || (APPLICANT_NAMES as any).dispatcher || ["Mitarbeiter"];
+  const used = new Set([
+    ...((state.drivers || []) as any[]).map((d: any) => d.name),
+    ...((state.employees || []) as any[]).map((e: any) => e.name),
+  ]);
+  const available = pool.filter((n: string) => !used.has(n));
+  if (available.length > 0) return available[Math.floor(Math.random() * available.length)];
+  const roleLabel = PERSONNEL_ROLES[role]?.label || role;
+  return roleLabel + " " + ((state.employees || []).length + 1);
 }
 
 // ---------- Migration ----------
@@ -99,10 +113,110 @@ export function generateBranchDecisions(state: any): any {
   return state;
 }
 
+// ---------- Wachstums-Erkennung ----------
+// Filialleiter analysiert Filialzustand und identifiziert Lücken in
+// Fuhrpark, Werkstatt und Personalbesetzung. Wachstumsentscheidungen
+// haben Priorität vor zufälligen operativen Entscheidungen.
+function identifyGrowthNeed(state: any, branch: any): string | null {
+  const branchVehicles = (state.vehicles || []).filter(
+    (v: any) => v.branchId === branch.id && v.status !== "sold" && v.status !== "archived"
+  );
+  const branchDrivers = (state.drivers || []).filter(
+    (d: any) => d.branchId === branch.id && isActivelyEmployed(d)
+  );
+  const branchEmployees = (state.employees || []).filter(
+    (e: any) =>
+      (e.assignedBranchId === branch.id || e.branchId === branch.id) &&
+      isActivelyEmployed(e) && e.role !== "branch_manager"
+  );
+  const workshopSlots = (state.workshop?.slots || []).filter((s: any) => s.branchId === branch.id);
+
+  const roleCount: Record<string, number> = {};
+  for (const e of branchEmployees) {
+    roleCount[e.role] = (roleCount[e.role] || 0) + 1;
+  }
+
+  // 1. Werkstattplatz: Fahrzeuge vorhanden aber keine Werkstatt
+  if (branchVehicles.length >= 3 && workshopSlots.length === 0) {
+    return "build_workshop_slot";
+  }
+  // 2. Werkstatt überlastet: deutlich mehr Fahrzeuge als Werkstattplätze
+  if (workshopSlots.length > 0 && branchVehicles.length > workshopSlots.length * 3) {
+    return "build_workshop_slot";
+  }
+  // 3. Fahrzeugkauf: Genug Fahrer aber nicht genug Lkw
+  if (branchDrivers.length >= branchVehicles.length && branchVehicles.length < 6) {
+    return "buy_vehicle";
+  }
+  // 4. Disponent fehlt bei ausreichend Fahrzeugen
+  if (branchVehicles.length >= 2 && !roleCount.dispatcher && !roleCount.dispatcher_senior) {
+    return "hire_employee:dispatcher";
+  }
+  // 5. Mechaniker fehlt bei vorhandener Werkstatt
+  if (workshopSlots.length > 0 && !roleCount.mechanic) {
+    return "hire_employee:mechanic";
+  }
+  // 6. Reinigungskraft fehlt bei ausreichend Fahrzeugen
+  if (branchVehicles.length >= 3 && !roleCount.cleaner) {
+    return "hire_employee:cleaner";
+  }
+  // 7. Buchhalter fehlt bei größerer Filiale
+  if (branchVehicles.length >= 4 && !roleCount.accountant && !roleCount.accountant_senior) {
+    return "hire_employee:accountant";
+  }
+  return null;
+}
+
+function createGrowthDecision(state: any, id: string, manager: any, branch: any, need: string): any | null {
+  if (need === "buy_vehicle") {
+    return {
+      id, branchId: branch.id, managerId: manager.id, type: "buy_vehicle",
+      title: "Neuen Lkw anschaffen",
+      description: `${manager.name} empfiehlt für ${branch.name} (${branch.city}) einen weiteren Lkw zu kaufen, um die Auftragslage zu bewältigen.`,
+      costCents: VEHICLE_PRICE,
+      benefitDesc: "+1 Lkw, höhere Kapazität",
+      createdAt: state.gameTime, status: "pending",
+    };
+  }
+  if (need === "build_workshop_slot") {
+    return {
+      id, branchId: branch.id, managerId: manager.id, type: "build_workshop_slot",
+      title: "Werkstattplatz bauen",
+      description: `${manager.name} empfiehlt für ${branch.name} (${branch.city}) einen eigenen Werkstattplatz zu bauen, um Wartungskosten zu senken und Ausfälle zu minimieren.`,
+      costCents: WORKSHOP_SLOT_PRICE,
+      benefitDesc: "Interne Wartung möglich",
+      createdAt: state.gameTime, status: "pending",
+    };
+  }
+  if (need.startsWith("hire_employee:")) {
+    const role = need.split(":")[1];
+    const roleDef = PERSONNEL_ROLES[role];
+    if (!roleDef) return null;
+    return {
+      id, branchId: branch.id, managerId: manager.id, type: "hire_employee",
+      targetRole: role,
+      title: `${roleDef.label} einstellen`,
+      description: `${manager.name} möchte für ${branch.name} (${branch.city}) einen ${roleDef.label} einstellen, um den Filialbetrieb zu stärken.`,
+      costCents: roleDef.hireFeeCents,
+      benefitDesc: `+1 ${roleDef.label}, ${(roleDef.costPerDayCents / 100).toLocaleString("de-DE")} €/Tag`,
+      createdAt: state.gameTime, status: "pending",
+    };
+  }
+  return null;
+}
+
 function createDecision(state: any, manager: any, branch: any): any | null {
+  const id = uid(state, "bd");
+
+  // Wachstumsbedarf hat Priorität — Filialleiter identifiziert Lücken
+  const growthNeed = identifyGrowthNeed(state, branch);
+  if (growthNeed) {
+    return createGrowthDecision(state, id, manager, branch, growthNeed);
+  }
+
+  // Kein Wachstumsbedarf — zufällige operative Entscheidung
   const types = ["hire_driver", "accept_order", "maintenance", "cost_optimization", "staff_training"];
   const type = types[Math.floor(Math.random() * types.length)];
-  const id = uid(state, "bd");
 
   if (type === "hire_driver") {
     return {
@@ -329,6 +443,99 @@ function applyDecision(state: any, decision: any) {
     } catch (e: any) {
       // Buchung fehlgeschlagen – still überspringen
     }
+    return;
+  }
+  if (decision.type === "buy_vehicle") {
+    const branch = state.branches.find((b: any) => b.id === decision.branchId);
+    if (!branch) return;
+    if (state.company.accountCents < VEHICLE_PRICE) return;
+    state.company.accountCents -= VEHICLE_PRICE;
+    state.bookings = state.bookings || [];
+    state.bookings.push({
+      min: state.gameTime, cause: "Filialleiter: Lkw-Kauf",
+      amountCents: -VEHICLE_PRICE, account: "company", refId: "bm_vehicle",
+    });
+    const v = {
+      id: uid(state, "v"), branchId: branch.id, type: STANDARD_TRUCK.type,
+      capacityTons: 12, consumptionPer100km: 28, bookValueCents: VEHICLE_PRICE,
+      condition: 85, locationCity: branch.city, status: "free", tripId: null,
+      maintenanceUntil: null, ownership_type: "owned", odometerKm: 0,
+      acquiredAtMin: state.gameTime, referencePriceCents: VEHICLE_PRICE,
+      markedForSale: false, saleOffer: null,
+    };
+    state.vehicles.push(v);
+    registerAsset(state, {
+      vehicleId: v.id, account: "1200",
+      name: "Lkw " + String(parseInt(String(v.id).replace(/[^0-9]/g, ""), 10) || 1).padStart(2, "0"),
+      acquisitionCostCents: VEHICLE_PRICE, acquiredAtMin: state.gameTime,
+    });
+    pushEvent(state, {
+      type: "branch_vehicle_purchased", gameTime: state.gameTime,
+      employeeId: decision.managerId, isSystem: false,
+      details: { vehicleId: v.id, branchName: branch.name, costCents: VEHICLE_PRICE },
+      dedupKey: "branch_vehicle:" + decision.id,
+    });
+    return;
+  }
+  if (decision.type === "build_workshop_slot") {
+    try {
+      buildWorkshopSlot(state, { branchId: decision.branchId });
+      pushEvent(state, {
+        type: "branch_workshop_built", gameTime: state.gameTime,
+        employeeId: decision.managerId, isSystem: false,
+        details: {
+          branchId: decision.branchId,
+          branchName: (state.branches || []).find((b: any) => b.id === decision.branchId)?.name || "",
+          costCents: WORKSHOP_SLOT_PRICE,
+        },
+        dedupKey: "branch_workshop:" + decision.id,
+      });
+    } catch (e: any) { /* unzureichendes Konto — still überspringen */ }
+    return;
+  }
+  if (decision.type === "hire_employee") {
+    const role = decision.targetRole;
+    if (!role) return;
+    const roleDef = PERSONNEL_ROLES[role];
+    if (!roleDef) return;
+    const branch = state.branches.find((b: any) => b.id === decision.branchId);
+    if (!branch) return;
+    if (state.company.accountCents < roleDef.hireFeeCents) return;
+    state.company.accountCents -= roleDef.hireFeeCents;
+    state.bookings = state.bookings || [];
+    state.bookings.push({
+      min: state.gameTime, cause: "Filialleiter: " + roleDef.label + " eingestellt",
+      amountCents: -roleDef.hireFeeCents, account: "company", refId: "bm_hire_emp",
+    });
+    const portraitIdx = (state.employees || []).length % PORTRAIT_IDS.length;
+    const emp = {
+      id: uid(state, "emp"), name: pickEmployeeName(state, role), role,
+      branchId: branch.id, locationCity: branch.city,
+      employedDay: dayOf(state.gameTime),
+      costPerDayCents: roleDef.costPerDayCents, hireFeeCents: roleDef.hireFeeCents,
+      satisfaction: 70, satisfactionReasons: [],
+      employmentStatus: "employed", exitDate: null,
+      attendance: "present", sickUntil: null, vacationUntil: null,
+      vacationDaysAvailable: 3,
+      activity: "idle", consecutiveLowSatisfactionDays: 0,
+      assignedVehicleIds: [],
+      workMode: (role === "dispatcher" || role === "dispatcher_senior") ? "autonomous" : "suggestions",
+      managementMode: undefined,
+      assignedBranchId: (role === "dispatcher" || role === "dispatcher_senior" || role === "mechanic" || role === "cleaner") ? branch.id : undefined,
+      capacity: roleDef.capacity,
+      lastDecisionMin: null, suggestions: [],
+      portraitId: PORTRAIT_IDS[portraitIdx],
+    };
+    state.employees.push(emp);
+    pushEvent(state, {
+      type: "branch_employee_hired", gameTime: state.gameTime,
+      employeeId: decision.managerId, isSystem: false,
+      details: {
+        personName: emp.name, role: roleDef.label,
+        branchName: branch.name, feeCents: roleDef.hireFeeCents,
+      },
+      dedupKey: "branch_hire:" + decision.id,
+    });
     return;
   }
 }

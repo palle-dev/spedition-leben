@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime } from "@/lib/gameData";
 import Portrait from "@/components/ui/Portrait";
-import { Check, X, Building2, TrendingUp, Wrench, Users, Lightbulb, GraduationCap, Loader2 } from "lucide-react";
+import { Check, X, Building2, TrendingUp, Wrench, Users, Lightbulb, GraduationCap, Loader2, Truck, Hammer, UserPlus } from "lucide-react";
 
 const DECISION_ICON = {
   hire_driver: Users,
@@ -10,6 +10,9 @@ const DECISION_ICON = {
   maintenance: Wrench,
   cost_optimization: Lightbulb,
   staff_training: GraduationCap,
+  buy_vehicle: Truck,
+  build_workshop_slot: Hammer,
+  hire_employee: UserPlus,
 };
 
 export default function BranchDecisionsPanel() {
