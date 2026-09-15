@@ -10,6 +10,7 @@ import PurchaseCatalog from "@/components/home/PurchaseCatalog";
 import PossessionsSection from "@/components/home/PossessionsSection";
 import ActivityPanel from "@/components/home/ActivityPanel";
 import GoalsPanel from "@/components/home/GoalsPanel";
+import RelationshipPanel from "@/components/home/RelationshipPanel";
 import PageHint from "@/components/help/PageHint";
 
 export default function Home() {
@@ -153,41 +154,48 @@ export default function Home() {
         </motion.div>
       </div>
 
-      {/* Vitals Strip */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-8 mt-8 lg:mt-10 pt-6 border-t border-white/10">
-        <div ref={refs.vitals} className="scroll-mt-4">
-          <div className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground mb-4">Wie es dir geht</div>
-          <div className="space-y-3">
-            <VitalBar icon={Heart} label="Beziehung" value={p.relationship} />
-            <VitalBar icon={Smile} label="Zufriedenheit" value={p.happiness} />
-            <VitalBar icon={Zap} label="Belastung" value={p.stress} invert />
+      {/* Beziehung & Familie */}
+      <div className="mt-8 lg:mt-10 pt-6 border-t border-white/10">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-1">
+            <RelationshipPanel state={state} send={send} showToast={showToast} />
           </div>
-        </div>
-
-        <div>
-          <div className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground mb-4">Anstehende Termine</div>
-          {upcoming.length === 0 ? (
-            <div className="text-sm text-muted-foreground/50">Keine anstehenden Termine.</div>
-          ) : (
-            <div className="space-y-2">
-              {upcoming.slice(0, 4).map(a => (
-                <div key={a.id} className="flex items-center justify-between text-xs border border-white/10 rounded-lg px-3 py-2 bg-surface/40">
-                  <span className="text-foreground/80">{labelOf(a)}</span>
-                  <span className="text-muted-foreground tabular-nums">{formatGameTime(a.startMin)}</span>
+          <div className="lg:col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-8">
+              <div ref={refs.vitals} className="scroll-mt-4">
+                <div className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground mb-4">Wie es dir geht</div>
+                <div className="space-y-3">
+                  <VitalBar icon={Heart} label="Beziehung" value={p.relationship} />
+                  <VitalBar icon={Smile} label="Zufriedenheit" value={p.happiness} />
+                  <VitalBar icon={Zap} label="Belastung" value={p.stress} invert />
                 </div>
-              ))}
+              </div>
+              <div>
+                <div className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground mb-4">Anstehende Termine</div>
+                {upcoming.length === 0 ? (
+                  <div className="text-sm text-muted-foreground/50">Keine anstehenden Termine.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {upcoming.slice(0, 4).map(a => (
+                      <div key={a.id} className="flex items-center justify-between text-xs border border-white/10 rounded-lg px-3 py-2 bg-surface/40">
+                        <span className="text-foreground/80">{labelOf(a)}</span>
+                        <span className="text-muted-foreground tabular-nums">{formatGameTime(a.startMin)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div ref={refs.account} className="scroll-mt-4">
+                <div className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground mb-4">Privatkonto & Haushalt</div>
+                <div className="text-2xl lg:text-3xl font-medium tracking-tight tabular-nums">{formatEuro(p.accountCents)}</div>
+                <div className="text-xs text-muted-foreground mt-1">{p.residence}</div>
+                <div className="text-xs text-muted-foreground mt-2">Lebenshaltung: 30 €/Tag · Entnahme: 100 €/Tag</div>
+                <button onClick={() => navigate("/finanzen")} className="text-xs text-coral hover:text-coral/80 mt-3 flex items-center gap-1 transition">
+                  Finanzen ansehen <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
             </div>
-          )}
-        </div>
-
-        <div ref={refs.account} className="scroll-mt-4">
-          <div className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground mb-4">Privatkonto & Haushalt</div>
-          <div className="text-2xl lg:text-3xl font-medium tracking-tight tabular-nums">{formatEuro(p.accountCents)}</div>
-          <div className="text-xs text-muted-foreground mt-1">{p.residence}</div>
-          <div className="text-xs text-muted-foreground mt-2">Lebenshaltung: 30 €/Tag · Entnahme: 100 €/Tag</div>
-          <button onClick={() => navigate("/finanzen")} className="text-xs text-coral hover:text-coral/80 mt-3 flex items-center gap-1 transition">
-            Finanzen ansehen <ArrowRight className="w-3 h-3" />
-          </button>
+          </div>
         </div>
       </div>
 

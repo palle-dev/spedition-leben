@@ -146,6 +146,10 @@ import {
   getDriverTravelEventTimes, creditBranchDelivery,
 } from "./branchEngine.ts";
 import { processEmployees, triggerDispatcherPlanning } from "./dispatcherProcessor.ts";
+import {
+  migrateRelationship, getRelationshipStatus, proposeMarriage, getMarried,
+  planChild, processPregnancy, getPregnancyEventTimes, processDailyRelationship,
+} from "./relationshipEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -320,6 +324,7 @@ function doDailyAccounting(state, midnight) {
   processDailySatisfaction(state, midnight);
   processDailyRecovery(state, midnight);
   processTerminationWarnings(state, midnight);
+  processDailyRelationship(state, midnight);
   return log;
 }
 
@@ -430,6 +435,8 @@ function earliestEventAfter(state, t, maxMin) {
   }
   // Fahrer-Reisen (Filialverschiebung)
   for (const tm of getDriverTravelEventTimes(state, t, maxMin)) cand(tm);
+  // Schwangerschaft (Beziehungs-Engine)
+  for (const tm of getPregnancyEventTimes(state, t, maxMin)) cand(tm);
   return best;
 }
 function completeTrip(state, trip, m, log) {
@@ -657,6 +664,8 @@ function processEventsAt(state, m, log) {
   processReleaseAfterTrip(state, m, log);
   // 3e.4 Fahrer-Reisen abschließen (Filialverschiebung)
   processDriverTravels(state, m, log);
+  // 3e.5 Schwangerschaft / Geburt (Beziehungs-Engine)
+  processPregnancy(state, m, log);
   // 3e.3 Tatsächlicher Austritt bei Fristende (Auftrag 18)
   processEmployeeExit(state, m, log);
   // 4. Tagesabrechnung (Mitternacht)
@@ -795,6 +804,7 @@ export function applyCommand(state, command, params) {
   migrateDangerousGoods(state);
   migrateInvestment(state);
   migrateBranches(state);
+  migrateRelationship(state);
   if (state.bookings && state.bookings.length > 200) state.bookings = state.bookings.slice(-200);
   // Historie begrenzen: abgeschlossene Touren, Aufträge und Termine älter als 30 Tage
   // entfernen. Hält den Zustand kompakt und beschleunigt Laden/Speichern bei langen Spielen.
@@ -1475,6 +1485,34 @@ export function applyCommand(state, command, params) {
     case "getPurchaseCatalog": {
       result = { ok: true, catalog: PURCHASE_CATALOG, items: state.private?.purchases?.items || [],
         activeHomeId: state.private?.purchases?.activeHomeId || null };
+      break;
+    }
+
+    // ---------- Beziehung & Familie ----------
+
+    case "getRelationshipStatus": {
+      result = { ok: true, ...getRelationshipStatus(state) };
+      break;
+    }
+
+    case "proposeMarriage": {
+      ensureNotBlocked(state);
+      const r = proposeMarriage(state);
+      result = r;
+      break;
+    }
+
+    case "getMarried": {
+      ensureNotBlocked(state);
+      const r = getMarried(state);
+      result = r;
+      break;
+    }
+
+    case "planChild": {
+      ensureNotBlocked(state);
+      const r = planChild(state);
+      result = r;
       break;
     }
 

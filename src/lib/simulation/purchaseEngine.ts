@@ -58,6 +58,7 @@ export const BASIC_ACTIVITIES = [
   { type: "wellness", label: "Wellnessnachmittag", durationMin: 240, costCents: 12000, stressDelta: -14, happinessDelta: 5, maxPerDay: 1 },
   { type: "cooking", label: "Gemeinsam kochen", durationMin: 120, costCents: 3500, stressDelta: -5, happinessDelta: 3, contactDelta: 4, maxPerDay: 1, requiresContact: true },
   { type: "concert", label: "Konzertabend", durationMin: 240, costCents: 10000, stressDelta: -10, happinessDelta: 4, contactDelta: 5, maxPerWeek: 1, requiresContact: true },
+  { type: "date_night", label: "Romantischer Abend", durationMin: 180, costCents: 8000, stressDelta: -8, happinessDelta: 5, contactDelta: 8, maxPerWeek: 1, requiresContact: true },
   { type: "short_trip", label: "Kurzurlaub", durationMin: 2880, costCents: 90000, stressDelta: -20, happinessDelta: 8, isTrip: true, maxPerDay: 1 },
 ];
 
