@@ -144,9 +144,32 @@ function identifyGrowthNeed(state: any, branch: any): string | null {
   if (workshopSlots.length > 0 && branchVehicles.length > workshopSlots.length * 3) {
     return "build_workshop_slot";
   }
-  // 3. Fahrzeugkauf: Genug Fahrer aber nicht genug Lkw
-  if (branchDrivers.length >= branchVehicles.length && branchVehicles.length < 6) {
-    return "buy_vehicle";
+  // 3. Fahrzeugkauf: Auftragslage und Auslastung erfordern mehr Kapazität
+  const vehiclesOnTrip = branchVehicles.filter((v: any) => v.status === "on_trip").length;
+  const utilizationRate = branchVehicles.length > 0 ? vehiclesOnTrip / branchVehicles.length : 0;
+  const branchCityBacklog = (state.orders || []).filter(
+    (o: any) => o.status === "angenommen" && o.fromCity === branch.city
+  ).length;
+  const branchCityDemand = (state.orders || []).filter(
+    (o: any) => (o.status === "offered" || o.status === "angenommen") && o.fromCity === branch.city
+  ).length;
+  if (branchVehicles.length < 6) {
+    // Hohe Auslastung (>=70%) mit Auftragsrückstand (angenommen, nicht disponiert)
+    if (branchVehicles.length > 0 && utilizationRate >= 0.7 && branchCityBacklog >= 1) {
+      return "buy_vehicle";
+    }
+    // Sehr hohe Auslastung (>=85%) bei gutem Marktangebot ab Filialstadt
+    if (branchVehicles.length > 0 && utilizationRate >= 0.85 && branchCityDemand >= branchVehicles.length) {
+      return "buy_vehicle";
+    }
+    // Genug Fahrer für einen weiteren Lkw
+    if (branchDrivers.length >= branchVehicles.length) {
+      return "buy_vehicle";
+    }
+    // Starker Marktdemand bei noch kleinem Fuhrpark
+    if (branchVehicles.length < 3 && branchCityDemand >= 3) {
+      return "buy_vehicle";
+    }
   }
   // 4. Disponent fehlt bei ausreichend Fahrzeugen
   if (branchVehicles.length >= 2 && !roleCount.dispatcher && !roleCount.dispatcher_senior) {
