@@ -19,8 +19,21 @@ function formatLogEvent(ev) {
     advance_stopped: { icon: AlertTriangle, label: "Verarbeitung pausiert (Budget)", color: "text-amber-400" },
     ersatz_started: { icon: Calendar, label: "Ersatztermin begonnen", color: "text-sky-400" },
     ersatz_missed: { icon: Calendar, label: "Ersatztermin verpasst", color: "text-red-400" },
+    dispatcher_planned: { icon: Truck, label: "Disponent hat Touren geplant", color: "text-sky-400" },
+    dispatcher_plan_failed: { icon: AlertTriangle, label: "Disposition nicht möglich – keine passenden Aufträge/Fahrzeuge", color: "text-amber-400" },
+    dispatcher_no_orders: { icon: Circle, label: "Keine Aufträge zu disponieren", color: "text-muted-foreground" },
+    dispatcher_suggestion: { icon: Truck, label: "Dispositions-Vorschlag erstellt", color: "text-sky-400" },
+    dispatcher_confirmed: { icon: CheckCircle2, label: "Tour bestätigt", color: "text-lime" },
+    dispatcher_backlog: { icon: Clock, label: "Aufträge in Warteschlange", color: "text-amber-400" },
+    tour_started: { icon: Truck, label: "Tour gestartet", color: "text-coral" },
+    delivery_completed: { icon: Package, label: `Lieferung abgeschlossen${ev.details?.paymentCents ? ` · ${(ev.details.paymentCents / 100).toFixed(2)} €` : ""}`, color: "text-lime" },
+    vehicle_idle: { icon: Circle, label: "Fahrzeug wartet auf Aufträge", color: "text-muted-foreground" },
+    market_wave: { icon: Package, label: "Neue Aufträge auf dem Markt", color: "text-sky-400" },
+    achievements_unlocked: { icon: CheckCircle2, label: "Erfolg freigeschaltet", color: "text-lime" },
+    conversation_completed: { icon: Calculator, label: "Gespräch abgeschlossen", color: "text-sky-400" },
+    invitation_appeared: { icon: Mail, label: "Einladung erschienen", color: "text-purple-400" },
   };
-  return map[ev.type] || { icon: Circle, label: ev.type, color: "text-muted-foreground" };
+  return map[ev.type] || { icon: Circle, label: ev.type.replace(/_/g, " "), color: "text-muted-foreground" };
 }
 
 export default function AdvanceProgressModal({ progress, onClose }) {
