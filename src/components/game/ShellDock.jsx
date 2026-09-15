@@ -11,19 +11,21 @@ const PRIMARY_NAV = [
   { to: "/disposition", label: "Dispo", icon: Map },
   { to: "/zuhause", label: "Zuhause", icon: HomeIcon }
 ];
-const SECONDARY_NAV = [
+const QUICK_NAV = [
   { to: "/fuhrpark", label: "Fuhrpark", icon: Truck },
   { to: "/personal", label: "Personal", icon: Users },
+  { to: "/finanzen", label: "Finanzen", icon: Wallet },
+];
+const MORE_NAV = [
   { to: "/filialen", label: "Filialen", icon: Network },
   { to: "/auslastung", label: "Auslastung", icon: BarChart3 },
   { to: "/effizienz", label: "Effizienz", icon: Gauge },
-  { to: "/finanzen", label: "Finanzen", icon: Wallet },
   { to: "/investment", label: "Investment", icon: LineChart },
   { to: "/postfach", label: "Postfach", icon: MailIcon },
   { to: "/erfolge", label: "Erfolge", icon: Trophy },
   { to: "/journal", label: "Journal", icon: BookOpen }
 ];
-const ALL_NAV = [...PRIMARY_NAV, ...SECONDARY_NAV];
+const INLINE_NAV = [...PRIMARY_NAV, ...QUICK_NAV];
 
 // Untere Navigationsleiste und Zeitsteuerung – dauerhaft sichtbar.
 export default function ShellDock() {
@@ -96,25 +98,24 @@ export default function ShellDock() {
   return (
     <footer className="relative z-20 border-t border-white/10 backdrop-blur-md bg-ink/70 shrink-0">
       <div className="flex items-center gap-2 lg:gap-4 px-3 lg:px-12 py-2.5">
-        {/* Navigation – Desktop: alle, Mobile: primär + Mehr */}
+        {/* Navigation – primär + schnell + Mehr-Aufklappmenü */}
         <nav className="flex items-center gap-1 flex-1 min-w-0" aria-label="Spielnavigation">
-          {ALL_NAV.map((n) => {
+          {INLINE_NAV.map((n) => {
             const active = location.pathname === n.to;
             const Icon = n.icon;
-            const isSecondary = SECONDARY_NAV.includes(n);
             return (
               <Link
                 key={n.to}
                 to={n.to}
-                className={`flex items-center gap-2 rounded-lg px-2.5 lg:px-3 py-2 text-xs whitespace-nowrap transition shrink-0 ${active ? "bg-lime/10 text-lime" : "text-muted-foreground hover:text-foreground hover:bg-white/5"} ${isSecondary ? "hidden md:flex" : ""}`}
+                className={`flex items-center gap-2 rounded-lg px-2.5 lg:px-3 py-2 text-xs whitespace-nowrap transition shrink-0 ${active ? "bg-lime/10 text-lime" : "text-muted-foreground hover:text-foreground hover:bg-white/5"}`}
                 aria-current={active ? "page" : undefined}
               >
-                <Icon className="w-4 h-4" /> <span className="hidden md:inline">{n.label}</span>
+                <Icon className="w-4 h-4" /> <span className="hidden sm:inline">{n.label}</span>
               </Link>
             );
           })}
-          {/* Mehr-Menü für Mobile */}
-          <div ref={moreRef} className="relative md:hidden">
+          {/* Mehr-Aufklappmenü */}
+          <div ref={moreRef} className="relative">
             <button
               onClick={() => setMoreOpen(v => !v)}
               className={`flex items-center gap-1 rounded-lg px-2.5 py-2 text-xs transition shrink-0 ${moreOpen ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-white/5"}`}
@@ -124,8 +125,8 @@ export default function ShellDock() {
               <MoreHorizontal className="w-4 h-4" /> <span className="hidden sm:inline">Mehr</span>
             </button>
             {moreOpen && (
-              <div className="absolute bottom-full mb-2 left-0 glass border border-white/15 rounded-xl p-1.5 shadow-2xl min-w-[160px]">
-                {SECONDARY_NAV.map(n => {
+              <div className="absolute bottom-full mb-2 left-0 glass border border-white/15 rounded-xl p-1.5 shadow-2xl min-w-[180px]">
+                {MORE_NAV.map(n => {
                   const active = location.pathname === n.to;
                   const Icon = n.icon;
                   return (
