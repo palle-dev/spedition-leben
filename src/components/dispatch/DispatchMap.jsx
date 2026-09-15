@@ -7,7 +7,7 @@ import {
   getTripBounds, getFleetBounds
 } from "@/lib/geoData";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
-import { getTrafficLevel } from "@/lib/trafficSystem";
+import { getTrafficLevel, getSegmentTrafficLevel } from "@/lib/trafficSystem";
 import { AlertTriangle } from "lucide-react";
 
 const MAP_STYLE = "https://tiles.openfreemap.org/styles/dark";
@@ -354,7 +354,11 @@ function updateTours(map, state, routeData, selectedTripId) {
       // Verkehrslage für Fahr-Abschnitte berechnen
       const t = f.properties.legType;
       if (t === "drive" || t === "empty") {
-        f.properties.trafficLevel = getTrafficLevel(state.gameTime, f.properties.fromCity, f.properties.toCity);
+        if (f.properties.segmentIndex !== undefined) {
+          f.properties.trafficLevel = getSegmentTrafficLevel(state.gameTime, f.properties.fromCity, f.properties.toCity, f.properties.segmentIndex, f.properties.segmentCount);
+        } else {
+          f.properties.trafficLevel = getTrafficLevel(state.gameTime, f.properties.fromCity, f.properties.toCity);
+        }
       } else {
         f.properties.trafficLevel = 0;
       }
@@ -372,7 +376,11 @@ function updatePlanRoute(map, planRoute, state) {
   // Verkehrslage zu Plan-Route-Features hinzufügen
   for (const f of (planRoute.features || [])) {
     if (f.properties && f.properties.fromCity && f.properties.toCity) {
-      f.properties.trafficLevel = getTrafficLevel(state.gameTime, f.properties.fromCity, f.properties.toCity);
+      if (f.properties.segmentIndex !== undefined) {
+        f.properties.trafficLevel = getSegmentTrafficLevel(state.gameTime, f.properties.fromCity, f.properties.toCity, f.properties.segmentIndex, f.properties.segmentCount);
+      } else {
+        f.properties.trafficLevel = getTrafficLevel(state.gameTime, f.properties.fromCity, f.properties.toCity);
+      }
     }
   }
   map.getSource("plan-route").setData(planRoute);

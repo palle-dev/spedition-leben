@@ -155,11 +155,32 @@ export function buildTripRouteGeoJSON(trip, routeData) {
     const isPast = i < idx;
     const legType = (t === "empty" || t === "empty_drive") ? "empty" : "drive";
     if (route) {
-      features.push({
-        type: "Feature",
-        geometry: { type: "LineString", coordinates: route.coordinates },
-        properties: { tripId: trip.id, legType, fromCity: phase.fromCity, toCity: phase.toCity, isCurrent, isPast, fallback: false }
-      });
+      // Echte Straßenroute in Segmente unterteilen, damit die Verkehrslage
+      // entlang der Strecke variieren kann (Stau in der Stadt, frei auf der
+      // Autobahn). Die Segment-Properties werden in DispatchMap für die
+      // segmentweise Verkehrslage-Färbung genutzt.
+      const SEGMENT_COUNT = 6;
+      const coords = route.coordinates;
+      if (coords.length < SEGMENT_COUNT * 2) {
+        features.push({
+          type: "Feature",
+          geometry: { type: "LineString", coordinates: coords },
+          properties: { tripId: trip.id, legType, fromCity: phase.fromCity, toCity: phase.toCity, isCurrent, isPast, fallback: false }
+        });
+      } else {
+        const segLen = Math.floor(coords.length / SEGMENT_COUNT);
+        for (let s = 0; s < SEGMENT_COUNT; s++) {
+          const startIdx = s * segLen;
+          const endIdx = s === SEGMENT_COUNT - 1 ? coords.length - 1 : (s + 1) * segLen;
+          const segCoords = coords.slice(startIdx, endIdx + 1);
+          if (segCoords.length < 2) continue;
+          features.push({
+            type: "Feature",
+            geometry: { type: "LineString", coordinates: segCoords },
+            properties: { tripId: trip.id, legType, fromCity: phase.fromCity, toCity: phase.toCity, isCurrent, isPast, fallback: false, segmentIndex: s, segmentCount: SEGMENT_COUNT }
+          });
+        }
+      }
     } else {
       const from = CITY_GEO[phase.fromCity], to = CITY_GEO[phase.toCity];
       if (from && to) {
@@ -176,22 +197,39 @@ export function buildTripRouteGeoJSON(trip, routeData) {
 
 // --- GeoJSON für Planungs-Vorschau ---
 
+function _segmentRoute(features, fromCity, toCity, legType, routeData) {
+  const r = getRouteGeometry(fromCity, toCity, routeData);
+  const coords = r ? r.coordinates : [CITY_GEO[fromCity], CITY_GEO[toCity]].filter(Boolean);
+  if (!coords || coords.length < 2) return;
+  if (r && coords.length >= 12) {
+    const SEGMENT_COUNT = 6;
+    const segLen = Math.floor(coords.length / SEGMENT_COUNT);
+    for (let s = 0; s < SEGMENT_COUNT; s++) {
+      const startIdx = s * segLen;
+      const endIdx = s === SEGMENT_COUNT - 1 ? coords.length - 1 : (s + 1) * segLen;
+      const segCoords = coords.slice(startIdx, endIdx + 1);
+      if (segCoords.length < 2) continue;
+      features.push({
+        type: "Feature",
+        geometry: { type: "LineString", coordinates: segCoords },
+        properties: { legType, fromCity, toCity, fallback: false, segmentIndex: s, segmentCount: SEGMENT_COUNT }
+      });
+    }
+  } else {
+    features.push({
+      type: "Feature",
+      geometry: { type: "LineString", coordinates: coords },
+      properties: { legType, fromCity, toCity, fallback: !r }
+    });
+  }
+}
+
 export function buildPlanRouteGeoJSON(fromCity, toCity, hasEmpty, emptyFrom, emptyTo, routeData) {
   const features = [];
   if (hasEmpty && emptyFrom && emptyTo) {
-    const r = getRouteGeometry(emptyFrom, emptyTo, routeData);
-    features.push({
-      type: "Feature",
-      geometry: { type: "LineString", coordinates: r ? r.coordinates : [CITY_GEO[emptyFrom], CITY_GEO[emptyTo]].filter(Boolean) },
-      properties: { legType: "empty", fromCity: emptyFrom, toCity: emptyTo, fallback: !r }
-    });
+    _segmentRoute(features, emptyFrom, emptyTo, "empty", routeData);
   }
-  const r = getRouteGeometry(fromCity, toCity, routeData);
-  features.push({
-    type: "Feature",
-    geometry: { type: "LineString", coordinates: r ? r.coordinates : [CITY_GEO[fromCity], CITY_GEO[toCity]].filter(Boolean) },
-    properties: { legType: "drive", fromCity, toCity, fallback: !r }
-  });
+  _segmentRoute(features, fromCity, toCity, "drive", routeData);
   return { type: "FeatureCollection", features };
 }
 
@@ -214,20 +252,48 @@ export function buildTourRouteGeoJSON(plan, routeData) {
       const coords = route ? route.coordinates : [CITY_GEO[phase.fromCity], CITY_GEO[phase.toCity]].filter(Boolean);
       if (!coords || coords.length < 2) continue;
       const legType = (t === "empty" || t === "empty_drive") ? "empty" : "drive";
-      features.push({
-        type: "Feature",
-        geometry: { type: "LineString", coordinates: coords },
-        properties: {
-          legType,
-          fromCity: phase.fromCity,
-          toCity: phase.toCity,
-          depIndex: di,
-          isReturn,
-          isOutbound: di === 0 && t !== "empty_drive" && t !== "empty",
-          fallback: !route,
-          tourLeg: true,
-        },
-      });
+      // Echte Straßenroute in Segmente unterteilen für segmentweise Verkehrslage
+      if (route && coords.length >= 12) {
+        const SEGMENT_COUNT = 6;
+        const segLen = Math.floor(coords.length / SEGMENT_COUNT);
+        for (let s = 0; s < SEGMENT_COUNT; s++) {
+          const startIdx = s * segLen;
+          const endIdx = s === SEGMENT_COUNT - 1 ? coords.length - 1 : (s + 1) * segLen;
+          const segCoords = coords.slice(startIdx, endIdx + 1);
+          if (segCoords.length < 2) continue;
+          features.push({
+            type: "Feature",
+            geometry: { type: "LineString", coordinates: segCoords },
+            properties: {
+              legType,
+              fromCity: phase.fromCity,
+              toCity: phase.toCity,
+              depIndex: di,
+              isReturn,
+              isOutbound: di === 0 && t !== "empty_drive" && t !== "empty",
+              fallback: false,
+              tourLeg: true,
+              segmentIndex: s,
+              segmentCount: SEGMENT_COUNT,
+            },
+          });
+        }
+      } else {
+        features.push({
+          type: "Feature",
+          geometry: { type: "LineString", coordinates: coords },
+          properties: {
+            legType,
+            fromCity: phase.fromCity,
+            toCity: phase.toCity,
+            depIndex: di,
+            isReturn,
+            isOutbound: di === 0 && t !== "empty_drive" && t !== "empty",
+            fallback: !route,
+            tourLeg: true,
+          },
+        });
+      }
     }
   }
 

@@ -24,6 +24,44 @@ function hashStr(s) {
   return h >>> 0;
 }
 
+// Verkehrslage für ein Segment einer Route (fromCity -> toCity) zu einer Spielzeit.
+// Der segmentIndex sorgt für Variation entlang der Strecke — so werden auf
+// einer echten Straßenroute verschiedene Abschnitte unterschiedlich eingefärbt
+// (z.B. Stau in der Stadt, frei auf der Autobahn).
+// Deterministisch: gleiche Spielstunde + Route + Segment = gleiche Verkehrslage.
+export function getSegmentTrafficLevel(gameTime, fromCity, toCity, segmentIndex, segmentCount) {
+  const clock = gameTime % 1440;
+  const isRush = (clock >= RUSH_MORNING_START && clock < RUSH_MORNING_END)
+    || (clock >= RUSH_AFTERNOON_START && clock < RUSH_AFTERNOON_END);
+  const isNight = clock >= 22 * 60 || clock < 5 * 60;
+
+  const hourBucket = Math.floor(gameTime / 60);
+  const routeHash = hashStr(`${fromCity}->${toCity}:${hourBucket}:${segmentIndex}/${segmentCount}`);
+
+  if (isNight) {
+    return routeHash % 10 < 1 ? 1 : 0;
+  }
+  if (isRush) {
+    // In Stoßzeiten: mittlere Segmente (Stadt näher) eher dichter
+    const isMiddle = segmentIndex > 0 && segmentIndex < segmentCount - 1;
+    const r = routeHash % 10;
+    if (isMiddle) {
+      if (r < 1) return 1;
+      if (r < 3) return 2;
+      if (r < 6) return 3;
+      return 2;
+    }
+    if (r < 1) return 0;
+    if (r < 3) return 1;
+    if (r < 6) return 2;
+    return 3;
+  }
+  const r = routeHash % 10;
+  if (r < 6) return 0;
+  if (r < 9) return 1;
+  return 2;
+}
+
 // Verkehrslage für eine Route (fromCity -> toCity) zu einer Spielzeit.
 // Deterministisch: gleiche Spielstunde + Route = gleiche Verkehrslage.
 export function getTrafficLevel(gameTime, fromCity, toCity) {
