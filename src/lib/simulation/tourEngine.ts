@@ -945,7 +945,7 @@ export function findReturnLoads(state, primaryOrderId, vehicleId, driverId) {
 // mode: "balanced" | "high_margin" | "low_empty"
 export function suggestTours(state, opts) {
   _clearPlanCache();
-  const { vehicleIds, earliestStart, horizonMin, desiredEndCity, latestReturnMin, mode, acceptNew, restrictOrderIds } = opts;
+  const { vehicleIds, earliestStart, horizonMin, desiredEndCity, latestReturnMin, mode, acceptNew, restrictOrderIds, fastMode } = opts;
   const restrictSet = restrictOrderIds ? new Set(restrictOrderIds) : null;
   const suggestions = [];
 
@@ -1037,8 +1037,8 @@ export function suggestTours(state, opts) {
       return true;
     }) : [];
     const candidateDrivers = [...sameCityDrivers, ...crossCityDrivers];
-    // CPU-Schutz: höchstens 4 Fahrer pro Fahrzeug probieren.
-    const maxDrivers = 4;
+    // CPU-Schutz: höchstens 4 Fahrer pro Fahrzeug probieren (2 im Fast-Mode).
+    const maxDrivers = fastMode ? 2 : 4;
     if (candidateDrivers.length > maxDrivers) candidateDrivers.length = maxDrivers;
     if (candidateDrivers.length === 0) continue;
 
@@ -1083,7 +1083,7 @@ export function suggestTours(state, opts) {
     // abgelehnt werden und die machbaren Advance-Aufträge verdrängen.
     // CPU-Schutz: die Doppel-Tour-Suche ist O(n²). Bei vielen Aufträgen
     // wird die Liste begrenzt, damit die kombinatorische Explosion vermieden wird.
-    const orderLimit = 12;
+    const orderLimit = fastMode ? 6 : 12;
     if (allOrders.length > orderLimit) {
       const vehicleCity = vehicleFutureCity;
       const scored = allOrders.map(o => {

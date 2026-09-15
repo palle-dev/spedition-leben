@@ -124,6 +124,7 @@ export function processDispatcher(state, emp, m, log) {
     const result = suggestTours(state, {
       vehicleIds: poolVehicleIds, earliestStart: m, horizonMin: 2880,
       desiredEndCity: null, latestReturnMin: null, mode: state.marketPriority || "balanced", acceptNew: false,
+      fastMode: state._largeAdvance === false,
     });
     emp.suggestions = (emp.suggestions || []).filter(s => s.status !== "pending");
     for (const s of result.suggestions) {
@@ -195,6 +196,7 @@ export function processDispatcher(state, emp, m, log) {
   const result = suggestTours(state, {
     vehicleIds: poolVehicleIds, earliestStart: m, horizonMin: 48 * 60,
     desiredEndCity: null, latestReturnMin: null, mode: state.marketPriority || "balanced", acceptNew,
+    fastMode: state._largeAdvance === false,
   });
 
   const usedVehicleIds = new Set();
@@ -358,6 +360,7 @@ export function planSingleVehicle(state, vehicle, m, log) {
     vehicleIds: [vehicle.id], earliestStart: m, horizonMin: 48 * 60,
     desiredEndCity: null, latestReturnMin: null,
     mode: state.marketPriority || "balanced", acceptNew,
+    fastMode: state._largeAdvance === false,
   });
   if (result.suggestions.length === 0) return;
 
