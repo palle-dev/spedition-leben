@@ -9,6 +9,6 @@ export function setProgressHook(cb) {
   _cb = cb;
 }
 
-export function reportProgress(current, total, eventCount, recentEvents) {
-  if (_cb) _cb({ current, total, eventCount, recentEvents: recentEvents || [] });
+export function reportProgress(current, total, eventCount, stats) {
+  if (_cb) _cb({ current, total, eventCount, stats: stats || null });
 }

@@ -48,7 +48,7 @@ export default function ShellDock() {
     setAdvancing(true);
     const showModal = minutes >= 1440;
     if (showModal) {
-      setProgressModal({ current: 0, total: minutes, events: [], eventCount: 0, done: false, status: "Verarbeite…" });
+      setProgressModal({ current: 0, total: minutes, stats: null, eventCount: 0, done: false, status: "Verarbeite…" });
     }
     try {
       const res = await send("advanceTime", { minutes }, (progress) => {
@@ -57,16 +57,18 @@ export default function ShellDock() {
           ...prev,
           current: progress.current,
           eventCount: progress.eventCount,
-          events: progress.recentEvents || prev.events,
+          stats: progress.stats || prev.stats,
           status: `${progress.eventCount} Vorgänge verarbeitet…`,
         }) : prev);
       });
       const events = res?.events || [];
       if (showModal) {
+        // Endgültige Statistik aus allen Events berechnen
+        const finalStats = aggregateStats(events);
         setProgressModal(prev => prev ? ({
           ...prev,
           current: minutes,
-          events,
+          stats: finalStats,
           done: true,
           status: "Abgeschlossen",
         }) : prev);
@@ -80,6 +82,27 @@ export default function ShellDock() {
     } finally {
       setAdvancing(false);
     }
+  }
+
+  function aggregateStats(events) {
+    const branches = {};
+    let totalDeliveries = 0, totalRevenue = 0, totalTours = 0;
+    for (const ev of events || []) {
+      if (ev.type === "delivery") {
+        totalDeliveries++;
+        totalRevenue += ev.paymentCents || 0;
+        const bid = ev.branchId || "_haupt";
+        if (!branches[bid]) branches[bid] = { deliveries: 0, revenue: 0, tours: 0 };
+        branches[bid].deliveries++;
+        branches[bid].revenue += ev.paymentCents || 0;
+      } else if (ev.type === "tour_deployment_started") {
+        totalTours++;
+        const bid = ev.branchId || "_haupt";
+        if (!branches[bid]) branches[bid] = { deliveries: 0, revenue: 0, tours: 0 };
+        branches[bid].tours++;
+      }
+    }
+    return { totalDeliveries, totalRevenue, totalTours, branches };
   }
 
   async function nextEventAction() {
@@ -209,7 +232,7 @@ export default function ShellDock() {
           </button>
         </div>
       </div>
-      {progressModal && <AdvanceProgressModal progress={progressModal} onClose={() => setProgressModal(null)} />}
+      {progressModal && <AdvanceProgressModal progress={progressModal} onClose={() => setProgressModal(null)} state={state} />}
     </footer>
   );
 }

@@ -336,6 +336,28 @@ function doDailyAccounting(state, midnight) {
 // ---------- Zeitverarbeitung ----------
 import { earliestEventAfter } from "./eventScheduler.ts";
 import { reportProgress } from "./progressHook.js";
+
+// Aggregiert Log-Events zu Standort-Statistiken für die Fortschrittsanzeige.
+function computeLogStats(log) {
+  const branches = {};
+  let totalDeliveries = 0, totalRevenue = 0, totalTours = 0;
+  for (const ev of log) {
+    if (ev.type === "delivery") {
+      totalDeliveries++;
+      totalRevenue += ev.paymentCents || 0;
+      const bid = ev.branchId || "_haupt";
+      if (!branches[bid]) branches[bid] = { deliveries: 0, revenue: 0, tours: 0 };
+      branches[bid].deliveries++;
+      branches[bid].revenue += ev.paymentCents || 0;
+    } else if (ev.type === "tour_deployment_started") {
+      totalTours++;
+      const bid = ev.branchId || "_haupt";
+      if (!branches[bid]) branches[bid] = { deliveries: 0, revenue: 0, tours: 0 };
+      branches[bid].tours++;
+    }
+  }
+  return { totalDeliveries, totalRevenue, totalTours, branches };
+}
 function completeTrip(state, trip, m, log) {
   trip.status = "completed";
   trip.endMin = m;
@@ -400,7 +422,7 @@ function completeTrip(state, trip, m, log) {
   const newAchs = checkAchievements(state, m);
   if (newAchs.length) log.push({ type: "achievements_unlocked", achievements: newAchs, atMin: m });
   if (state.tutorial.active && state.tutorial.step === 2) state.tutorial.step = 3;
-  log.push({ type: "delivery", trip: trip.id, order: order.id, onTime, paymentCents: payment });
+  log.push({ type: "delivery", trip: trip.id, order: order.id, onTime, paymentCents: payment, branchId: vehicle.branchId });
   // Dauerhaftes Lieferungs-Ereignis
   pushEvent(state, {
     type: "delivery_completed",
@@ -529,6 +551,7 @@ function processEventsAt(state, m, log) {
       const driver = state.drivers.find(d => d.id === tour?.driverId);
       const dep = tour?.deployments?.find(d => d.id === le.deployment);
       const order = dep?.orderId ? state.orders.find(o => o.id === dep.orderId) : null;
+      if (vehicle) le.branchId = vehicle.branchId;
       pushEvent(state, {
         type: "tour_started",
         gameTime: m, isSystem: true,
@@ -658,14 +681,13 @@ function advanceTo(state, targetMin, log, reportStart) {
     eventCount++;
     // Live-Fortschritt nach jedem Ereignis melden
     if (reportStart !== undefined) {
-      const recent = log.slice(-8);
-      reportProgress(t - reportStart, targetMin - reportStart, eventCount, recent);
+      reportProgress(t - reportStart, targetMin - reportStart, eventCount, computeLogStats(log));
     }
   }
   state.gameTime = stopped ? t : targetMin;
   if (stopped) log.push({ type: "advance_stopped", atMin: t, targetMin, reason: eventCount >= MAX_EVENTS ? "max_events" : "cpu_budget" });
   if (reportStart !== undefined) {
-    reportProgress(state.gameTime - reportStart, targetMin - reportStart, eventCount, log.slice(-8));
+    reportProgress(state.gameTime - reportStart, targetMin - reportStart, eventCount, computeLogStats(log));
   }
 }
 
