@@ -89,6 +89,52 @@ export function eventToToast(ev) {
         eventSeq: ev.seq,
       };
 
+    case "dating_match":
+      return {
+        id: ev.id,
+        kind: "success",
+        icon: "heart",
+        title: "Neues Match!",
+        body: `Du hast ein neues Match: ${d.name} (${d.compatibility}% Kompatibilität). Im Privatleben unter "Dating-App" kannst du ein Date vereinbaren.`,
+        action: { label: "Dating-App", targetType: "home", targetId: null },
+        duration: 7000,
+        eventSeq: ev.seq,
+      };
+
+    case "date_completed":
+      return {
+        id: ev.id,
+        kind: "info",
+        icon: "heart",
+        title: "Date abgeschlossen",
+        body: `Date mit ${d.matchName}: ${d.success}% Erfolg. Beziehungsfortschritt +${d.progressDelta} (jetzt ${d.relationshipProgress}/100).`,
+        duration: 6000,
+        eventSeq: ev.seq,
+      };
+
+    case "new_partner":
+      return {
+        id: ev.id,
+        kind: "success",
+        icon: "heart",
+        title: "Neue Partnerschaft!",
+        body: `Du und ${d.partnerName} seid nun ein Paar! Eure Beziehung startet bei ${d.relationship}/100.`,
+        action: { label: "Zuhause", targetType: "home", targetId: null },
+        duration: 8000,
+        eventSeq: ev.seq,
+      };
+
+    case "breakup":
+      return {
+        id: ev.id,
+        kind: "error",
+        icon: "alert",
+        title: "Trennung",
+        body: `Du und ${d.exName} habt euch getrennt. Die Dating-App ist wieder verfügbar.`,
+        duration: 7000,
+        eventSeq: ev.seq,
+      };
+
     case "reward_available":
       return {
         id: ev.id,

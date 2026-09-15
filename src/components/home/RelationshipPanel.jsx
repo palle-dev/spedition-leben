@@ -6,12 +6,14 @@ import { EASE } from "@/lib/motion";
 import { Heart, Gem, Users, Baby, Cake, Sparkles, Loader2, Gift, Flower2 } from "lucide-react";
 
 const STATUS_LABELS = {
+  single: "Single",
   dating: "Partnerschaft",
   engaged: "Verlobt",
   married: "Verheiratet",
 };
 
 const STATUS_COLORS = {
+  single: "text-muted-foreground",
   dating: "text-muted-foreground",
   engaged: "text-amber-300",
   married: "text-coral",
@@ -85,37 +87,51 @@ export default function RelationshipPanel({ state, send, showToast }) {
       </div>
 
       {/* Partner */}
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-12 h-12 rounded-full bg-coral/15 border border-coral/20 grid place-items-center shrink-0">
-          <Heart className="w-5 h-5 text-coral" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium truncate">{p.partnerName}</div>
-          <div className="text-[11px] text-muted-foreground">
-            {status === "married" && p.marriageDate != null
-              ? "Verheiratet seit " + formatGameTime(p.marriageDate)
-              : status === "engaged" && p.engagementDate != null
-                ? "Verlobt seit " + formatGameTime(p.engagementDate)
-                : "In einer Partnerschaft"}
+      {status === "single" ? (
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 grid place-items-center shrink-0">
+            <Heart className="w-5 h-5 text-muted-foreground/40" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-muted-foreground">Kein Partner</div>
+            <div className="text-[11px] text-muted-foreground/70">Besuche die Dating-App, um jemanden kennenzulernen.</div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-full bg-coral/15 border border-coral/20 grid place-items-center shrink-0">
+            <Heart className="w-5 h-5 text-coral" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium truncate">{p.partnerName}</div>
+            <div className="text-[11px] text-muted-foreground">
+              {status === "married" && p.marriageDate != null
+                ? "Verheiratet seit " + formatGameTime(p.marriageDate)
+                : status === "engaged" && p.engagementDate != null
+                  ? "Verlobt seit " + formatGameTime(p.engagementDate)
+                  : "In einer Partnerschaft"}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Beziehungs-Bar */}
-      <div className="mb-4">
-        <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
-          <span>Beziehungsqualität</span>
-          <span className="tabular-nums">{Math.round(relationship)}/100</span>
+      {status !== "single" && (
+        <div className="mb-4">
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
+            <span>Beziehungsqualität</span>
+            <span className="tabular-nums">{Math.round(relationship)}/100</span>
+          </div>
+          <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+            <motion.div
+              className={`h-full rounded-full ${relColor}`}
+              initial={{ width: 0 }}
+              animate={{ width: `${relationship}%` }}
+              transition={{ duration: 0.6, ease: EASE }}
+            />
+          </div>
         </div>
-        <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-          <motion.div
-            className={`h-full rounded-full ${relColor}`}
-            initial={{ width: 0 }}
-            animate={{ width: `${relationship}%` }}
-            transition={{ duration: 0.6, ease: EASE }}
-          />
-        </div>
-      </div>
+      )}
 
       {/* Schwangerschaft */}
       {pregnancy && (
@@ -220,6 +236,11 @@ export default function RelationshipPanel({ state, send, showToast }) {
       {/* Meilenstein-Tab */}
       {tab === "milestones" && (
         <div className="space-y-2">
+          {status === "single" && (
+            <div className="rounded-lg bg-white/[0.03] border border-white/10 px-3 py-3 text-center">
+              <p className="text-xs text-muted-foreground">Du bist single. Nutze die Dating-App, um jemanden kennenzulernen und eine neue Beziehung aufzubauen.</p>
+            </div>
+          )}
           {status === "dating" && (
             <>
               <button

@@ -151,6 +151,10 @@ import {
   planChild, processPregnancy, getPregnancyEventTimes, processDailyRelationship,
   getGiftOptions, giveGift,
 } from "./relationshipEngine.ts";
+import {
+  migrateDating, getDatingStatus, likeProfile, passProfile, goOnDate,
+  becomePartners, breakUp, getDateEventTimes, processDates, handleDatingCommand,
+} from "./datingEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -436,8 +440,7 @@ function earliestEventAfter(state, t, maxMin) {
   }
   // Fahrer-Reisen (Filialverschiebung)
   for (const tm of getDriverTravelEventTimes(state, t, maxMin)) cand(tm);
-  // Schwangerschaft (Beziehungs-Engine)
-  for (const tm of getPregnancyEventTimes(state, t, maxMin)) cand(tm);
+  for (const tm of [...getPregnancyEventTimes(state, t, maxMin), ...getDateEventTimes(state, t, maxMin)]) cand(tm);
   return best;
 }
 function completeTrip(state, trip, m, log) {
@@ -666,7 +669,7 @@ function processEventsAt(state, m, log) {
   // 3e.4 Fahrer-Reisen abschließen (Filialverschiebung)
   processDriverTravels(state, m, log);
   // 3e.5 Schwangerschaft / Geburt (Beziehungs-Engine)
-  processPregnancy(state, m, log);
+  processPregnancy(state, m, log); processDates(state, m, log);
   // 3e.3 Tatsächlicher Austritt bei Fristende (Auftrag 18)
   processEmployeeExit(state, m, log);
   // 4. Tagesabrechnung (Mitternacht)
@@ -806,6 +809,7 @@ export function applyCommand(state, command, params) {
   migrateInvestment(state);
   migrateBranches(state);
   migrateRelationship(state);
+  migrateDating(state);
   if (state.bookings && state.bookings.length > 200) state.bookings = state.bookings.slice(-200);
   // Historie begrenzen: abgeschlossene Touren, Aufträge und Termine älter als 30 Tage
   // entfernen. Hält den Zustand kompakt und beschleunigt Laden/Speichern bei langen Spielen.
@@ -2473,6 +2477,8 @@ export function applyCommand(state, command, params) {
       if (dgResult !== null) { result = dgResult; break; }
       const invResult = handleInvestmentCommand(state, command, p);
       if (invResult !== null) { result = invResult; break; }
+      const datingResult = handleDatingCommand(state, command, p);
+      if (datingResult !== null) { result = datingResult; break; }
       throw new Error("Unbekannter Befehl: " + command);
     }
   }

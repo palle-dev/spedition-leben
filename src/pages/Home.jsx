@@ -4,13 +4,14 @@ import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime, dayOf } from "@/lib/gameData";
 import { motion } from "framer-motion";
 import { heroStagger, heroItem, EASE } from "@/lib/motion";
-import { Heart, Clock, Check, X, Footprints, Zap, Smile, MapPin, ArrowRight, Gift, ShoppingBag, Home as HomeIcon, Target, Activity } from "lucide-react";
+import { Heart, Clock, Check, X, Footprints, Zap, Smile, MapPin, ArrowRight, Gift, ShoppingBag, Home as HomeIcon, Target, Activity, Smartphone } from "lucide-react";
 import RewardsSection from "@/components/home/RewardsSection";
 import PurchaseCatalog from "@/components/home/PurchaseCatalog";
 import PossessionsSection from "@/components/home/PossessionsSection";
 import ActivityPanel from "@/components/home/ActivityPanel";
 import GoalsPanel from "@/components/home/GoalsPanel";
 import RelationshipPanel from "@/components/home/RelationshipPanel";
+import DatingPanel from "@/components/home/DatingPanel";
 import PageHint from "@/components/help/PageHint";
 
 export default function Home() {
@@ -207,6 +208,7 @@ export default function Home() {
             { id: "rewards", label: "Belohnungen", icon: Gift },
             { id: "purchases", label: "Anschaffungen", icon: ShoppingBag },
             { id: "possessions", label: "Besitz", icon: HomeIcon },
+            { id: "dating", label: "Dating-App", icon: Smartphone },
             { id: "goals", label: "Lebensziele", icon: Target },
           ].map(t => {
             const Icon = t.icon;
@@ -235,6 +237,7 @@ export default function Home() {
         {privateTab === "rewards" && <RewardsSection state={state} send={send} showToast={showToast} />}
         {privateTab === "purchases" && <PurchaseCatalog state={state} send={send} showToast={showToast} />}
         {privateTab === "possessions" && <PossessionsSection state={state} send={send} showToast={showToast} />}
+        {privateTab === "dating" && <DatingPanel state={state} send={send} showToast={showToast} />}
         {privateTab === "goals" && <GoalsPanel state={state} send={send} showToast={showToast} />}
       </div>
     </div>
