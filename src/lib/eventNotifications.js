@@ -4,6 +4,18 @@
 
 import { formatGameTime, formatEuro } from "@/lib/gameData";
 
+// Ereignistypen, die zusätzlich eine E-Mail erzeugen. Diese erscheinen
+// NICHT im Benachrichtigungscenter (Glocke), da sie im Postfach sichtbar
+// sind — sonst wären Glocke und Postfach inhaltlich identisch.
+// Toasts (kurzzeitige Popups) werden weiterhin angezeigt.
+export const EMAILED_EVENT_TYPES = new Set([
+  "order_accepted_by_dispatcher",
+  "tour_planned_by_dispatcher",
+  "delivery_completed",
+  "order_accepted_by_assistant",
+  "order_auto_dispatched",
+]);
+
 function vehicleLabel(id) {
   if (!id) return "—";
   const n = parseInt(String(id).replace(/[^0-9]/g, ""), 10);
@@ -157,6 +169,7 @@ export function eventToToast(ev) {
 // Wandelt ein Ereignis in eine Benachrichtigungs-Zeile für das Zentrum um.
 export function eventToNotification(ev) {
   if (!ev) return null;
+  if (EMAILED_EVENT_TYPES.has(ev.type)) return null;
   const toast = eventToToast(ev);
   if (!toast) return null;
   return {

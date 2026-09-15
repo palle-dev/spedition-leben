@@ -1,11 +1,11 @@
 // Client-seitige Event-Log-Hilfsfunktionen – Auftrag 23.
 // Spiegelt die serverseitigen Lese-Funktionen für den Browser.
 
-import { eventToNotification } from "@/lib/eventNotifications";
+import { eventToNotification, EMAILED_EVENT_TYPES } from "@/lib/eventNotifications";
 
 export function getUnseenEventCount(state) {
   if (!state?.events) return 0;
-  return state.events.filter(e => !e.seen && !e.isSystem).length;
+  return state.events.filter(e => !e.seen && !e.isSystem && !EMAILED_EVENT_TYPES.has(e.type)).length;
 }
 
 export function getRecentEvents(state, limit = 50, typeFilter = null) {
