@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
-import { formatGameTime, dayOf, clockOf } from "@/lib/gameData";
+import { dayOf, clockOf } from "@/lib/gameData";
 import { getNextEvent } from "@/lib/displayHelpers";
-import { Building2, Package, Map, Truck, Users, Wallet, Home as HomeIcon, BookOpen, Play, Clock, SkipForward, MoreHorizontal, Trophy, Mail as MailIcon, LineChart, Network, Calendar } from "lucide-react";
+import { Building2, Package, Map, Truck, Users, Wallet, Home as HomeIcon, BookOpen, Clock, SkipForward, MoreHorizontal, Trophy, Mail as MailIcon, LineChart, Network, Calendar, Loader2 } from "lucide-react";
 import AdvanceProgressModal from "@/components/game/AdvanceProgressModal";
 
 const PRIMARY_NAV = [
@@ -26,14 +26,14 @@ const ALL_NAV = [...PRIMARY_NAV, ...SECONDARY_NAV];
 
 // Untere Navigationsleiste und Zeitsteuerung – dauerhaft sichtbar.
 export default function ShellDock() {
-  const { state, displayGameTime, send, showToast, busy } = useGame();
+  const { state, displayGameTime, send, showToast, busy, backgroundAdvance, startBackgroundAdvance, dismissBackgroundAdvanceResult } = useGame();
   const location = useLocation();
   const [advancing, setAdvancing] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
-  const [progressModal, setProgressModal] = useState(null);
   const moreRef = useRef(null);
 
   const nextEvent = getNextEvent(state);
+  const bgActive = !!backgroundAdvance?.active;
 
   useEffect(() => {
     if (!moreOpen) return;
@@ -44,42 +44,19 @@ export default function ShellDock() {
     return () => document.removeEventListener("mousedown", handler);
   }, [moreOpen]);
 
-  async function advance(minutes) {
+  // 1-Stunden-Vorlauf: schnell, blockiert kurz (kein Modal).
+  async function advanceHour() {
     setAdvancing(true);
-    const showModal = minutes >= 1440;
-    if (showModal) {
-      setProgressModal({ current: 0, total: minutes, stats: null, eventCount: 0, done: false, status: "Verarbeite…" });
-    }
     try {
-      const res = await send("advanceTime", { minutes }, (progress) => {
-        if (!showModal) return;
-        setProgressModal(prev => prev ? ({
-          ...prev,
-          current: progress.current,
-          eventCount: progress.eventCount,
-          stats: progress.stats || prev.stats,
-          status: `${progress.eventCount} Vorgänge verarbeitet…`,
-        }) : prev);
-      });
-      const events = res?.events || [];
-      if (showModal) {
-        setProgressModal(prev => prev ? ({
-          ...prev,
-          current: minutes,
-          stats: res?.stats || null,
-          done: true,
-          status: "Abgeschlossen",
-        }) : prev);
-      }
-      summarizeEvents(events);
-    } catch (e) {
-      showToast(e.message, "error");
-      if (showModal) {
-        setProgressModal(prev => prev ? { ...prev, done: true, error: true, status: "Fehler: " + e.message } : prev);
-      }
-    } finally {
-      setAdvancing(false);
-    }
+      const res = await send("advanceTime", { minutes: 60 });
+      summarizeEvents(res?.events);
+    } catch (e) { showToast(e.message, "error"); }
+    finally { setAdvancing(false); }
+  }
+
+  // Tagesvorlauf: läuft im Hintergrund, UI bleibt nutzbar.
+  function advanceDay() {
+    startBackgroundAdvance(1440);
   }
 
   async function nextEventAction() {
@@ -110,7 +87,18 @@ export default function ShellDock() {
     showToast(parts.join(" · "), deliveries.length ? "success" : "info");
   }
 
-  const disabled = busy || advancing;
+  const disabled = busy || advancing || bgActive;
+
+  // Summary-Modal aus dem Hintergrund-Vorlauf-Ergebnis konstruieren
+  const summaryModal = backgroundAdvance?.result ? {
+    current: 1440,
+    total: 1440,
+    stats: backgroundAdvance.result.stats || null,
+    eventCount: backgroundAdvance.result.events?.length || 0,
+    done: true,
+    error: !!backgroundAdvance.error,
+    status: backgroundAdvance.error ? "Fehler: " + backgroundAdvance.error : "Abgeschlossen",
+  } : null;
 
   return (
     <footer className="relative z-20 border-t border-white/10 backdrop-blur-md bg-ink/70 shrink-0">
@@ -173,14 +161,21 @@ export default function ShellDock() {
             <div className="text-[9px] text-muted-foreground">T{dayOf(displayGameTime || state.gameTime)}</div>
             <div className="text-xs font-medium tabular-nums">{clockOf(displayGameTime || state.gameTime)}</div>
           </div>
-          {nextEvent && (
+          {nextEvent && !bgActive && (
             <div className="hidden lg:block text-right leading-tight mr-1">
               <div className="text-[9px] text-muted-foreground uppercase tracking-wider">Nächstes</div>
               <div className="text-xs text-lime/80 tabular-nums">{nextEvent.label} · {clockOf(nextEvent.min)}</div>
             </div>
           )}
+          {/* Kleiner Hintergrund-Indikator während des Tagesvorlaufs */}
+          {bgActive && (
+            <div className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs bg-lime/10 text-lime border border-lime/20 shrink-0 animate-pulse-ring">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span className="hidden sm:inline">Tag wird simuliert…</span>
+            </div>
+          )}
           <button
-            onClick={() => advance(60)}
+            onClick={advanceHour}
             disabled={disabled}
             className="flex items-center gap-1.5 rounded-lg px-2.5 lg:px-3 py-2 text-xs border border-white/10 bg-white/5 text-muted-foreground hover:text-foreground disabled:opacity-40 transition min-h-[44px]"
             title="1 Stunde weiter"
@@ -189,13 +184,14 @@ export default function ShellDock() {
             <Clock className="w-4 h-4" /> <span className="hidden lg:inline">1 Std</span>
           </button>
           <button
-            onClick={() => advance(1440)}
+            onClick={advanceDay}
             disabled={disabled}
             className="flex items-center gap-1.5 rounded-lg px-2.5 lg:px-3 py-2 text-xs border border-white/10 bg-white/5 text-muted-foreground hover:text-foreground disabled:opacity-40 transition min-h-[44px]"
             title="1 Tag weiter"
             aria-label="1 Tag weiter"
           >
-            <Calendar className="w-4 h-4" /> <span className="hidden lg:inline">1 Tag</span>
+            {bgActive ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calendar className="w-4 h-4" />}
+            <span className="hidden lg:inline">1 Tag</span>
           </button>
           <button
             onClick={nextEventAction}
@@ -209,7 +205,7 @@ export default function ShellDock() {
           </button>
         </div>
       </div>
-      {progressModal && <AdvanceProgressModal progress={progressModal} onClose={() => setProgressModal(null)} state={state} />}
+      {summaryModal && <AdvanceProgressModal progress={summaryModal} onClose={dismissBackgroundAdvanceResult} state={state} />}
     </footer>
   );
 }

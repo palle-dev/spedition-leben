@@ -90,6 +90,8 @@ export function GameProvider({ children }) {
   const autosaveIndexRef = useRef(0);
   const dirtyAutosaveRef = useRef(false);
   const [autosaveMetas, setAutosaveMetas] = useState([null, null, null]);
+  const [backgroundAdvance, setBackgroundAdvance] = useState(null);
+  const backgroundAdvanceRef = useRef(false);
 
   useEffect(() => {
     document.body.classList.toggle("no-motion", !motionEnabled);
@@ -186,7 +188,7 @@ export function GameProvider({ children }) {
 
   // ---- Befehl lokal ausführen (kein Netzwerk) ----
   const send = useCallback(async (command, params, onProgress) => {
-    while (syncInFlightRef.current) {
+    while (syncInFlightRef.current || backgroundAdvanceRef.current) {
       await new Promise(resolve => setTimeout(resolve, 50));
     }
     if (!stateRef.current) throw new Error("Kein Spielstand geladen");
@@ -207,9 +209,36 @@ export function GameProvider({ children }) {
     } finally { setBusy(false); sendInFlightRef.current = false; }
   }, [markDirty, processNewEvents, processResult, showToast]);
 
+  // ---- Tagesvorlauf im Hintergrund (nicht-blockierend) ----
+  // Der Tagesvorlauf läuft im Worker, während der Spieler weiter navigieren
+  // und Menüs nutzen kann. send() wird blockiert, bis der Vorlauf fertig ist.
+  const startBackgroundAdvance = useCallback(async (minutes) => {
+    if (!stateRef.current || backgroundAdvanceRef.current || sendInFlightRef.current) return;
+    backgroundAdvanceRef.current = true;
+    setBackgroundAdvance({ active: true, progress: null, result: null });
+    try {
+      const data = await executeInWorker(stateRef.current, "advanceTime", { minutes }, (progress) => {
+        setBackgroundAdvance(prev => prev ? { ...prev, progress } : prev);
+      });
+      if (!data) throw new Error("Simulations-Worker hat keine Antwort gesendet.");
+      if (data.error) throw new Error(data.error);
+      const newState = data.state; const result = data.result;
+      stateRef.current = newState; setState(newState);
+      markDirty();
+      processNewEvents(newState);
+      await processResult(newState, result, "advanceTime");
+      setBackgroundAdvance({ active: false, progress: null, result });
+    } catch (e) {
+      showToast(e.message, "error");
+      setBackgroundAdvance({ active: false, progress: null, result: null, error: e.message });
+    } finally {
+      backgroundAdvanceRef.current = false;
+    }
+  }, [markDirty, processNewEvents, processResult, showToast]);
+
   // ---- Zeitautomatik (lokal) ----
   const syncAutomation = useCallback(async () => {
-    if (!stateRef.current || syncInFlightRef.current || sendInFlightRef.current) return;
+    if (!stateRef.current || syncInFlightRef.current || sendInFlightRef.current || backgroundAdvanceRef.current) return;
     syncInFlightRef.current = true;
     try {
       const data = await executeInWorker(stateRef.current, "syncAutomation", {});
@@ -451,18 +480,24 @@ export function GameProvider({ children }) {
     } catch (e) { return { ok: false, error: e.message }; }
   }, [saveNow]);
 
+  const dismissBackgroundAdvanceResult = useCallback(() => {
+    setBackgroundAdvance(null);
+  }, []);
+
   // Actions sind stabil (alle Callbacks haben stabile Deps) — eigener Context,
   // damit Komponenten, die nur Aktionen brauchen, nicht bei jeder Zustandsänderung
   // neu rendern.
   const actions = useMemo(() => ({
     send, newGame, reload,
     enableAutomation, pauseAutomation,
+    startBackgroundAdvance, dismissBackgroundAdvanceResult,
     markAllEventsSeen,
     showToast, dismissToast, dismissOverlay, dismissStart, toggleMotion,
     exportGame, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
   }), [
     send, newGame, reload,
     enableAutomation, pauseAutomation,
+    startBackgroundAdvance, dismissBackgroundAdvanceResult,
     markAllEventsSeen,
     showToast, dismissToast, dismissOverlay, dismissStart, toggleMotion,
     exportGame, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
@@ -478,6 +513,7 @@ export function GameProvider({ children }) {
     showStart,
     connectionState: "connected",
     hasLock, autosaveMetas,
+    backgroundAdvance,
   };
   return (
     <GameActionsContext.Provider value={actions}>
