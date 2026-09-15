@@ -6,7 +6,7 @@ import { getMarketStats } from "@/lib/marketData";
 import StatusBadge from "@/components/ui/StatusBadge";
 import OfferCard from "@/components/orders/OfferCard";
 import PageHint from "@/components/help/PageHint";
-import { Check, X, MapPin, ArrowRight, Clock, Route as RouteIcon, Truck, TrendingUp, Calendar, Package } from "lucide-react";
+import { Check, X, MapPin, ArrowRight, Clock, Route as RouteIcon, Truck, TrendingUp, Calendar, Package, Layers, Loader2 } from "lucide-react";
 
 // Ermittelt die zuständige Filiale für einen Abholort (nächste aktive Filiale).
 function nearestBranchFor(state, fromCity) {
@@ -33,8 +33,24 @@ export default function Orders() {
   const [filterDg, setFilterDg] = useState("");
   const [filterBranch, setFilterBranch] = useState("");
   const [sortBy, setSortBy] = useState("deadline");
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const marketStats = getMarketStats(state);
+
+  function toggleSelect(id) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+  function selectAll() {
+    setSelectedIds(new Set(offered.map(o => o.id)));
+  }
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
 
   async function accept(o) {
     setBusyId(o.id);
@@ -91,6 +107,51 @@ export default function Orders() {
 
   const active = state.orders.filter(o => ["angenommen", "unterwegs"].includes(o.status));
   const done = state.orders.filter(o => ["geliefert", "storniert", "expired", "failed"].includes(o.status)).slice(-12);
+
+  // Verwaiste Auswahlen entfernen (Aufträge nicht mehr offered)
+  React.useEffect(() => {
+    setSelectedIds(prev => {
+      const offeredIds = new Set(state.orders.filter(o => o.status === "offered").map(o => o.id));
+      let changed = false;
+      for (const id of prev) {
+        if (!offeredIds.has(id)) { changed = true; break; }
+      }
+      if (!changed) return prev;
+      const next = new Set();
+      for (const id of prev) { if (offeredIds.has(id)) next.add(id); }
+      return next;
+    });
+  }, [state.orders]);
+
+  async function bulkAcceptAndDispatch() {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    let acceptedCount = 0;
+    let failedCount = 0;
+    // 1. Ausgewählte Angebote annehmen
+    for (const oid of ids) {
+      const o = state.orders.find(x => x.id === oid);
+      if (!o || o.status !== "offered") continue;
+      try {
+        await send("acceptOrder", { orderId: oid });
+        acceptedCount++;
+      } catch (e) { failedCount++; }
+    }
+    // 2. Freie Flotte verplanen
+    let dispatchResult = null;
+    try {
+      dispatchResult = await send("dispatchAllNow", {});
+    } catch (e) { /* Flottenverplanung fehlgeschlagen – Aufträge bleiben angenommen */ }
+    setSelectedIds(new Set());
+    setBulkBusy(false);
+    const parts = [];
+    if (acceptedCount > 0) parts.push(`${acceptedCount} angenommen`);
+    if (dispatchResult?.planned > 0) parts.push(`${dispatchResult.planned} Touren geplant (${(dispatchResult.totalContributionCents / 100).toLocaleString("de-DE", { minimumFractionDigits: 0 })} € Beitrag)`);
+    if (dispatchResult?.planned === 0) parts.push("keine freien Fahrzeuge");
+    if (failedCount > 0) parts.push(`${failedCount} fehlgeschlagen`);
+    showToast(parts.join(" · "), dispatchResult?.planned > 0 ? "success" : "info");
+  }
 
   function resetFilter() {
     setSearch(""); setFilterCity(""); setFilterType(""); setFilterFeasible(""); setFilterDg(""); setFilterBranch(""); setSortBy("deadline");
@@ -171,6 +232,24 @@ export default function Orders() {
 
           <div className="text-xs text-muted-foreground">{offered.length} Treffer</div>
 
+          {/* Massen-Aktionsleiste */}
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-3 glass border border-lime/30 rounded-xl px-4 py-2.5">
+              <span className="text-sm font-medium text-lime">{selectedIds.size} ausgewählt</span>
+              <button onClick={selectAll} disabled={bulkBusy} className="text-xs text-muted-foreground hover:text-foreground transition px-2 py-1 rounded">Alle</button>
+              <button onClick={clearSelection} disabled={bulkBusy} className="text-xs text-muted-foreground hover:text-foreground transition px-2 py-1 rounded">Keine</button>
+              <div className="flex-1" />
+              <button
+                onClick={bulkAcceptAndDispatch}
+                disabled={bulkBusy}
+                className="flex items-center gap-2 rounded-lg px-4 py-2 bg-lime text-ink text-sm font-semibold hover:brightness-110 disabled:opacity-50 transition active:scale-95"
+              >
+                {bulkBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />}
+                {bulkBusy ? "Verarbeite…" : "Annehmen & verplanen"}
+              </button>
+            </div>
+          )}
+
           {offered.length === 0 ? (
             <div className="text-sm text-muted-foreground/50 py-8 text-center">
               {state.orders.some(o => o.status === "offered")
@@ -181,7 +260,7 @@ export default function Orders() {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
               {offered.map(o => {
                 const nb = nearestBranchFor(state, o.fromCity);
-                return <OfferCard key={o.id} offer={o} onAccept={accept} busy={busyId === o.id} branchName={nb?.name} branchCity={nb?.city} />;
+                return <OfferCard key={o.id} offer={o} onAccept={accept} busy={busyId === o.id} branchName={nb?.name} branchCity={nb?.city} selected={selectedIds.has(o.id)} onToggleSelect={toggleSelect} />;
               })}
             </div>
           )}

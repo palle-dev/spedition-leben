@@ -6,16 +6,27 @@ import { MapPin, ArrowRight, Clock, Package, Zap, CalendarClock, Check, Route as
 
 // Angebot-Karte für die Frachtbörse.
 // Zeigt Kundendaten, Route, Fracht, Preis, Fristen und Aktionen.
-export default function OfferCard({ offer, onAccept, busy, branchName, branchCity }) {
+export default function OfferCard({ offer, onAccept, busy, branchName, branchCity, selected, onToggleSelect }) {
   const navigate = useNavigate();
   const typeIcon = offer.offerType === "express" ? Zap : offer.offerType === "advance" ? CalendarClock : Package;
 
   return (
-    <div className="glass border border-white/10 rounded-xl p-4 hover:border-lime/30 transition flex flex-col gap-3">
+    <div className={`glass border rounded-xl p-4 transition flex flex-col gap-3 ${selected ? "border-lime/50 bg-lime/5" : "border-white/10 hover:border-lime/30"}`}>
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="font-medium text-foreground truncate">{offer.customer}</div>
-          <div className="text-xs text-muted-foreground mt-0.5">{offer.cargo} · {offer.tons} t</div>
+        <div className="flex items-center gap-2.5 min-w-0">
+          {onToggleSelect && (
+            <button
+              onClick={() => onToggleSelect(offer.id)}
+              className={`shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition ${selected ? "bg-lime border-lime text-ink" : "border-white/20 hover:border-lime/50"}`}
+              aria-label={selected ? "Abwählen" : "Auswählen"}
+            >
+              {selected && <Check className="w-3.5 h-3.5" />}
+            </button>
+          )}
+          <div className="min-w-0">
+            <div className="font-medium text-foreground truncate">{offer.customer}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">{offer.cargo} · {offer.tons} t</div>
+          </div>
         </div>
         <div className="text-right shrink-0">
           <div className="text-lg font-medium text-lime tabular-nums">{formatEuro(offer.paymentCents)}</div>
