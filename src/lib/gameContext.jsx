@@ -1,4 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { saveCurrent, loadCurrent, saveAutosave, loadAutosave, getAllAutosaveMetas, listManualSlots, saveManualSlot, loadManualSlot, deleteManualSlot, exportSave, importSave } from "@/lib/persistence";
+import { acquireLock, refreshLock, releaseLock, LOCK_REFRESH } from "@/lib/tabLock";
+import { eventToToast } from "@/lib/eventNotifications";
+import { getUnseenEventCount } from "@/lib/eventLogClient";
 // Simulations-Engine läuft in einem Web Worker – der Haupt-Thread
 // bleibt für UI und Rendering frei, auch bei großen Flotten.
 const simWorker = new Worker(new URL("./simulationWorker.js", import.meta.url), { type: "module" });
@@ -31,10 +35,6 @@ function executeInWorker(state, command, params, onProgress) {
     simWorker.postMessage({ id, state, command, params });
   });
 }
-import { saveCurrent, loadCurrent, saveAutosave, loadAutosave, getAllAutosaveMetas, listManualSlots, saveManualSlot, loadManualSlot, deleteManualSlot, exportSave, importSave } from "@/lib/persistence";
-import { acquireLock, refreshLock, releaseLock, LOCK_REFRESH } from "@/lib/tabLock";
-import { eventToToast } from "@/lib/eventNotifications";
-import { getUnseenEventCount } from "@/lib/eventLogClient";
 
 const GameContext = createContext(null);
 const GameActionsContext = createContext(null);
