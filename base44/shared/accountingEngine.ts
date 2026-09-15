@@ -91,6 +91,7 @@ export function dayOfMin(min) { return Math.floor(min / 1440) + 1; }
 export function initAccounting(state) {
   state.accounting = {
     journal: [],
+    dailySummary: {}, // Tag → {revenue, expenses, directCosts, personnel, operations, depreciation, finance}
     receipts: [],
     openItems: [],
     assets: [],
@@ -160,9 +161,34 @@ export function postJournal(state, data) {
     }
   }
   state.accounting.journal.push(entry);
-  // Performance: Journal begrenzen – alte Einträge werden nicht mehr benötigt.
-  if (state.accounting.journal.length > 500) {
-    state.accounting.journal = state.accounting.journal.slice(-500);
+
+  // Tageszusammenfassung aktualisieren (für Zeitverlauf-Charts).
+  // Wird nie abgeschnitten — kompakt (ein Eintrag pro Tag).
+  const day = Math.floor(gt / 1440) + 1;
+  const ds = state.accounting.dailySummary || (state.accounting.dailySummary = {});
+  const d = ds[day] || (ds[day] = { revenue: 0, expenses: 0, directCosts: 0, personnel: 0, operations: 0, depreciation: 0, finance: 0 });
+  for (const l of entry.lines) {
+    const acc = ACCOUNTS[l.account];
+    if (!acc) continue;
+    if (acc.type === "revenue") {
+      d.revenue += acc.contra ? (l.debitCents - l.creditCents) : (l.creditCents - l.debitCents);
+    } else if (acc.type === "expense") {
+      const amt = l.debitCents - l.creditCents;
+      d.expenses += amt;
+      if (acc.group === "direct_costs") d.directCosts += amt;
+      else if (acc.group === "personnel") d.personnel += amt;
+      else if (acc.group === "operations") d.operations += amt;
+      else if (acc.group === "depreciation") d.depreciation += amt;
+      else if (acc.group === "finance") d.finance += amt;
+    }
+  }
+
+  // Performance: Journal auf 14 Tage begrenzen – die Tageszusammenfassung
+  // behält die historischen Daten für Charts. Das Journal selbst wird nur
+  // für die detaillierte Journal-Ansicht benötigt (letzte 14 Tage).
+  const journalCutoff = gt - 14 * 1440;
+  if (state.accounting.journal.length > 1500 || state.accounting.journal[0].gameTime < journalCutoff) {
+    state.accounting.journal = state.accounting.journal.filter(e => e.gameTime >= journalCutoff);
   }
   return entry;
 }
@@ -840,6 +866,7 @@ export function migrateAccounting(state) {
   // Sicherstellen, dass alle Felder existieren
   const a = state.accounting;
   if (!a.journal) a.journal = [];
+  if (!a.dailySummary) a.dailySummary = {};
   if (!a.receipts) a.receipts = [];
   if (!a.openItems) a.openItems = [];
   if (!a.assets) a.assets = [];
@@ -889,8 +916,39 @@ export function migrateAccounting(state) {
     a.migrationDone = true;
   }
 
-  // Performance: Journal und Belege begrenzen beim Laden alter Spielstände.
-  if (a.journal.length > 500) a.journal = a.journal.slice(-500);
+  // Tageszusammenfassung aus vorhandenem Journal befüllen (Backfill).
+  // Alte Spielstände haben dailySummary noch nicht — wir rekonstruieren es
+  // aus den vorhandenen Journal-Einträgen, bevor das Journal abgeschnitten
+  // wird. So bleiben die historischen Chart-Daten erhalten.
+  if (a.journal.length > 0) {
+    for (const e of a.journal) {
+      if (!e || !e.lines) continue;
+      const day = Math.floor(e.gameTime / 1440) + 1;
+      const d = a.dailySummary[day] || (a.dailySummary[day] = { revenue: 0, expenses: 0, directCosts: 0, personnel: 0, operations: 0, depreciation: 0, finance: 0 });
+      for (const l of e.lines) {
+        const acc = ACCOUNTS[l.account];
+        if (!acc) continue;
+        if (acc.type === "revenue") {
+          d.revenue += acc.contra ? (l.debitCents - l.creditCents) : (l.creditCents - l.debitCents);
+        } else if (acc.type === "expense") {
+          const amt = l.debitCents - l.creditCents;
+          d.expenses += amt;
+          if (acc.group === "direct_costs") d.directCosts += amt;
+          else if (acc.group === "personnel") d.personnel += amt;
+          else if (acc.group === "operations") d.operations += amt;
+          else if (acc.group === "depreciation") d.depreciation += amt;
+          else if (acc.group === "finance") d.finance += amt;
+        }
+      }
+    }
+  }
+
+  // Performance: Journal auf 14 Tage begrenzen – die Tageszusammenfassung
+  // behält die historischen Daten. Belege auf 200 begrenzen.
+  const journalCutoff = (state.gameTime || 0) - 14 * 1440;
+  if (a.journal.length > 1500 || (a.journal[0] && a.journal[0].gameTime < journalCutoff)) {
+    a.journal = a.journal.filter(e => e.gameTime >= journalCutoff);
+  }
   if (a.receipts.length > 200) a.receipts = a.receipts.slice(-200);
 
   return state;
