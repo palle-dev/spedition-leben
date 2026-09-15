@@ -665,7 +665,7 @@ function advanceTo(state, targetMin, log, reportStart) {
   state.gameTime = stopped ? t : targetMin;
   if (stopped) log.push({ type: "advance_stopped", atMin: t, targetMin, reason: eventCount >= MAX_EVENTS ? "max_events" : "cpu_budget" });
   if (reportStart !== undefined) {
-    reportProgress(state.gameTime - reportStart, targetMin - reportStart, eventCount);
+    reportProgress(state.gameTime - reportStart, targetMin - reportStart, eventCount, log.slice(-8));
   }
 }
 

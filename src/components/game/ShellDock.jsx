@@ -53,6 +53,7 @@ export default function ShellDock() {
           ...prev,
           current: progress.current,
           eventCount: progress.eventCount,
+          events: progress.recentEvents || prev.events,
           status: `${progress.eventCount} Vorgänge verarbeitet…`,
         }) : prev);
       });
