@@ -111,10 +111,21 @@ export function getPnL(state, fromMin, toMin) {
 export function getBalanceSheet(state, atMin) {
   if (!state?.accounting?.journal) return { assets: [], liabilities: [], equity: [], total: {} };
   const cap = atMin === undefined ? Infinity : atMin;
+  // Single-Pass: Journal einmal durchlaufen und Salden pro Konto sammeln,
+  // statt getAccountBalance (O(journal)) pro Konto aufzurufen (O(accounts × journal)).
+  const balMap = {};
+  for (const e of state.accounting.journal) {
+    if (e.gameTime > cap) continue;
+    for (const l of e.lines) {
+      const delta = l.debitCents - l.creditCents;
+      if (delta === 0) continue;
+      balMap[l.account] = (balMap[l.account] || 0) + delta;
+    }
+  }
   const assets = [], liabilities = [], equity = [];
   let totalAssets = 0, totalLiab = 0, totalEquity = 0;
   for (const acc of ACCOUNT_LIST) {
-    const bal = getAccountBalance(state, acc.no, cap);
+    const bal = balMap[acc.no] || 0;
     if (bal === 0) continue;
     if (acc.type === "asset") { assets.push({ account: acc.no, name: acc.name, amountCents: bal }); totalAssets += bal; }
     else if (acc.type === "liability") { liabilities.push({ account: acc.no, name: acc.name, amountCents: -bal }); totalLiab += -bal; }
@@ -170,6 +181,15 @@ export function getLiquidityProjection(state, days) {
 export function getBranchFinancials(state, fromMin, toMin) {
   const days = Math.max(1, Math.ceil((toMin - fromMin) / 1440));
   const branches = (state.branches || []).filter(b => b.status === "active");
+
+  // Pre-build Maps für O(1) Lookups (statt O(orders × trips × vehicles))
+  const tripByOrderId = new Map();
+  for (const t of (state.trips || [])) {
+    if (t.orderId && t.type === "loaded" && !tripByOrderId.has(t.orderId)) tripByOrderId.set(t.orderId, t);
+  }
+  const vehicleById = new Map();
+  for (const v of (state.vehicles || [])) vehicleById.set(v.id, v);
+
   return branches.map(b => {
     const branchVehicles = (state.vehicles || []).filter(v => v.branchId === b.id && v.status !== "sold" && v.status !== "archived");
     const branchDrivers = (state.drivers || []).filter(d => d.branchId === b.id && d.employmentStatus === "employed");
@@ -179,15 +199,15 @@ export function getBranchFinancials(state, fromMin, toMin) {
     for (const o of (state.orders || [])) {
       if (o.status !== "geliefert" || !o.paidCents) continue;
       if (o.deliveredAtMin < fromMin || o.deliveredAtMin > toMin) continue;
-      const trip = (state.trips || []).find(t => t.orderId === o.id && t.type === "loaded");
-      const vehicle = trip ? (state.vehicles || []).find(v => v.id === trip.vehicleId) : null;
+      const trip = tripByOrderId.get(o.id);
+      const vehicle = trip ? vehicleById.get(trip.vehicleId) : null;
       if (vehicle?.branchId === b.id) revenue += o.paidCents;
     }
 
     let directCosts = 0;
     for (const t of (state.trips || [])) {
       if (t.type !== "loaded" || t.endMin == null || t.endMin < fromMin || t.endMin > toMin) continue;
-      const vehicle = (state.vehicles || []).find(v => v.id === t.vehicleId);
+      const vehicle = vehicleById.get(t.vehicleId);
       if (vehicle?.branchId === b.id) directCosts += (t.fuelCents || 0) + (t.tollCents || 0);
     }
 

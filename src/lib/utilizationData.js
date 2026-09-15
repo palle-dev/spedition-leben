@@ -10,9 +10,10 @@ const DEFAULT_DAYS = 7;
 // ---------- Pro-Fahrzeug Auslastung ----------
 
 // Anteil der Tage (der letzten N Tage) an denen das Fahrzeug auf Tour war.
-export function getVehicleUtilization(state, vehicleId, days = DEFAULT_DAYS) {
+// Optional: tripsByVehicle Map für O(1) Lookup (von getAllVehicleUtilization pre-built).
+export function getVehicleUtilization(state, vehicleId, days = DEFAULT_DAYS, tripsByVehicle) {
   const today = Math.floor(state.gameTime / 1440);
-  const trips = (state.trips || []).filter(t => t.vehicleId === vehicleId);
+  const trips = tripsByVehicle ? (tripsByVehicle.get(vehicleId) || []) : (state.trips || []).filter(t => t.vehicleId === vehicleId);
   let activeDays = 0;
   for (let i = 0; i < days; i++) {
     const dayStart = (today - days + 1 + i) * 1440;
@@ -26,7 +27,8 @@ export function getVehicleUtilization(state, vehicleId, days = DEFAULT_DAYS) {
 }
 
 // Erlös und Lieferungen eines Fahrzeugs in den letzten N Tagen.
-export function getVehicleRevenue(state, vehicleId, days = DEFAULT_DAYS) {
+// Optional: tripByOrderId Map für O(1) Lookup (von getAllVehicleUtilization pre-built).
+export function getVehicleRevenue(state, vehicleId, days = DEFAULT_DAYS, tripByOrderId) {
   const today = Math.floor(state.gameTime / 1440);
   const cutoff = (today - days) * 1440;
   let revenue = 0;
@@ -34,17 +36,18 @@ export function getVehicleRevenue(state, vehicleId, days = DEFAULT_DAYS) {
   for (const o of (state.orders || [])) {
     if (o.status !== "geliefert" || o.deliveredAtMin == null) continue;
     if (o.deliveredAtMin < cutoff) continue;
-    const trip = (state.trips || []).find(t => t.orderId === o.id && t.vehicleId === vehicleId);
-    if (trip) { revenue += o.paidCents || 0; deliveries++; }
+    const trip = tripByOrderId ? tripByOrderId.get(o.id) : (state.trips || []).find(t => t.orderId === o.id);
+    if (trip && trip.vehicleId === vehicleId) { revenue += o.paidCents || 0; deliveries++; }
   }
   return { revenue, deliveries };
 }
 
 // Vollständiges Auslastungs-Detail pro Fahrzeug mit Ineffizienz-Flags.
-export function getVehicleUtilizationDetail(state, vehicle, days = DEFAULT_DAYS) {
+// Optional: tripsByVehicle und tripByOrderId Maps für O(1) Lookups.
+export function getVehicleUtilizationDetail(state, vehicle, days = DEFAULT_DAYS, maps) {
   const v = vehicle;
-  const util = getVehicleUtilization(state, v.id, days);
-  const { revenue, deliveries } = getVehicleRevenue(state, v.id, days);
+  const util = getVehicleUtilization(state, v.id, days, maps?.tripsByVehicle);
+  const { revenue, deliveries } = getVehicleRevenue(state, v.id, days, maps?.tripByOrderId);
   const trip = v.tripId ? (state.trips || []).find(t => t.id === v.tripId) : null;
   const isEmptyTrip = trip && trip.type === "empty";
   const isFree = v.status === "free";
@@ -98,7 +101,16 @@ export function getVehicleUtilizationDetail(state, vehicle, days = DEFAULT_DAYS)
 // Alle Fahrzeuge mit Auslastungs-Detail, ineffiziente zuerst.
 export function getAllVehicleUtilization(state, days = DEFAULT_DAYS) {
   const vehicles = (state.vehicles || []).filter(v => v.status !== "archived" && v.status !== "sold");
-  return vehicles.map(v => getVehicleUtilizationDetail(state, v, days))
+  // Pre-build Maps für O(1) Lookups (statt O(vehicles × trips) pro Funktion)
+  const tripsByVehicle = new Map();
+  const tripByOrderId = new Map();
+  for (const t of (state.trips || [])) {
+    if (!tripsByVehicle.has(t.vehicleId)) tripsByVehicle.set(t.vehicleId, []);
+    tripsByVehicle.get(t.vehicleId).push(t);
+    if (t.orderId && !tripByOrderId.has(t.orderId)) tripByOrderId.set(t.orderId, t);
+  }
+  const maps = { tripsByVehicle, tripByOrderId };
+  return vehicles.map(v => getVehicleUtilizationDetail(state, v, days, maps))
     .sort((a, b) => {
       const aBad = a.flags.filter(f => f.severity !== "info").length;
       const bBad = b.flags.filter(f => f.severity !== "info").length;
@@ -111,11 +123,20 @@ export function getAllVehicleUtilization(state, days = DEFAULT_DAYS) {
 
 export function getBranchUtilization(state, days = DEFAULT_DAYS) {
   const branches = (state.branches || []).filter(b => b.status === "active");
+  // Pre-build Maps für O(1) Lookups (wie getAllVehicleUtilization)
+  const tripsByVehicle = new Map();
+  const tripByOrderId = new Map();
+  for (const t of (state.trips || [])) {
+    if (!tripsByVehicle.has(t.vehicleId)) tripsByVehicle.set(t.vehicleId, []);
+    tripsByVehicle.get(t.vehicleId).push(t);
+    if (t.orderId && !tripByOrderId.has(t.orderId)) tripByOrderId.set(t.orderId, t);
+  }
+  const maps = { tripsByVehicle, tripByOrderId };
   return branches.map(branch => {
     const vehicles = (state.vehicles || []).filter(v =>
       v.branchId === branch.id && v.status !== "archived" && v.status !== "sold"
     );
-    const details = vehicles.map(v => getVehicleUtilizationDetail(state, v, days));
+    const details = vehicles.map(v => getVehicleUtilizationDetail(state, v, days, maps));
     const active = vehicles.filter(v => v.status === "on_trip").length;
     const free = vehicles.filter(v => v.status === "free").length;
     const maintenance = vehicles.filter(v => v.status === "maintenance").length;
@@ -168,10 +189,20 @@ export function getFleetUtilizationKPIs(state, days = DEFAULT_DAYS) {
     : 0;
   const totalRevenue = all.reduce((s, d) => s + d.revenue, 0);
 
+  // Pre-build Sets für O(1) Lookups (statt O(orders × trips × tours))
+  const activeTripOrderIds = new Set();
+  for (const t of (state.trips || [])) {
+    if (t.status === "in_progress" && t.orderId) activeTripOrderIds.add(t.orderId);
+  }
+  const activeTourOrderIds = new Set();
+  for (const t of (state.tours || [])) {
+    if (t.status !== "active") continue;
+    for (const dep of (t.deployments || [])) {
+      if (dep.orderId && dep.status !== "cancelled") activeTourOrderIds.add(dep.orderId);
+    }
+  }
   const unassigned = (state.orders || []).filter(o =>
-    o.status === "angenommen" &&
-    !(state.trips || []).some(t => t.orderId === o.id && t.status === "in_progress") &&
-    !(state.tours || []).some(t => t.status === "active" && (t.deployments || []).some(dep => dep.orderId === o.id))
+    o.status === "angenommen" && !activeTripOrderIds.has(o.id) && !activeTourOrderIds.has(o.id)
   );
 
   return {

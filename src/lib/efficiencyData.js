@@ -46,11 +46,14 @@ function getTripsInPeriod(state, days) {
 function getTripRevenue(state, trips, days) {
   const today = Math.floor(state.gameTime / 1440);
   const cutoff = (today - days) * 1440;
+  // Set der Order-IDs aus den Trips für O(1) Lookup (statt trips.some() pro Order)
+  const orderIds = new Set();
+  for (const t of trips) { if (t.orderId) orderIds.add(t.orderId); }
   let revenue = 0, deliveries = 0;
   for (const o of (state.orders || [])) {
     if (o.status !== "geliefert" || o.deliveredAtMin == null) continue;
     if (o.deliveredAtMin < cutoff) continue;
-    if (trips.some(t => t.orderId === o.id)) { revenue += o.paidCents || 0; deliveries++; }
+    if (orderIds.has(o.id)) { revenue += o.paidCents || 0; deliveries++; }
   }
   return { revenue, deliveries };
 }
@@ -80,8 +83,14 @@ function ratios(agg) {
 export function getVehicleEfficiency(state, days = DEFAULT_DAYS) {
   const trips = getTripsInPeriod(state, days);
   const vehicles = (state.vehicles || []).filter(v => v.status !== "sold" && v.status !== "archived");
+  // Pre-build vehicleId → trips Map (statt trips.filter pro Fahrzeug)
+  const tripsByVehicle = new Map();
+  for (const t of trips) {
+    if (!tripsByVehicle.has(t.vehicleId)) tripsByVehicle.set(t.vehicleId, []);
+    tripsByVehicle.get(t.vehicleId).push(t);
+  }
   return vehicles.map(v => {
-    const vTrips = trips.filter(t => t.vehicleId === v.id);
+    const vTrips = tripsByVehicle.get(v.id) || [];
     if (vTrips.length === 0) return null;
     const agg = aggregate(vTrips.map(analyzeTripPhases));
     const r = ratios(agg);
@@ -101,8 +110,14 @@ export function getVehicleEfficiency(state, days = DEFAULT_DAYS) {
 export function getDriverEfficiency(state, days = DEFAULT_DAYS) {
   const trips = getTripsInPeriod(state, days);
   const drivers = (state.drivers || []).filter(d => d.employmentStatus === "employed");
+  // Pre-build driverId → trips Map (statt trips.filter pro Fahrer)
+  const tripsByDriver = new Map();
+  for (const t of trips) {
+    if (!tripsByDriver.has(t.driverId)) tripsByDriver.set(t.driverId, []);
+    tripsByDriver.get(t.driverId).push(t);
+  }
   return drivers.map(d => {
-    const dTrips = trips.filter(t => t.driverId === d.id);
+    const dTrips = tripsByDriver.get(d.id) || [];
     if (dTrips.length === 0) return null;
     const agg = aggregate(dTrips.map(analyzeTripPhases));
     const r = ratios(agg);
