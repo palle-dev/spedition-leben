@@ -167,7 +167,10 @@ export function processDispatcher(state, emp, m, log) {
   ).length;
   const contextKey = unplannedCount + ":" + offeredCount + ":" + freeVehicleCount + ":" + freeDriverCount;
   if (emp._lastPlanContext === contextKey) {
-    if (emp._lastPlanPlanned === 0 && m - (emp.lastDecisionMin || 0) < 30) return;
+    // Wenn 0 Touren geplant wurden, nur 10 Min überspringen (früher 30).
+    // Die Lage erfordert häufigere Neuversuche — neue Aufträge erscheinen,
+    // Fahrer kehren aus Ruhe/Tour zurück. 30 Min ließen Lkw zu lange leer.
+    if (emp._lastPlanPlanned === 0 && m - (emp.lastDecisionMin || 0) < 10) return;
     if (emp._lastPlanPlanned > 0 && unplannedCount === 0 && m - (emp.lastDecisionMin || 0) < 60) return;
   }
   emp._lastPlanContext = contextKey;

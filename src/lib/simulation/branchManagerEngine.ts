@@ -171,6 +171,20 @@ function identifyGrowthNeed(state: any, branch: any): string | null {
       return "buy_vehicle";
     }
   }
+  // 4a. Disponent vorhanden aber nicht autonom — bei Leerstand auf autonom umstellen
+  const branchDispatchers = branchEmployees.filter(
+    (e: any) => e.role === "dispatcher" || e.role === "dispatcher_senior"
+  );
+  const idleVehicles = branchVehicles.filter((v: any) => v.status === "free").length;
+  const branchBacklog = (state.orders || []).filter(
+    (o: any) => o.status === "angenommen" && o.fromCity === branch.city
+  ).length;
+  if (branchDispatchers.length > 0 && idleVehicles > 0 && branchBacklog > 0) {
+    const hasNonAutonomous = branchDispatchers.some((d: any) => d.workMode !== "autonomous");
+    if (hasNonAutonomous) {
+      return "optimize_dispatch";
+    }
+  }
   // 4. Disponent fehlt bei ausreichend Fahrzeugen
   if (branchVehicles.length >= 2 && !roleCount.dispatcher && !roleCount.dispatcher_senior) {
     return "hire_employee:dispatcher";
@@ -191,6 +205,16 @@ function identifyGrowthNeed(state: any, branch: any): string | null {
 }
 
 function createGrowthDecision(state: any, id: string, manager: any, branch: any, need: string): any | null {
+  if (need === "optimize_dispatch") {
+    return {
+      id, branchId: branch.id, managerId: manager.id, type: "optimize_dispatch",
+      title: "Disponent auf autonom umstellen",
+      description: `${manager.name} empfiehlt für ${branch.name} (${branch.city}), den Disponent in den autonomen Modus zu versetzen, damit freie Lkw selbstständig verplant werden und die Auslastung steigt.`,
+      costCents: 0,
+      benefitDesc: "Höhere Flottenauslastung durch selbstständige Disposition",
+      createdAt: state.gameTime, status: "pending",
+    };
+  }
   if (need === "buy_vehicle") {
     return {
       id, branchId: branch.id, managerId: manager.id, type: "buy_vehicle",
@@ -362,6 +386,28 @@ const PERSONNEL_ROLE_LABELS: Record<string, string> = {
 // ---------- Entscheidung anwenden ----------
 
 function applyDecision(state: any, decision: any) {
+  if (decision.type === "optimize_dispatch") {
+    const branchDispatchers = (state.employees || []).filter(
+      (e: any) =>
+        (e.assignedBranchId === decision.branchId || e.branchId === decision.branchId) &&
+        (e.role === "dispatcher" || e.role === "dispatcher_senior") &&
+        isActivelyEmployed(e)
+    );
+    for (const d of branchDispatchers) {
+      d.workMode = "autonomous";
+      d.suggestions = [];
+    }
+    pushEvent(state, {
+      type: "branch_dispatch_optimized", gameTime: state.gameTime,
+      employeeId: decision.managerId, isSystem: false,
+      details: {
+        branchName: (state.branches || []).find((b: any) => b.id === decision.branchId)?.name || "",
+        dispatcherCount: branchDispatchers.length,
+      },
+      dedupKey: "branch_dispatch_opt:" + decision.id,
+    });
+    return;
+  }
   if (decision.type === "hire_driver") {
     const branch = state.branches.find((b: any) => b.id === decision.branchId);
     if (!branch) return;

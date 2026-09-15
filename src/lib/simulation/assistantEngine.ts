@@ -879,24 +879,12 @@ export function proactiveAutoDispatch(state, emp, m, log, force) {
   const config = state.assistantConfig || {};
   if (!force && config.autoDispatch === false) return;
 
-  // Performance: Überspringen, wenn autonome Disponenten im Dienst sind UND
-  // kürzlich erfolgreich Touren geplant haben. Wenn der Disponent jedoch 0
-  // Touren planen konnte (z.B. wegen Skip-Cache oder confirmTour-Fehlern),
-  // fungiert der Assistent als Sicherheitsnetz und versucht es ebenfalls.
-  const clock = m % 1440;
-  const autonomousDispatchers = (state.employees || []).filter(e =>
-    (e.role === "dispatcher" || e.role === "dispatcher_senior") &&
-    isActivelyEmployed(e) && e.attendance === "present" &&
-    e.workMode === "autonomous" &&
-    (e.shiftStart ?? SERVICE_START_MIN) <= (e.shiftEnd ?? SERVICE_END_MIN)
-      ? (clock >= (e.shiftStart ?? SERVICE_START_MIN) && clock < (e.shiftEnd ?? SERVICE_END_MIN))
-      : (clock >= (e.shiftStart ?? SERVICE_START_MIN) || clock < (e.shiftEnd ?? SERVICE_END_MIN))
-  );
-  const dispatcherRecentlySucceeded = autonomousDispatchers.some(e =>
-    (e._lastPlanPlanned || 0) > 0 && m - (e.lastDecisionMin || 0) < 60
-  );
-  if (dispatcherRecentlySucceeded) return;
-
+  // Der Assistent fungiert immer als Sicherheitsnetz — er versucht, alle
+  // ungesplanten Aufträge zu disponieren, unabhängig davon, ob Disponenten
+  // kürzlich Touren geplant haben. Das usedVehicleIds-Set und confirmTour's
+  // Fahrzeug-Status-Prüfung verhindern Doppelbuchungen. Wenn Disponenten
+  // nur teilweise planen (z.B. 2 von 31 Lkw), springt der Assistent für den
+  // Rest ein — das hebt die Flottenauslastung deutlich.
   const busyOrderIds = new Set();
   for (const tr of state.trips) { if (tr.status === "in_progress" && tr.orderId) busyOrderIds.add(tr.orderId); }
   for (const tr of (state.tours || [])) {
@@ -931,9 +919,9 @@ export function proactiveAutoDispatch(state, emp, m, log, force) {
   const usedVehicleIds = new Set();
   let dispatched = 0;
   // suggestTours wird nur einmal pro Aufruf ausgeführt — die Bestätigung einzelner
-  // Touren ist billig. Ein Limit von 3 hat bei großen Flotten zu Aufstau geführt,
-  // weil pro Stunde nur 3 Lkw verplant wurden. Höheres Limit für volle Auslastung.
-  const maxPerHour = 20;
+  // Touren ist billig. Das Limit ist hoch, damit bei großen Flotten alle freien
+  // Lkw pro Stunde verplant werden können. usedVehicleIds verhindert Doppelbuchung.
+  const maxPerHour = 60;
 
   for (const matching of (result.suggestions || [])) {
     if (dispatched >= maxPerHour) break;
