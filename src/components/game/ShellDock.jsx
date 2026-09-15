@@ -46,9 +46,13 @@ export default function ShellDock() {
 
   async function advance(minutes) {
     setAdvancing(true);
-    setProgressModal({ current: 0, total: minutes, events: [], eventCount: 0, done: false, status: "Verarbeite…" });
+    const showModal = minutes >= 1440;
+    if (showModal) {
+      setProgressModal({ current: 0, total: minutes, events: [], eventCount: 0, done: false, status: "Verarbeite…" });
+    }
     try {
       const res = await send("advanceTime", { minutes }, (progress) => {
+        if (!showModal) return;
         setProgressModal(prev => prev ? ({
           ...prev,
           current: progress.current,
@@ -58,17 +62,21 @@ export default function ShellDock() {
         }) : prev);
       });
       const events = res?.events || [];
-      setProgressModal(prev => prev ? ({
-        ...prev,
-        current: minutes,
-        events,
-        done: true,
-        status: "Abgeschlossen",
-      }) : prev);
+      if (showModal) {
+        setProgressModal(prev => prev ? ({
+          ...prev,
+          current: minutes,
+          events,
+          done: true,
+          status: "Abgeschlossen",
+        }) : prev);
+      }
       summarizeEvents(events);
     } catch (e) {
       showToast(e.message, "error");
-      setProgressModal(prev => prev ? { ...prev, done: true, error: true, status: "Fehler: " + e.message } : prev);
+      if (showModal) {
+        setProgressModal(prev => prev ? { ...prev, done: true, error: true, status: "Fehler: " + e.message } : prev);
+      }
     } finally {
       setAdvancing(false);
     }
