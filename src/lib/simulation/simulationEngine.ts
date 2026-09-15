@@ -553,7 +553,12 @@ function processEventsAt(state, m, log) {
     }
   }
   // 3b.2 Ereignisgesteuerte Dispositionsplanung (außerhalb des regulären Diensttakts)
-  triggerDispatcherPlanning(state, m, log);
+  // Nur alle 15 Min aufrufen, nicht bei jedem Event. suggestTours ist
+  // O(Fahrzeuge × Fahrer × Aufträge²) — bei jedem Event aufgerufen war das
+  // der Haupt-CPU-Killer beim Tagesvorlauf. Die reguläre Planung läuft
+  // ohnehin alle 60 Min (SERVICE_INTERVAL_MIN); 15 Min reichen für
+  // ereignisgesteuerte Reaktion (z.B. Fahrer wird frei nach Tour-Ende).
+  if (m % 15 === 0) triggerDispatcherPlanning(state, m, log);
   // 3c. Angestellte verarbeiten (Disponenten Schicht-basiert, Buchhaltung/Reinigung tagsüber)
   if (m % SERVICE_INTERVAL_MIN === 0) {
     processEmployees(state, m, log);
@@ -646,8 +651,13 @@ function processEventsAt(state, m, log) {
 function advanceTo(state, targetMin, log, reportStart) {
   let t = state.gameTime;
   const startTime = Date.now();
-  const CPU_BUDGET_MS = 8000;
-  const MAX_EVENTS = 2000;
+  // CPU-Budget und Event-Limit erhöht: Ein 24h-Vorlauf muss in einem Durchlauf
+  // abgeschlossen werden. Die äußere while-Schleife in advanceTime wurde entfernt,
+  // daher darf advanceTo nicht vorzeitig abbrechen — sonst bliebe der Vorlauf
+  // unvollständig. 45s reichen selbst für große Flotten; die UI bleibt dank
+  // Web-Worker responsiv.
+  const CPU_BUDGET_MS = 45000;
+  const MAX_EVENTS = 100000;
   let eventCount = 0;
   let lastReportMs = startTime;
   let stopped = false;
@@ -1488,13 +1498,10 @@ export function applyCommand(state, command, params) {
       const target = state.gameTime + minutes;
       const startMin = state.gameTime;
       const log = [];
-      let guard = 0;
-      while (state.gameTime < target && guard < 60) {
-        const before = state.gameTime;
-        advanceTo(state, target, log, startMin);
-        if (state.gameTime <= before) break;
-        guard++;
-      }
+      // Ein einzelner advanceTo-Aufruf mit ausreichend CPU-Budget (45s) schließt
+      // den Vorlauf in einem Durchlauf ab. Die frühere äußere while-Schleife
+      // (guard < 60) hat bei CPU-Budget-Abbrüchen bis zu 60×8s = 8 Min blockiert.
+      advanceTo(state, target, log, startMin);
       // Statistik direkt aus dem vollen Log (vor Trimming) ableiten.
       // delivery-Events tragen branchId und paymentCents direkt im Log,
       // tour_deployment_started-Events tragen branchId und atMin.
