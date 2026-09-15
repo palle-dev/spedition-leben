@@ -1,5 +1,5 @@
-import React from "react";
-import { Mail, AlertCircle, Star, Archive, Inbox, Send, FileEdit, Search, Trash2 } from "lucide-react";
+import React, { useState } from "react";
+import { Mail, AlertCircle, Star, Archive, Inbox, Send, FileEdit, Search, Trash2, Trash } from "lucide-react";
 import { useGame } from "@/lib/gameContext";
 import {
   searchConversations, getConversationPreview, getConversationOtherParticipant,
@@ -29,6 +29,8 @@ export default function MailConversationList({
   selectedConvId, onSelect, onCompose,
 }) {
   const { send } = useGame();
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const stats = getMailboxStats(state);
   const conversations = searchConversations(state, { folder, filter, query });
   const drafts = folder === "drafts" ? (state.mail?.drafts || []) : [];
@@ -43,6 +45,18 @@ export default function MailConversationList({
       if (convId === selectedConvId) onSelect(null);
     } catch (e) {}
   };
+
+  const handleClearAll = async () => {
+    setClearing(true);
+    try {
+      await send("clearAllConversations", {});
+      onSelect(null);
+      setConfirmClear(false);
+    } catch (e) {}
+    finally { setClearing(false); }
+  };
+
+  const hasAnyMail = (state.mail?.conversations?.length || 0) > 0 || (state.mail?.drafts?.length || 0) > 0;
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -90,6 +104,34 @@ export default function MailConversationList({
           <Mail className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Neue E-Mail</span>
         </button>
+        {hasAnyMail && !confirmClear && (
+          <button
+            onClick={() => setConfirmClear(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-white/5 border border-white/10 text-muted-foreground hover:text-coral hover:border-coral/30 px-2.5 py-1.5 text-xs font-medium transition shrink-0"
+            title="Alle E-Mails und Entwürfe löschen"
+          >
+            <Trash className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {confirmClear && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[11px] text-coral hidden sm:inline">Alle löschen?</span>
+            <button
+              onClick={handleClearAll}
+              disabled={clearing}
+              className="flex items-center gap-1 rounded-lg bg-coral/15 text-coral border border-coral/30 px-2.5 py-1.5 text-xs font-semibold hover:bg-coral/25 transition disabled:opacity-40"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Ja</span>
+            </button>
+            <button
+              onClick={() => setConfirmClear(false)}
+              className="rounded-lg bg-white/5 border border-white/10 text-muted-foreground hover:text-foreground px-2.5 py-1.5 text-xs font-medium transition"
+            >
+              Abbrechen
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Filter-Chips */}

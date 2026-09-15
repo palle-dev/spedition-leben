@@ -35,6 +35,7 @@ import {
   getMailboxStats, searchConversations, getConversationMessages,
   exportCorrespondence, createStaffTask, isEmployeeAvailable,
   deleteConversation,
+  clearAllConversations,
 } from "./mailEngine.ts";
 import { detectIntent, processStaffTasks, getQuickReplies, getIntentByType } from "./mailIntents.ts";
 import {
@@ -1821,6 +1822,12 @@ export function applyCommand(state, command, params) {
 
     case "deleteConversation": {
       deleteConversation(state, p.conversationId);
+      result = { ok: true };
+      break;
+    }
+
+    case "clearAllConversations": {
+      clearAllConversations(state);
       result = { ok: true };
       break;
     }

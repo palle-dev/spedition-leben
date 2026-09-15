@@ -361,6 +361,14 @@ export function deleteConversation(state, convId) {
   state.mail.staffTasks = (state.mail.staffTasks || []).filter(t => t.conversationId !== convId);
 }
 
+export function clearAllConversations(state) {
+  if (!state.mail) return;
+  state.mail.conversations = [];
+  state.mail.messages = [];
+  state.mail.staffTasks = [];
+  state.mail.drafts = [];
+}
+
 // ---------- Statistiken ----------
 
 export function getMailboxStats(state) {
