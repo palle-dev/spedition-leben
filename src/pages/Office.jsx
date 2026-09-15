@@ -8,6 +8,7 @@ import OfficeBottom from "@/components/office/OfficeBottom";
 import PageHint from "@/components/help/PageHint";
 import OfficeTrends from "@/components/office/OfficeTrends";
 import OfficeBranches from "@/components/office/OfficeBranches";
+import UtilizationControl from "@/components/office/UtilizationControl";
 
 // Büro – zentrale Führungsansicht für die gesamte Firma.
 // Kompakte Kopfzeile, Kennzahlen, Flottenlage, Entscheidungen,
@@ -35,6 +36,9 @@ export default function Office() {
           <DecisionsPanel state={state} />
         </div>
       </div>
+
+      {/* Auslastungs-Steuerung (flottenweit) */}
+      <UtilizationControl state={state} />
 
       {/* Filialübersicht (nur bei mehreren Standorten) */}
       <OfficeBranches state={state} />

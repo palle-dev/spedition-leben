@@ -1615,6 +1615,76 @@ export function applyCommand(state, command, params) {
       break;
     }
 
+    case "setGlobalDispatchMode": {
+      const mode = p.mode || "autonomous";
+      if (!["suggestions", "dispatch_accepted", "autonomous"].includes(mode)) {
+        throw new Error("Ungültiger Dispositions-Modus: " + mode);
+      }
+      let count = 0;
+      for (const emp of (state.employees || [])) {
+        if (emp.role !== "dispatcher" && emp.role !== "dispatcher_senior") continue;
+        if (emp.employmentStatus !== "employed") continue;
+        emp.workMode = mode;
+        emp.suggestions = [];
+        count++;
+      }
+      result = { ok: true, mode, dispatcherCount: count };
+      break;
+    }
+
+    case "dispatchAllNow": {
+      ensureNotBlocked(state);
+      const freeVehicles = (state.vehicles || []).filter(v =>
+        v.status === "free" && v.condition >= 20 && !v.markedForSale &&
+        v.ownership_type !== "sold"
+      );
+      if (freeVehicles.length === 0) {
+        result = { ok: true, planned: 0, ordersAccepted: 0, totalContributionCents: 0, vehiclesUsed: 0, reason: "Keine freien Fahrzeuge" };
+        break;
+      }
+      const vehicleIds = freeVehicles.map(v => v.id);
+      const r = suggestTours(state, {
+        vehicleIds, earliestStart: state.gameTime, horizonMin: 2880,
+        desiredEndCity: null, latestReturnMin: null,
+        mode: state.marketPriority || "balanced", acceptNew: true,
+      });
+      const busyOrderIds = new Set();
+      for (const tr of state.trips) { if (tr.status === "in_progress" && tr.orderId) busyOrderIds.add(tr.orderId); }
+      for (const tr of (state.tours || [])) {
+        if (tr.status !== "active") continue;
+        for (const d of (tr.deployments || [])) { if (d.orderId && d.status !== "cancelled") busyOrderIds.add(d.orderId); }
+      }
+      const usedVehicleIds = new Set();
+      const usedOrderIds = new Set();
+      let planned = 0;
+      let ordersAccepted = 0;
+      let totalContributionCents = 0;
+      for (const sug of r.suggestions) {
+        if (usedVehicleIds.has(sug.vehicleId)) continue;
+        const allAvailable = sug.orderIds.every(oid => {
+          if (usedOrderIds.has(oid) || busyOrderIds.has(oid)) return false;
+          const o = state.orders.find(x => x.id === oid);
+          return o && (o.status === "offered" || o.status === "angenommen");
+        });
+        if (!allAvailable) continue;
+        const newOrderIds = sug.plan.acceptedOrderIds || [];
+        if (newOrderIds.length > 0 && sug.plan.totalContributionCents <= 0) continue;
+        try {
+          const cr = doConfirmTour(state, {
+            vehicleId: sug.vehicleId, driverId: sug.driverId, orderIds: sug.orderIds,
+            desiredEndCity: sug.plan.desiredEndCity || null, latestReturnMin: sug.plan.latestReturnMin || null,
+          });
+          usedVehicleIds.add(sug.vehicleId);
+          sug.orderIds.forEach(oid => usedOrderIds.add(oid));
+          planned++;
+          ordersAccepted += (cr.acceptedOrderIds || []).length;
+          totalContributionCents += sug.plan.totalContributionCents || 0;
+        } catch (e) { /* skip failed tour */ }
+      }
+      result = { ok: true, planned, ordersAccepted, totalContributionCents, vehiclesUsed: usedVehicleIds.size, freeVehicles: freeVehicles.length };
+      break;
+    }
+
     // ---------- Erfolge & Ziele ----------
 
     case "attachGoal": {
