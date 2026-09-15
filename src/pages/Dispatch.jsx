@@ -14,7 +14,11 @@ import PageHint from "@/components/help/PageHint";
 export default function Dispatch() {
   const { state } = useGame();
   const [routeData, setRouteData] = useState(null);
-  const [activeTab, setActiveTab] = useState(() => state.orders.some(o => o.status === "angenommen" && !state.trips.some(t => t.orderId === o.id && t.status === "in_progress")) ? "auftraege" : "touren");
+  const [activeTab, setActiveTab] = useState(() => {
+    const activeTripOrderIds = new Set();
+    for (const t of state.trips) { if (t.status === "in_progress" && t.orderId) activeTripOrderIds.add(t.orderId); }
+    return state.orders.some(o => o.status === "angenommen" && !activeTripOrderIds.has(o.id)) ? "auftraege" : "touren";
+  });
   const [selectedTripId, setSelectedTripId] = useState(null);
   const [planningOrderId, setPlanningOrderId] = useState(null);
   const [selectedVehicleId, setSelectedVehicleId] = useState(null);

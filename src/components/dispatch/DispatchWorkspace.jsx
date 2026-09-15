@@ -37,18 +37,25 @@ export default function DispatchWorkspace({
 
   const running = state.trips.filter(t => t.status === "in_progress");
   const allAccepted = state.orders.filter(o => o.status === "angenommen");
-  const accepted = allAccepted.filter(o => !state.trips.some(t => t.orderId === o.id && t.status === "in_progress"));
+  // Pre-build Set der in-progress Trip-Order-IDs für O(1) Lookup
+  const _activeTripOrderIds = new Set();
+  for (const t of state.trips) { if (t.status === "in_progress" && t.orderId) _activeTripOrderIds.add(t.orderId); }
+  const accepted = allAccepted.filter(o => !_activeTripOrderIds.has(o.id));
   const activeTours = (state.tours || []).filter(t => t.status === "active");
   const dispatchers = (state.employees || []).filter(e => (e.role === "dispatcher" || e.role === "dispatcher_senior") && e.employmentStatus === "employed");
   const pendingSuggestions = dispatchers.reduce((sum, emp) => sum + (emp.suggestions || []).filter(s => s.status === "pending").length, 0);
   const searchLower = (search || "").toLowerCase();
   const recentEvents = (state.events || []).slice(-30).reverse();
 
+  // Pre-build Maps für O(1) Lookups in der Suche
+  const _vehicleById = new Map((state.vehicles || []).map(v => [v.id, v]));
+  const _driverById = new Map((state.drivers || []).map(d => [d.id, d]));
+  const _orderById = new Map((state.orders || []).map(o => [o.id, o]));
   const filteredTrips = running.filter(t => {
     if (!searchLower) return true;
-    const v = state.vehicles.find(x => x.id === t.vehicleId);
-    const d = state.drivers.find(x => x.id === t.driverId);
-    const o = state.orders.find(x => x.id === t.orderId);
+    const v = _vehicleById.get(t.vehicleId);
+    const d = _driverById.get(t.driverId);
+    const o = _orderById.get(t.orderId);
     return (v && vehicleDisplayName(v).toLowerCase().includes(searchLower))
       || (d && driverDisplayName(d).toLowerCase().includes(searchLower))
       || (o && o.customer.toLowerCase().includes(searchLower))
