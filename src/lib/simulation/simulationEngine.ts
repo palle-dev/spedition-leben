@@ -662,16 +662,12 @@ function processEventsAt(state, m, log) {
 }
 function advanceTo(state, targetMin, log, reportStart) {
   let t = state.gameTime;
-  // CPU-Schutz: begrenzt Verarbeitungsdauer und Ereignisanzahl pro Aufruf.
-  // Verhindert cpu-exceeded bei sehr langen Zeit-Sprüngen oder vielen Ereignissen.
-  // Bei vorzeitigem Abbruch wird gameTime auf die letzte verarbeitete Minute gesetzt;
-  // der nächste Tick/Sync setzt ab dort fort.
   const startTime = Date.now();
-  const CPU_BUDGET_MS = 3000; // 3 s — häufigere Fortschritts-Updates
-  const MAX_EVENTS = 200;
+  const CPU_BUDGET_MS = 8000;
+  const MAX_EVENTS = 2000;
   let eventCount = 0;
+  let lastReportMs = startTime;
   let stopped = false;
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     if (eventCount >= MAX_EVENTS || Date.now() - startTime > CPU_BUDGET_MS) { stopped = true; break; }
     const next = earliestEventAfter(state, t, targetMin);
@@ -679,15 +675,20 @@ function advanceTo(state, targetMin, log, reportStart) {
     processEventsAt(state, next, log);
     t = next;
     eventCount++;
-    // Live-Fortschritt nach jedem Ereignis melden
+    // Fortschritt nur alle 250 ms melden — nicht nach jedem Event.
+    // Reduziert postMessage-Overhead massiv bei Tausenden Events.
     if (reportStart !== undefined) {
-      reportProgress(t - reportStart, targetMin - reportStart, eventCount, computeLogStats(log));
+      const now = Date.now();
+      if (now - lastReportMs >= 250 || t >= targetMin) {
+        reportProgress(t - reportStart, targetMin - reportStart, eventCount, null);
+        lastReportMs = now;
+      }
     }
   }
   state.gameTime = stopped ? t : targetMin;
   if (stopped) log.push({ type: "advance_stopped", atMin: t, targetMin, reason: eventCount >= MAX_EVENTS ? "max_events" : "cpu_budget" });
   if (reportStart !== undefined) {
-    reportProgress(state.gameTime - reportStart, targetMin - reportStart, eventCount, computeLogStats(log));
+    reportProgress(state.gameTime - reportStart, targetMin - reportStart, eventCount, null);
   }
 }
 
@@ -1503,23 +1504,49 @@ export function applyCommand(state, command, params) {
       const minutes = Math.max(0, Math.min(p.minutes || 0, 1440));
       const target = state.gameTime + minutes;
       const startMin = state.gameTime;
+      // Snapshot kumulativer Zähler vor dem Vorlauf — für exakte Delta-Statistik
+      const beforeDeliveries = state.stats.totalDeliveries || 0;
+      const beforeRevenue = state.stats.totalRevenueCents || 0;
+      const beforeBranchStats = state.branches.map(b => ({
+        id: b.id, deliveries: b.stats?.deliveries || 0, revenueCents: b.stats?.revenueCents || 0,
+      }));
       const log = [];
-      // advanceTo kann vorzeitig abbrechen (CPU/Event-Budget). Schleife
-      // fortsetzen bis Ziel erreicht — jeder Durchlauf bekommt frisches Budget.
       let guard = 0;
       while (state.gameTime < target && guard < 60) {
         const before = state.gameTime;
         advanceTo(state, target, log, startMin);
-        if (state.gameTime <= before) break; // kein Fortschritt — Sicherheitsabbruch
+        if (state.gameTime <= before) break;
         guard++;
       }
-      // Log begrenzen: bei großen Zeitvorläufen (z.B. 24 h) können Tausende
-      // Events anfallen. Das vollständige Log würde den postMessage-Clone
-      // zwischen Worker und Haupt-Thread überlasten. Nur die letzten 200
-      // Events behalten — reicht für Zusammenfassung und Diagnose.
+      // Statistik aus kumulativen Zählern (Delta) — zuverlässig unabhängig
+      // vom Log-Trimming. Touren aus dem vollen Log (vor Trimming) zählen.
+      const branchTours = {};
+      let totalTours = 0;
+      for (const ev of log) {
+        if (ev.type === "tour_deployment_started") {
+          totalTours++;
+          const bid = ev.branchId || "_haupt";
+          branchTours[bid] = (branchTours[bid] || 0) + 1;
+        }
+      }
+      const stats = {
+        totalDeliveries: (state.stats.totalDeliveries || 0) - beforeDeliveries,
+        totalRevenue: (state.stats.totalRevenueCents || 0) - beforeRevenue,
+        totalTours,
+        branches: {},
+      };
+      for (const b of state.branches) {
+        const before = beforeBranchStats.find(x => x.id === b.id) || { deliveries: 0, revenueCents: 0 };
+        const dDel = (b.stats?.deliveries || 0) - before.deliveries;
+        const dRev = (b.stats?.revenueCents || 0) - before.revenueCents;
+        const dTours = branchTours[b.id] || 0;
+        if (dDel > 0 || dRev > 0 || dTours > 0) {
+          stats.branches[b.id] = { deliveries: dDel, revenue: dRev, tours: dTours };
+        }
+      }
       const MAX_LOG = 200;
       const trimmedLog = log.length > MAX_LOG ? log.slice(-MAX_LOG) : log;
-      result = { ok: true, events: trimmedLog, gameTime: state.gameTime };
+      result = { ok: true, events: trimmedLog, gameTime: state.gameTime, stats };
       break;
     }
 

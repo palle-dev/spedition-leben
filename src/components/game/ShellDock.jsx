@@ -63,12 +63,10 @@ export default function ShellDock() {
       });
       const events = res?.events || [];
       if (showModal) {
-        // Endgültige Statistik aus allen Events berechnen
-        const finalStats = aggregateStats(events);
         setProgressModal(prev => prev ? ({
           ...prev,
           current: minutes,
-          stats: finalStats,
+          stats: res?.stats || null,
           done: true,
           status: "Abgeschlossen",
         }) : prev);
@@ -82,27 +80,6 @@ export default function ShellDock() {
     } finally {
       setAdvancing(false);
     }
-  }
-
-  function aggregateStats(events) {
-    const branches = {};
-    let totalDeliveries = 0, totalRevenue = 0, totalTours = 0;
-    for (const ev of events || []) {
-      if (ev.type === "delivery") {
-        totalDeliveries++;
-        totalRevenue += ev.paymentCents || 0;
-        const bid = ev.branchId || "_haupt";
-        if (!branches[bid]) branches[bid] = { deliveries: 0, revenue: 0, tours: 0 };
-        branches[bid].deliveries++;
-        branches[bid].revenue += ev.paymentCents || 0;
-      } else if (ev.type === "tour_deployment_started") {
-        totalTours++;
-        const bid = ev.branchId || "_haupt";
-        if (!branches[bid]) branches[bid] = { deliveries: 0, revenue: 0, tours: 0 };
-        branches[bid].tours++;
-      }
-    }
-    return { totalDeliveries, totalRevenue, totalTours, branches };
   }
 
   async function nextEventAction() {

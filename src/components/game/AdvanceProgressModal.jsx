@@ -16,8 +16,8 @@ export default function AdvanceProgressModal({ progress, onClose, state }) {
   const hoursDone = Math.floor(progress.current / 60);
   const hoursTotal = Math.ceil(progress.total / 60);
   const done = progress.done;
-  const stats = progress.stats || { totalDeliveries: 0, totalRevenue: 0, totalTours: 0, branches: {} };
-  const branchEntries = Object.entries(stats.branches || {});
+  const stats = progress.stats || null;
+  const branchEntries = stats ? Object.entries(stats.branches || {}) : [];
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
@@ -52,17 +52,17 @@ export default function AdvanceProgressModal({ progress, onClose, state }) {
         <div className="grid grid-cols-3 gap-2 mb-4">
           <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-center">
             <Truck className="w-4 h-4 text-coral mx-auto mb-1" />
-            <div className="text-lg font-semibold tabular-nums text-foreground">{stats.totalTours || 0}</div>
+            <div className="text-lg font-semibold tabular-nums text-foreground">{stats ? stats.totalTours : "—"}</div>
             <div className="text-[10px] text-muted-foreground">Touren</div>
           </div>
           <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-center">
             <Package className="w-4 h-4 text-lime mx-auto mb-1" />
-            <div className="text-lg font-semibold tabular-nums text-foreground">{stats.totalDeliveries || 0}</div>
+            <div className="text-lg font-semibold tabular-nums text-foreground">{stats ? stats.totalDeliveries : "—"}</div>
             <div className="text-[10px] text-muted-foreground">Lieferungen</div>
           </div>
           <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-center">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto mb-1" />
-            <div className="text-sm font-semibold tabular-nums text-foreground leading-tight mt-1">{formatEuro(stats.totalRevenue || 0)}</div>
+            <div className="text-sm font-semibold tabular-nums text-foreground leading-tight mt-1">{stats ? formatEuro(stats.totalRevenue) : "—"}</div>
             <div className="text-[10px] text-muted-foreground">Umsatz</div>
           </div>
         </div>
