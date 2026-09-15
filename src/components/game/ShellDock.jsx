@@ -2,8 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import { dayOf, clockOf } from "@/lib/gameData";
-import { getNextEvent } from "@/lib/displayHelpers";
-import { Building2, Package, Map, Truck, Users, Wallet, Home as HomeIcon, BookOpen, Clock, SkipForward, MoreHorizontal, Trophy, Mail as MailIcon, LineChart, Network, Calendar, Loader2 } from "lucide-react";
+import { Building2, Package, Map, Truck, Users, Wallet, Home as HomeIcon, BookOpen, Clock, MoreHorizontal, Trophy, Mail as MailIcon, LineChart, Network, Calendar, Loader2 } from "lucide-react";
 import AdvanceProgressModal from "@/components/game/AdvanceProgressModal";
 
 const PRIMARY_NAV = [
@@ -32,7 +31,6 @@ export default function ShellDock() {
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef(null);
 
-  const nextEvent = getNextEvent(state);
   const bgActive = !!backgroundAdvance?.active;
 
   useEffect(() => {
@@ -57,16 +55,6 @@ export default function ShellDock() {
   // Tagesvorlauf: läuft im Hintergrund, UI bleibt nutzbar.
   function advanceDay() {
     startBackgroundAdvance(1440);
-  }
-
-  async function nextEventAction() {
-    setAdvancing(true);
-    try {
-      const res = await send("advanceToNextEvent", {});
-      if (res?.stopped === "decision_required") showToast(res.message, "info");
-      else summarizeEvents(res.events);
-    } catch (e) { showToast(e.message, "error"); }
-    finally { setAdvancing(false); }
   }
 
   function summarizeEvents(events) {
@@ -161,12 +149,6 @@ export default function ShellDock() {
             <div className="text-[9px] text-muted-foreground">T{dayOf(displayGameTime || state.gameTime)}</div>
             <div className="text-xs font-medium tabular-nums">{clockOf(displayGameTime || state.gameTime)}</div>
           </div>
-          {nextEvent && !bgActive && (
-            <div className="hidden lg:block text-right leading-tight mr-1">
-              <div className="text-[9px] text-muted-foreground uppercase tracking-wider">Nächstes</div>
-              <div className="text-xs text-lime/80 tabular-nums">{nextEvent.label} · {clockOf(nextEvent.min)}</div>
-            </div>
-          )}
           {/* Kleiner Hintergrund-Indikator während des Tagesvorlaufs */}
           {bgActive && (
             <div className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs bg-lime/10 text-lime border border-lime/20 shrink-0 animate-pulse-ring">
@@ -192,16 +174,6 @@ export default function ShellDock() {
           >
             {bgActive ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calendar className="w-4 h-4" />}
             <span className="hidden lg:inline">1 Tag</span>
-          </button>
-          <button
-            onClick={nextEventAction}
-            disabled={disabled}
-            className="flex items-center gap-1.5 rounded-lg px-3 lg:px-4 py-2 text-xs font-medium bg-lime/15 text-lime border border-lime/30 hover:bg-lime/25 disabled:opacity-40 transition min-h-[44px]"
-            title={nextEvent ? `Nächstes: ${nextEvent.label} um ${clockOf(nextEvent.min)} Uhr` : "Zum nächsten Ereignis"}
-            aria-label="Zum nächsten Ereignis"
-          >
-            {advancing ? <span className="w-4 h-4 border-2 border-lime/30 border-t-lime rounded-full animate-spin" /> : <SkipForward className="w-4 h-4" />}
-            <span className="hidden lg:inline">Nächstes Ereignis</span>
           </button>
         </div>
       </div>
