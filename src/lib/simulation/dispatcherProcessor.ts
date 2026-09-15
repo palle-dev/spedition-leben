@@ -10,7 +10,6 @@ import {
   suggestTours, confirmTour as doConfirmTour,
   futureLocation, futureDriverLocation,
 } from "./tourEngine.ts";
-import { fastSuggestTours } from "./fastDispatchEngine.ts";
 import { isActivelyEmployed } from "./terminationEngine.ts";
 import { pushEvent } from "./eventLog.ts";
 import { onOrderAccepted, onTourConfirmed } from "./mailReports.ts";
@@ -49,11 +48,15 @@ export function processEmployees(state, m, log) {
     if (emp.attendance !== "present") continue;
     if (emp.role === "dispatcher" || emp.role === "dispatcher_senior") {
       if (!isDispatcherOnShift(emp, m)) continue;
-      // Während großer Zeitvorläufe (≥ 2h): fastSuggestTours statt suggestTours.
-      // Die Heuristik (Scoring + Greedy + Validierung) reduziert buildTourPlan-
-      // Aufrufe von ~9.200 auf ~1.500 pro Runde — bei stündlicher Ausführung
-      // bleibt die Planungsqualität nahezu erhalten, während die CPU-Zeit
-      // von ~4 Min/Tag auf ~15 Sek/Tag sinkt.
+      // Während großer Zeitvorläufe (≥ 2h): Reduzierte Planungsfrequenz
+      // (alle 2 Stunden statt alle 60 Minuten). planSingleVehicle bei
+      // Tour-Ende übernimmt die inkrementelle Disposition — es wird bei
+      // jedem delivery_completed/emptytrip_completed automatisch aufgerufen.
+      // Die 2-Stunden-Intervalle fangen neue Marktaufträge zuverlässig auf,
+      // während die suggestTours-Aufrufe halbiert werden (12/Tag statt 24/Tag).
+      if (state._largeAdvance) {
+        if (emp.lastDecisionMin && m - emp.lastDecisionMin < 120) continue;
+      }
       processDispatcher(state, emp, m, log);
     } else if (inServiceHours && (emp.role === "accountant" || emp.role === "accountant_senior")) {
       processAccountant(state, emp, m, log);
@@ -105,9 +108,6 @@ export function processDispatcher(state, emp, m, log) {
 
   // ---------- Modus A: Vorschläge vorbereiten ----------
   if (emp.workMode === "suggestions") {
-    // Während großer Zeitvorläufe: Vorschläge überspringen — kein Spieler
-    // da, um sie zu bestätigen. Spart einen suggestTours-Aufruf pro Runde.
-    if (state._largeAdvance) return;
     const hasAcceptedOrders = state.orders.some(o => o.status === "angenommen");
     const hasFreeVehicles = poolVehicles.some(v => v.status === "free" || v.status === "resting");
     if (!hasAcceptedOrders || !hasFreeVehicles) {
@@ -192,15 +192,10 @@ export function processDispatcher(state, emp, m, log) {
   }
   emp._lastPlanContext = contextKey;
 
-  const result = state._largeAdvance
-    ? fastSuggestTours(state, {
-        vehicleIds: poolVehicleIds, earliestStart: m, horizonMin: 48 * 60,
-        desiredEndCity: null, latestReturnMin: null, mode: state.marketPriority || "balanced", acceptNew,
-      })
-    : suggestTours(state, {
-        vehicleIds: poolVehicleIds, earliestStart: m, horizonMin: 48 * 60,
-        desiredEndCity: null, latestReturnMin: null, mode: state.marketPriority || "balanced", acceptNew,
-      });
+  const result = suggestTours(state, {
+    vehicleIds: poolVehicleIds, earliestStart: m, horizonMin: 48 * 60,
+    desiredEndCity: null, latestReturnMin: null, mode: state.marketPriority || "balanced", acceptNew,
+  });
 
   const usedVehicleIds = new Set();
   const usedOrderIds = new Set();
@@ -359,17 +354,11 @@ export function planSingleVehicle(state, vehicle, m, log) {
   if (!dispatcher) return;
 
   const acceptNew = dispatcher.workMode === "autonomous";
-  const result = state._largeAdvance
-    ? fastSuggestTours(state, {
-        vehicleIds: [vehicle.id], earliestStart: m, horizonMin: 48 * 60,
-        desiredEndCity: null, latestReturnMin: null,
-        mode: state.marketPriority || "balanced", acceptNew,
-      })
-    : suggestTours(state, {
-        vehicleIds: [vehicle.id], earliestStart: m, horizonMin: 48 * 60,
-        desiredEndCity: null, latestReturnMin: null,
-        mode: state.marketPriority || "balanced", acceptNew,
-      });
+  const result = suggestTours(state, {
+    vehicleIds: [vehicle.id], earliestStart: m, horizonMin: 48 * 60,
+    desiredEndCity: null, latestReturnMin: null,
+    mode: state.marketPriority || "balanced", acceptNew,
+  });
   if (result.suggestions.length === 0) return;
 
   const sug = result.suggestions[0];
