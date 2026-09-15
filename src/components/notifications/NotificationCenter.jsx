@@ -19,7 +19,7 @@ const KIND_COLOR = {
   delivery_completed: "text-lime",
 };
 
-export default function NotificationCenter({ notifications, unseenCount, onMarkAllSeen, onDismiss }) {
+export default function NotificationCenter({ notifications, unseenCount, onMarkAllSeen, onDismiss, onClearAll }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const ref = useRef(null);
@@ -96,12 +96,31 @@ export default function NotificationCenter({ notifications, unseenCount, onMarkA
                             {n.employeeName && !n.isSystem && <span>· {n.employeeName}</span>}
                           </div>
                         </div>
+                        {onDismiss && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onDismiss(n.id); }}
+                            className="w-6 h-6 grid place-items-center rounded text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition shrink-0"
+                            title="Löschen"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
                 })
               )}
             </div>
+            {notifications.length > 0 && onClearAll && (
+              <div className="px-4 py-2.5 border-t border-white/10 shrink-0">
+                <button
+                  onClick={onClearAll}
+                  className="text-xs text-muted-foreground hover:text-destructive transition"
+                >
+                  Alle löschen
+                </button>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

@@ -351,6 +351,16 @@ export function deleteDraft(state, draftId) {
   state.mail.drafts = state.mail.drafts.filter(d => d.id !== draftId);
 }
 
+export function deleteConversation(state, convId) {
+  if (!state.mail) return;
+  const conv = (state.mail.conversations || []).find(c => c.id === convId);
+  if (!conv) return;
+  const msgIds = new Set(conv.messageIds || []);
+  state.mail.messages = (state.mail.messages || []).filter(m => !msgIds.has(m.id));
+  state.mail.conversations = (state.mail.conversations || []).filter(c => c.id !== convId);
+  state.mail.staffTasks = (state.mail.staffTasks || []).filter(t => t.conversationId !== convId);
+}
+
 // ---------- Statistiken ----------
 
 export function getMailboxStats(state) {

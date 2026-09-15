@@ -15,7 +15,7 @@ import WorldSwitch from "@/components/game/WorldSwitch";
 
 // Obere Statusleiste: FERNWERK-Marke, Welt-Umschaltung, beide Konten, Bewegungs-Toggle.
 export default function ShellHeader() {
-  const { state, motionEnabled, toggleMotion, unseenCount, markAllEventsSeen, dirty, save, saving } = useGame();
+  const { state, motionEnabled, toggleMotion, unseenCount, markAllEventsSeen, dirty, save, saving, send } = useGame();
   const { slot } = useHeaderSlot();
   const navigate = useNavigate();
   const location = useLocation();
@@ -84,6 +84,8 @@ export default function ShellHeader() {
           notifications={notifications}
           unseenCount={totalUnseen}
           onMarkAllSeen={markAllEventsSeen}
+          onDismiss={async (eventId) => { try { await send("deleteEvent", { eventId }); } catch (e) {} }}
+          onClearAll={async () => { try { await send("clearEvents", {}); } catch (e) {} }}
         />
         <button
           onClick={() => navigate("/postfach")}

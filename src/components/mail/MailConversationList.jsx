@@ -37,6 +37,13 @@ export default function MailConversationList({
     try { await send("deleteDraft", { draftId }); } catch (e) {}
   };
 
+  const handleDeleteConv = async (convId) => {
+    try {
+      await send("deleteConversation", { conversationId: convId });
+      if (convId === selectedConvId) onSelect(null);
+    } catch (e) {}
+  };
+
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Ordner-Tabs */}
@@ -153,10 +160,10 @@ export default function MailConversationList({
               const preview = getConversationPreview(state, conv);
               const isSelected = conv.id === selectedConvId;
               return (
-                <button
+                <div
                   key={conv.id}
                   onClick={() => onSelect(conv.id)}
-                  className={`w-full flex items-start gap-3 px-3 py-3 text-left transition hover:bg-white/5 ${isSelected ? "bg-white/10" : ""}`}
+                  className={`w-full flex items-start gap-3 px-3 py-3 text-left transition hover:bg-white/5 cursor-pointer ${isSelected ? "bg-white/10" : ""}`}
                 >
                   <Portrait portraitId={other.portraitId} name={other.name} size="sm" />
                   <div className="flex-1 min-w-0">
@@ -174,7 +181,14 @@ export default function MailConversationList({
                     <div className="text-xs text-muted-foreground truncate mt-0.5">{conv.subject}</div>
                     <div className="text-[11px] text-muted-foreground/70 truncate mt-0.5">{preview}</div>
                   </div>
-                </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeleteConv(conv.id); }}
+                    className="w-7 h-7 grid place-items-center rounded text-muted-foreground/40 hover:text-coral hover:bg-white/5 shrink-0"
+                    title="Unterhaltung löschen"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               );
             })}
           </div>

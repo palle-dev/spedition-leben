@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { ArrowLeft, Send, Star, Archive, AlertCircle, Sparkles } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { ArrowLeft, Send, Star, Archive, AlertCircle, Sparkles, Trash2 } from "lucide-react";
 import { useGame } from "@/lib/gameContext";
 import {
   getConversationMessages, getConversationOtherParticipant, getPersonInfo,
@@ -12,6 +12,12 @@ export default function MailConversationView({ state, conversationId, onBack }) 
   const { send, busy } = useGame();
   const [replyBody, setReplyBody] = useState("");
   const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    if (conversationId) {
+      send("markConversationRead", { conversationId }).catch(() => {});
+    }
+  }, [conversationId]);
 
   const conv = (state.mail?.conversations || []).find(c => c.id === conversationId);
   if (!conv) {
@@ -66,6 +72,13 @@ export default function MailConversationView({ state, conversationId, onBack }) 
     try { await send("markMessageRead", { messageId: msgId }); } catch (e) {}
   };
 
+  const handleDelete = async () => {
+    try {
+      await send("deleteConversation", { conversationId: conv.id });
+      if (onBack) onBack();
+    } catch (e) {}
+  };
+
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Header */}
@@ -88,6 +101,13 @@ export default function MailConversationView({ state, conversationId, onBack }) 
             <AlertCircle className="w-3 h-3" /> Entscheidung
           </span>
         )}
+        <button
+          onClick={handleDelete}
+          className="w-8 h-8 grid place-items-center rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition shrink-0"
+          title="Unterhaltung löschen"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Nachrichten-Verlauf */}

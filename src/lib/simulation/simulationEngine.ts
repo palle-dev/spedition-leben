@@ -34,6 +34,7 @@ import {
   starMessage, archiveMessage, saveDraft, deleteDraft,
   getMailboxStats, searchConversations, getConversationMessages,
   exportCorrespondence, createStaffTask, isEmployeeAvailable,
+  deleteConversation,
 } from "./mailEngine.ts";
 import { detectIntent, processStaffTasks, getQuickReplies, getIntentByType } from "./mailIntents.ts";
 import {
@@ -59,7 +60,7 @@ import {
 } from "./timeControlEngine.ts";
 import {
   initEvents, migrateEvents, pushEvent, markEventSeen, markAllEventsSeen,
-  getRecentEvents, getUnseenEventCount,
+  getRecentEvents, getUnseenEventCount, clearEvents, deleteEvent,
 } from "./eventLog.ts";
 import {
   migrateAbsences, requestVacation, approveVacation, rejectVacation,
@@ -1818,6 +1819,12 @@ export function applyCommand(state, command, params) {
       break;
     }
 
+    case "deleteConversation": {
+      deleteConversation(state, p.conversationId);
+      result = { ok: true };
+      break;
+    }
+
     case "exportCorrespondence": {
       const data = exportCorrespondence(state);
       result = { ok: true, export: data };
@@ -1916,6 +1923,18 @@ export function applyCommand(state, command, params) {
 
     case "markAllEventsSeen": {
       markAllEventsSeen(state);
+      result = { ok: true };
+      break;
+    }
+
+    case "clearEvents": {
+      clearEvents(state);
+      result = { ok: true };
+      break;
+    }
+
+    case "deleteEvent": {
+      deleteEvent(state, p.eventId);
       result = { ok: true };
       break;
     }
