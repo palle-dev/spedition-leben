@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Clock, Package, Truck, Calendar, Coffee, Wrench, Calculator, Mail, X, AlertTriangle, Circle, CheckCircle2, Loader2 } from "lucide-react";
 
 function formatLogEvent(ev) {
@@ -36,9 +37,9 @@ export default function AdvanceProgressModal({ progress, onClose }) {
   const hoursTotal = Math.ceil(progress.total / 60);
   const done = progress.done;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="glass border border-white/15 rounded-2xl max-w-lg w-full p-6 shadow-2xl animate-pop">
+      <div className="glass border border-white/15 rounded-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-6 shadow-2xl animate-pop">
         <div className="flex items-center gap-3 mb-5">
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${done ? "bg-lime/15" : "bg-white/5"}`}>
             {done ? <CheckCircle2 className="w-5 h-5 text-lime" /> : <Loader2 className="w-5 h-5 text-lime animate-spin" />}
@@ -98,6 +99,7 @@ export default function AdvanceProgressModal({ progress, onClose }) {
           </button>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
