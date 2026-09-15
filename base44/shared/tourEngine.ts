@@ -371,9 +371,13 @@ export function buildTourPlan(state, opts) {
       if (!driver.freeSinceMin) driver.freeSinceMin = state.gameTime;
     }
   }
+  // Ruhende Fahrer: earliestAvailable verschiebt den Tour-Start auf restUntil.
+  // Zu diesem Zeitpunkt ist der Fahrer ausgeruht — workMin muss 0 sein,
+  // sonst löst die Ruhe-voraus-Strategie fälschlich eine weitere 720-Min-Ruhe
+  // aus, die alle Lieferfristen sprengt.
   const initCounters = {
-    workMin: driver.workMinutesSinceRest || 0,
-    driveMin: driver.driveMinutesSinceBreak || 0,
+    workMin: driver.status === "resting" ? 0 : (driver.workMinutesSinceRest || 0),
+    driveMin: driver.status === "resting" ? 0 : (driver.driveMinutesSinceBreak || 0),
   };
 
   // Erster Versuch: mit aktuellen Fahrer-Zählern planen.
@@ -996,7 +1000,14 @@ export function suggestTours(state, opts) {
       if (driverFutureCity === vehicleFutureCity) return false; // bereits in sameCityDrivers
       return true;
     }) : [];
-    const candidateDrivers = [...sameCityDrivers, ...crossCityDrivers];
+    // Fahrer nach Arbeitszeit sortieren (frischeste zuerst): Ein Fahrer mit
+    // hohem workMin braucht evtl. Ruhe (720 Min), was die Tour-Vorschau sprengt.
+    // Ohne Sortierung werden zufällig die ersten Fahrer aus dem Array probiert
+    // — oft erschöpfte Fahrer, deren Pläne an der Frist scheitern, während der
+    // frischeste Fahrer (workMin 0) am Ende des Arrays übersprungen wird.
+    const sameCitySorted = [...sameCityDrivers].sort((a, b) => (a.workMinutesSinceRest || 0) - (b.workMinutesSinceRest || 0));
+    const crossCitySorted = [...crossCityDrivers].sort((a, b) => (a.workMinutesSinceRest || 0) - (b.workMinutesSinceRest || 0));
+    const candidateDrivers = [...sameCitySorted, ...crossCitySorted];
     // CPU-Schutz: höchstens 4 Fahrer pro Fahrzeug probieren.
     if (candidateDrivers.length > 4) candidateDrivers.length = 4;
     if (candidateDrivers.length === 0) continue;
