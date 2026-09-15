@@ -24,7 +24,6 @@ export default function ShellHeader() {
   const mailStats = state?.mail ? getMailboxStats(state) : null;
   const unreadCount = mailStats?.unread || 0;
   const notifications = useMemo(() => getAllNotifications(state, 50), [state?.events]);
-  const totalUnseen = unseenCount + unreadCount;
 
   return (
     <header className="relative z-20 flex items-center gap-2 lg:gap-3 px-4 lg:px-6 h-14 lg:h-16 border-b border-white/10 backdrop-blur-md bg-ink/60 shrink-0">
@@ -82,7 +81,7 @@ export default function ShellHeader() {
         </button>
         <NotificationCenter
           notifications={notifications}
-          unseenCount={totalUnseen}
+          unseenCount={unseenCount}
           onMarkAllSeen={markAllEventsSeen}
           onDismiss={async (eventId) => { try { await send("deleteEvent", { eventId }); } catch (e) {} }}
           onClearAll={async () => { try { await send("clearEvents", {}); } catch (e) {} }}
