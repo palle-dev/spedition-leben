@@ -57,25 +57,29 @@ export function getOperationalResult(state, periodId) {
 // ---------- Auftragsbestand ----------
 export function getOrderStats(state) {
   const orders = state.orders || [];
-  const trips = state.trips || [];
-  const tours = state.tours || [];
+
+  // Pre-build Sets für O(1) Lookups (statt O(orders × trips × tours))
+  const activeTripOrderIds = new Set();
+  for (const t of (state.trips || [])) {
+    if (t.status === "in_progress" && t.orderId) activeTripOrderIds.add(t.orderId);
+  }
+  const activeTourOrderIds = new Set();
+  for (const t of (state.tours || [])) {
+    if (t.status !== "active") continue;
+    for (const d of (t.deployments || [])) {
+      if (d.orderId && d.status !== "cancelled") activeTourOrderIds.add(d.orderId);
+    }
+  }
 
   const offered = orders.filter(o => o.status === "offered");
   const accepted = orders.filter(o => o.status === "angenommen");
-  // Verbindlich geplant: Auftrag hat eine bestätigte Tour oder einen gestarteten Trip
   const planned = orders.filter(o =>
-    o.status === "unterwegs" ||
-    tours.some(t => t.status === "active" && (t.deployments || []).some(d => d.orderId === o.id))
+    o.status === "unterwegs" || activeTourOrderIds.has(o.id)
   );
-  const active = orders.filter(o =>
-    trips.some(t => t.orderId === o.id && t.status === "in_progress")
-  );
+  const active = orders.filter(o => activeTripOrderIds.has(o.id));
   const delivered = orders.filter(o => o.status === "geliefert");
-
-  // Unzugewiesene angenommene Aufträge (kein Trip, keine Tour)
   const unassigned = accepted.filter(o =>
-    !trips.some(t => t.orderId === o.id && t.status === "in_progress") &&
-    !tours.some(t => t.status === "active" && (t.deployments || []).some(d => d.orderId === o.id))
+    !activeTripOrderIds.has(o.id) && !activeTourOrderIds.has(o.id)
   );
 
   return {
@@ -215,10 +219,16 @@ export function getDecisions(state) {
   }
 
   // 3. Unzugewiesene angenommene Aufträge mit nahender Frist
+  // Pre-build Sets für O(1) Lookups
+  const _activeTripIds = new Set();
+  for (const t of (state.trips || [])) { if (t.status === "in_progress" && t.orderId) _activeTripIds.add(t.orderId); }
+  const _activeTourIds = new Set();
+  for (const t of (state.tours || [])) {
+    if (t.status !== "active") continue;
+    for (const d of (t.deployments || [])) { if (d.orderId && d.status !== "cancelled") _activeTourIds.add(d.orderId); }
+  }
   const unassigned = (state.orders || []).filter(o =>
-    o.status === "angenommen" &&
-    !(state.trips || []).some(t => t.orderId === o.id && t.status === "in_progress") &&
-    !(state.tours || []).some(t => t.status === "active" && (t.deployments || []).some(d => d.orderId === o.id))
+    o.status === "angenommen" && !_activeTripIds.has(o.id) && !_activeTourIds.has(o.id)
   );
   for (const o of unassigned) {
     const hoursLeft = Math.floor((o.deliveryDeadlineMin - now) / 60);
@@ -555,15 +565,25 @@ export function getRevenueTrendByBranch(state, days = 30) {
     return obj;
   });
 
+  // Pre-build Maps für O(1) Lookups (statt O(orders × trips × vehicles))
+  const tripByOrderId = new Map();
+  for (const t of (state.trips || [])) {
+    if (t.orderId && t.type === "loaded" && !tripByOrderId.has(t.orderId)) tripByOrderId.set(t.orderId, t);
+  }
+  const vehicleById = new Map();
+  for (const v of (state.vehicles || [])) vehicleById.set(v.id, v);
+  const branchKeyById = new Map();
+  for (const bk of branchKeys) branchKeyById.set(bk.id, bk);
+
   for (const o of (state.orders || [])) {
     if (o.status !== "geliefert" || o.deliveredAtMin == null || !o.paidCents) continue;
     const dayIdx = Math.floor(o.deliveredAtMin / 1440);
     const offset = dayIdx - (today - days + 1);
     if (offset < 0 || offset >= days) continue;
-    const trip = (state.trips || []).find(t => t.orderId === o.id && t.type === "loaded");
-    const vehicle = trip ? (state.vehicles || []).find(v => v.id === trip.vehicleId) : null;
+    const trip = tripByOrderId.get(o.id);
+    const vehicle = trip ? vehicleById.get(trip.vehicleId) : null;
     const branchId = vehicle?.branchId || branches[0]?.id;
-    const bk = branchKeys.find(bk => bk.id === branchId);
+    const bk = branchKeyById.get(branchId);
     if (bk) {
       data[offset][bk.key] += o.paidCents;
       data[offset].total += o.paidCents;
@@ -576,11 +596,17 @@ export function getRevenueTrendByBranch(state, days = 30) {
 // Tägliche Flottenauslastung pro Filiale. Jeder Tag hat ein Prozent-Feld pro Filiale.
 export function getFleetUtilizationTrendByBranch(state, days = 30) {
   const today = Math.floor(state.gameTime / 1440);
-  const trips = state.trips || [];
   const branches = (state.branches || []).filter(b => b.status === "active");
   const branchKeys = branches.map((b, i) => ({
     id: b.id, name: b.name, key: "b_" + b.id, color: BRANCH_CHART_COLORS[i % BRANCH_CHART_COLORS.length],
   }));
+
+  // Pre-build vehicleId → trips Map (statt trips.some() pro Fahrzeug pro Tag)
+  const tripsByVehicle = new Map();
+  for (const t of (state.trips || [])) {
+    if (!tripsByVehicle.has(t.vehicleId)) tripsByVehicle.set(t.vehicleId, []);
+    tripsByVehicle.get(t.vehicleId).push(t);
+  }
 
   const data = [];
   for (let i = 0; i < days; i++) {
@@ -597,7 +623,12 @@ export function getFleetUtilizationTrendByBranch(state, days = 30) {
       let total = branchVehicles.length;
       let active = 0;
       for (const v of branchVehicles) {
-        if (trips.some(t => t.vehicleId === v.id && t.startMin < dayEnd && (t.endMin != null ? t.endMin : t.startMin) > dayStart)) active++;
+        const vTrips = tripsByVehicle.get(v.id);
+        if (vTrips) {
+          for (const t of vTrips) {
+            if (t.startMin < dayEnd && (t.endMin != null ? t.endMin : t.startMin) > dayStart) { active++; break; }
+          }
+        }
       }
       obj[bk.key] = total > 0 ? Math.round((active / total) * 100) : 0;
       obj[bk.key + "_active"] = active;
@@ -612,8 +643,13 @@ export function getFleetUtilizationTrendByBranch(state, days = 30) {
 // Tägliche Flottenauslastung: Anteil der Fahrzeuge auf Tour am gesamten Flottenbestand.
 export function getFleetUtilizationTrend(state, days = 30) {
   const today = Math.floor(state.gameTime / 1440);
-  const trips = state.trips || [];
   const vehicles = state.vehicles || [];
+  // Pre-build vehicleId → trips Map
+  const tripsByVehicle = new Map();
+  for (const t of (state.trips || [])) {
+    if (!tripsByVehicle.has(t.vehicleId)) tripsByVehicle.set(t.vehicleId, []);
+    tripsByVehicle.get(t.vehicleId).push(t);
+  }
   const out = [];
   for (let i = 0; i < days; i++) {
     const dayStart = (today - days + 1 + i) * 1440;
@@ -626,12 +662,12 @@ export function getFleetUtilizationTrend(state, days = 30) {
       if (acquired > dayEnd) continue;
       if (v.soldAtMin != null && v.soldAtMin <= dayStart) continue;
       total++;
-      const onTrip = trips.some(t =>
-        t.vehicleId === v.id &&
-        t.startMin < dayEnd &&
-        (t.endMin != null ? t.endMin : t.startMin) > dayStart
-      );
-      if (onTrip) active++;
+      const vTrips = tripsByVehicle.get(v.id);
+      if (vTrips) {
+        for (const t of vTrips) {
+          if (t.startMin < dayEnd && (t.endMin != null ? t.endMin : t.startMin) > dayStart) { active++; break; }
+        }
+      }
     }
     const day = today - days + 1 + i;
     out.push({

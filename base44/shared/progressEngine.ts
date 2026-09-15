@@ -287,5 +287,50 @@ export function migrateState(state) {
   // ---------- Tagesabschluss-Migration ----------
   if (state.lastDailyAccountingMin === undefined) state.lastDailyAccountingMin = 0;
 
+  // ---------- Datenbereinigung (Performance) ----------
+  // Alte abgeschlossene Aufträge, Trips und Touren entfernen. Diese
+  // akkumulieren sich über Wochen und blähen den State auf (6 MB+ nach
+  // 100 Tagen), was jede Berechnung verlangsamt. Die Tageszusammenfassung
+  // (dailySummary) bewahrt die aggregierten Finanzdaten historisch auf.
+  cleanupOldData(state);
+
   return state;
+}
+
+// Entfernt alte abgeschlossene Aufträge, Trips und Touren.
+// Behält: aktive Aufträge (offered/angenommen/unterwegs), laufende Trips,
+// aktive Touren. Entfernt: gelieferte/fehlgeschlagene Aufträge älter als 30
+// Tage, abgeschlossene Trips älter als 30 Tage, beendete Touren älter als 7
+// Tage. Die 30-Tage-Frist deckt alle Trend-Charts ab.
+export function cleanupOldData(state) {
+  const now = state.gameTime || 0;
+  const ORDER_CUTOFF = 30 * 1440;
+  const TRIP_CUTOFF = 30 * 1440;
+  const TOUR_CUTOFF = 7 * 1440;
+
+  if (state.orders) {
+    state.orders = state.orders.filter(o => {
+      if (o.status === "offered" || o.status === "angenommen" || o.status === "unterwegs") return true;
+      const refMin = o.deliveredAtMin || o.failedAtMin || o.cancelledAtMin;
+      if (refMin == null) return true;
+      return now - refMin < ORDER_CUTOFF;
+    });
+  }
+
+  if (state.trips) {
+    state.trips = state.trips.filter(t => {
+      if (t.status === "in_progress") return true;
+      if (t.endMin == null) return true;
+      return now - t.endMin < TRIP_CUTOFF;
+    });
+  }
+
+  if (state.tours) {
+    state.tours = state.tours.filter(t => {
+      if (t.status === "active" || t.status === "planned") return true;
+      const refMin = t.completedAtMin || t.cancelledAtMin || t.confirmedAt || t.createdAt;
+      if (refMin == null) return true;
+      return now - refMin < TOUR_CUTOFF;
+    });
+  }
 }

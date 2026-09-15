@@ -73,10 +73,25 @@ export function getAccountBalance(state, accountNo, upToMin) {
 
 export function getPnL(state, fromMin, toMin) {
   if (!state?.accounting?.journal) return { revenue: 0, expenses: 0, result: 0, lines: [] };
+  // Single-Pass: Journal einmal durchlaufen und Salden pro Konto sammeln,
+  // statt getAccountBalance (O(journal)) pro Konto aufzurufen (O(accounts × journal)).
+  const from = (fromMin || 0) - 1;
+  const cap = toMin === undefined ? Infinity : toMin;
+  const balToMin = {};
+  const balFromMin = {};
+  for (const e of state.accounting.journal) {
+    if (e.gameTime > cap) continue;
+    for (const l of e.lines) {
+      const delta = l.debitCents - l.creditCents;
+      if (delta === 0) continue;
+      balToMin[l.account] = (balToMin[l.account] || 0) + delta;
+      if (e.gameTime <= from) balFromMin[l.account] = (balFromMin[l.account] || 0) + delta;
+    }
+  }
   const lines = [];
   let totalRev = 0, totalExp = 0;
   for (const acc of ACCOUNT_LIST.filter(a => a.type === "revenue")) {
-    const bal = getAccountBalance(state, acc.no, toMin) - getAccountBalance(state, acc.no, (fromMin || 0) - 1);
+    const bal = (balToMin[acc.no] || 0) - (balFromMin[acc.no] || 0);
     if (bal !== 0) {
       const signed = acc.contra ? bal : -bal;
       lines.push({ account: acc.no, name: acc.name, amountCents: signed, type: "revenue", contra: acc.contra });
@@ -84,7 +99,7 @@ export function getPnL(state, fromMin, toMin) {
     }
   }
   for (const acc of ACCOUNT_LIST.filter(a => a.type === "expense")) {
-    const bal = getAccountBalance(state, acc.no, toMin) - getAccountBalance(state, acc.no, (fromMin || 0) - 1);
+    const bal = (balToMin[acc.no] || 0) - (balFromMin[acc.no] || 0);
     if (bal !== 0) {
       lines.push({ account: acc.no, name: acc.name, amountCents: bal, type: "expense", contra: acc.contra });
       totalExp += bal;
