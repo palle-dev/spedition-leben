@@ -5,7 +5,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Save, FolderOpen, Trash2, Download, Upload, Loader2, History, HardDrive } from "lucide-react";
+import { Save, FolderOpen, Trash2, Download, Upload, Loader2, History, HardDrive, X, AlertTriangle } from "lucide-react";
 import { formatGameTime } from "@/lib/gameData";
 
 // Spielstände-Dialog: manuelle Slots sichern/laden, Autosaves laden,
@@ -14,11 +14,13 @@ export default function SaveSlotsDialog({ open, onOpenChange }) {
   const {
     state, saveSlot, loadSlot, deleteSlot, listSlots,
     loadAutosaveSlot, autosaveMetas, exportGame, importGame,
+    deleteAutosaveSlot, deleteCurrentGame, deleteAllSaves,
   } = useGame();
   const [slots, setSlots] = useState([]);
   const [newName, setNewName] = useState("");
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
+  const [confirmAction, setConfirmAction] = useState(null);
   const fileRef = useRef(null);
 
   const refresh = useCallback(async () => {
@@ -92,6 +94,32 @@ export default function SaveSlotsDialog({ open, onOpenChange }) {
     e.target.value = "";
   };
 
+  const handleConfirmDelete = (action) => setConfirmAction(action);
+
+  const handleConfirmYes = async () => {
+    const action = confirmAction;
+    setConfirmAction(null);
+    if (action === "current") {
+      setBusy("delCurrent"); setError(null);
+      const r = await deleteCurrentGame();
+      setBusy(null);
+      if (r.ok) onOpenChange(false);
+      else setError(r.error);
+    } else if (action === "all") {
+      setBusy("delAll"); setError(null);
+      const r = await deleteAllSaves();
+      setBusy(null);
+      if (r.ok) onOpenChange(false);
+      else setError(r.error);
+    } else if (action.startsWith("auto:")) {
+      const i = parseInt(action.split(":")[1]);
+      setBusy("delAuto:" + i); setError(null);
+      await deleteAutosaveSlot(i);
+      setBusy(null);
+      refresh();
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto bg-surface border-white/10">
@@ -160,21 +188,32 @@ export default function SaveSlotsDialog({ open, onOpenChange }) {
             {[0, 1, 2].map((i) => {
               const meta = autosaveMetas?.[i] || null;
               return (
-                <button
-                  key={i}
-                  onClick={() => meta && handleLoadAutosave(i)}
-                  disabled={!meta || !!busy}
-                  className="rounded-lg border border-white/10 bg-ink/40 px-2 py-2 text-center hover:border-lime/30 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                >
-                  <div className="text-[11px] font-medium text-muted-foreground">Slot {i + 1}</div>
-                  <div className="text-[10px] text-muted-foreground/70 mt-0.5">
-                    {meta ? fmt(meta.savedAt).split(",")[0] : "—"}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground/70">
-                    {meta ? fmt(meta.savedAt).split(",")[1]?.trim() : ""}
-                  </div>
-                  {busy === "auto:" + i && <Loader2 className="w-3 h-3 animate-spin mx-auto mt-1" />}
-                </button>
+                <div key={i} className="relative rounded-lg border border-white/10 bg-ink/40 px-2 py-2 text-center">
+                  <button
+                    onClick={() => meta && handleLoadAutosave(i)}
+                    disabled={!meta || !!busy}
+                    className="w-full disabled:opacity-40 disabled:cursor-not-allowed transition hover:text-lime"
+                  >
+                    <div className="text-[11px] font-medium text-muted-foreground">Slot {i + 1}</div>
+                    <div className="text-[10px] text-muted-foreground/70 mt-0.5">
+                      {meta ? fmt(meta.savedAt).split(",")[0] : "—"}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground/70">
+                      {meta ? fmt(meta.savedAt).split(",")[1]?.trim() : ""}
+                    </div>
+                    {busy === "auto:" + i && <Loader2 className="w-3 h-3 animate-spin mx-auto mt-1" />}
+                  </button>
+                  {meta && (
+                    <button
+                      onClick={() => handleConfirmDelete("auto:" + i)}
+                      disabled={!!busy}
+                      className="absolute top-1 right-1 w-5 h-5 grid place-items-center rounded text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition disabled:opacity-30"
+                      title="Sicherung löschen"
+                    >
+                      {busy === "delAuto:" + i ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -197,6 +236,52 @@ export default function SaveSlotsDialog({ open, onOpenChange }) {
             Export speichert eine JSON-Datei mit Prüfsumme. Import lädt eine solche Datei und ersetzt den aktuellen Stand.
           </p>
         </div>
+
+        {/* Gefahrenzone */}
+        <div className="space-y-2">
+          <div className="text-xs font-semibold uppercase tracking-wider text-destructive/80 flex items-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5" /> Gefahrenzone
+          </div>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => handleConfirmDelete("current")}
+              disabled={!!busy || !state}
+              variant="outline"
+              className="flex-1 border-destructive/20 bg-destructive/5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              {busy === "delCurrent" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              Aktuellen Stand löschen
+            </Button>
+            <Button
+              onClick={() => handleConfirmDelete("all")}
+              disabled={!!busy}
+              variant="outline"
+              className="flex-1 border-destructive/20 bg-destructive/5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              {busy === "delAll" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              Alles löschen
+            </Button>
+          </div>
+        </div>
+
+        {/* Bestätigung */}
+        {confirmAction && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 space-y-2">
+            <div className="text-sm text-destructive-foreground">
+              {confirmAction === "current" && "Aktuellen Spielstand unwiderruflich löschen?"}
+              {confirmAction === "all" && "Alle Spielstände (aktueller Stand, Autosaves, manuelle Slots) unwiderruflich löschen?"}
+              {confirmAction.startsWith("auto:") && "Diese automatische Sicherung löschen?"}
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleConfirmYes} size="sm" className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Ja, löschen
+              </Button>
+              <Button onClick={() => setConfirmAction(null)} size="sm" variant="ghost">
+                Abbrechen
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
