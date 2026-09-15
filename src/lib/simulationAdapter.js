@@ -95,10 +95,14 @@ export async function executeCommand(state, command, params) {
           e.role === "assistant" && e.employmentStatus === "employed" && e.attendance === "present"
         );
         if (assistants.length > 0) {
-          // Mindestens 8 Stunden (Automatik-Sync), aber vollständige Abdeckung
-          // bei manuellem Zeitvorlauf (z.B. 24 h auf einmal)
+          // Bei Automatik (syncAutomation): 8 Stunden Rückblick.
+          // Bei manuellem Zeitvorlauf (advanceTime/advanceToNextEvent):
+          // nur die aktuelle Stunde — die stündliche Disposition läuft
+          // bereits in advanceTo über processEmployees. Alle Stunden
+          // einzeln nachzuholen wäre der Hauptflaschenhals bei 24h-Sprüngen.
+          const isAutomation = command === "syncAutomation";
           const hoursAdvanced = Math.max(0, currentHour - lastHour);
-          const maxHours = Math.max(8, hoursAdvanced);
+          const maxHours = isAutomation ? Math.max(8, hoursAdvanced) : 1;
           const startHour = Math.max(lastHour + 1, currentHour - maxHours + 1);
           for (let h = startHour; h <= currentHour; h++) {
             const t = h * 60;

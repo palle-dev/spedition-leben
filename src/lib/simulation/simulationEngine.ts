@@ -644,8 +644,8 @@ function advanceTo(state, targetMin, log, reportStart) {
   // Bei vorzeitigem Abbruch wird gameTime auf die letzte verarbeitete Minute gesetzt;
   // der nächste Tick/Sync setzt ab dort fort.
   const startTime = Date.now();
-  const CPU_BUDGET_MS = 12000; // 12 s — Puffer unter dem Plattform-Limit
-  const MAX_EVENTS = 500;
+  const CPU_BUDGET_MS = 3000; // 3 s — häufigere Fortschritts-Updates
+  const MAX_EVENTS = 200;
   let eventCount = 0;
   let stopped = false;
   // eslint-disable-next-line no-constant-condition
@@ -656,9 +656,10 @@ function advanceTo(state, targetMin, log, reportStart) {
     processEventsAt(state, next, log);
     t = next;
     eventCount++;
-    // Live-Fortschritt an den Haupt-Thread melden (alle 3 Ereignisse)
-    if (reportStart !== undefined && eventCount % 3 === 0) {
-      reportProgress(t - reportStart, targetMin - reportStart, eventCount);
+    // Live-Fortschritt nach jedem Ereignis melden
+    if (reportStart !== undefined) {
+      const recent = log.slice(-8);
+      reportProgress(t - reportStart, targetMin - reportStart, eventCount, recent);
     }
   }
   state.gameTime = stopped ? t : targetMin;
@@ -1484,7 +1485,7 @@ export function applyCommand(state, command, params) {
       // advanceTo kann vorzeitig abbrechen (CPU/Event-Budget). Schleife
       // fortsetzen bis Ziel erreicht — jeder Durchlauf bekommt frisches Budget.
       let guard = 0;
-      while (state.gameTime < target && guard < 20) {
+      while (state.gameTime < target && guard < 60) {
         const before = state.gameTime;
         advanceTo(state, target, log, startMin);
         if (state.gameTime <= before) break; // kein Fortschritt — Sicherheitsabbruch
