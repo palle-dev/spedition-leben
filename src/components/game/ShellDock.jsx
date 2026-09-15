@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import { formatGameTime, dayOf, clockOf } from "@/lib/gameData";
 import { getNextEvent } from "@/lib/displayHelpers";
-import { Building2, Package, Map, Truck, Users, Wallet, Home as HomeIcon, BookOpen, Play, Clock, SkipForward, MoreHorizontal, Trophy, Mail as MailIcon, LineChart, Network } from "lucide-react";
+import { Building2, Package, Map, Truck, Users, Wallet, Home as HomeIcon, BookOpen, Play, Clock, SkipForward, MoreHorizontal, Trophy, Mail as MailIcon, LineChart, Network, Calendar } from "lucide-react";
 
 const PRIMARY_NAV = [
   { to: "/", label: "Büro", icon: Building2 },
@@ -156,6 +156,15 @@ export default function ShellDock() {
             aria-label="1 Stunde weiter"
           >
             <Clock className="w-4 h-4" /> <span className="hidden lg:inline">1 Std</span>
+          </button>
+          <button
+            onClick={() => advance(1440)}
+            disabled={disabled}
+            className="flex items-center gap-1.5 rounded-lg px-2.5 lg:px-3 py-2 text-xs border border-white/10 bg-white/5 text-muted-foreground hover:text-foreground disabled:opacity-40 transition min-h-[44px]"
+            title="1 Tag weiter"
+            aria-label="1 Tag weiter"
+          >
+            <Calendar className="w-4 h-4" /> <span className="hidden lg:inline">1 Tag</span>
           </button>
           <button
             onClick={nextEventAction}
