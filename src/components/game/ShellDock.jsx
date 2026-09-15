@@ -45,42 +45,26 @@ export default function ShellDock() {
   }, [moreOpen]);
 
   async function advance(minutes) {
-    const CHUNK = 60;
-    const chunks = Math.ceil(minutes / CHUNK);
-    if (chunks <= 1) {
-      setAdvancing(true);
-      try {
-        const res = await send("advanceTime", { minutes });
-        summarizeEvents(res.events);
-      } catch (e) { showToast(e.message, "error"); }
-      finally { setAdvancing(false); }
-      return;
-    }
-
     setAdvancing(true);
-    setProgressModal({ current: 0, total: minutes, events: [], done: false, status: "Starte Verarbeitung…" });
-    const allEvents = [];
+    setProgressModal({ current: 0, total: minutes, events: [], eventCount: 0, done: false, status: "Verarbeite…" });
     try {
-      for (let i = 0; i < chunks; i++) {
-        const chunkMin = Math.min(CHUNK, minutes - i * CHUNK);
-        const res = await send("advanceTime", { minutes: chunkMin });
-        if (res?.events) allEvents.push(...res.events);
-        const current = (i + 1) * CHUNK;
+      const res = await send("advanceTime", { minutes }, (progress) => {
         setProgressModal(prev => prev ? ({
           ...prev,
-          current,
-          events: [...allEvents],
-          status: `Verarbeite Stunde ${i + 2} von ${chunks}…`,
+          current: progress.current,
+          eventCount: progress.eventCount,
+          status: `${progress.eventCount} Vorgänge verarbeitet…`,
         }) : prev);
-      }
+      });
+      const events = res?.events || [];
       setProgressModal(prev => prev ? ({
         ...prev,
         current: minutes,
-        events: [...allEvents],
+        events,
         done: true,
         status: "Abgeschlossen",
       }) : prev);
-      summarizeEvents(allEvents);
+      summarizeEvents(events);
     } catch (e) {
       showToast(e.message, "error");
       setProgressModal(prev => prev ? { ...prev, done: true, error: true, status: "Fehler: " + e.message } : prev);

@@ -4,14 +4,21 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 const simWorker = new Worker(new URL("./simulationWorker.js", import.meta.url), { type: "module" });
 let _workerMsgId = 0;
 const _workerPending = new Map();
+const _workerProgress = new Map();
 simWorker.onmessage = (e) => {
-  const { id, data } = e.data;
+  const { id, data, type, progress } = e.data;
+  if (type === "progress") {
+    const cb = _workerProgress.get(id);
+    if (cb) cb(progress);
+    return;
+  }
   const resolver = _workerPending.get(id);
-  if (resolver) { _workerPending.delete(id); resolver(data); }
+  if (resolver) { _workerPending.delete(id); _workerProgress.delete(id); resolver(data); }
 };
-function executeInWorker(state, command, params) {
+function executeInWorker(state, command, params, onProgress) {
   const id = ++_workerMsgId;
   return new Promise((resolve) => {
+    if (onProgress) _workerProgress.set(id, onProgress);
     _workerPending.set(id, resolve);
     simWorker.postMessage({ id, state, command, params });
   });
@@ -170,14 +177,14 @@ export function GameProvider({ children }) {
   }, []);
 
   // ---- Befehl lokal ausführen (kein Netzwerk) ----
-  const send = useCallback(async (command, params) => {
+  const send = useCallback(async (command, params, onProgress) => {
     while (syncInFlightRef.current) {
       await new Promise(resolve => setTimeout(resolve, 50));
     }
     if (!stateRef.current) throw new Error("Kein Spielstand geladen");
     setBusy(true); sendInFlightRef.current = true;
     try {
-      const data = await executeInWorker(stateRef.current, command, params || {});
+      const data = await executeInWorker(stateRef.current, command, params || {}, onProgress);
       if (data.error) throw new Error(data.error);
       const newState = data.state; const result = data.result;
       stateRef.current = newState; setState(newState);

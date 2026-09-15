@@ -59,7 +59,7 @@ export default function AdvanceProgressModal({ progress, onClose }) {
           </div>
           <div className="min-w-0">
             <h2 className="text-base font-semibold text-foreground">{done ? "Zeit fortgesetzt" : "Zeit wird fortgesetzt"}</h2>
-            <p className="text-xs text-muted-foreground">{hoursTotal} Stunden · {progress.events.length} Vorgänge verarbeitet</p>
+            <p className="text-xs text-muted-foreground">{hoursTotal} Stunden · {progress.eventCount || progress.events.length} Vorgänge verarbeitet</p>
           </div>
         </div>
 
