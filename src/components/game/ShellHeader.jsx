@@ -57,14 +57,19 @@ export default function ShellHeader() {
             <span className="hidden sm:inline">Speichern</span>
           </button>
         )}
-        <button onClick={() => navigate("/finanzen")} className="text-left group" aria-label="Firmenkonto und Finanzen">
-          <div className="text-[9px] lg:text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Firma</div>
-          <MoneyText value={state.company.accountCents} className="text-sm lg:text-base font-medium tracking-tight text-foreground group-hover:text-lime transition-colors" accentOnFlash="text-lime" />
-        </button>
-        <button onClick={() => navigate("/finanzen")} className="text-left group hidden lg:block" aria-label="Privatkonto und Haushalt">
-          <div className="text-[9px] lg:text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Privat</div>
-          <MoneyText value={state.private.accountCents} className="text-sm lg:text-base font-medium tracking-tight text-foreground group-hover:text-coral transition-colors" accentOnFlash="text-coral" />
-        </button>
+        {/* Konten-Panel */}
+        <div className="flex items-stretch rounded-lg border border-white/10 bg-white/[0.03] divide-x divide-white/10 overflow-hidden shrink-0">
+          <button onClick={() => navigate("/finanzen")} className="text-left group px-2.5 py-1 transition-colors hover:bg-white/5" aria-label="Firmenkonto und Finanzen">
+            <div className="text-[9px] uppercase tracking-[0.1em] text-muted-foreground">Firma</div>
+            <MoneyText value={state.company.accountCents} className="text-sm lg:text-base font-medium tracking-tight text-foreground group-hover:text-lime transition-colors" accentOnFlash="text-lime" />
+          </button>
+          <button onClick={() => navigate("/finanzen")} className="text-left group px-2.5 py-1 transition-colors hover:bg-white/5 hidden lg:block" aria-label="Privatkonto und Haushalt">
+            <div className="text-[9px] uppercase tracking-[0.1em] text-muted-foreground">Privat</div>
+            <MoneyText value={state.private.accountCents} className="text-sm lg:text-base font-medium tracking-tight text-foreground group-hover:text-coral transition-colors" accentOnFlash="text-coral" />
+          </button>
+        </div>
+        {/* Trennlinie zu Icon-Buttons */}
+        <div className="w-px h-8 bg-white/10 shrink-0" />
         <button
           onClick={() => setSlotsOpen(true)}
           className="w-9 h-9 grid place-items-center rounded-full border border-white/10 bg-white/5 text-muted-foreground hover:text-lime transition shrink-0"
