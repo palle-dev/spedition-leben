@@ -820,7 +820,7 @@ export function applyCommand(state, command, params) {
     if (Array.isArray(state.orders) && state.orders.length > 100) {
       state.orders = state.orders.filter(o => {
         if (o.status === "offered" || o.status === "angenommen" || o.status === "unterwegs") return true;
-        const ref = o.deliveredAtMin || o.acceptDeadlineMin || o.acceptedAtMin || 0;
+        const ref = o.deliveredAtMin || o.failedAtMin || o.acceptDeadlineMin || o.acceptedAtMin || 0;
         return ref > cutoff;
       });
     }

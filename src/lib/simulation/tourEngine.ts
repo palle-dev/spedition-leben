@@ -301,7 +301,12 @@ export function buildTourPlan(state, opts) {
         return { error: "Überladung: " + order.tons + " t überschreiten Kapazität von " + vehicle.capacityTons + " t." };
       }
       const dep = buildDeployment(state, order, vehicle, currentCity, t, counters);
-      if (dep.endMin > order.deliveryDeadlineMin) {
+      // Spätlieferung-Toleranz: 4h Gnadenfrist. completeTrip zahlt 90% bei
+      // Spätlieferung — buildTourPlan soll daher leichte Überschreitungen
+      // zulassen, damit der Disponent knappe Aufträge noch retten kann,
+      // statt sie aufzugeben (was zu überfälligen Aufträgen führt).
+      const LATE_GRACE_MIN = 240;
+      if (dep.endMin > order.deliveryDeadlineMin + LATE_GRACE_MIN) {
         return { error: "Lieferung von " + order.customer + " würde die Lieferfrist überschreiten (Ankunft " + formatGameTime(dep.endMin) + ", Frist " + formatGameTime(order.deliveryDeadlineMin) + ")." };
       }
       if (order.status === "offered" && order.acceptDeadlineMin <= state.gameTime) {
@@ -980,7 +985,7 @@ export function suggestTours(state, opts) {
   // der buildTourPlan-Aufrufe.
   const totalAvailableOrders = state.orders.filter(o =>
     (o.status === "angenommen" || (acceptNew && o.status === "offered")) &&
-    o.deliveryDeadlineMin > startMin &&
+    o.deliveryDeadlineMin > startMin - 240 &&
     !activeTourOrderIds.has(o.id)
   ).length;
 
@@ -1036,13 +1041,19 @@ export function suggestTours(state, opts) {
     // 1. Bereits angenommene, unzugewiesene Aufträge (nicht bereits zugewiesen,
     //    nicht bereits Teil einer aktiven Tour — verhindert Doppelbuchung im Pool-Modell)
     //    Lieferfrist muss noch in der Zukunft liegen (sonst ist der Auftrag unrealisierbar).
+    // 1. Bereits angenommene, unzugewiesene Aufträge (nicht bereits zugewiesen,
+    //    nicht bereits Teil einer aktiven Tour — verhindert Doppelbuchung im Pool-Modell)
+    //    Spätlieferung-Toleranz: Aufträge bis zu 4h nach der Frist werden noch
+    //    geplant (completeTrip zahlt 90% Vergütung bei Spätlieferung).
+    //    Sortiert nach Dringlichkeit (knappste Frist zuerst), damit bei
+    //    Truncation auf 12 Aufträge die eiligsten nicht verloren gehen.
     const acceptedOrders = state.orders.filter(o =>
       o.status === "angenommen" &&
-      o.deliveryDeadlineMin > startMin &&
+      o.deliveryDeadlineMin > startMin - 240 &&
       o.tons <= vehicle.capacityTons &&
       !usedOrderIds.has(o.id) &&
       !activeTourOrderIds.has(o.id)
-    );
+    ).sort((a, b) => a.deliveryDeadlineMin - b.deliveryDeadlineMin);
 
     // 2. Offene Angebote (nur wenn acceptNew, nicht bereits zugewiesen)
     //    Lieferfrist muss noch in der Zukunft liegen.

@@ -11,6 +11,7 @@ const MAP = {
   geliefert: { label: "Geliefert", cls: "text-lime" },
   storniert: { label: "Storniert", cls: "text-red-300" },
   expired: { label: "Verfallen", cls: "text-muted-foreground" },
+  failed: { label: "Gescheitert", cls: "text-red-400" },
 };
 
 // Einheitliche Statusanzeige mit Punkt und Farbe.

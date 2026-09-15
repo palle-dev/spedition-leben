@@ -90,7 +90,7 @@ export default function Orders() {
   }, [state.orders, state.branches, search, filterCity, filterType, filterFeasible, filterDg, filterBranch, sortBy]);
 
   const active = state.orders.filter(o => ["angenommen", "unterwegs"].includes(o.status));
-  const done = state.orders.filter(o => ["geliefert", "storniert", "expired"].includes(o.status)).slice(-12);
+  const done = state.orders.filter(o => ["geliefert", "storniert", "expired", "failed"].includes(o.status)).slice(-12);
 
   function resetFilter() {
     setSearch(""); setFilterCity(""); setFilterType(""); setFilterFeasible(""); setFilterDg(""); setFilterBranch(""); setSortBy("deadline");

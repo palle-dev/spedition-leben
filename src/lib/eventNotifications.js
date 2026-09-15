@@ -77,6 +77,18 @@ export function eventToToast(ev) {
         eventSeq: ev.seq,
       };
 
+    case "order_failed":
+      return {
+        id: ev.id,
+        kind: "error",
+        icon: "alert",
+        title: "Auftrag gescheitert",
+        body: `${d.customer || "—"}: ${d.fromCity || "—"} → ${d.toCity || "—"} konnte nicht rechtzeitig geliefert werden. Konventionalstrafe ${formatEuro(d.penaltyCents || 0)}.`,
+        action: { label: "Aufträge ansehen", targetType: "orders", targetId: null },
+        duration: 8000,
+        eventSeq: ev.seq,
+      };
+
     case "reward_available":
       return {
         id: ev.id,
@@ -195,6 +207,7 @@ export const DISPATCH_LOG_TYPES = [
   "tour_planned_by_dispatcher",
   "tour_started",
   "delivery_completed",
+  "order_failed",
 ];
 
 // Kurze Beschriftung für den Live-Verlauf.
@@ -210,6 +223,8 @@ export function eventToLogLabel(ev) {
       return `${vehicleLabel(ev.vehicleId)} gestartet`;
     case "delivery_completed":
       return `Geliefert: ${d.customer}`;
+    case "order_failed":
+      return `Gescheitert: ${d.customer}`;
     default:
       return ev.type;
   }

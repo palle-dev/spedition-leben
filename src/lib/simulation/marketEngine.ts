@@ -18,6 +18,7 @@ import { earliestAvailable } from "./tourEngine.ts";
 import {
   DG_PROFILES, makeDgOffer, computeDgFleetN,
 } from "./dangerousGoodsEngine.ts";
+import { pushEvent } from "./eventLog.ts";
 
 // ---------- Hilfsfunktionen ----------
 
@@ -387,6 +388,60 @@ export function generateMarketWave(state, m, log) {
     }
   }
 
+  // 1b. Überfällige angenommene Aufträge als "failed" markieren.
+  // Gnadenfrist: 12h nach Lieferfrist. Danach ist eine Spätlieferung
+  // nicht mehr sinnvoll. Der Auftrag wird mit einer Konventionalstrafe
+  // (10% der Vergütung) abgerechnet und aus dem aktiven Bestand entfernt.
+  // Das verhindert, dass unzustellbare Aufträge ewig als "angenommen"
+  // stehen bleiben und den Disponenten-Backlog aufblähen.
+  const FAILED_GRACE_MIN = 12 * 60;
+  let failed = 0;
+  for (const o of state.orders) {
+    if (o.status !== "angenommen") continue;
+    if (o.deliveryDeadlineMin + FAILED_GRACE_MIN > m) continue;
+    // Prüfen, ob der Auftrag unterwegs ist (Trip läuft noch)
+    const isUnderway = (state.trips || []).some(t => t.orderId === o.id && t.status === "in_progress");
+    if (isUnderway) continue;
+    // Auftrag gescheitert — Konventionalstrafe 10% vom Firmenkonto
+    const penalty = Math.round((o.paymentCents || 0) * 0.1);
+    o.status = "failed";
+    o.failedAtMin = m;
+    o.failurePenaltyCents = penalty;
+    if (penalty > 0) {
+      if (state.company.accountCents >= penalty) {
+        state.company.accountCents -= penalty;
+      } else {
+        const paid = state.company.accountCents;
+        state.company.accountCents = 0;
+        state.openCosts = state.openCosts || [];
+        state.openCosts.push({
+          id: "oc_" + (state.idCounter = (state.idCounter || 100) + 1),
+          account: "company", cause: "Konventionalstrafe: " + o.customer,
+          amountCents: penalty - paid, refId: "failed:" + o.id, createdAtMin: m,
+        });
+      }
+      state.bookings = state.bookings || [];
+      state.bookings.push({ min: m, cause: "Konventionalstrafe: " + o.customer, amountCents: -penalty, account: "company", refId: "failed:" + o.id });
+    }
+    state.stats = state.stats || {};
+    state.stats.failedOrders = (state.stats.failedOrders || 0) + 1;
+    state.stats.consecutiveTimely = 0;
+    state.private = state.private || {};
+    state.private.relationship = Math.max(0, (state.private.relationship || 0) - 2);
+    state.private.happiness = Math.max(0, (state.private.happiness || 0) - 1);
+    pushEvent(state, {
+      type: "order_failed", gameTime: m, isSystem: true,
+      orderIds: [o.id],
+      details: {
+        customer: o.customer, fromCity: o.fromCity, toCity: o.toCity,
+        cargo: o.cargo, tons: o.tons, paymentCents: o.paymentCents,
+        penaltyCents: penalty, deliveryDeadlineMin: o.deliveryDeadlineMin,
+      },
+      dedupKey: "order_failed:" + o.id,
+    });
+    failed++;
+  }
+
   // 2. N, T, B berechnen
   const n = computePlanableFleetN(state);
   const t = computeTargetInventory(n);
@@ -411,6 +466,7 @@ export function generateMarketWave(state, m, log) {
   state.market.stats.wavesProcessed = (state.market.stats.wavesProcessed || 0) + 1;
   state.market.stats.offersGenerated = (state.market.stats.offersGenerated || 0) + generated;
   state.market.stats.offersExpired = (state.market.stats.offersExpired || 0) + expired;
+  state.market.stats.ordersFailed = (state.market.stats.ordersFailed || 0) + failed;
   state.market.stats.lastN = n;
   state.market.stats.lastT = t;
   state.market.stats.lastB = b;
@@ -420,7 +476,7 @@ export function generateMarketWave(state, m, log) {
   state.market.stats.lastWaveMin = m;
   state.market.nextWaveMin = m + MARKET_WAVE_INTERVAL;
 
-  log.push({ type: "market_wave", atMin: m, n, t, b, o, generated, feasible, expired });
+  log.push({ type: "market_wave", atMin: m, n, t, b, o, generated, feasible, expired, failed });
 
   // ---------- Gefahrgut-Wellen (Auftrag 32) ----------
   generateDgWave(state, m, log);
