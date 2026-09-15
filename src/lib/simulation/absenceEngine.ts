@@ -14,11 +14,18 @@ import { deliverMessage } from "./mailEngine.ts";
 export const VACATION_START_DAYS = 3;
 export const VACATION_ACCRUAL_INTERVAL_DAYS = 10; // alle 10 Beschäftigungstage +1 Tag
 export const VACATION_MAX_UNUSED = 20; // inkl. reservierter Tage
-export const SICKNESS_BASE_RATE = 0.0025; // 0,25 % pro gesundem Mitarbeiter/Spieltag
+export const SICKNESS_BASE_RATE = 0.02; // 2 % pro gesundem Mitarbeiter/Spieltag
 export const SICKNESS_MIN_DURATION = 1; // Spieltage
 export const SICKNESS_MAX_DURATION = 3; // Spieltage
 export const SICKNESS_COOLDOWN_DAYS = 5; // Abstand nach Genesung
 export const SICKNESS_INTRO_PROTECTION_DAYS = 3; // Erste Tage nach Einstellung geschützt
+export const VACATION_REQUEST_RATE = 0.015; // 1,5 % Chance/Tag bei verfügbaren Tagen
+export const VACATION_REQUEST_COOLDOWN_DAYS = 14; // Mindestabstand nach letztem Urlaub
+export const VACATION_REQUEST_MIN_DAYS = 3; // Mindest verfügbare Tage für Antrag
+export const VACATION_REQUEST_MIN_OFFSET = 5; // Frühester Start in Tagen
+export const VACATION_REQUEST_MAX_OFFSET = 14; // Spätester Start in Tagen
+export const VACATION_REQUEST_MIN_DURATION = 3; // Mindestdauer
+export const VACATION_REQUEST_MAX_DURATION = 7; // Maximaldauer
 
 const DAY_MIN = 1440;
 
@@ -680,6 +687,191 @@ export function isPersonAvailable(state, personId, m) {
   if (found.kind === "driver" && found.person.restUntil && found.person.restUntil > m) return false;
   
   return true;
+}
+
+// ---------- Auto-Urlaubsanträge ----------
+
+// Mitarbeiter beantragen selbstständig Urlaub, wenn sie genug Tage gesammelt haben.
+// Wird täglich um Mitternacht aufgerufen.
+export function maybeGenerateVacationRequest(state, midnight) {
+  if (midnight % DAY_MIN !== 0) return;
+  state.absences = state.absences || {};
+  state.absences.vacationRequests = state.absences.vacationRequests || [];
+
+  const persons = getAllPersons(state);
+  for (const p of persons) {
+    if (!isActivelyEmployed(p._person)) continue;
+    // Einführungsschutz
+    const employedDay = p._person.employedDay || 1;
+    const currentDay = dayOf(midnight);
+    if (currentDay - employedDay < SICKNESS_INTRO_PROTECTION_DAYS) continue;
+    // Bereits auf Urlaub?
+    const onVacation = (state.absences.vacationRequests || []).some(r =>
+      r.personId === p._person.id && r.status === "approved" && r.startMin <= midnight && r.endMin > midnight
+    );
+    if (onVacation) continue;
+    // Bereits krank?
+    const sick = (state.absences.sicknesses || []).some(s =>
+      s.personId === p._person.id && s.status === "active"
+    );
+    if (sick) continue;
+    // Bereits einen pending Antrag?
+    const hasPending = (state.absences.vacationRequests || []).some(r =>
+      r.personId === p._person.id && r.status === "pending"
+    );
+    if (hasPending) continue;
+    // In Kündigung?
+    if (p._person.employmentStatus === "notice_given") continue;
+    // Cooldown nach letztem Urlaub
+    const lastVacation = (state.absences.vacationRequests || [])
+      .filter(r => r.personId === p._person.id && (r.status === "completed" || r.status === "approved" || r.status === "cancelled"))
+      .sort((a, b) => (b.endMin || 0) - (a.endMin || 0))[0];
+    if (lastVacation) {
+      const cooldownEnd = (lastVacation.endMin || 0) + VACATION_REQUEST_COOLDOWN_DAYS * DAY_MIN;
+      if (midnight < cooldownEnd) continue;
+    }
+    // Urlaubstage verfügbar?
+    accrueVacationDays(state, p._person.id, midnight);
+    const available = getVacationAvailable(state, p._person.id);
+    if (available < VACATION_REQUEST_MIN_DAYS) continue;
+    // Würfeln
+    if (nextRng(state) >= VACATION_REQUEST_RATE) continue;
+
+    // Urlaub planen: 3-7 Tage, Start in 5-14 Tagen
+    const duration = Math.min(
+      VACATION_REQUEST_MIN_DURATION + Math.floor(nextRng(state) * (VACATION_REQUEST_MAX_DURATION - VACATION_REQUEST_MIN_DURATION + 1)),
+      available
+    );
+    if (duration < VACATION_REQUEST_MIN_DAYS) continue;
+    const startOffsetDays = VACATION_REQUEST_MIN_OFFSET + Math.floor(nextRng(state) * (VACATION_REQUEST_MAX_OFFSET - VACATION_REQUEST_MIN_OFFSET + 1));
+    const startMin = midnight + startOffsetDays * DAY_MIN;
+    const endMin = startMin + duration * DAY_MIN;
+
+    // Überlappende Genehmigungen prüfen
+    const existing = (state.absences.vacationRequests || []).filter(r =>
+      r.personId === p._person.id && r.status === "approved" && r.startMin < endMin && r.endMin > startMin
+    );
+    if (existing.length > 0) continue;
+
+    // Konflikte prüfen
+    const conflicts = detectAbsenceConflicts(state, p._person.id, startMin, endMin);
+    // Bei harten Konflikten überspringen
+    if (conflicts.some(c => c.severity === "hard")) continue;
+
+    const request = {
+      id: uid(state, "vr"),
+      personId: p._person.id, personKind: p._kind, personName: p._person.name,
+      startMin, endMin, days: duration, reason: "Erholungsurlaub",
+      status: "pending", createdAtMin: midnight,
+      approvedAtMin: null, approvedBy: null, conflictResolution: null,
+      conflicts, autoGenerated: true,
+    };
+    state.absences.vacationRequests.push(request);
+
+    pushEvent(state, {
+      type: "vacation_requested",
+      gameTime: midnight, isSystem: true,
+      personId: p._person.id, personName: p._person.name, portraitId: p._person.portraitId,
+      details: { startMin, endMin, days: duration, reason: "Erholungsurlaub", conflicts, autoGenerated: true },
+      dedupKey: "vacation_requested:" + request.id,
+    });
+
+    deliverMessage(state, {
+      fromId: p._person.id, toId: "player",
+      subject: "Urlaubsantrag: " + p._person.name,
+      body: `${p._person.name} beantragt Urlaub vom ${formatGameTime(startMin)} bis ${formatGameTime(endMin - 1)} (${duration} Tag(e)).\nGrund: Erholungsurlaub${conflicts.length > 0 ? "\n\nKonflikte erkannt:\n" + conflicts.map(c => "• " + c.description).join("\n") : "\nKeine Konflikte erkannt."}`,
+      gameTime: midnight, category: "personnel", priority: "normal",
+      linkedRefs: { type: "vacation_request", id: request.id }, dedupKey: "vacation_request_msg:" + request.id,
+    });
+  }
+}
+
+// ---------- Auto-Genehmigung durch Filialleiter und Assistenten ----------
+
+// Filialleiter genehmigen Urlaubsanträge für Mitarbeiter ihrer Filiale.
+// Assistenten genehmigen firmenweit. Der eigene Antrag wird nie selbst genehmigt.
+// Wird während der Dienstzeiten aufgerufen.
+export function autoApproveVacationRequests(state, m) {
+  state.absences = state.absences || {};
+  const pending = (state.absences.vacationRequests || []).filter(r => r.status === "pending");
+  if (pending.length === 0) return;
+
+  const branchManagers = (state.employees || []).filter(e =>
+    e.role === "branch_manager" && e.employmentStatus === "employed" && e.attendance === "present"
+  );
+  const assistants = (state.employees || []).filter(e =>
+    e.role === "assistant" && e.employmentStatus === "employed" && e.attendance === "present"
+  );
+  if (branchManagers.length === 0 && assistants.length === 0) return;
+
+  for (const req of pending) {
+    // Harte Konflikte nicht auto-genehmigen – Spieler muss entscheiden
+    if (req.conflicts && req.conflicts.some(c => c.severity === "hard")) continue;
+
+    const found = findPerson(state, req.personId);
+    if (!found) continue;
+
+    // Filialleiter für die Filiale des Mitarbeiters suchen
+    const personBranchId = found.person.assignedBranchId || found.person.branchId;
+    let approver = null;
+    let approverRole = null;
+
+    if (personBranchId) {
+      approver = branchManagers.find(bm =>
+        bm.assignedBranchId === personBranchId && bm.id !== req.personId
+      );
+      approverRole = "branch_manager";
+    }
+
+    // Wenn kein Filialleiter: Assistent suchen (nicht der Antragsteller selbst)
+    if (!approver) {
+      approver = assistants.find(a => a.id !== req.personId);
+      approverRole = "assistant";
+    }
+
+    if (!approver) continue;
+
+    // Genehmigen
+    req.status = "approved";
+    req.approvedAtMin = m;
+    req.approvedBy = approver.name;
+    req.approvedByRole = approverRole;
+    req.conflictResolution = "accepted";
+    req.autoApproved = true;
+
+    // Zufriedenheit +3
+    if (found.person.satisfaction !== undefined) {
+      found.person.satisfaction = Math.min(100, (found.person.satisfaction || 70) + 3);
+      found.person.satisfactionReasons = found.person.satisfactionReasons || [];
+      found.person.satisfactionReasons.push({ reason: "Urlaub genehmigt (durch " + approver.name + ")", atMin: m });
+    }
+
+    pushEvent(state, {
+      type: "vacation_approved",
+      gameTime: m, isSystem: true,
+      personId: req.personId, personName: req.personName, portraitId: found.person.portraitId,
+      details: { startMin: req.startMin, endMin: req.endMin, days: req.days, autoApproved: true, approvedBy: approver.name, approvedByRole: approverRole },
+      dedupKey: "vacation_approved:" + req.id,
+    });
+
+    // Nachricht an Mitarbeiter
+    deliverMessage(state, {
+      fromId: approver.id, toId: req.personId,
+      subject: "Urlaub genehmigt",
+      body: `Dein Urlaub vom ${formatGameTime(req.startMin)} bis ${formatGameTime(req.endMin - 1)} (${req.days} Tag(e)) wurde von ${approver.name} genehmigt.`,
+      gameTime: m, category: "personnel", priority: "normal",
+      dedupKey: "vacation_approved_msg:" + req.id,
+    });
+
+    // Benachrichtigung an GF
+    deliverMessage(state, {
+      fromId: approver.id, toId: "player",
+      subject: "Urlaub genehmigt: " + req.personName,
+      body: `${approver.name} hat den Urlaubsantrag von ${req.personName} (vom ${formatGameTime(req.startMin)} bis ${formatGameTime(req.endMin - 1)}, ${req.days} Tag(e)) genehmigt.`,
+      gameTime: m, category: "personnel", priority: "normal",
+      dedupKey: "vacation_auto_approved_gf:" + req.id,
+    });
+  }
 }
 
 // ---------- Migration ----------

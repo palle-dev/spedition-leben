@@ -68,7 +68,7 @@ import {
   cancelVacation, returnEarlyFromVacation, reportSickness, maybeGenerateSickness,
   processSicknessRecovery, processVacationDayConsumption, isPersonAvailable,
   getVacationAvailable, getVacationAccount, accrueVacationDays, detectAbsenceConflicts,
-  getAbsenceCalendar,
+  getAbsenceCalendar, maybeGenerateVacationRequest, autoApproveVacationRequests,
 } from "./absenceEngine.ts";
 import {
   migrateServices, bookCleaning, bookMaintenance, bookTowing, bookTempStaff,
@@ -658,6 +658,7 @@ function processEventsAt(state, m, log) {
   // 3c. Angestellte verarbeiten (Disponenten Schicht-basiert, Buchhaltung/Reinigung tagsüber)
   if (m % SERVICE_INTERVAL_MIN === 0) {
     processEmployees(state, m, log);
+    if (m % 1440 === SERVICE_START_MIN) autoApproveVacationRequests(state, m);
   }
   // 3d. Berichte generieren und Staff-Tasks verarbeiten
   processReportSchedules(state, m, log);
@@ -678,6 +679,7 @@ function processEventsAt(state, m, log) {
     log.push({ type: "daily_accounting", min: m, details: dlog });
     // Auftrag 25: Krankheitsgenerator, Urlaubsverbrauch, Sauberkeitsverlust
     maybeGenerateSickness(state, m);
+    maybeGenerateVacationRequest(state, m);
     processVacationDayConsumption(state, m);
     processDailyCleaningDecay(state, m);
     // Auftrag 26: Taeglicher Unterhalt fuer Anschaffungen
