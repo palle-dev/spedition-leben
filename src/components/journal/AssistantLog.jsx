@@ -32,14 +32,17 @@ export default function AssistantLog() {
 
   if (counts.all === 0) {
     return (
-      <div className="glass border border-white/10 rounded-xl p-12 text-center">
-        <div className="grid place-items-center w-14 h-14 rounded-2xl bg-white/5 mx-auto mb-4">
-          <Briefcase className="w-7 h-7 text-muted-foreground/30" />
+      <div className="space-y-5">
+        <AssistantConfig />
+        <div className="glass border border-white/10 rounded-xl p-8 text-center">
+          <div className="grid place-items-center w-12 h-12 rounded-2xl bg-white/5 mx-auto mb-3">
+            <Briefcase className="w-6 h-6 text-muted-foreground/30" />
+          </div>
+          <p className="text-sm text-muted-foreground">Noch keine Assistenten-Aktivität.</p>
+          <p className="text-xs text-muted-foreground/50 mt-1 max-w-md mx-auto">
+            Der Assistent arbeitet automatisch zur vollen Stunde. Aktiviere die Zeitautomatik oder nutze „Zeit vor", damit er Aufträge annimmt, Berichte sendet und Kosten optimiert.
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground">Noch keine Assistenten-Aktivität.</p>
-        <p className="text-xs text-muted-foreground/50 mt-1">
-          Stelle einen Assistenten der Geschäftsführung ein, um automatisierte Aufgaben zu aktivieren.
-        </p>
       </div>
     );
   }
