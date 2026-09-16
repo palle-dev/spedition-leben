@@ -5,8 +5,9 @@ import MoneyText from "@/components/MoneyText";
 import FernwerkSignet from "@/components/brand/FernwerkSignet";
 import SaveSlotsDialog from "@/components/game/SaveSlotsDialog";
 import MailModal from "@/components/mail/MailModal";
-import { Sparkles, Mail as MailIcon, Save, Loader2, HardDrive, HelpCircle, LogOut } from "lucide-react";
+import { Sparkles, Mail as MailIcon, Save, Loader2, HardDrive, HelpCircle, LogOut, Settings } from "lucide-react";
 import HelpPanel from "@/components/help/HelpPanel";
+import SettingsDialog from "@/components/game/SettingsDialog";
 import { getMailboxStats } from "@/lib/mailData";
 import { useHeaderSlot } from "@/lib/headerSlot";
 import WorldSwitch from "@/components/game/WorldSwitch";
@@ -21,6 +22,7 @@ export default function ShellHeader() {
   const [slotsOpen, setSlotsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [mailOpen, setMailOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const mailStats = state?.mail ? getMailboxStats(state) : null;
   const unreadCount = mailStats?.unread || 0;
 
@@ -97,6 +99,14 @@ export default function ShellHeader() {
           )}
         </button>
         <button
+          onClick={() => setSettingsOpen(true)}
+          className="w-9 h-9 grid place-items-center rounded-full border border-white/10 bg-white/5 text-muted-foreground hover:text-lime transition shrink-0"
+          aria-label="Spieleinstellungen"
+          title="Schwierigkeit & Hilfen"
+        >
+          <Settings className="w-4 h-4" />
+        </button>
+        <button
           onClick={() => setHelpOpen(true)}
           className="w-9 h-9 grid place-items-center rounded-full border border-white/10 bg-white/5 text-muted-foreground hover:text-lime transition shrink-0"
           aria-label="Hilfe öffnen"
@@ -125,6 +135,7 @@ export default function ShellHeader() {
       <SaveSlotsDialog open={slotsOpen} onOpenChange={setSlotsOpen} />
       <HelpPanel open={helpOpen} onClose={() => setHelpOpen(false)} />
       <MailModal open={mailOpen} onClose={() => setMailOpen(false)} />
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </header>
   );
 }

@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useGame } from "@/lib/gameContext";
-import { Plus, Play, Upload, FolderOpen, LogOut } from "lucide-react";
+import { Plus, Play, Upload, FolderOpen, LogOut, Check } from "lucide-react";
 import FernwerkLogo from "@/components/brand/FernwerkLogo";
 import { base44 } from "@/api/base44Client";
+import { DIFFICULTY_PROFILES, DEFAULT_PROFILE_ID } from "@/lib/simulation/difficultyProfiles";
+import { HELP_OPTIONS, DEFAULT_HELP_SETTINGS } from "@/lib/simulation/helpSettings";
 
 const OFFICE_URL = "https://media.base44.com/images/public/6aa52ebc01a939da57f8b78f/af8b503ab_office_cinematic.png";
 
@@ -12,6 +14,8 @@ export default function StartScreen() {
   const [showForm, setShowForm] = useState(false);
   const [names, setNames] = useState({ companyName: "", playerName: "", partnerName: "Mara" });
   const [withOnboarding, setWithOnboarding] = useState(true);
+  const [profileId, setProfileId] = useState(DEFAULT_PROFILE_ID);
+  const [helpSettings, setHelpSettings] = useState({ ...DEFAULT_HELP_SETTINGS });
   const fileRef = useRef(null);
 
   useEffect(() => {
@@ -24,7 +28,9 @@ export default function StartScreen() {
         companyName: names.companyName || "Nordlicht Transport GmbH",
         playerName: names.playerName || "Spielerin",
         partnerName: names.partnerName || "Mara",
-        onboarding: withOnboarding
+        onboarding: withOnboarding,
+        difficultyProfileId: profileId,
+        helpSettings,
       });
     } catch (e) { showToast(e.message, "error"); }
   }
@@ -144,6 +150,40 @@ export default function StartScreen() {
                 </button>
               </div>
             </div>
+            <div>
+              <span className="text-xs text-muted-foreground">Schwierigkeit</span>
+              <div className="mt-1.5 space-y-2">
+                {DIFFICULTY_PROFILES.map(p => (
+                  <button key={p.id} type="button" onClick={() => setProfileId(p.id)}
+                    className={`w-full px-3 py-2.5 rounded-lg border text-left transition flex items-start gap-2.5 ${profileId === p.id ? "border-lime/40 bg-lime/5" : "border-white/10 hover:border-white/20"}`}>
+                    <div className={`mt-0.5 w-4 h-4 rounded-full border flex-shrink-0 grid place-items-center ${profileId === p.id ? "border-lime bg-lime" : "border-white/20"}`}>
+                      {profileId === p.id && <Check className="w-3 h-3 text-ink" />}
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium">{p.label}</div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5">{p.description}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground">Einstiegshilfen (optional)</span>
+              <div className="mt-1.5 space-y-1.5">
+                {HELP_OPTIONS.map(opt => (
+                  <label key={opt.id} className="flex items-start gap-2.5 cursor-pointer">
+                    <button type="button" onClick={() => setHelpSettings(s => ({ ...s, [opt.id]: !s[opt.id] }))}
+                      className={`mt-0.5 w-4 h-4 rounded border flex-shrink-0 grid place-items-center transition ${helpSettings[opt.id] ? "border-lime bg-lime" : "border-white/20"}`}>
+                      {helpSettings[opt.id] && <Check className="w-3 h-3 text-ink" />}
+                    </button>
+                    <div>
+                      <div className="text-xs font-medium">{opt.label}</div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5">{opt.description}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
             <div className="flex gap-2">
               <button onClick={create} disabled={busy} className="flex-1 px-4 py-2.5 rounded-lg bg-lime text-ink hover:brightness-110 disabled:opacity-50 font-semibold transition active:scale-[0.98]">Gründen</button>
               <button onClick={() => setShowForm(false)} className="px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-sm hover:bg-white/10 transition">Abbrechen</button>
@@ -167,7 +207,7 @@ export default function StartScreen() {
         <input ref={fileRef} type="file" accept="application/json,.json" onChange={handleFile} className="hidden" />
 
         <p className="text-xs text-muted-foreground/50 mt-6 text-center">
-          Start: Hamburg · 75.000 € Firma · 7.500 € Privat · 3 Lkw · 3 Fahrer · 8 Angebote
+          Start: Hamburg · {(DIFFICULTY_PROFILES.find(p => p.id === profileId)?.startCapitalCents / 100).toLocaleString("de-DE")} € Firma · {(DIFFICULTY_PROFILES.find(p => p.id === profileId)?.privateCapitalCents / 100).toLocaleString("de-DE")} € Privat · 3 Lkw · 3 Fahrer · 8 Angebote
         </p>
       </div>
     </div>

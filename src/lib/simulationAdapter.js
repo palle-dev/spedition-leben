@@ -11,6 +11,8 @@ import { generateBranchDecisions, approveBranchDecision, rejectBranchDecision, s
 import { processAssistant, migrateAssistant } from "@/lib/simulation/assistantEngine";
 import { createScenarioState, evaluateScenario, continueAsFreePlay, recordIntervention, isOperativeCommand } from "@/lib/scenarios/scenarioEngine";
 import { migrateAcquisition, processAcquisitionEvents } from "@/lib/simulation/acquisitionEngine";
+import { migrateDifficulty } from "@/lib/simulation/difficultyProfiles";
+import { migrateHelpSettings } from "@/lib/simulation/helpSettings";
 
 // Reduziert die Zustandsgröße vor der Ausführung.
 // Entfernt gesehene Events (>1 Tag alt), kappt das Legacy-Buchungs-Array,
@@ -141,6 +143,9 @@ export async function executeCommand(state, command, params) {
 
   // Akquise-State migrieren vor Ausführung
   migrateAcquisition(state);
+  // Schwierigkeitsprofil und Hilfestellungen migrieren (ältere Spielstände)
+  migrateDifficulty(state);
+  migrateHelpSettings(state);
 
   let slim = slimState(state);
 
