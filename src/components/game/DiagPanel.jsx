@@ -11,7 +11,7 @@ import { X, Copy, Play, Check, Loader2 } from "lucide-react";
 // - Gesamtdauer vom Klick bis zur fertigen Oberfläche
 // - technische Mengen: Fahrzeuge, Fahrer, Disponenten, Aufträge, etc.
 export default function DiagPanel({ onClose }) {
-  const { runDiagnosedAdvance, getDiagReport, state } = useGame();
+  const { runDiagnosedAdvance, getDiagReport } = useGame();
   const [running, setRunning] = useState(false);
   const [report, setReport] = useState(null);
   const [copied, setCopied] = useState(false);

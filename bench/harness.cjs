@@ -215,12 +215,14 @@ function runBenchmark() {
   const s1 = makeScaledState("small"); applyCommand(s1, "advanceTime", { minutes: 1440 });
   const s2 = makeScaledState("small"); for (let i = 0; i < 24; i++) applyCommand(s2, "advanceTime", { minutes: 60 });
   const consistent12 = snap(s1) === snap(s2);
+  const s3 = makeScaledState("small"); for (let i = 0; i < 96; i++) applyCommand(s3, "advanceTime", { minutes: 15 });
+  const consistent15 = snap(s1) === snap(s3);
 
   return {
     small: runBenchmarkAtScale("small"),
     medium: runBenchmarkAtScale("medium"),
     large: runBenchmarkAtScale("large"),
-    consistency: { "1x1440==24x60": consistent12 },
+    consistency: { "1x1440==24x60": consistent12, "1x1440==96x15": consistent15 },
   };
 }
 
