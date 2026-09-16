@@ -23,6 +23,33 @@
     "automation_enabled": {
       "type": "boolean",
       "default": false
+    },
+    "party_id": {
+      "type": "string"
+    },
+    "company_name": {
+      "type": "string"
+    },
+    "game_day": {
+      "type": "number"
+    },
+    "game_time_min": {
+      "type": "number"
+    },
+    "scenario_id": {
+      "type": "string"
+    },
+    "difficulty_profile": {
+      "type": "string"
+    },
+    "save_label": {
+      "type": "string"
+    },
+    "save_type": {
+      "type": "string"
+    },
+    "cloud_saved_at": {
+      "type": "number"
     }
   },
   "rls": {
@@ -32,5 +59,6 @@
     "create": false,
     "update": false,
     "delete": false
-  }
+  },
+  "required": []
 }

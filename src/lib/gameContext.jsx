@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { saveCurrent, loadCurrent, saveAutosave, loadAutosave, getAllAutosaveMetas, listManualSlots, saveManualSlot, loadManualSlot, deleteManualSlot, exportSave, importSave } from "@/lib/persistence";
+import { saveCurrent, loadCurrent, saveAutosave, loadAutosave, getAllAutosaveMetas, listManualSlots, saveManualSlot, loadManualSlot, deleteManualSlot, deleteAutosave, exportSave, importSave, getSyncMeta, setSyncMeta, clearSyncMeta, hasUnassignedSaves, claimUnassignedSaves } from "@/lib/persistence";
 import { acquireLock, refreshLock, releaseLock, LOCK_REFRESH } from "@/lib/tabLock";
 import { eventToToast } from "@/lib/eventNotifications";
 import { getUnseenEventCount } from "@/lib/eventLogClient";
+import { useAuth } from "@/lib/AuthContext";
+import { listCloudSaves, loadCloudSave, createCloudSave, saveCloudSave, deleteCloudSave, CloudSyncQueue, generatePartyId, makeSyncMeta } from "@/lib/cloudSync";
 // Simulations-Engine läuft in einem Web Worker – der Haupt-Thread
 // bleibt für UI und Rendering frei, auch bei großen Flotten.
 const simWorker = new Worker(new URL("./simulationWorker.js", import.meta.url), { type: "module" });
@@ -96,7 +98,17 @@ export function GameProvider({ children }) {
   const sendInFlightRef = useRef(false);
   const [hasLock, setHasLock] = useState(true);
   const hasLockRef = useRef(true);
+  const { user: authUser } = useAuth();
+  const userIdRef = useRef(null);
+  const prevUserIdRef = useRef(null);
   const autosaveIndexRef = useRef(0);
+  const cloudSyncQueueRef = useRef(null);
+  const syncMetaRef = useRef(null);
+  const [syncMeta, setSyncMeta] = useState(null);
+  const [cloudSaves, setCloudSaves] = useState([]);
+  const [cloudLoading, setCloudLoading] = useState(false);
+  const cloudDirtyRef = useRef(false);
+  const cloudUploadCounterRef = useRef(0);
   const dirtyAutosaveRef = useRef(false);
   const [autosaveMetas, setAutosaveMetas] = useState([null, null, null]);
   const [backgroundAdvance, setBackgroundAdvance] = useState(null);
@@ -149,14 +161,229 @@ export function GameProvider({ children }) {
   const saveNow = useCallback(async (s) => {
     try { localStorage.setItem(LS_STATE, JSON.stringify(s)); } catch (e) {}
     if (!hasLockRef.current) return;
-    try { await saveCurrent(s); } catch (e) {}
+    try { await saveCurrent(userIdRef.current, s); } catch (e) {}
     dirtyAutosaveRef.current = true;
+    cloudDirtyRef.current = true;
   }, []);
 
   // Markiert den Zustand als geändert — Speicherung erfolgt debounced (alle 3 s).
   const markDirty = useCallback(() => {
     dirtySaveRef.current = true;
+    cloudDirtyRef.current = true;
   }, []);
+
+  // ---- Cloud-Synchronisation ----
+  // Der Client ist die einzige Simulationsinstanz. Die Cloud speichert
+  // bestätigte Snapshots. Upload nur bei geänderten Speicherpunkten,
+  // nicht bei jeder Spielminute.
+
+  if (!cloudSyncQueueRef.current) cloudSyncQueueRef.current = new CloudSyncQueue();
+
+  const updateSyncMeta = useCallback((updater) => {
+    const current = syncMetaRef.current || makeSyncMeta(null, null, 0, "idle", null, null);
+    const updated = typeof updater === "function" ? updater(current) : { ...current, ...updater };
+    syncMetaRef.current = updated;
+    setSyncMeta(updated);
+    if (userIdRef.current) setSyncMeta(userIdRef.current, updated).catch(() => {});
+    return updated;
+  }, []);
+
+  // Stellt sicher, dass der Zustand eine partyId hat (generiert falls fehlt).
+  const ensurePartyId = useCallback((s) => {
+    if (!s) return s;
+    if (!s.meta) s.meta = {};
+    if (!s.meta.partyId) {
+      s.meta.partyId = generatePartyId();
+      s.meta.createdAt = Date.now();
+    }
+    return s;
+  }, []);
+
+  // Cloud-Upload eines vollständigen, konsistenten Speicherpunkts.
+  // Verwendet die Queue — nur ein Upload gleichzeitig, verspätete Antworten
+  // werden verworfen. localBaseRevision wird nur nach Bestätigung aktualisiert.
+  const uploadToCloud = useCallback(async (s, saveLabel, saveType) => {
+    if (!userIdRef.current || !s) return { skipped: true };
+    const partyId = s.meta?.partyId;
+    if (!partyId) return { skipped: true };
+    const meta = syncMetaRef.current || makeSyncMeta(partyId, null, 0, "idle", null, null);
+
+    updateSyncMeta({ status: "uploading", lastError: null });
+
+    try {
+      const task = async () => {
+        if (!meta.cloudId) {
+          // Erster Upload: Cloud-Datensatz erstellen
+          const res = await createCloudSave(s, partyId, saveLabel, saveType || "new");
+          if (res.error) throw new Error(res.error);
+          return { cloudId: res.stateId, revision: res.revision, isNew: true };
+        }
+        // Bestehenden Datensatz mit Revisionsprüfung aktualisieren
+        const res = await saveCloudSave(meta.cloudId, s, meta.localBaseRevision, saveLabel, saveType || "auto");
+        if (res.error) {
+          if (res.conflict) {
+            return { conflict: true, currentRevision: res.current_revision, cloudMeta: res.cloud_meta };
+          }
+          throw new Error(res.error);
+        }
+        return { cloudId: meta.cloudId, revision: res.revision, isNew: false };
+      };
+
+      const result = await cloudSyncQueueRef.current.enqueue(task);
+      if (result.stale) return { skipped: true };
+
+      if (result.conflict) {
+        updateSyncMeta({ status: "conflict", lastError: "Cloud-Stand wurde auf einem anderen Gerät geändert" });
+        return { conflict: true, currentRevision: result.currentRevision, cloudMeta: result.cloudMeta };
+      }
+
+      // Erfolg: localBaseRevision und cloudId aktualisieren
+      updateSyncMeta({
+        partyId,
+        cloudId: result.cloudId,
+        localBaseRevision: result.revision,
+        status: "synced",
+        lastCloudSyncAt: Date.now(),
+        lastError: null,
+      });
+      return { ok: true, revision: result.revision };
+    } catch (e) {
+      const isOffline = e.message?.includes("Network") || e.message?.includes("Failed to fetch") || !navigator.onLine;
+      updateSyncMeta({ status: isOffline ? "offline" : "error", lastError: e.message });
+      return { error: e.message };
+    }
+  }, [updateSyncMeta]);
+
+  // Cloud-Spielstände auflisten (für geräteübergreifendes Fortsetzen)
+  const refreshCloudSaves = useCallback(async () => {
+    if (!userIdRef.current) return;
+    setCloudLoading(true);
+    try {
+      const res = await listCloudSaves();
+      if (res.saves) setCloudSaves(res.saves);
+    } catch (e) {
+      // Offline oder Fehler — still, lokale Partie bleibt nutzbar
+    } finally {
+      setCloudLoading(false);
+    }
+  }, []);
+
+  // Cloud-Spielstand laden (geräteübergreifendes Fortsetzen)
+  const loadCloudGame = useCallback(async (cloudId) => {
+    setBusy(true);
+    try {
+      const res = await loadCloudSave(cloudId);
+      if (res.error) throw new Error(res.error);
+      const loaded = res.state;
+      ensurePartyId(loaded);
+      // Sync-Meta aus der Cloud-Antwort übernehmen
+      const newMeta = makeSyncMeta(
+        loaded.meta?.partyId || res.party_id,
+        cloudId,
+        res.revision,
+        "synced",
+        Date.now(),
+        null
+      );
+      syncMetaRef.current = newMeta;
+      setSyncMeta(newMeta);
+      if (userIdRef.current) setSyncMeta(userIdRef.current, newMeta).catch(() => {});
+      stateRef.current = loaded; setState(loaded);
+      setShowStart(false);
+      saveNow(loaded);
+      setAutomationEnabled(false);
+      lastSyncGameTimeRef.current = loaded.gameTime || 0;
+      lastSyncRealMsRef.current = Date.now();
+      prevAchievementsRef.current = new Set((loaded.achievements || []).filter(a => a.unlocked).map(a => a.id));
+      processNewEvents(loaded);
+      return { ok: true };
+    } catch (e) {
+      showToast(e.message, "error");
+      return { ok: false, error: e.message };
+    } finally { setBusy(false); }
+  }, [ensurePartyId, saveNow, processNewEvents, showToast]);
+
+  // Cloud-Spielstand löschen
+  const deleteCloudGame = useCallback(async (cloudId) => {
+    try {
+      await deleteCloudSave(cloudId);
+      setCloudSaves(prev => prev.filter(s => s.id !== cloudId));
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }, []);
+
+  // Konflikt auflösen: beide Fassungen behalten (lokale als neue Partie in Cloud)
+  const resolveConflictKeepBoth = useCallback(async () => {
+    if (!stateRef.current) return;
+    const localState = stateRef.current;
+    const oldPartyId = localState.meta?.partyId;
+    // Neue partyId für die lokale Fassung — sie wird zu einer eigenen Partie
+    const newPartyId = generatePartyId();
+    localState.meta = localState.meta || {};
+    localState.meta.partyId = newPartyId;
+    localState.meta.forkedFrom = oldPartyId;
+    localState.meta.forkedAt = Date.now();
+    // Neue Cloud-Aufzeichnung für die lokale Fassung erstellen
+    const newMeta = makeSyncMeta(newPartyId, null, 0, "idle", null, null);
+    syncMetaRef.current = newMeta;
+    setSyncMeta(newMeta);
+    if (userIdRef.current) setSyncMeta(userIdRef.current, newMeta).catch(() => {});
+    saveNow(localState);
+    await uploadToCloud(localState, "Konflikt-Kopie (lokal)", "conflict_backup");
+    return { ok: true };
+  }, [saveNow, uploadToCloud]);
+
+  // Konflikt auflösen: mit lokaler Fassung fortsetzen (Cloud überschreiben)
+  const resolveConflictKeepLocal = useCallback(async () => {
+    if (!stateRef.current) return;
+    // Vor dem Überschreiben erneut Cloud-Revision prüfen
+    const meta = syncMetaRef.current;
+    if (!meta?.cloudId) return;
+    try {
+      const res = await loadCloudSave(meta.cloudId);
+      if (res.error) throw new Error(res.error);
+      if (res.revision !== meta.localBaseRevision) {
+        // Cloud hat sich erneut geändert — Konflikt bleibt bestehen
+        updateSyncMeta({ status: "conflict", localBaseRevision: res.revision, lastError: "Cloud-Stand hat sich erneut geändert" });
+        return { ok: false, error: "Cloud-Stand hat sich erneut geändert — bitte erneut prüfen" };
+      }
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+    // Erneut mit aktueller Revision hochladen
+    const r = await uploadToCloud(stateRef.current, "Konflikt-Auflösung (lokal gewählt)", "manual");
+    return r;
+  }, [uploadToCloud, updateSyncMeta]);
+
+  // Konflikt auflösen: mit Cloud-Fassung fortsetzen (lokal überschreiben)
+  const resolveConflictKeepCloud = useCallback(async () => {
+    const meta = syncMetaRef.current;
+    if (!meta?.cloudId) return;
+    try {
+      // Aktuelle lokale Fassung als Backup sichern
+      if (stateRef.current && userIdRef.current) {
+        const backupName = "Backup_vor_Cloud_" + new Date().toLocaleString("de-DE").replace(/[.,\s]/g, "_");
+        await saveManualSlot(userIdRef.current, backupName, stateRef.current);
+      }
+      const res = await loadCloudSave(meta.cloudId);
+      if (res.error) throw new Error(res.error);
+      const loaded = res.state;
+      ensurePartyId(loaded);
+      const newMeta = makeSyncMeta(loaded.meta?.partyId, meta.cloudId, res.revision, "synced", Date.now(), null);
+      syncMetaRef.current = newMeta;
+      setSyncMeta(newMeta);
+      if (userIdRef.current) setSyncMeta(userIdRef.current, newMeta).catch(() => {});
+      stateRef.current = loaded; setState(loaded);
+      saveNow(loaded);
+      processNewEvents(loaded);
+      return { ok: true };
+    } catch (e) {
+      showToast(e.message, "error");
+      return { ok: false, error: e.message };
+    }
+  }, [ensurePartyId, saveNow, processNewEvents, showToast]);
 
   const processNewEvents = useCallback((newState) => {
     const events = newState.events || [];
@@ -340,14 +567,50 @@ export function GameProvider({ children }) {
       if (stateRef.current) {
         saveNow(stateRef.current);
         if (hasLockRef.current) {
-          saveAutosave(autosaveIndexRef.current, stateRef.current).catch(() => {});
+          saveAutosave(userIdRef.current, autosaveIndexRef.current, stateRef.current).catch(() => {});
+          // Best-Effort Cloud-Upload beim Schließen (kann asynchron nicht awaited werden)
+          if (navigator.onLine && syncMetaRef.current?.cloudId) {
+            uploadToCloud(stateRef.current, null, "auto").catch(() => {});
+          }
           releaseLock();
         }
       }
     };
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [saveNow]);
+  }, [saveNow, uploadToCloud]);
+
+  // ---- Online/Offline-Event-Handling ----
+  // Bei Wiederherstellung der Verbindung: Cloud-Revision prüfen,
+  // nicht einfach Cloud überschreiben. Bei Konflikt Status setzen.
+  useEffect(() => {
+    const onOnline = () => {
+      // Cloud-Spielstände neu laden und Sync prüfen
+      refreshCloudSaves();
+      if (stateRef.current && syncMetaRef.current?.cloudId) {
+        // Cloud-Revision prüfen vor erneutem Upload
+        loadCloudSave(syncMetaRef.current.cloudId).then(res => {
+          if (!res.error && res.revision > syncMetaRef.current.localBaseRevision) {
+            updateSyncMeta({ status: "conflict", lastError: "Cloud-Stand ist nach Offline-Phase geändert worden" });
+          } else if (!res.error) {
+            // Cloud ist gleich oder älter — lokalen Stand hochladen
+            uploadToCloud(stateRef.current, null, "auto");
+          }
+        }).catch(() => {
+          updateSyncMeta({ status: "offline", lastError: null });
+        });
+      }
+    };
+    const onOffline = () => {
+      updateSyncMeta({ status: "offline", lastError: null });
+    };
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+    };
+  }, [uploadToCloud, refreshCloudSaves, updateSyncMeta]);
 
   // ---- Rotierende Autosaves (alle 60 s bei Änderung) ----
   useEffect(() => {
@@ -356,9 +619,9 @@ export function GameProvider({ children }) {
       dirtyAutosaveRef.current = false;
       const idx = autosaveIndexRef.current;
       try {
-        await saveAutosave(idx, stateRef.current);
+        await saveAutosave(userIdRef.current, idx, stateRef.current);
         autosaveIndexRef.current = (idx + 1) % 3;
-        setAutosaveMetas(await getAllAutosaveMetas());
+        setAutosaveMetas(await getAllAutosaveMetas(userIdRef.current, !!stateRef.current?.scenario));
       } catch (e) {}
     }, 60000);
     return () => clearInterval(timer);
@@ -373,11 +636,28 @@ export function GameProvider({ children }) {
       dirtySaveRef.current = false;
       const s = stateRef.current;
       try { localStorage.setItem(LS_STATE, JSON.stringify(s)); } catch (e) {}
-      if (hasLockRef.current) { try { await saveCurrent(s); } catch (e) {} }
+      if (hasLockRef.current) { try { await saveCurrent(userIdRef.current, s); } catch (e) {} }
       dirtyAutosaveRef.current = true;
     }, 3000);
     return () => clearInterval(timer);
   }, []);
+
+  // ---- Cloud-Synchronisation (alle 3 Min bei Änderung) ----
+  // Begrenzt automatische Uploads: nicht bei jeder Spielminute, sondern
+  // nur bei geänderten Speicherpunkten. Manuelle Speichern und wichtige
+  // Aktionen triggern sofortige Uploads über uploadToCloud direkt.
+  useEffect(() => {
+    const timer = setInterval(async () => {
+      if (!cloudDirtyRef.current || !stateRef.current || !userIdRef.current) return;
+      // Nur hochladen wenn online
+      if (!navigator.onLine) return;
+      cloudDirtyRef.current = false;
+      cloudUploadCounterRef.current++;
+      // Alle 3 Min hochladen (entspricht jedem 3. Debounced-Save-Zyklus-Check)
+      await uploadToCloud(stateRef.current, null, "auto");
+    }, 180000); // 3 Minuten
+    return () => clearInterval(timer);
+  }, [uploadToCloud]);
 
   // ---- Tab-Schreibsperre über localStorage ----
   useEffect(() => {
@@ -394,17 +674,51 @@ export function GameProvider({ children }) {
     return () => { clearInterval(heartbeat); releaseLock(); };
   }, []);
 
-  // ---- Startup: IndexedDB laden ----
+  // ---- Benutzer-Wechsel und Startup ----
+  // Setzt userIdRef und behandet Benutzerwechsel: alte Sync-Anfragen und
+  // verspätete Antworten dürfen nicht der neuen Sitzung zugeordnet werden.
   useEffect(() => {
+    const newUserId = authUser?.id || null;
+    if (prevUserIdRef.current && prevUserIdRef.current !== newUserId) {
+      // Benutzerwechsel: alle Cloud-Sync-States zurücksetzen
+      syncMetaRef.current = null;
+      setSyncMeta(null);
+      setCloudSaves([]);
+      cloudDirtyRef.current = false;
+      // State zurücksetzen — neue Sitzung lädt eigene Spielstände
+      stateRef.current = null; setState(null);
+      setShowStart(true);
+    }
+    userIdRef.current = newUserId;
+    prevUserIdRef.current = newUserId;
+  }, [authUser]);
+
+  // ---- Startup: IndexedDB laden (benutzergetrennt) ----
+  useEffect(() => {
+    if (!authUser) return;
     (async () => {
+      const uid = authUser.id;
       let localState = null;
-      try { localState = await loadCurrent(); } catch (e) {}
+      try { localState = await loadCurrent(uid); } catch (e) {}
       if (!localState) {
         const savedState = localStorage.getItem(LS_STATE);
         if (savedState) { try { localState = JSON.parse(savedState); } catch (e) {} }
       }
 
+      // Sync-Metadaten laden
+      try {
+        const savedSyncMeta = await getSyncMeta(uid);
+        if (savedSyncMeta) {
+          syncMetaRef.current = savedSyncMeta;
+          setSyncMeta(savedSyncMeta);
+        }
+      } catch (e) {}
+
+      // Cloud-Spielstände auflisten (im Hintergrund)
+      refreshCloudSaves();
+
       if (localState) {
+        ensurePartyId(localState);
         stateRef.current = localState; setState(localState);
         saveNow(localState);
         setAutomationEnabled(!!localState.timeControl?.enabled);
@@ -420,11 +734,21 @@ export function GameProvider({ children }) {
           setAutomationEnabled(false);
         }
         userWantsAutomationRef.current = false;
+        // Nach Startup Cloud-Sync prüfen (wenn online)
+        if (navigator.onLine && syncMetaRef.current?.cloudId) {
+          try {
+            const res = await loadCloudSave(syncMetaRef.current.cloudId);
+            if (!res.error && res.revision > syncMetaRef.current.localBaseRevision) {
+              // Cloud ist neuer — Konflikt melden
+              updateSyncMeta({ status: "conflict", lastError: "Cloud-Stand ist neuer als der lokale Stand" });
+            }
+          } catch (e) {}
+        }
       }
-      try { setAutosaveMetas(await getAllAutosaveMetas()); } catch (e) {}
+      try { setAutosaveMetas(await getAllAutosaveMetas(uid, !!localState?.scenario)); } catch (e) {}
       setLoading(false);
     })();
-  }, [processNewEvents, saveNow]);
+  }, [authUser, processNewEvents, saveNow, ensurePartyId, refreshCloudSaves, updateSyncMeta]);
 
   const markAllEventsSeen = useCallback(async () => {
     if (!stateRef.current) return;
@@ -437,6 +761,11 @@ export function GameProvider({ children }) {
       const data = await executeInWorker(null, "newGame", names || {});
       if (data.error) throw new Error(data.error);
       const newState = data.state;
+      ensurePartyId(newState);
+      // Sync-Meta für neue Partie initialisieren
+      const newMeta = makeSyncMeta(newState.meta.partyId, null, 0, "idle", null, null);
+      syncMetaRef.current = newMeta;
+      setSyncMeta(newMeta);
       stateRef.current = newState; setState(newState);
       setShowStart(false);
       saveNow(newState);
@@ -445,12 +774,16 @@ export function GameProvider({ children }) {
       lastSyncRealMsRef.current = Date.now();
       prevAchievementsRef.current = new Set((newState.achievements || []).filter(a => a.unlocked).map(a => a.id));
       processNewEvents(newState);
+      // Neue Partie sofort in die Cloud hochladen
+      if (navigator.onLine) {
+        uploadToCloud(newState, newState.company?.name || "Neue Partie", "new");
+      }
       return { ok: true };
     } catch (e) {
       showToast(e.message, "error");
       throw e;
     } finally { setBusy(false); }
-  }, [saveNow, processNewEvents, showToast]);
+  }, [saveNow, processNewEvents, showToast, ensurePartyId, uploadToCloud]);
 
   // Neues Szenario-Spiel starten
   const newScenarioGame = useCallback(async (scenarioId, names) => {
@@ -459,6 +792,10 @@ export function GameProvider({ children }) {
       const data = await executeInWorker(null, "newScenarioGame", { scenarioId, names: names || {} });
       if (data.error) throw new Error(data.error);
       const newState = data.state;
+      ensurePartyId(newState);
+      const newMeta = makeSyncMeta(newState.meta.partyId, null, 0, "idle", null, null);
+      syncMetaRef.current = newMeta;
+      setSyncMeta(newMeta);
       stateRef.current = newState; setState(newState);
       setShowStart(false);
       saveNow(newState);
@@ -472,7 +809,7 @@ export function GameProvider({ children }) {
       showToast(e.message, "error");
       throw e;
     } finally { setBusy(false); }
-  }, [saveNow, processNewEvents, showToast]);
+  }, [saveNow, processNewEvents, showToast, ensurePartyId]);
 
   // Szenario als freies Spiel fortsetzen
   const continueScenarioAsFreePlay = useCallback(async () => {
@@ -483,7 +820,7 @@ export function GameProvider({ children }) {
       const newState = data.state;
       // Alten Szenario-Current löschen, neuen freien Current speichern
       const { clearScenarioCurrent } = await import("@/lib/persistence");
-      await clearScenarioCurrent();
+      await clearScenarioCurrent(userIdRef.current);
       stateRef.current = newState; setState(newState);
       saveNow(newState);
       showToast("Szenario abgeschlossen — das Spiel wird als freie Partie fortgesetzt.", "success");
@@ -494,7 +831,7 @@ export function GameProvider({ children }) {
 
   const reload = useCallback(async () => {
     let loaded = null;
-    try { loaded = await loadCurrent(); } catch (e) {}
+    try { loaded = await loadCurrent(userIdRef.current); } catch (e) {}
     if (!loaded) {
       const savedState = localStorage.getItem(LS_STATE);
       if (savedState) { try { loaded = JSON.parse(savedState); } catch (e) {} }
@@ -511,6 +848,15 @@ export function GameProvider({ children }) {
   const importGame = useCallback(async (exportStr) => {
     try {
       const imported = importSave(exportStr);
+      // Import wird als eigene Partie angelegt: neue partyId, keine
+      // fremde Benutzerzuordnung oder Cloud-Schreibberechtigung übernehmen.
+      ensurePartyId(imported);
+      imported.meta = imported.meta || {};
+      imported.meta.cloudId = null;
+      imported.meta.importedAt = Date.now();
+      const newMeta = makeSyncMeta(imported.meta.partyId, null, 0, "idle", null, null);
+      syncMetaRef.current = newMeta;
+      setSyncMeta(newMeta);
       stateRef.current = imported; setState(imported);
       setShowStart(false);
       saveNow(imported);
@@ -518,47 +864,59 @@ export function GameProvider({ children }) {
     } catch (e) {
       return { ok: false, error: e.message };
     }
-  }, [saveNow]);
+  }, [saveNow, ensurePartyId]);
 
   const saveSlot = useCallback(async (name) => {
     if (!stateRef.current) return { ok: false, error: "Kein Spielstand" };
-    try { await saveManualSlot(name, stateRef.current); return { ok: true }; }
-    catch (e) { return { ok: false, error: e.message }; }
-  }, []);
+    try {
+      await saveManualSlot(userIdRef.current, name, stateRef.current);
+      // Manueller Speicherpunkt → sofort Cloud-Sync auslösen
+      if (navigator.onLine) {
+        uploadToCloud(stateRef.current, name, "manual");
+      }
+      return { ok: true };
+    } catch (e) { return { ok: false, error: e.message }; }
+  }, [uploadToCloud]);
 
   const loadSlot = useCallback(async (name) => {
     try {
       const isScenario = !!stateRef.current?.scenario;
-      const loaded = await loadManualSlot(name, isScenario);
+      const loaded = await loadManualSlot(userIdRef.current, name, isScenario);
       if (!loaded) return { ok: false, error: "Slot nicht gefunden" };
+      ensurePartyId(loaded);
+      // Sync-Meta für geladenen Slot zurücksetzen (evtl. andere Partie)
+      const loadedMeta = makeSyncMeta(loaded.meta?.partyId, syncMetaRef.current?.cloudId, syncMetaRef.current?.localBaseRevision || 0, "idle", null, null);
+      syncMetaRef.current = loadedMeta;
+      setSyncMeta(loadedMeta);
       stateRef.current = loaded; setState(loaded);
       setShowStart(false);
       saveNow(loaded);
       return { ok: true };
     } catch (e) { return { ok: false, error: e.message }; }
-  }, [saveNow]);
+  }, [saveNow, ensurePartyId]);
 
   const deleteSlot = useCallback(async (name) => {
-    try { await deleteManualSlot(name, !!stateRef.current?.scenario); return { ok: true }; }
+    try { await deleteManualSlot(userIdRef.current, name, !!stateRef.current?.scenario); return { ok: true }; }
     catch (e) { return { ok: false, error: e.message }; }
   }, []);
 
   const listSlots = useCallback(async () => {
-    try { return await listManualSlots(!!stateRef.current?.scenario); }
+    try { return await listManualSlots(userIdRef.current, !!stateRef.current?.scenario); }
     catch (e) { return []; }
   }, []);
 
   const loadAutosaveSlot = useCallback(async (index) => {
     try {
       const isScenario = !!stateRef.current?.scenario;
-      const loaded = await loadAutosave(index, isScenario);
+      const loaded = await loadAutosave(userIdRef.current, index, isScenario);
       if (!loaded) return { ok: false, error: "Autosave-Slot leer" };
+      ensurePartyId(loaded);
       stateRef.current = loaded; setState(loaded);
       setShowStart(false);
       saveNow(loaded);
       return { ok: true };
     } catch (e) { return { ok: false, error: e.message }; }
-  }, [saveNow]);
+  }, [saveNow, ensurePartyId]);
 
   const dismissBackgroundAdvanceResult = useCallback(() => {
     setBackgroundAdvance(null);
@@ -625,6 +983,8 @@ export function GameProvider({ children }) {
     markAllEventsSeen,
     showToast, dismissToast, dismissOverlay, dismissStart, toggleMotion,
     exportGame, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
+    uploadToCloud, refreshCloudSaves, loadCloudGame, deleteCloudGame,
+    resolveConflictKeepBoth, resolveConflictKeepLocal, resolveConflictKeepCloud,
   }), [
     send, newGame, newScenarioGame, continueScenarioAsFreePlay, reload,
     enableAutomation, pauseAutomation,
@@ -633,6 +993,8 @@ export function GameProvider({ children }) {
     markAllEventsSeen,
     showToast, dismissToast, dismissOverlay, dismissStart, toggleMotion,
     exportGame, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
+    uploadToCloud, refreshCloudSaves, loadCloudGame, deleteCloudGame,
+    resolveConflictKeepBoth, resolveConflictKeepLocal, resolveConflictKeepCloud,
   ]);
 
   const value = {
@@ -646,6 +1008,7 @@ export function GameProvider({ children }) {
     connectionState: "connected",
     hasLock, autosaveMetas,
     backgroundAdvance,
+    syncMeta, cloudSaves, cloudLoading,
   };
   return (
     <GameActionsContext.Provider value={actions}>
