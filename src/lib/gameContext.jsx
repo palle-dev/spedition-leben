@@ -1006,7 +1006,6 @@ export function GameProvider({ children }) {
     state, loading, busy, toast,
     motionEnabled, overlay,
     automationEnabled, automationBusy,
-    displayGameTime,
     dirty: false, save: async () => {}, saving: false,
     toasts, unseenCount,
     showStart,
@@ -1017,7 +1016,11 @@ export function GameProvider({ children }) {
   };
   return (
     <GameActionsContext.Provider value={actions}>
-      <GameContext.Provider value={value}>{children}</GameContext.Provider>
+      <GameContext.Provider value={value}>
+        <DisplayGameTimeContext.Provider value={displayGameTime}>
+          {children}
+        </DisplayGameTimeContext.Provider>
+      </GameContext.Provider>
     </GameActionsContext.Provider>
   );
 }

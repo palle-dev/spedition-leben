@@ -1,12 +1,13 @@
 import React from "react";
 import { Play, Pause, Loader2 } from "lucide-react";
-import { useGame } from "@/lib/gameContext";
+import { useGame, useDisplayGameTime } from "@/lib/gameContext";
 import { clockOf } from "@/lib/gameData";
 
 // Kompakte Zeitautomatik-Steuerung für den ShellHeader.
 // Play/Pause-Schalter mit Live-Indikator und aktueller Spielzeit.
 export default function AutomationControl() {
-  const { state, displayGameTime, automationEnabled, automationBusy, enableAutomation, pauseAutomation } = useGame();
+  const { state, automationEnabled, automationBusy, enableAutomation, pauseAutomation } = useGame();
+  const displayGameTime = useDisplayGameTime();
   if (!state) return null;
 
   const gameTime = displayGameTime || state.gameTime || 0;

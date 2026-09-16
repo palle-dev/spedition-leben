@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useGame } from "@/lib/gameContext";
+import { useGame, useDisplayGameTime } from "@/lib/gameContext";
 import { dayOf, clockOf } from "@/lib/gameData";
 import { Building2, Package, Map, Truck, Users, Wallet, BookOpen, Clock, MoreHorizontal, Trophy, Network, Calendar, Loader2, BarChart3, Gauge, UserCircle, Shield, Briefcase } from "lucide-react";
 import AdvanceProgressModal from "@/components/game/AdvanceProgressModal";
@@ -31,7 +31,8 @@ const INLINE_NAV = [...PRIMARY_NAV, ...QUICK_NAV];
 
 // Untere Navigationsleiste und Zeitsteuerung – dauerhaft sichtbar.
 export default function ShellDock() {
-  const { state, displayGameTime, send, showToast, busy, backgroundAdvance, startBackgroundAdvance, dismissBackgroundAdvanceResult } = useGame();
+  const { state, send, showToast, busy, backgroundAdvance, startBackgroundAdvance, dismissBackgroundAdvanceResult } = useGame();
+  const displayGameTime = useDisplayGameTime();
   const location = useLocation();
   const [advancing, setAdvancing] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
