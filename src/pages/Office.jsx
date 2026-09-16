@@ -8,6 +8,7 @@ import OfficeBottom from "@/components/office/OfficeBottom";
 import PageHint from "@/components/help/PageHint";
 import OfficeTrends from "@/components/office/OfficeTrends";
 import OfficeBranches from "@/components/office/OfficeBranches";
+import OfficeCustomerRelations from "@/components/office/OfficeCustomerRelations";
 import UtilizationControl from "@/components/office/UtilizationControl";
 
 // Büro – zentrale Führungsansicht für die gesamte Firma.
@@ -39,6 +40,9 @@ export default function Office() {
 
       {/* Auslastungs-Steuerung (flottenweit) */}
       <UtilizationControl state={state} />
+
+      {/* Kundenbeziehungen: aktive Rahmenverträge + Stammkunden-Zufriedenheit */}
+      <OfficeCustomerRelations state={state} />
 
       {/* Filialübersicht (nur bei mehreren Standorten) */}
       <OfficeBranches state={state} />
