@@ -13,8 +13,8 @@ import {
   dayOf, formatGameTime,
   LOAD_MIN, UNLOAD_MIN, WORK_BUDGET_MIN, REST_MIN,
   PRICE_BASE_CENTS, PRICE_PER_KM_CENTS, PRICE_PER_TON_CENTS,
-  computeOfferPrice,
 } from "./gameRules.ts";
+import { computeOfferPrice } from "./marketEngine.ts";
 import { pushEvent } from "./eventLog.ts";
 import { deliverMessage } from "./mailEngine.ts";
 
