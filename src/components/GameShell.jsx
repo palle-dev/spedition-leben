@@ -53,14 +53,7 @@ function GameShellContent() {
             </div>
           )}
           <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.2, ease: EASE }}
-            >
-              <Outlet />
-            </motion.div>
+            <Outlet />
           </main>
           <ShellDock />
         </div>
