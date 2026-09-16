@@ -167,6 +167,8 @@ import {
   expireApprovals, shouldStopForApproval,
 } from "./delegationEngine.ts";
 import { handleDelegationCommand } from "./delegationCommands.ts";
+import { migrateStories, processStoryDeadlines, processStoryAppointments, processDailyStories, getStoryEventTimes } from "./storyEngine.ts";
+import { handleStoryCommand } from "./storyCommands.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -593,7 +595,7 @@ function processEventsAt(state, m, log) {
   // 3e.5 Schwangerschaft / Geburt (Beziehungs-Engine)
   processPregnancy(state, m, log); processDates(state, m, log);
   // 3e.3 Tatsächlicher Austritt bei Fristende (Auftrag 18)
-  processEmployeeExit(state, m, log);
+  processEmployeeExit(state, m, log); processStoryDeadlines(state, m, log); processStoryAppointments(state, m, log);
   // 4. Tagesabrechnung (Mitternacht)
   if (m % 1440 === 0 && m > 0) {
     const dlog = doDailyAccounting(state, m);
@@ -610,6 +612,7 @@ function processEventsAt(state, m, log) {
     // Wachstum von state.trips/orders/tours über lange Spiele und
     // beschleunigt earliestEventAfter (iteriert über alle Trips pro Event).
     cleanupHistory(state, m);
+    processDailyStories(state, m, log);
     resetDailySpendIfNeeded(state);
     expireApprovals(state);
     // Rahmenverträge: Tägliche Auftragsgenerierung, Auswertung und
@@ -775,7 +778,7 @@ function extractTaskParams(body, state, conv) {
 // ---------- Befehle ----------
 export function applyCommand(state, command, params) {
   _clearPlanCache(); migrateState(state);
-  [migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals].forEach(fn => fn(state));
+  [migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories].forEach(fn => fn(state));
   if (state.bookings && state.bookings.length > 200) state.bookings = state.bookings.slice(-200);
   // Historie begrenzen: abgeschlossene Touren, Aufträge und Termine älter als 30 Tage
   // entfernen. Hält den Zustand kompakt und beschleunigt Laden/Speichern bei langen Spielen.
