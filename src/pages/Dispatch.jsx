@@ -170,9 +170,9 @@ export default function Dispatch() {
 
   return (
     <div className="h-full flex flex-col min-h-0 overflow-hidden">
-      <div className="px-4 sm:px-6 lg:px-12 pt-3 shrink-0">
+      <div className="px-4 sm:px-6 lg:px-12 pt-4 pb-3 shrink-0">
         <PageHint pageKey="dispatch" />
-        <div className="flex items-center justify-between mt-2 gap-2">
+        <div className="flex items-center justify-between mt-3 gap-2">
           <div className="flex items-center gap-2">
             <button
               onClick={() => { setShowPlanning(s => !s); if (!showPlanning) setShowPartners(false); }}

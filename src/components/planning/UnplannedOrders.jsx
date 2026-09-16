@@ -7,7 +7,7 @@ import { formatPlanningTime } from "@/lib/planningData";
 export default function UnplannedOrders({ orders, onFindResources, onPlan }) {
   if (!orders || orders.length === 0) {
     return (
-      <div className="rounded-lg border border-green-500/15 bg-green-500/5 p-3">
+      <div className="rounded-lg border border-green-500/15 bg-green-500/5 px-4 py-3">
         <div className="text-xs font-medium text-green-400 flex items-center gap-1.5">
           <Truck className="w-3.5 h-3.5" />
           Alle angenommenen Aufträge sind disponiert
@@ -17,16 +17,16 @@ export default function UnplannedOrders({ orders, onFindResources, onPlan }) {
   }
 
   return (
-    <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 space-y-2">
+    <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 space-y-2.5">
       <div className="text-xs font-medium text-red-400 flex items-center gap-1.5">
         <AlertCircle className="w-3.5 h-3.5" />
         Noch einzuplanen — {orders.length} angenommene Aufträge ohne Ressourcenzuweisung
       </div>
-      <div className="space-y-1.5 max-h-[200px] overflow-y-auto scrollbar-thin">
+      <div className="space-y-2 max-h-[200px] overflow-y-auto scrollbar-thin">
         {orders.map((o) => (
           <div
             key={o.id}
-            className="flex items-center gap-2 rounded border border-white/10 bg-white/3 px-2 py-1.5"
+            className="flex items-center gap-2 rounded border border-white/10 bg-white/3 px-3 py-2"
           >
             <Package className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
             <div className="flex-1 min-w-0">

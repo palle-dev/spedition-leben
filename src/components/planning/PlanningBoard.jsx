@@ -68,7 +68,7 @@ export default function PlanningBoard({ onPlanOrder }) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <ViewSwitcher view={view} setView={setView} />
       <Toolbar
         showPrivate={showPrivate}
@@ -136,7 +136,7 @@ function ViewSwitcher({ view, setView }) {
           <button
             key={v.id}
             onClick={() => setView(v.id)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition ${
+            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium transition ${
               view === v.id ? "bg-lime text-ink" : "text-muted-foreground hover:text-foreground hover:bg-white/5"
             }`}
           >
@@ -154,7 +154,7 @@ function Toolbar({ showPrivate, setShowPrivate, showExpected, setShowExpected, c
     <div className="flex items-center gap-2 flex-wrap">
       <button
         onClick={() => setShowPrivate(s => !s)}
-        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition ${
+        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs transition ${
           showPrivate ? "border-coral/30 text-coral" : "border-white/10 text-muted-foreground"
         }`}
       >
@@ -163,31 +163,31 @@ function Toolbar({ showPrivate, setShowPrivate, showExpected, setShowExpected, c
       </button>
       <button
         onClick={() => setShowExpected(s => !s)}
-        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition ${
+        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs transition ${
           showExpected ? "border-violet-500/30 text-violet-300" : "border-white/10 text-muted-foreground"
         }`}
       >
         {showExpected ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
         Erwartet
       </button>
-      <div className="flex items-center gap-1.5 ml-auto">
+      <div className="flex items-center gap-2 ml-auto">
         <button
           onClick={onResources}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 text-xs text-muted-foreground hover:text-foreground hover:bg-white/5 transition"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 text-xs text-muted-foreground hover:text-foreground hover:bg-white/5 transition"
         >
           <Search className="w-3.5 h-3.5" />
           Ressourcen
         </button>
         <button
           onClick={onMaintenance}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 text-xs text-muted-foreground hover:text-foreground hover:bg-white/5 transition"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 text-xs text-muted-foreground hover:text-foreground hover:bg-white/5 transition"
         >
           <Wrench className="w-3.5 h-3.5" />
           Wartung
         </button>
         <button
           onClick={onConflicts}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition ${
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs transition ${
             conflictCount > 0 ? "border-red-500/30 text-red-400" : "border-white/10 text-muted-foreground hover:text-foreground hover:bg-white/5"
           }`}
         >
@@ -201,7 +201,7 @@ function Toolbar({ showPrivate, setShowPrivate, showExpected, setShowExpected, c
 
 function ConflictSummary({ conflicts }) {
   return (
-    <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-2 space-y-1">
+    <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2.5 space-y-1.5">
       {conflicts.slice(0, 3).map((c, i) => (
         <div key={i} className="text-[11px] text-red-300/80 flex items-start gap-1.5">
           <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
@@ -219,7 +219,7 @@ function ConflictSummary({ conflicts }) {
 
 function ExpectedDemand({ demands }) {
   return (
-    <div className="rounded-lg border border-violet-500/15 bg-violet-500/5 p-2 space-y-1">
+    <div className="rounded-lg border border-violet-500/15 bg-violet-500/5 px-3 py-2.5 space-y-1.5">
       <div className="text-[11px] font-medium text-violet-300 flex items-center gap-1.5">
         <Calendar className="w-3.5 h-3.5" />
         Erwarteter Bedarf aus Rahmenverträgen — {demands.length} Transporte
@@ -255,7 +255,7 @@ function PlanningLegend() {
     { icon: "✓", label: "Verfügbar", color: "text-green-300" },
   ];
   return (
-    <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+    <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-[10px] text-muted-foreground pt-1">
       {items.map((item, i) => (
         <div key={i} className="flex items-center gap-1">
           <span>{item.icon}</span>
