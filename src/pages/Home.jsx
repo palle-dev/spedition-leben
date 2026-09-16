@@ -4,7 +4,7 @@ import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime, dayOf } from "@/lib/gameData";
 import { motion } from "framer-motion";
 import { heroStagger, heroItem, EASE } from "@/lib/motion";
-import { Heart, Clock, Check, X, Footprints, Zap, Smile, MapPin, ArrowRight, Gift, ShoppingBag, Home as HomeIcon, Target, Activity, Smartphone } from "lucide-react";
+import { Heart, Clock, Check, X, Footprints, Zap, Smile, MapPin, ArrowRight, Gift, ShoppingBag, Home as HomeIcon, Target, Activity, Smartphone, BookOpen } from "lucide-react";
 import RewardsSection from "@/components/home/RewardsSection";
 import PurchaseCatalog from "@/components/home/PurchaseCatalog";
 import PossessionsSection from "@/components/home/PossessionsSection";
@@ -207,6 +207,8 @@ export default function Home() {
             { id: "purchases", label: "Anschaffungen", icon: ShoppingBag },
             { id: "possessions", label: "Besitz", icon: HomeIcon },
             { id: "dating", label: "Dating-App", icon: Smartphone },
+            { id: "stories", label: "Geschichten", icon: BookOpen },
+            { id: "chronicle", label: "Chronik", icon: Heart },
             { id: "goals", label: "Lebensziele", icon: Target },
           ].map(t => {
             const Icon = t.icon;
@@ -236,6 +238,8 @@ export default function Home() {
         {privateTab === "purchases" && <PurchaseCatalog state={state} send={send} showToast={showToast} />}
         {privateTab === "possessions" && <PossessionsSection state={state} send={send} showToast={showToast} />}
         {privateTab === "dating" && <DatingPanel state={state} send={send} showToast={showToast} />}
+        {privateTab === "stories" && <StoryPanel state={state} send={send} showToast={showToast} />}
+        {privateTab === "chronicle" && <ChroniclePanel state={state} send={send} />}
         {privateTab === "goals" && <GoalsPanel state={state} send={send} showToast={showToast} />}
       </div>
     </div>

@@ -1,5 +1,4 @@
-import React from "react";
-import { useGame } from "@/lib/gameContext";
+import React, { useEffect, useState } from "react";
 import { formatGameTime, dayOf } from "@/lib/gameData";
 import { motion } from "framer-motion";
 import { EASE } from "@/lib/motion";
@@ -8,10 +7,10 @@ import { BookOpen, Heart, Trophy, Clock, Calendar } from "lucide-react";
 // Persönliche Chronik – wichtige Erinnerungen, abgeschlossene Vorhaben,
 // Beziehungs- und Familienmeilensteine. Bleibt nach Historienbereinigung erhalten.
 export default function ChroniclePanel({ state, send }) {
-  const [chronicle, setChronicle] = React.useState(null);
-  const [promises, setPromises] = React.useState(null);
+  const [chronicle, setChronicle] = useState(null);
+  const [promises, setPromises] = useState(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     (async () => {
       try {
         const chr = await send("getChronicle", {});

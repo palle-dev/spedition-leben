@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import { useGame } from "@/lib/gameContext";
+import React, { useState, useEffect } from "react";
 import { formatGameTime, formatEuro } from "@/lib/gameData";
 import { motion, AnimatePresence } from "framer-motion";
 import { EASE } from "@/lib/motion";
@@ -18,7 +17,7 @@ export default function StoryPanel({ state, send, showToast }) {
     } catch (e) { showToast(e.message, "error"); }
   }
 
-  React.useEffect(() => { loadStories(); }, [state.gameTime, state.appointments?.length]);
+  useEffect(() => { loadStories(); }, [state.gameTime, state.appointments?.length]);
 
   async function decide(runId, choiceId) {
     setBusyKey(runId + choiceId);
