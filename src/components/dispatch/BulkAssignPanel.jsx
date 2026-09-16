@@ -131,19 +131,19 @@ export default function BulkAssignPanel({ orders, onBack, onStarted }) {
   const failedCount = matched ? matched.filter(m => !m.ok).length : 0;
 
   return (
-    <div className="space-y-4">
-      <button onClick={onBack} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition">
+    <div className="flex flex-col h-full min-h-0 gap-4">
+      <button onClick={onBack} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition shrink-0">
         <ArrowLeft className="w-3.5 h-3.5" /> Zurück zur Auftragsliste
       </button>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0">
         <Zap className="w-4 h-4 text-lime" />
         <div className="text-sm font-medium">Mehrfach-Zuweisung</div>
         <span className="text-[10px] text-muted-foreground ml-auto">{selected.size} von {orders.length} ausgewählt</span>
       </div>
 
       {/* Auswahl-Aktionen */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0">
         <button onClick={selectAll} className="px-2.5 py-1 rounded-md text-[11px] bg-surface-2/60 text-muted-foreground hover:text-foreground transition border border-white/10">
           Alle auswählen
         </button>
@@ -160,7 +160,7 @@ export default function BulkAssignPanel({ orders, onBack, onStarted }) {
       </div>
 
       {/* Auftragsliste mit Checkboxen */}
-      <div className="space-y-1.5 max-h-64 overflow-y-auto scrollbar-none">
+      <div className="space-y-1.5 flex-1 min-h-0 overflow-y-auto scrollbar-none">
         {orders.map(o => {
           const isSel = selected.has(o.id);
           const match = matched?.find(m => m.orderId === o.id);
@@ -202,7 +202,7 @@ export default function BulkAssignPanel({ orders, onBack, onStarted }) {
 
       {/* Ergebnisse */}
       {results && (
-        <div className={`rounded-lg p-3 border text-xs ${results.failed.length === 0 ? "border-lime/20 bg-lime/5" : "border-amber-400/20 bg-amber-400/5"}`}>
+        <div className={`rounded-lg p-3 border text-xs shrink-0 ${results.failed.length === 0 ? "border-lime/20 bg-lime/5" : "border-amber-400/20 bg-amber-400/5"}`}>
           <div className="flex items-center gap-1.5 font-medium mb-1">
             {results.failed.length === 0 ? <CheckCircle className="w-3.5 h-3.5 text-lime" /> : <AlertTriangle className="w-3.5 h-3.5 text-amber-300" />}
             {results.ok.length} gestartet{results.failed.length > 0 ? `, ${results.failed.length} fehlgeschlagen` : ""}
@@ -219,7 +219,7 @@ export default function BulkAssignPanel({ orders, onBack, onStarted }) {
 
       {/* Start-Button */}
       {matched && validCount > 0 && !results && (
-        <div className="sticky bottom-0 -mx-3 px-3 pb-3 pt-4 mt-4 bg-gradient-to-t from-ink via-ink/95 to-transparent">
+        <div className="shrink-0 pt-2">
           <div className="flex items-center justify-between mb-2 text-xs text-muted-foreground">
             <span>{validCount} Transport(e) bereit</span>
             {failedCount > 0 && <span className="text-coral">{failedCount} ohne Match</span>}
@@ -235,7 +235,7 @@ export default function BulkAssignPanel({ orders, onBack, onStarted }) {
       )}
 
       {matched && validCount === 0 && !results && (
-        <div className="flex items-start gap-2 text-xs text-coral bg-coral/5 border border-coral/20 rounded-lg px-3 py-2">
+        <div className="flex items-start gap-2 text-xs text-coral bg-coral/5 border border-coral/20 rounded-lg px-3 py-2 shrink-0">
           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
           <span>Keine der ausgewählten Aufträge konnte einem freien Lkw mit Fahrer zugeordnet werden.</span>
         </div>
