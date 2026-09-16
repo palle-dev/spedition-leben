@@ -1,7 +1,6 @@
 // Extrahiert aus simulationEngine.ts: Dispositions-Verarbeitung für Angestellte.
 // Enthält processDispatcher, triggerDispatcherPlanning, processEmployees.
-// Effiziente-Tourenplanung-Qualifikation: längerer Horizont (72h) und
-// schnellere Reaktion (halbierte Cooldown-Zeiten) → weniger scheiternde Aufträge.
+// Performance-optimiert: busyOrderIds-Set, Skip-Cache, reduzierte triggerDispatcher-Häufigkeit.
 
 import {
   dayOf, formatGameTime,
@@ -16,6 +15,8 @@ import { pushEvent } from "./eventLog.ts";
 import { onOrderAccepted, onTourConfirmed } from "./mailReports.ts";
 import { hasDgDispatch, hasDispoEfficiency } from "./trainingEngine.ts";
 import { processAccountant } from "./accountingEngine.ts";
+import { applyCleaningEffect } from "./serviceEngine.ts";
+import { checkSpendAuthority, recordSpend, logDecision, createApprovalRequest, ROLE_AUTHORITY } from "./delegationEngine.ts";
 
 // Lokale Kopie von uid (inkrementiert state.idCounter).
 function uid(state, prefix) {
@@ -40,25 +41,54 @@ function isDispatcherOnShift(emp, gameMinute) {
 export function processEmployees(state, m, log) {
   const clock = m % 1440;
   const inServiceHours = clock >= SERVICE_START_MIN && clock < SERVICE_END_MIN;
+  // Inkrementelle Disposition: completeTrip löst planSingleVehicle aus,
+  // sobald ein Fahrzeug frei wird. Die stündliche processEmployees-Runde
+  // dient nur noch als Fallback (Fahrer aus Ruhe, Marktwellen-Orders).
   for (const emp of (state.employees || [])) {
     if (!isActivelyEmployed(emp)) continue;
     if (emp.attendance !== "present") continue;
     if (emp.role === "dispatcher" || emp.role === "dispatcher_senior") {
       if (!isDispatcherOnShift(emp, m)) continue;
+      // Keine _largeAdvance-abhängige Planungsfrequenz mehr: ein 2h-Skip
+      // hätte neue Marktaufträge in großen Vorläufen bis zu 2h liegen lassen,
+      // während 24×60 sie innerhalb 1h aufnimmt — unterschiedliche Ergebnisse.
+      // Die kontextsensitive Skip-Cache in processDispatcher verhindert
+      // redundante suggestTours-Aufrufe, wenn sich die Lage nicht geändert hat.
       processDispatcher(state, emp, m, log);
     } else if (inServiceHours && (emp.role === "accountant" || emp.role === "accountant_senior")) {
       processAccountant(state, emp, m, log);
+    } else if (inServiceHours && emp.role === "cleaner") {
+      processCleaner(state, emp, m, log);
     }
+  }
+}
+
+// Reinigungskraft reinigt ihre zugewiesene Filiale.
+// Wird einmal pro Tag beim ersten Dienstzeitpunkt ausgeführt.
+// Trägt capacity-Einheiten zur Tagesreinigung bei.
+function processCleaner(state, emp, m, log) {
+  const day = dayOf(m);
+  if (emp._lastCleaningDay === day) return;
+  emp._lastCleaningDay = day;
+
+  const branchId = emp.assignedBranchId || emp.branchId;
+  if (!branchId) return;
+  const branch = (state.branches || []).find(b => b.id === branchId);
+  if (!branch || branch.status !== "active") return;
+
+  const units = emp.capacity || 4;
+  const dayId = "d" + day;
+  const result = applyCleaningEffect(state, branchId, units, dayId);
+
+  if (result.effect > 0) {
+    log.push({ type: "cleaner_worked", employee: emp.id, branch: branchId, effect: result.effect, newCleanliness: result.newCleanliness, atMin: m });
   }
 }
 
 // Disponent verarbeitet seine zugewiesenen Lkw.
 // Modus A: erstellt Vorschläge für freie Fahrzeuge mit angenommenen Aufträgen.
-// Modus B/C: nutzt suggestTours für flottenweite Planung mit Erholung, Rückladungen,
-//   Liquiditätsprüfung und Rentabilitätsfilter. Berücksichtigt auch ruhende Fahrer
-//   und zurückkehrende Fahrzeuge über earliestAvailable.
+// Modus B/C: nutzt suggestTours für flottenweite Planung.
 export function processDispatcher(state, emp, m, log) {
-  // Firmenpool: Alle nicht verkauften, nicht vorgemerkten Fahrzeuge.
   let poolVehicles = state.vehicles.filter(v =>
     v.status !== "sold" && v.status !== "archived" && !v.markedForSale
   );
@@ -91,6 +121,7 @@ export function processDispatcher(state, emp, m, log) {
     const result = suggestTours(state, {
       vehicleIds: poolVehicleIds, earliestStart: m, horizonMin: 2880,
       desiredEndCity: null, latestReturnMin: null, mode: state.marketPriority || "balanced", acceptNew: false,
+      fastMode: state._largeAdvance === false,
     });
     emp.suggestions = (emp.suggestions || []).filter(s => s.status !== "pending");
     for (const s of result.suggestions) {
@@ -108,16 +139,36 @@ export function processDispatcher(state, emp, m, log) {
   // ---------- Modus B/C: flottenweite Planung mit suggestTours ----------
   const acceptNew = emp.workMode === "autonomous";
   // Effiziente-Tourenplanung-Qualifikation: längerer Horizont (72h) und
-  // schnellere Reaktion (halbierte Cooldown-Zeiten) → weniger scheiternde Aufträge.
+  // schnellere Reaktion (halbierte Skip-Cache-Zeiten) → weniger scheiternde Aufträge.
   const efficiencyQual = hasDispoEfficiency(state, emp.id);
   const horizonMin = efficiencyQual ? 72 * 60 : 48 * 60;
-  // Prüfe, ob es angenommene Aufträge gibt, die noch nicht Teil einer
-  // aktiven Tour sind (verhindert unnötige Planversuche).
-  const hasUnplannedAccepted = state.orders.some(o =>
-    o.status === "angenommen" && o.deliveryDeadlineMin > m - 240 &&
-    !state.trips.some(t => t.orderId === o.id && t.status === "in_progress") &&
-    !(state.tours || []).some(t => t.status === "active" && (t.deployments || []).some(d => d.orderId === o.id && d.status !== "cancelled"))
-  );
+  // Build Set of order IDs already in a trip or active tour.
+  // Replaces O(orders × tours × deployments) nested .some() with O(1) lookups.
+  const busyOrderIds = new Set();
+  for (const tr of state.trips) {
+    if (tr.status === "in_progress" && tr.orderId) busyOrderIds.add(tr.orderId);
+  }
+  for (const tr of (state.tours || [])) {
+    if (tr.status !== "active") continue;
+    for (const d of (tr.deployments || [])) {
+      if (d.orderId && d.status !== "cancelled") busyOrderIds.add(d.orderId);
+    }
+  }
+  // Überfällige angenommene Aufträge bereinigen: Aufträge deren Lieferfrist
+  // + 4h Gnadenfrist abgelaufen ist, werden als "failed" markiert. Ohne diese
+  // Bereinigung blieben sie ewig als "angenommen" stehen, blähen die
+  // unplannedCount auf (→ Skip-Cache blockiert Neuplanung) und verhindern,
+  // dass freie Lkw tatsächlich eingesetzt werden. Die Bereinigung in
+  // processEventsAt läuft nur bei Zeitvorläufen — hier läuft sie bei jeder
+  // Dispatcher-Runde, auch ohne Zeitvorlauf.
+  for (const o of state.orders) {
+    if (o.status === "angenommen" && o.deliveryDeadlineMin + 240 <= m) {
+      o.status = "failed";
+      o.failedAtMin = m;
+      log.push({ type: "order_failed", order: o.id, customer: o.customer, reason: "Lieferfrist überschritten (Dispatcher-Bereinigung)" });
+    }
+  }
+  const hasUnplannedAccepted = state.orders.some(o => o.status === "angenommen" && !busyOrderIds.has(o.id));
   const hasOfferedOrders = acceptNew && state.orders.some(o => o.status === "offered" && o.acceptDeadlineMin > m);
   if (!hasUnplannedAccepted && !hasOfferedOrders) {
     emp.lastIdleReason = acceptNew ? "Keine Aufträge auf dem Markt" : "Keine angenommenen Aufträge – autonomer Modus nötig";
@@ -125,40 +176,101 @@ export function processDispatcher(state, emp, m, log) {
     return;
   }
 
-  // suggestTours berücksichtigt auch ruhende Fahrer und zurückkehrende Fahrzeuge
+  // Skip-Cache: Vermeidet redundante suggestTours-Aufrufe wenn sich die Situation
+  // seit dem letzten Planungsversuch nicht geändert hat.
+  // Stufe 1: Wenn 0 Touren geplant wurden und die Lage unverändert ist,
+  // 30 min überspringen (früher 120 min — das war zu lang und hat
+  // Aufträge aufgestaut, weil Fahrer-Rückkehr aus Ruhe nicht erfasst wurde).
+  // Stufe 2: Wenn Touren geplant wurden, aber keine neuen Aufträge seitdem
+  // (unplannedCount unverändert), 60min überspringen — die bestehenden
+  // Vorschläge sind noch gültig.
+  // WICHTIG: freeDriverCount ist Teil des Context-Keys, damit die
+  // Rückkehr eines Fahrers aus der Pause den Cache sofort invalidiert.
+  const unplannedCount = state.orders.filter(o => o.status === "angenommen" && !busyOrderIds.has(o.id)).length;
+  const offeredCount = hasOfferedOrders ? state.orders.filter(o => o.status === "offered" && o.acceptDeadlineMin > m).length : 0;
+  const freeVehicleCount = poolVehicles.filter(v => v.status === "free" || v.status === "resting").length;
+  const freeDriverCount = (state.drivers || []).filter(d =>
+    d.employmentStatus === "employed" && d.attendance !== "released" &&
+    (d.status === "free" || d.status === "resting")
+  ).length;
+  const contextKey = unplannedCount + ":" + offeredCount + ":" + freeVehicleCount + ":" + freeDriverCount;
+  if (emp._lastPlanContext === contextKey) {
+    // Wenn 0 Touren geplant wurden, überspringen. Der Context-Key erfasst
+    // alle handlungsrelevanten Änderungen (neue Aufträge, freie Fahrzeuge,
+    // zurückkehrende Fahrer) — bei unverändertem Context ist suggestTours
+    // garantiert ergebnislos. Während eines bulk-Vorlaufs (state._bulkAdvance)
+    // wird 60 Min übersprungen statt 10 — das reduziert suggestTours-Aufrufe
+    // pro Tag von ~96 auf ~24, ohne dass Touren oder Lieferungen verloren
+    // gehen. Außerhalb von Vorläufen bleibt die kurze 10-Min-Schwelle.
+    const skipMin = state._bulkAdvance ? 60 : (efficiencyQual ? 5 : 10);
+    if (emp._lastPlanPlanned === 0 && m - (emp.lastDecisionMin || 0) < skipMin) return;
+    if (emp._lastPlanPlanned > 0 && unplannedCount === 0 && m - (emp.lastDecisionMin || 0) < (efficiencyQual ? 30 : 60)) return;
+  }
+  emp._lastPlanContext = contextKey;
+
   const result = suggestTours(state, {
     vehicleIds: poolVehicleIds, earliestStart: m, horizonMin,
     desiredEndCity: null, latestReturnMin: null, mode: state.marketPriority || "balanced", acceptNew,
+    fastMode: state._largeAdvance === false,
   });
 
   const usedVehicleIds = new Set();
   const usedOrderIds = new Set();
   let planned = 0;
-
-  // Kapazität: Mindestens so viele Touren wie Fahrzeuge im Pool.
   const capacity = Math.max(emp.capacity || 6, poolVehicles.length);
+
   for (const sug of result.suggestions) {
     if (planned >= capacity) break;
     if (usedVehicleIds.has(sug.vehicleId)) continue;
-    // Aufträge noch verfügbar?
     const allAvailable = sug.orderIds.every(oid => {
       if (usedOrderIds.has(oid)) return false;
+      if (busyOrderIds.has(oid)) return false;
       const o = state.orders.find(x => x.id === oid);
       if (!o || (o.status !== "offered" && o.status !== "angenommen")) return false;
-      if ((state.tours || []).some(t => t.status === "active" && (t.deployments || []).some(d => d.orderId === oid && d.status !== "cancelled"))) return false;
       return true;
     });
     if (!allAvailable) continue;
-    // Rentabilitätsprüfung: Nur positive Beiträge bei Neuaufträgen
     const newOrderIds = sug.plan.acceptedOrderIds || [];
     if (newOrderIds.length > 0 && sug.plan.totalContributionCents <= 0) continue;
-    // DG-Annahmeprüfung: dispo_dg erforderlich
     if (sug.orderIds.some(oid => state.orders.find(x => x.id === oid)?.isDangerousGoods) && !hasDgDispatch(state, emp.id)) continue;
 
+    // Budget-Prüfung: Kraftstoff + Maut für diese Tour
+    const tourFuelCents = sug.plan.fuelCents || 0;
+    const tourTollCents = sug.plan.tollCents || 0;
+    const tourCostCents = tourFuelCents + tourTollCents;
+    const authCheck = checkSpendAuthority(state, emp.id, tourCostCents, { branchId: emp.assignedBranchId || emp.branchId });
+    if (!authCheck.allowed) {
+      // Freigabe anfordern wenn Kosten über Befugnis
+      if (authCheck.violatedRule === "maxSpendPerAction" || authCheck.violatedRule === "dailyBudget") {
+        createApprovalRequest(state, {
+          employeeId: emp.id, employeeName: emp.name, employeeRole: emp.role,
+          branchId: emp.assignedBranchId || emp.branchId,
+          type: "spend", title: "Tour-Kosten über Befugnis",
+          description: `Tour für ${sug.orderIds.length} Auftrag(e) kostet ${(tourCostCents/100).toFixed(2)} € (Kraftstoff + Maut).`,
+          reasoning: authCheck.reason,
+          costCents: tourCostCents, violatedRule: authCheck.violatedRule,
+          urgency: "medium", deadlineMin: null,
+          actionData: { vehicleId: sug.vehicleId, driverId: sug.driverId, orderIds: sug.orderIds },
+          dedupKey: "tour_spend:" + emp.id + ":" + state.gameTime + ":" + sug.vehicleId,
+        });
+      }
+      continue;
+    }
+    // Begründung aus Planungsdaten (primaryOrder wird unten definiert)
+    const _primaryOrder = state.orders.find(x => x.id === sug.orderIds[0]);
+    const reasoning = buildTourReasoning(state, sug, _primaryOrder);
     try {
       const r = doConfirmTour(state, {
         vehicleId: sug.vehicleId, driverId: sug.driverId, orderIds: sug.orderIds,
         desiredEndCity: sug.plan.desiredEndCity || null, latestReturnMin: sug.plan.latestReturnMin || null,
+      });
+      // Ausgabe im Tagesbudget erfassen
+      if (tourCostCents > 0) recordSpend(state, emp.id, tourCostCents, emp.assignedBranchId || emp.branchId);
+      // Entscheidung protokollieren
+      logDecision(state, {
+        employeeId: emp.id, employeeName: emp.name,
+        type: "tour_planned", summary: `Tour für ${sug.orderIds.length} Auftrag(e) geplant`,
+        reasoning, costCents: tourCostCents,
       });
       usedVehicleIds.add(sug.vehicleId);
       sug.orderIds.forEach(oid => usedOrderIds.add(oid));
@@ -261,26 +373,111 @@ export function processDispatcher(state, emp, m, log) {
     v.idleReason = reason;
     v.idleReasonAtMin = m;
   }
+  // Backlog für Assistent und UI dokumentieren
+  const stillBusy = new Set(busyOrderIds);
+  for (const oid of usedOrderIds) stillBusy.add(oid);
+  emp.backlogCount = (state.orders || []).filter(o => o.status === "angenommen" && !stillBusy.has(o.id)).length;
+
   emp.lastDecisionMin = m;
+  emp._lastPlanPlanned = planned;
   emp.lastPlanningResult = { atMin: m, planned, totalVehicles: poolVehicles.length, usedVehicles: usedVehicleIds.size, suggested: result.suggestions.length };
 }
 
-// Ereignisgesteuerte Dispositionsplanung: ruft processDispatcher für alle
-// autonomen/disponierenden Disponenten außerhalb des regulären Diensttakts auf.
-// Vermeidet Doppelverarbeitung in derselben Spielminute.
+// Inkrementelle Disposition: Plant sofort für ein einzelnes Fahrzeug,
+// das gerade frei geworden ist (Tour-Ende). Deutlich effizienter als
+// die stündliche Flotten-Vollscan über processDispatcher, da nur ein
+// Fahrzeug × Fahrer × Aufträge durchsucht werden.
+export function planSingleVehicle(state, vehicle, m, log) {
+  if (vehicle.status !== "free" || vehicle.condition < 20 || vehicle.markedForSale) return;
+  if (vehicle.ownership_type === "sold" || vehicle.ownership_type === "archived") return;
+
+  // Überfällige angenommene Aufträge bereinigen (siehe processDispatcher).
+  for (const o of state.orders) {
+    if (o.status === "angenommen" && o.deliveryDeadlineMin + 240 <= m) {
+      o.status = "failed";
+      o.failedAtMin = m;
+      log.push({ type: "order_failed", order: o.id, customer: o.customer, reason: "Lieferfrist überschritten (planSingleVehicle-Bereinigung)" });
+    }
+  }
+
+  // Finde autonomen/dispatch_accepted Disponenten für diese Filiale
+  const dispatcher = (state.employees || []).find(e => {
+    if (!isActivelyEmployed(e) || e.attendance !== "present") return false;
+    if (e.role !== "dispatcher" && e.role !== "dispatcher_senior") return false;
+    if (e.workMode !== "autonomous" && e.workMode !== "dispatch_accepted") return false;
+    if (!isDispatcherOnShift(e, m)) return false;
+    const dispBranch = e.assignedBranchId !== undefined ? e.assignedBranchId : (e.branchId || null);
+    if (dispBranch && dispBranch !== vehicle.branchId) return false;
+    return true;
+  });
+  if (!dispatcher) return;
+
+  const acceptNew = dispatcher.workMode === "autonomous";
+  const result = suggestTours(state, {
+    vehicleIds: [vehicle.id], earliestStart: m, horizonMin: hasDispoEfficiency(state, dispatcher.id) ? 72 * 60 : 48 * 60,
+    desiredEndCity: null, latestReturnMin: null,
+    mode: state.marketPriority || "balanced", acceptNew,
+    fastMode: state._largeAdvance === false,
+  });
+  if (result.suggestions.length === 0) return;
+
+  const sug = result.suggestions[0];
+  const newOrderIds = sug.plan.acceptedOrderIds || [];
+  if (newOrderIds.length > 0 && sug.plan.totalContributionCents <= 0) return;
+  if (sug.orderIds.some(oid => state.orders.find(x => x.id === oid)?.isDangerousGoods) && !hasDgDispatch(state, dispatcher.id)) return;
+
+  // Auftragsverfügbarkeit prüfen
+  const busyOrderIds = new Set();
+  for (const tr of state.trips) { if (tr.status === "in_progress" && tr.orderId) busyOrderIds.add(tr.orderId); }
+  for (const tr of (state.tours || [])) {
+    if (tr.status !== "active") continue;
+    for (const d of (tr.deployments || [])) { if (d.orderId && d.status !== "cancelled") busyOrderIds.add(d.orderId); }
+  }
+  if (sug.orderIds.some(oid => busyOrderIds.has(oid))) return;
+
+  try {
+    const r = doConfirmTour(state, {
+      vehicleId: sug.vehicleId, driverId: sug.driverId, orderIds: sug.orderIds,
+      desiredEndCity: sug.plan.desiredEndCity || null, latestReturnMin: sug.plan.latestReturnMin || null,
+    });
+    const newlyAccepted = r.acceptedOrderIds || [];
+    for (const oid of sug.orderIds) {
+      const o = state.orders.find(x => x.id === oid);
+      if (!o) continue;
+      if (newlyAccepted.includes(oid)) {
+        o.acceptedById = dispatcher.id; o.acceptedByName = dispatcher.name;
+        o.history = o.history || [];
+        o.history.push({ type: "accepted", min: m, actor: dispatcher.id, actorName: dispatcher.name });
+        onOrderAccepted(state, o, dispatcher.id, m);
+      }
+      o.plannedById = dispatcher.id; o.plannedByName = dispatcher.name;
+    }
+    const tour = r.tour || { id: r.tourId, vehicleId: sug.vehicleId, driverId: sug.driverId, orderIds: sug.orderIds, startMin: m, endMin: r.endMin };
+    onTourConfirmed(state, tour, dispatcher.id, m);
+    log.push({ type: "dispatcher_planned", employee: dispatcher.id, orders: sug.orderIds, vehicle: sug.vehicleId, atMin: m, contributionCents: sug.plan.totalContributionCents });
+  } catch (e) {
+    // skip failed tour
+  }
+}
+
+// Ereignisgesteuerte Dispositionsplanung außerhalb des regulären Diensttakts.
 export function triggerDispatcherPlanning(state, m, log) {
+  // Während eines bulk-Vorlaufs: ereignisgesteuerte Planung überspringen.
+  // Die reguläre Planung läuft ohnehin alle 60 Min über processEmployees.
+  // Die 15-Min-Ticks wurden bereits in earliestEventAfter entfernt, aber
+  // andere Events (Phasenabschlüsse etc.) können auf m % 15 === 0 fallen.
+  if (state._bulkAdvance) return;
   const clock = m % 1440;
-  if (clock % SERVICE_INTERVAL_MIN === 0) return; // Bereits durch processEmployees abgedeckt
+  if (clock % SERVICE_INTERVAL_MIN === 0) return;
   for (const emp of (state.employees || [])) {
     if (!isActivelyEmployed(emp)) continue;
     if (emp.attendance !== "present") continue;
     if (emp.role !== "dispatcher" && emp.role !== "dispatcher_senior") continue;
     if (emp.workMode !== "autonomous" && emp.workMode !== "dispatch_accepted") continue;
     if (!isDispatcherOnShift(emp, m)) continue;
-    // CPU-Schutz: höchstens alle 15 Spielminuten pro Disponent.
-    // Mit Effiziente-Tourenplanung-Qualifikation: 7 Min für schnellere Reaktion.
-    const cooldown = hasDispoEfficiency(state, emp.id) ? 7 : 15;
-    if (m - (emp.lastDecisionMin || 0) < cooldown) continue;
+    // Keine harte Sperre mehr — die kontextsensitive Skip-Cache in processDispatcher
+    // verhindert redundante suggestTours-Aufrufe, wenn sich die Lage nicht geändert hat.
+    // Eine harte 30-Minuten-Sperre hat Lkw nach Tour-Ende bis zu 30 Min stillstehen lassen.
     processDispatcher(state, emp, m, log);
   }
 }
