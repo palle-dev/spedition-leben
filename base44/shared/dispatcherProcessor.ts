@@ -24,6 +24,28 @@ function uid(state, prefix) {
   return prefix + "_" + state.idCounter;
 }
 
+// Erzeugt eine natürliche Begründung für eine geplante Tour.
+// Nutzt nur Planungsdaten, keine Zustandsänderung.
+function buildTourReasoning(state, sug, primaryOrder) {
+  const plan = sug.plan || {};
+  const orderCount = (sug.orderIds || []).length;
+  const vehicle = state.vehicles.find(v => v.id === sug.vehicleId);
+  const driver = state.drivers.find(d => d.id === sug.driverId);
+  const vehicleLabel = vehicle
+    ? "Lkw " + String(parseInt(String(vehicle.id).replace(/[^0-9]/g, ""), 10) || 1).padStart(2, "0")
+    : sug.vehicleId;
+  const parts = [];
+  if (primaryOrder) {
+    parts.push(`${primaryOrder.customer}: ${primaryOrder.fromCity} → ${primaryOrder.toCity} (${primaryOrder.tons} t)`);
+  } else {
+    parts.push(`${orderCount} Auftrag/Aufträge`);
+  }
+  parts.push(`Fahrer: ${driver ? driver.name : "—"}`);
+  parts.push(`Beitrag: ${(plan.totalContributionCents || 0) / 100} €`);
+  parts.push(`${plan.totalKm || 0} km`);
+  return `${vehicleLabel} übernimmt ${orderCount} Auftrag/Aufträge — ` + parts.join(", ");
+}
+
 // Prüft, ob ein Disponent innerhalb seiner Schicht ist.
 // Nachtschichten können über Mitternacht hinausgehen (startMin > endMin).
 function isDispatcherOnShift(emp, gameMinute) {
