@@ -175,6 +175,7 @@ import {
   resumeOnboarding, dismissOnboarding, markOnboardingReviewed, recordAutoDecisionDay,
 } from "./developmentEngine.ts";
 import { handleMailCommand } from "./mailCommands.ts";
+import { handleDevelopmentGoalsCommand } from "./developmentGoalsCommands.ts";
 import { migrateSegmentFields, getOrderSegments, getOrderCharacteristics, getPrimarySegment } from "./segmentEngine.ts";
 import { migrateBusinessFocus, setBusinessFocus as doSetBusinessFocus, setBranchBusinessFocus as doSetBranchBusinessFocus, getBusinessFocus, getEffectiveFocusForBranch, getMarketWeightsForBranch, orderMatchesFocus, getFocusPriority, BUSINESS_FOCI } from "./businessFocusEngine.ts";
 import { migrateSegmentStats, recordSegmentDelivery, recordTankCleaning, recordEmptyTrip, getSegmentStats } from "./segmentStatsEngine.ts";
@@ -2450,6 +2451,7 @@ export function applyCommand(state, command, params) {
       if (delegationResult !== null) { result = delegationResult; break; }
       const storyResult = handleStoryCommand(state, command, p); if (storyResult !== null) { result = storyResult; break; }
       const mailResult = handleMailCommand(state, command, p); if (mailResult !== null) { result = mailResult; break; }
+      const devGoalsResult = handleDevelopmentGoalsCommand(state, command, p); if (devGoalsResult !== undefined) { result = devGoalsResult; break; }
       throw new Error("Unbekannter Befehl: " + command);
     }
   }
