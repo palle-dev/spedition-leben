@@ -111,7 +111,7 @@ export default function NegotiationPanel({ tenderId, onCheckCapacity, capacityCh
       <div className={`rounded-xl border p-4 space-y-3 ${
         isCompleted ? "border-lime/20 bg-lime/5" :
         isFailed ? "border-coral/20 bg-coral/5" :
-        "border-white/10 bg-white/5"
+        "border-white/10 glass"
       }`}>
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -189,7 +189,7 @@ export default function NegotiationPanel({ tenderId, onCheckCapacity, capacityCh
 
       {/* Aktions-Buttons */}
       {canAct && (
-        <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+        <div className="rounded-xl border border-white/10 glass p-4 space-y-3">
           <div className="text-sm font-medium">Aktion</div>
 
           {/* Gegenangebot-Formular */}
@@ -293,7 +293,7 @@ export default function NegotiationPanel({ tenderId, onCheckCapacity, capacityCh
 
 function CapacityCheckSection({ onCheck, capacityCheck, contract }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+    <div className="rounded-xl border border-white/10 glass p-4 space-y-3">
       <h4 className="font-medium text-sm flex items-center gap-1.5">
         <Shield className="w-4 h-4" /> Kapazitätsprüfung bei Annahme
       </h4>

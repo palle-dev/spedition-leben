@@ -35,7 +35,7 @@ export default function ContractView({ contract, onTerminate }) {
     <div className={`rounded-xl border p-4 space-y-3 ${
       isActive ? "border-lime/20 bg-lime/5" :
       isTerminated ? "border-coral/20 bg-coral/5" :
-      isCompleted ? "border-white/10 bg-white/5" :
+      isCompleted ? "border-white/10 glass" :
       "border-coral/20 bg-coral/5"
     }`}>
       {/* Header */}

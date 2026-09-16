@@ -43,7 +43,7 @@ export default function OutreachPanel({ customerId }) {
   // Bestehender Vertrag — keine Ansprache nötig
   if (feasibility.existingContract) {
     return (
-      <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+      <div className="rounded-xl border border-white/10 glass p-4">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Info className="w-4 h-4 shrink-0" />
           <span>Bestehender Vertrag aktiv — gezielte Ansprache nicht sinnvoll.</span>
@@ -55,7 +55,7 @@ export default function OutreachPanel({ customerId }) {
   // Keine Gelegenheit
   if (!feasibility.hasAnyOpportunity) {
     return (
-      <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
+      <div className="rounded-xl border border-white/10 glass p-4 space-y-2">
         <div className="flex items-center gap-2 text-sm">
           <Handshake className="w-4 h-4 text-muted-foreground" />
           <span className="font-medium">Gezielte Kundenansprache</span>
@@ -85,7 +85,7 @@ export default function OutreachPanel({ customerId }) {
   }
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+    <div className="rounded-xl border border-white/10 glass p-4 space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm">
           <Handshake className="w-4 h-4 text-lime" />

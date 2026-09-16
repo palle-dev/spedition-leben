@@ -97,7 +97,7 @@ export default function TenderDetail({ tenderId, onBack }) {
       </button>
 
       {/* Ausschreibungskopf */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+      <div className="rounded-xl border border-white/10 glass p-4 space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -156,7 +156,7 @@ export default function TenderDetail({ tenderId, onBack }) {
       </div>
 
       {/* Bewertungskriterien */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
+      <div className="rounded-xl border border-white/10 glass p-4 space-y-2">
         <h4 className="font-medium text-sm flex items-center gap-1.5">
           <Award className="w-4 h-4" /> Bewertungskriterien
         </h4>
@@ -225,7 +225,7 @@ export default function TenderDetail({ tenderId, onBack }) {
 
       {/* Angebotsabgabe (nur wenn offen und noch nicht abgegeben) */}
       {tender.status === "open" && !tender.playerBid && (
-        <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+        <div className="rounded-xl border border-white/10 glass p-4 space-y-3">
           <h4 className="font-medium text-sm flex items-center gap-1.5">
             <Gavel className="w-4 h-4" /> Angebot abgeben
           </h4>
@@ -323,7 +323,7 @@ export default function TenderDetail({ tenderId, onBack }) {
 
       {/* Abgegebenes Angebot */}
       {tender.playerBid && tender.status !== "awarded" && (
-        <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
+        <div className="rounded-xl border border-white/10 glass p-4 space-y-2">
           <h4 className="font-medium text-sm flex items-center gap-1.5">
             <CheckCircle2 className="w-4 h-4 text-lime" /> Angebot abgegeben
           </h4>
@@ -343,7 +343,7 @@ export default function TenderDetail({ tenderId, onBack }) {
       {/* Ergebnis-Erklärung */}
       {tender.awardExplanation && tender.status !== "awarded" && (
         <div className={`rounded-xl border p-4 space-y-2 ${
-          tender.status === "lost" ? "border-coral/20 bg-coral/5" : "border-white/10 bg-white/5"
+          tender.status === "lost" ? "border-coral/20 bg-coral/5" : "border-white/10 glass"
         }`}>
           <h4 className="font-medium text-sm">Ergebnis</h4>
           <div className="text-xs whitespace-pre-line text-muted-foreground">{tender.awardExplanation}</div>

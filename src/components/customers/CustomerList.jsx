@@ -69,7 +69,7 @@ export default function CustomerList({ customers, onSelect }) {
           <button
             key={c.id}
             onClick={() => onSelect(c.id)}
-            className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10 hover:border-lime/30 hover:bg-white/[0.07] transition text-left group"
+            className="flex items-center gap-3 p-3 rounded-xl glass border border-white/10 hover:border-lime/30 transition text-left group"
           >
             {/* Vertrauen-Badge */}
             <div className="flex flex-col items-center gap-0.5 shrink-0 w-14">

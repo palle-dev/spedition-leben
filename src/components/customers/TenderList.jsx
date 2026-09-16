@@ -6,7 +6,7 @@ import { FileText, Clock, MapPin, Package, TrendingUp, ArrowLeft, Gavel, CheckCi
 export default function TenderList({ tenders, onSelect }) {
   if (!tenders || tenders.length === 0) {
     return (
-      <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center">
+      <div className="rounded-xl border border-white/10 glass p-6 text-center">
         <FileText className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
         <p className="text-sm text-muted-foreground">Keine offenen Ausschreibungen</p>
         <p className="text-xs text-muted-foreground/70 mt-1">
@@ -27,7 +27,7 @@ export default function TenderList({ tenders, onSelect }) {
           <button
             key={tender.id}
             onClick={() => onSelect(tender.id)}
-            className="w-full text-left rounded-xl border border-white/10 bg-white/5 p-3 hover:bg-white/10 hover:border-lime/30 transition group"
+            className="w-full text-left rounded-xl border border-white/10 glass p-3 hover:bg-white/10 hover:border-lime/30 transition group"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">

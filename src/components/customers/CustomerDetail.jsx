@@ -52,7 +52,7 @@ export default function CustomerDetail({ customerId, onBack }) {
       </button>
 
       {/* Kundenprofil */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+      <div className="rounded-xl border border-white/10 glass p-4 space-y-3">
         <div className="flex items-start gap-3">
           <div className="flex-1">
             <div className="flex items-center gap-2">
@@ -99,7 +99,7 @@ export default function CustomerDetail({ customerId, onBack }) {
       </div>
 
       {/* Beziehungsentwicklung */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+      <div className="rounded-xl border border-white/10 glass p-4 space-y-3">
         <h4 className="font-medium text-sm flex items-center gap-1.5"><TrendingUp className="w-4 h-4" /> Beziehungsentwicklung</h4>
 
         {/* Statistiken */}
@@ -171,7 +171,7 @@ export default function CustomerDetail({ customerId, onBack }) {
 
       {/* Aktuelle Aufträge */}
       {customerOrders.length > 0 && (
-        <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
+        <div className="rounded-xl border border-white/10 glass p-4 space-y-2">
           <h4 className="font-medium text-sm flex items-center gap-1.5"><Package className="w-4 h-4" /> Aktuelle Aufträge ({customerOrders.length})</h4>
           <div className="space-y-1">
             {customerOrders.map(o => (
