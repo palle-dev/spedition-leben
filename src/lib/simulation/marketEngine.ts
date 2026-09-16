@@ -20,6 +20,7 @@ import {
 } from "./dangerousGoodsEngine.ts";
 import { pushEvent } from "./eventLog.ts";
 import { getMarketWeightsForBranch, migrateBusinessFocus } from "./businessFocusEngine.ts";
+import { getRegionOfCity, getDemandFactor, getPriceFactor, migrateMarketDynamics } from "./marketDynamicsEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 
@@ -160,7 +161,11 @@ function pickCustomer(state, anchors, rng) {
     for (const depot of c.depots) {
       if (anchors[depot]) bonus += anchors[depot];
     }
-    return 8 + Math.min(bonus, 6);
+    // Markt-Dynamik: Nachfragefaktor der Depot-Region als Gewichtsmultiplikator.
+    // Verschiebt die Verteilung, ohne die Gesamtzahl der Angebote zu erhöhen.
+    const region = getRegionOfCity(c.depots[0]);
+    const demandFactor = getDemandFactor(state, region, "standard");
+    return (8 + Math.min(bonus, 6)) * demandFactor;
   });
   return weightedPick(CUSTOMER_PROFILES, weights, rng);
 }
@@ -371,7 +376,16 @@ function makeMarketOffer(state, m) {
 
   const km = getDistance(fromCity, toCity);
   const relFactor = relationFactor(state, fromCity, toCity);
-  const paymentCents = computeOfferPrice(km, tons, offerType, relFactor);
+  let paymentCents = computeOfferPrice(km, tons, offerType, relFactor);
+
+  // Markt-Dynamik: Preisfaktor genau einmal auf die berechnete Vergütung anwenden.
+  // Wird NACH relFactor und expressFactor multipliziert, keine Doppelzählung.
+  migrateMarketDynamics(state);
+  const fromRegion = getRegionOfCity(fromCity);
+  const isExpressOffer = offerType === "express";
+  const priceSeg = isExpressOffer ? "express" : (km <= 150 ? "regional" : "standard");
+  const priceFactor = getPriceFactor(state, fromRegion, priceSeg);
+  paymentCents = Math.round(paymentCents * priceFactor);
 
   const tw = computeTimeWindows(state, m, offerType, fromCity, toCity, km, rng);
 
@@ -382,6 +396,7 @@ function makeMarketOffer(state, m) {
     shipmentId: "S" + (state.idCounter + 1),
     fromCity, toCity, cargo, tons,
     paymentCents,
+    priceFactor: Math.round(priceFactor * 100) / 100,
     offerType,
     relationFactor: relFactor,
     publishedAtMin: m,

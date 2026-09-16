@@ -2,7 +2,8 @@ import React from "react";
 import { useGame } from "@/lib/gameContext";
 import FocusSelector from "@/components/business/FocusSelector";
 import SegmentStatsView from "@/components/business/SegmentStatsView";
-import { Briefcase } from "lucide-react";
+import MarketOverview from "@/components/business/MarketOverview";
+import { Briefcase, Globe } from "lucide-react";
 
 export default function BusinessModels() {
   const { state, send, showToast } = useGame();
@@ -17,9 +18,21 @@ export default function BusinessModels() {
           </div>
           <div>
             <h1 className="text-xl lg:text-2xl font-semibold tracking-tight text-foreground">Geschäftsmodelle</h1>
-            <p className="text-sm text-muted-foreground">Betriebliche Spezialisierung und Segment-Ergebnisse</p>
+            <p className="text-sm text-muted-foreground">Betriebliche Spezialisierung, Marktlage und Segment-Ergebnisse</p>
           </div>
         </div>
+
+        {/* Marktübersicht (Regionen, Saisonal, Ereignisse) */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Globe className="w-4 h-4 text-invest-cyan" />
+            <h2 className="text-lg font-medium text-foreground">Marktlage</h2>
+          </div>
+          <MarketOverview state={state} send={send} />
+        </div>
+
+        {/* Trennlinie */}
+        <div className="h-px bg-white/10" />
 
         {/* Fokus-Auswahl */}
         <FocusSelector state={state} send={send} showToast={showToast} />
