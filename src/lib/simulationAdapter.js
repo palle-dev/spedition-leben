@@ -11,8 +11,11 @@ import { generateBranchDecisions, approveBranchDecision, rejectBranchDecision, s
 import { processAssistant, migrateAssistant } from "@/lib/simulation/assistantEngine";
 
 // Reduziert die Zustandsgröße vor der Ausführung.
-// Entfernt gesehene Events (>1 Tag alt) und kappt das Legacy-Buchungs-Array.
-// Diese Daten werden für die Simulation nicht benötigt.
+// Entfernt gesehene Events (>1 Tag alt), kappt das Legacy-Buchungs-Array,
+// und entfernt alte abgeschlossene Trips/Tours/Aufträge die ohnehin bei
+// Mitternacht aufgeräumt werden. Reduziert postMessage-Serialisierung und
+// earliestEventAfter-Iterationen (O(n) pro Event) bei großen Spielständen.
+const _DONE_ORDER_STATUSES = new Set(["geliefert", "storniert", "expired", "failed"]);
 function slimState(state) {
   if (!state) return state;
   let slim = state;
@@ -25,6 +28,38 @@ function slimState(state) {
   }
   if (state.bookings && state.bookings.length > 50) {
     slim = { ...slim, bookings: state.bookings.slice(-50) };
+  }
+  // Alte abgeschlossene Trips/Tours entfernen (7 Tage Retention).
+  // Die Simulation benötigt nur in_progress Trips und active/planned Tours.
+  const tripCutoff = state.gameTime - 7 * 1440;
+  if (state.trips && state.trips.length > 40) {
+    const slimTrips = state.trips.filter(t =>
+      t.status === "in_progress" || (t.endMin != null && t.endMin >= tripCutoff)
+    );
+    if (slimTrips.length < state.trips.length) {
+      slim = { ...slim, trips: slimTrips };
+    }
+  }
+  if (state.tours && state.tours.length > 40) {
+    const slimTours = state.tours.filter(t =>
+      t.status === "active" || t.status === "planned" ||
+      (t.createdAt != null && t.createdAt >= tripCutoff)
+    );
+    if (slimTours.length < state.tours.length) {
+      slim = { ...slim, tours: slimTours };
+    }
+  }
+  // Alte erledigte Aufträge entfernen (30 Tage Retention, wie UI-Filter).
+  const orderCutoff = state.gameTime - 30 * 1440;
+  if (state.orders && state.orders.length > 60) {
+    const slimOrders = state.orders.filter(o =>
+      !_DONE_ORDER_STATUSES.has(o.status) ||
+      (o.failedAtMin != null && o.failedAtMin >= orderCutoff) ||
+      (o.deliveredAtMin != null && o.deliveredAtMin >= orderCutoff)
+    );
+    if (slimOrders.length < state.orders.length) {
+      slim = { ...slim, orders: slimOrders };
+    }
   }
   return slim;
 }

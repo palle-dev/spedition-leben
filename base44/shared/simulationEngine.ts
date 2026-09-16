@@ -144,6 +144,7 @@ import {
   getDriverTravelEventTimes, creditBranchDelivery,
 } from "./branchEngine.ts";
 import { processEmployees, triggerDispatcherPlanning } from "./dispatcherProcessor.ts";
+import { cleanupHistory } from "./historyCleanup.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -657,6 +658,10 @@ function processEventsAt(state, m, log) {
     processDailyCleaningDecay(state, m);
     // Auftrag 26: Taeglicher Unterhalt fuer Anschaffungen
     processDailyMaintenance(state, m);
+    // History-Cleanup: Alte abgeschlossene Trips/Tours und erledigte Aufträge
+    // entfernen. Verhindert unendliches Wachstum und beschleunigt
+    // earliestEventAfter (iteriert über alle Trips pro Event).
+    cleanupHistory(state, m);
   }
   // Auftrag 25: Krankheitsgenesung und Dienstleistungsverarbeitung bei jedem Ereignis
   processSicknessRecovery(state, m);

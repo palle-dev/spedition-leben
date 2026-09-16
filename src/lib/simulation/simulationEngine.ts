@@ -155,6 +155,7 @@ import {
   migrateDating, getDatingStatus, likeProfile, passProfile, goOnDate,
   becomePartners, breakUp, getDateEventTimes, processDates, handleDatingCommand,
 } from "./datingEngine.ts";
+import { cleanupHistory } from "./historyCleanup.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -591,6 +592,11 @@ function processEventsAt(state, m, log) {
     processDailyCleaningDecay(state, m);
     // Auftrag 26: Taeglicher Unterhalt fuer Anschaffungen
     processDailyMaintenance(state, m);
+    // History-Cleanup: Abgeschlossene Trips/Tours und erledigte Aufträge
+    // entfernen, die älter als 7 bzw. 30 Tage sind. Verhindert unendliches
+    // Wachstum von state.trips/orders/tours über lange Spiele und
+    // beschleunigt earliestEventAfter (iteriert über alle Trips pro Event).
+    cleanupHistory(state, m);
   }
   // Auftrag 25: Krankheitsgenesung – nur bei aktiven Krankmeldungen
   if ((state.absences?.sicknesses || []).length > 0) processSicknessRecovery(state, m);
