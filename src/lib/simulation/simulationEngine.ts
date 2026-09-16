@@ -196,7 +196,7 @@ import {
   migrateUsedVehicleMarket, generateUsedVehicleOffers,
 } from "./vehicleMarketEngine.ts";
 import { handleVehicleMarketCommand } from "./vehicleMarketCommands.ts";
-import { handlePlanningCommand } from "./planningCommands.ts";
+import { handlePlanningCommand } from "./planningCommands.ts"; import { handlePartnerCommand } from "./partnerCommands.ts"; import { migratePartners, processPartnerTransports, getPartnerTransportEventTimes } from "./partnerEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -676,7 +676,7 @@ function processEventsAt(state, m, log) {
   processWorkshop(state, m, log);
   evaluateWorkshopAutomation(state, m, log);
   // Stoerungsmanagement: Auto-Auflösung, Abschluss laufender Maßnahmen
-  processDisruptions(state, m, log);
+  processDisruptions(state, m, log); processPartnerTransports(state, m, log);
   // Gebrauchtfahrzeugmarkt: Angebote generieren/ablaufen lassen (alle 3 Tage)
   generateUsedVehicleOffers(state, m, log);
   // Auftrag 29: Personalmarkt-Wellen und Ablauf
@@ -2485,7 +2485,7 @@ export function applyCommand(state, command, params) {
       const devGoalsResult = handleDevelopmentGoalsCommand(state, command, p); if (devGoalsResult !== undefined) { result = devGoalsResult; break; }
       const disruptionResult = handleDisruptionCommand(state, command, p); if (disruptionResult !== null) { result = disruptionResult; break; }
       const vehicleMarketResult = handleVehicleMarketCommand(state, command, p); if (vehicleMarketResult !== null) { result = vehicleMarketResult; break; }
-      const planningResult = handlePlanningCommand(state, command, p); if (planningResult !== null) { result = planningResult; break; }
+      const planningResult = handlePlanningCommand(state, command, p); if (planningResult !== null) { result = planningResult; break; } const partnerResult = handlePartnerCommand(state, command, p); if (partnerResult !== null) { result = partnerResult; break; }
       throw new Error("Unbekannter Befehl: " + command);
     }
   }

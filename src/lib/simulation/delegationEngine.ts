@@ -37,6 +37,7 @@ export const PRESETS = {
       approvalMode: "stop",
       autoAcceptOrders: false,
       autoDispatch: false,
+      canDispatchExternally: false,
     },
   },
   daily_relief: {
@@ -52,6 +53,7 @@ export const PRESETS = {
       approvalMode: "continue",
       autoAcceptOrders: true,
       autoDispatch: true,
+      canDispatchExternally: false,
     },
   },
   autonomous_branch: {
@@ -67,6 +69,7 @@ export const PRESETS = {
       approvalMode: "continue",
       autoAcceptOrders: true,
       autoDispatch: true,
+      canDispatchExternally: false,
     },
   },
 };
@@ -76,14 +79,14 @@ export const PRESETS = {
 // eines Filialleiters — die Rolle muss ebenfalls passen.
 export const ROLE_AUTHORITY = {
   driver:              { canSpend: false, canAcceptOrders: false, canPlanTours: false, canHire: false, canBuyVehicle: false, canBookMaintenance: false },
-  dispatcher:          { canSpend: false, canAcceptOrders: true,  canPlanTours: true,  canHire: false, canBuyVehicle: false, canBookMaintenance: false },
-  dispatcher_senior:   { canSpend: true,  canAcceptOrders: true,  canPlanTours: true,  canHire: false, canBuyVehicle: false, canBookMaintenance: false },
+  dispatcher:          { canSpend: false, canAcceptOrders: true,  canPlanTours: true,  canHire: false, canBuyVehicle: false, canBookMaintenance: false, canDispatchExternally: false },
+  dispatcher_senior:   { canSpend: true,  canAcceptOrders: true,  canPlanTours: true,  canHire: false, canBuyVehicle: false, canBookMaintenance: false, canDispatchExternally: true },
   cleaner:             { canSpend: false, canAcceptOrders: false, canPlanTours: false, canHire: false, canBuyVehicle: false, canBookMaintenance: false },
   mechanic:            { canSpend: true,  canAcceptOrders: false, canPlanTours: false, canHire: false, canBuyVehicle: false, canBookMaintenance: true },
   accountant:          { canSpend: false, canAcceptOrders: false, canPlanTours: false, canHire: false, canBuyVehicle: false, canBookMaintenance: false },
   accountant_senior:   { canSpend: false, canAcceptOrders: false, canPlanTours: false, canHire: false, canBuyVehicle: false, canBookMaintenance: false },
-  assistant:           { canSpend: true,  canAcceptOrders: true,  canPlanTours: true,  canHire: false, canBuyVehicle: false, canBookMaintenance: false, canBookTraining: true },
-  branch_manager:      { canSpend: true,  canAcceptOrders: true,  canPlanTours: true,  canHire: true,  canBuyVehicle: false, canBookMaintenance: true, canBuildWorkshop: false },
+  assistant:           { canSpend: true,  canAcceptOrders: true,  canPlanTours: true,  canHire: false, canBuyVehicle: false, canBookMaintenance: false, canBookTraining: true, canDispatchExternally: true },
+  branch_manager:      { canSpend: true,  canAcceptOrders: true,  canPlanTours: true,  canHire: true,  canBuyVehicle: false, canBookMaintenance: true, canBuildWorkshop: false, canDispatchExternally: true },
 };
 
 // ---------- Migration ----------

@@ -324,6 +324,12 @@ export function bookPartnerTransport(state, { orderId, partnerId, employeeId }) 
     const emp = (state.employees || []).find(e => e.id === employeeId)
       || (state.drivers || []).find(d => d.id === employeeId);
     if (emp) {
+      // Rolle-Befugnis: darf diese Rolle überhaupt Fremdvergaben tätigen?
+      const { ROLE_AUTHORITY } = require("./delegationEngine.ts");
+      const roleAuth = ROLE_AUTHORITY[emp.role] || ROLE_AUTHORITY.driver;
+      if (roleAuth.canDispatchExternally === false) {
+        throw new Error("Rolle \"" + emp.role + "\" hat keine Befugnis für Fremdvergaben.");
+      }
       const authCheck = checkSpendAuthority(state, employeeId, preview.priceCents, {
         branchId: emp.assignedBranchId || emp.branchId,
       });
