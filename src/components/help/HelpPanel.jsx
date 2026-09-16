@@ -3,9 +3,9 @@ import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
 import { X, Search, ChevronDown } from "lucide-react";
 import { HELP_TOPICS, PAGE_HINTS } from "@/lib/helpContent";
-import { Compass, Package, Map, Truck, Users, Wallet, Home, Sparkles, LineChart } from "lucide-react";
+import { Compass, Package, Map, Truck, Users, Wallet, Home, Sparkles, LineChart, Building2, Mail, Trophy, BarChart3 } from "lucide-react";
 
-const ICONS = { Compass, Package, Map, Truck, Users, Wallet, Home, Sparkles, LineChart };
+const ICONS = { Compass, Package, Map, Truck, Users, Wallet, Home, Sparkles, LineChart, Building2, Mail, Trophy, BarChart3 };
 
 const COLOR_MAP = {
   lime:   { text: "text-lime",     bg: "bg-lime/10",     border: "border-lime/20" },
@@ -24,8 +24,12 @@ const ROUTE_TOPIC = {
   "/finanzen": "finances",
   "/zuhause": "private",
   "/investment": "investment",
-  "/filialen": "automation",
+  "/filialen": "branches",
   "/journal": "automation",
+  "/postfach": "mail",
+  "/erfolge": "achievements",
+  "/auslastung": "analytics",
+  "/effizienz": "analytics",
 };
 
 export default function HelpPanel({ open, onClose }) {
