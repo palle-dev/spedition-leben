@@ -162,6 +162,11 @@ import {
   notifyContractEndingSoon,
 } from "./customerEngine.ts";
 import { handleCustomerCommand } from "./customerCommands.ts";
+import {
+  migrateDelegation, migrateApprovals, resetDailySpendIfNeeded,
+  expireApprovals, shouldStopForApproval,
+} from "./delegationEngine.ts";
+import { handleDelegationCommand } from "./delegationCommands.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -605,6 +610,8 @@ function processEventsAt(state, m, log) {
     // Wachstum von state.trips/orders/tours über lange Spiele und
     // beschleunigt earliestEventAfter (iteriert über alle Trips pro Event).
     cleanupHistory(state, m);
+    resetDailySpendIfNeeded(state);
+    expireApprovals(state);
     // Rahmenverträge: Tägliche Auftragsgenerierung, Auswertung und
     // Benachrichtigung bei bevorstehendem Vertragsende.
     processContractDay(state, m, log);
@@ -709,6 +716,7 @@ function advanceTo(state, targetMin, log, reportStart) {
   try {
     while (true) {
       if (eventCount >= MAX_EVENTS) { stopped = true; break; }
+      if (shouldStopForApproval(state)) { stopped = true; log.push({ type: "advance_stopped_approval", atMin: t, targetMin, reason: "pending_approval" }); break; }
       const next = earliestEventAfter(state, t, targetMin);
       if (next === null) break;
       processEventsAt(state, next, log);
@@ -781,6 +789,8 @@ export function applyCommand(state, command, params) {
   migrateDating(state);
   migrateCustomerRelations(state);
   migrateContracts(state);
+  migrateDelegation(state);
+  migrateApprovals(state);
   if (state.bookings && state.bookings.length > 200) state.bookings = state.bookings.slice(-200);
   // Historie begrenzen: abgeschlossene Touren, Aufträge und Termine älter als 30 Tage
   // entfernen. Hält den Zustand kompakt und beschleunigt Laden/Speichern bei langen Spielen.
