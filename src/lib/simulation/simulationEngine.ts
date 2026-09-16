@@ -1687,7 +1687,7 @@ export function applyCommand(state, command, params) {
         driverId: p.driverId,
         orderIds: p.orderIds || [],
         desiredEndCity: p.desiredEndCity || null,
-        latestReturnMin: p.latestReturnMin || null,
+        latestReturnMin: p.latestReturnMin || null, minStartTime: p.minStartTime || null,
       });
       result = r;
       break;

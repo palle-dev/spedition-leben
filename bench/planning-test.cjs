@@ -110,6 +110,7 @@ test("previewDelayTourStart", () => {
   if (!order) return { ok: false, error: "Keine Aufträge" };
   order.status = "angenommen";
   order.acceptedAtMin = state.gameTime;
+  order.deliveryDeadlineMin = state.gameTime + 4320; // +3 Tage — genug Puffer
   const v = state.vehicles[0];
   const d = state.drivers[0];
   // confirmTour mit minStartTime in der Zukunft, damit die Tour nicht sofort startet
@@ -130,6 +131,62 @@ test("previewDelayTourStart", () => {
     previewError: preview.error || null,
     tourStatus: (state.tours || []).find(t => t.id === tourId)?.status,
     firstDepStatus: (state.tours || []).find(t => t.id === tourId)?.deployments?.[0]?.status,
+  };
+});
+
+// --- Test 4b: delayTourStart (Ausführung) ---
+test("delayTourStart", () => {
+  const state = makeState();
+  state.gameTime = 720;
+  const order = state.orders[0];
+  if (!order) return { ok: false, error: "Keine Aufträge" };
+  order.status = "angenommen";
+  order.acceptedAtMin = state.gameTime;
+  order.deliveryDeadlineMin = state.gameTime + 4320;
+  const v = state.vehicles[0];
+  const d = state.drivers[0];
+  const futureStart = state.gameTime + 480;
+  const { result } = applyCommand(state, "confirmTour", {
+    vehicleId: v.id, driverId: d.id, orderIds: [order.id], minStartTime: futureStart,
+  });
+  if (!result?.ok) return { ok: false, error: "confirmTour fehlgeschlagen" };
+  const oldTourId = result.tourId;
+  const newStart = state.gameTime + 1440;
+  const { result: delayResult } = applyCommand(state, "delayTourStart", { tourId: oldTourId, newStartMin: newStart });
+  return {
+    ok: delayResult?.ok === true,
+    oldTourId,
+    newTourId: delayResult?.newTourId,
+    newStartMin: delayResult?.newStartMin,
+    oldTourCancelled: (state.tours || []).find(t => t.id === oldTourId)?.status === "cancelled",
+  };
+});
+
+// --- Test 4c: previewReassignTour ---
+test("previewReassignTour", () => {
+  const state = makeState();
+  state.gameTime = 720;
+  const order = state.orders[0];
+  if (!order) return { ok: false, error: "Keine Aufträge" };
+  order.status = "angenommen";
+  order.acceptedAtMin = state.gameTime;
+  order.deliveryDeadlineMin = state.gameTime + 4320;
+  const v1 = state.vehicles[0];
+  const d1 = state.drivers[0];
+  const futureStart = state.gameTime + 480;
+  const { result } = applyCommand(state, "confirmTour", {
+    vehicleId: v1.id, driverId: d1.id, orderIds: [order.id], minStartTime: futureStart,
+  });
+  if (!result?.ok) return { ok: false, error: "confirmTour fehlgeschlagen" };
+  const tourId = result.tourId;
+  const v2 = state.vehicles[1] || state.vehicles[0];
+  const d2 = state.drivers[1] || state.drivers[0];
+  const preview = applyCommand(state, "previewReassignTour", { tourId, newVehicleId: v2.id, newDriverId: d2.id }).result;
+  return {
+    ok: preview?.ok === true,
+    canConfirm: preview?.canConfirm,
+    obstacleHard: preview?.obstacles?.hard?.length || 0,
+    hasComparison: !!preview?.comparison,
   };
 });
 

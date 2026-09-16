@@ -565,7 +565,7 @@ export function confirmTour(state, params) {
     deployments: plan.deployments.map((dep, i) => ({
       ...dep,
       id: "dep_" + (i + 1),
-      status: i === 0 ? "active" : "planned",
+      status: "planned",
       actualStartMin: null,
       actualEndMin: null,
       tripId: null,
