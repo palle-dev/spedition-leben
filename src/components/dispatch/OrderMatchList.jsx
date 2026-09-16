@@ -2,8 +2,9 @@ import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
 import { formatGameTime, formatEuro, getDistance, fuelEur, tollEur, driveMinutes, CITIES } from "@/lib/gameData";
-import { Package, Play, Route, ArrowRight, Truck, MapPin, Clock, TrendingUp, AlertTriangle, Filter, X, ChevronDown, Info } from "lucide-react";
+import { Package, Play, Route, ArrowRight, Truck, MapPin, Clock, TrendingUp, AlertTriangle, Filter, X, ChevronDown, Info, Building2 } from "lucide-react";
 import { getOrderObstacles, summarizeObstacles } from "@/lib/dispatchObstacles";
+import PartnerOfferDialog from "@/components/partners/PartnerOfferDialog";
 
 // Sortier- und Filterkomponente für angenommene Aufträge.
 // Bewertet jeden Auftrag gegen die freie Flotte (Standort, Kapazität, Zustand)
@@ -173,6 +174,7 @@ function OrderMatchCard({ scored, onPlanOrder, onTourPlan }) {
   const { state } = useGame();
   const { order: o, score, candidates, nearestVehicle, nearestEmptyKm, totalKm, contribution, deadlineSlackMin, deadlineUrgency } = scored;
   const hasMatch = candidates.length > 0;
+  const [partnerOpen, setPartnerOpen] = useState(false);
 
   const scoreColor = score >= 70 ? "text-lime" : score >= 40 ? "text-amber-300" : "text-coral";
   const scoreBg = score >= 70 ? "bg-lime/10 border-lime/30" : score >= 40 ? "bg-amber-400/10 border-amber-400/30" : "bg-coral/10 border-coral/30";
@@ -270,7 +272,16 @@ function OrderMatchCard({ scored, onPlanOrder, onTourPlan }) {
         >
           <Route className="w-3.5 h-3.5" /> Tour
         </button>
+        <button
+          onClick={() => setPartnerOpen(true)}
+          className="flex items-center justify-center gap-1.5 rounded-lg py-2 px-3 border border-white/10 text-foreground/80 hover:text-foreground hover:border-white/20 text-xs font-medium transition active:scale-95"
+          title="An Partner-Spedition vergeben"
+        >
+          <Building2 className="w-3.5 h-3.5" />
+        </button>
       </div>
+
+      {partnerOpen && <PartnerOfferDialog order={o} onClose={() => setPartnerOpen(false)} />}
     </div>
   );
 }

@@ -4,13 +4,14 @@ import { loadRouteGeometries, buildPlanRouteGeoJSON } from "@/lib/geoData";
 import DispatchMap from "@/components/dispatch/DispatchMap";
 import DispatchWorkspace from "@/components/dispatch/DispatchWorkspace";
 import PlanningBoard from "@/components/planning/PlanningBoard";
-import { Truck, Home, Route as RouteIcon, TrafficCone, Sparkles, Network, CalendarDays } from "lucide-react";
+import { Truck, Home, Route as RouteIcon, TrafficCone, Sparkles, Network, CalendarDays, Building2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useHeaderSlot } from "@/lib/headerSlot";
 import DispatchToolbar from "@/components/dispatch/DispatchToolbar";
 import RouteDetailOverlay from "@/components/dispatch/RouteDetailOverlay";
 import AutoOptimizePanel from "@/components/dispatch/AutoOptimizePanel";
 import MapLegend from "@/components/dispatch/MapLegend";
+import PartnerOverview from "@/components/partners/PartnerOverview";
 import PageHint from "@/components/help/PageHint";
 
 export default function Dispatch() {
@@ -33,6 +34,7 @@ export default function Dispatch() {
   const [overlayTripId, setOverlayTripId] = useState(null);
   const [optimizeOpen, setOptimizeOpen] = useState(false);
   const [showPlanning, setShowPlanning] = useState(false);
+  const [showPartners, setShowPartners] = useState(false);
 
   // Routengeometrien laden (einmalig)
   useEffect(() => {
@@ -170,21 +172,41 @@ export default function Dispatch() {
     <div className="h-full flex flex-col min-h-0 overflow-hidden">
       <div className="px-4 sm:px-6 lg:px-12 pt-3 shrink-0">
         <PageHint pageKey="dispatch" />
-        <div className="flex items-center justify-between mt-2">
-          <button
-            onClick={() => setShowPlanning(s => !s)}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium border transition ${
-              showPlanning ? "bg-lime text-ink border-lime" : "text-muted-foreground border-white/10 hover:text-foreground hover:bg-white/5"
-            }`}
-          >
-            <CalendarDays className="w-3.5 h-3.5" />
-            Wochenplanung
-          </button>
+        <div className="flex items-center justify-between mt-2 gap-2">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setShowPlanning(s => !s); if (!showPlanning) setShowPartners(false); }}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium border transition ${
+                showPlanning ? "bg-lime text-ink border-lime" : "text-muted-foreground border-white/10 hover:text-foreground hover:bg-white/5"
+              }`}
+            >
+              <CalendarDays className="w-3.5 h-3.5" />
+              Wochenplanung
+            </button>
+            <button
+              onClick={() => { setShowPartners(s => !s); if (!showPartners) setShowPlanning(false); }}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium border transition ${
+                showPartners ? "bg-lime text-ink border-lime" : "text-muted-foreground border-white/10 hover:text-foreground hover:bg-white/5"
+              }`}
+            >
+              <Building2 className="w-3.5 h-3.5" />
+              Partner
+              {((state?.partners?.transports || []).filter(t => t.status === "booked" || t.status === "in_progress").length > 0) && (
+                <span className="grid place-items-center min-w-[16px] h-4 px-1 rounded-full bg-lime/20 text-lime text-[9px] font-bold">
+                  {((state?.partners?.transports || []).filter(t => t.status === "booked" || t.status === "in_progress").length)}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
       </div>
       {showPlanning ? (
         <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-12 pb-6">
           <PlanningBoard onPlanOrder={(orderId) => { setShowPlanning(false); setPlanningOrderId(orderId); setActiveTab("auftraege"); }} />
+        </div>
+      ) : showPartners ? (
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-12 pb-6">
+          <PartnerOverview />
         </div>
       ) : (
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row">

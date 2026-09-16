@@ -6,8 +6,10 @@ import { getMarketStats } from "@/lib/marketData";
 import StatusBadge from "@/components/ui/StatusBadge";
 import OfferCard from "@/components/orders/OfferCard";
 import CompletedOrdersReport from "@/components/orders/CompletedOrdersReport";
+import PartnerOfferDialog from "@/components/partners/PartnerOfferDialog";
+import { getTransportForOrder, transportStatusLabel, transportStatusColor } from "@/lib/partnerData";
 import PageHint from "@/components/help/PageHint";
-import { Check, X, MapPin, ArrowRight, Clock, Route as RouteIcon, Truck, TrendingUp, Calendar, Package, Layers, Loader2, Filter, SlidersHorizontal } from "lucide-react";
+import { Check, X, MapPin, ArrowRight, Clock, Route as RouteIcon, Truck, TrendingUp, Calendar, Package, Layers, Loader2, Filter, SlidersHorizontal, Building2 } from "lucide-react";
 
 // Ermittelt die zuständige Filiale für einen Abholort (nächste aktive Filiale).
 function nearestBranchFor(state, fromCity) {
@@ -37,6 +39,7 @@ export default function Orders() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [partnerOrder, setPartnerOrder] = useState(null);
 
   const marketStats = getMarketStats(state);
 
@@ -314,6 +317,7 @@ export default function Orders() {
               <div className="space-y-2">
                 {active.map(o => {
                   const trip = state.trips.find(t => t.orderId === o.id && t.status === "in_progress");
+                  const extTransport = getTransportForOrder(state, o.id);
                   return (
                     <div key={o.id} className="glass border border-white/10 rounded-lg p-3 flex items-center justify-between gap-3">
                       <div className="min-w-0">
@@ -322,13 +326,22 @@ export default function Orders() {
                           <StatusBadge status={o.status} />
                           {trip && <span>· Ankunft {formatGameTime(trip.endMin)}</span>}
                           <span>· Frist {formatGameTime(o.deliveryDeadlineMin)}</span>
+                          {extTransport && (
+                            <span className={`flex items-center gap-1 ${transportStatusColor(extTransport.status)}`}>
+                              · <Building2 className="w-3 h-3" /> {extTransport.partnerName} — {transportStatusLabel(extTransport.status)}
+                            </span>
+                          )}
                         </div>
                       </div>
-                      {o.status === "angenommen" && (
+                      {o.status === "angenommen" && !extTransport && (
                         <div className="flex items-center gap-2 shrink-0">
                           <button onClick={() => navigate(`/disposition?order=${o.id}`)}
                             className="flex items-center gap-1.5 rounded-lg px-3 py-2 bg-lime text-ink text-xs font-semibold hover:brightness-110 transition active:scale-95">
                             <RouteIcon className="w-3.5 h-3.5" /> Planen
+                          </button>
+                          <button onClick={() => setPartnerOrder(o)}
+                            className="flex items-center gap-1.5 rounded-lg px-3 py-2 bg-white/5 border border-white/15 text-foreground text-xs hover:bg-white/10 transition active:scale-95">
+                            <Building2 className="w-3.5 h-3.5" /> Fremdvergabe
                           </button>
                           <button onClick={() => cancel(o)} disabled={busyId === o.id}
                             className="flex items-center gap-1.5 rounded-lg px-3 py-2 bg-red-500/15 border border-red-400/30 text-red-200 text-xs hover:bg-red-500/25 disabled:opacity-50 transition active:scale-95">
@@ -362,6 +375,10 @@ export default function Orders() {
       )}
 
       {tab === "erledigt" && <CompletedOrdersReport state={state} />}
+
+      {partnerOrder && (
+        <PartnerOfferDialog order={partnerOrder} onClose={() => setPartnerOrder(null)} />
+      )}
     </div>
   );
 }
