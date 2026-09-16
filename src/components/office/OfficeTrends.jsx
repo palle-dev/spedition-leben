@@ -82,7 +82,7 @@ export default function OfficeTrends() {
                 <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} tickFormatter={(v) => (v >= 1000 ? (v / 1000).toFixed(0) + "k" : v)} width={36} />
                 <Tooltip content={<RevenueTooltip branches={rev.branches} />} cursor={{ stroke: "hsl(var(--lime))", strokeWidth: 1, strokeOpacity: 0.3 }} />
                 {rev.branches.map(bk => (
-                  <Area key={bk.key} type="monotone" dataKey={bk.key} name={bk.name} stroke={bk.color} strokeWidth={1.5} fill={"url(#rev_" + bk.key + ")"} stackId="1" dot={false} activeDot={{ r: 3, fill: bk.color }} />
+                  <Area key={bk.key} type="monotone" dataKey={bk.key} name={bk.name} stroke={bk.color} strokeWidth={1.5} fill={"url(#rev_" + bk.key + ")"} stackId="1" dot={false} activeDot={{ r: 3, fill: bk.color }} isAnimationActive={false} />
                 ))}
               </AreaChart>
             </ResponsiveContainer>
@@ -128,7 +128,7 @@ export default function OfficeTrends() {
               <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} tickFormatter={(v) => v + "%"} width={36} />
               <Tooltip content={<UtilTooltip branches={util.branches} />} cursor={{ stroke: "hsl(var(--coral))", strokeWidth: 1, strokeOpacity: 0.3 }} />
               {util.branches.map(bk => (
-                <Line key={bk.key} type="monotone" dataKey={bk.key} name={bk.name} stroke={bk.color} strokeWidth={2} dot={false} activeDot={{ r: 3, fill: bk.color }} />
+                <Line key={bk.key} type="monotone" dataKey={bk.key} name={bk.name} stroke={bk.color} strokeWidth={2} dot={false} activeDot={{ r: 3, fill: bk.color }} isAnimationActive={false} />
               ))}
             </LineChart>
           </ResponsiveContainer>

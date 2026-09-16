@@ -22,7 +22,7 @@ export default function WorldSwitch() {
   const [hovered, setHovered] = useState(null);
 
   return (
-    <div className="flex items-center bg-ink/60 border border-white/10 rounded-full p-0.5 gap-0.5 backdrop-blur-lg shrink-0">
+    <div className="flex items-center bg-ink/90 border border-white/10 rounded-full p-0.5 gap-0.5 shrink-0">
       {WORLDS.map((w) => {
         const isActive = w.match(location.pathname);
         const colors = COLOR_MAP[w.activeColor];

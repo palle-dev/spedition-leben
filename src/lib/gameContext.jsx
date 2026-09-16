@@ -124,6 +124,21 @@ export function GameProvider({ children }) {
     document.body.classList.toggle("no-motion", !motionEnabled);
   }, [motionEnabled]);
 
+  // Transitionen während State-Updates deaktivieren — verhindert das
+  // gleichzeitige Feiern dutzender CSS-Transitionen (color, opacity, etc.)
+  // nach Zeitvorläufen, was als visuelles Flackern wahrgenommen wird.
+  useEffect(() => {
+    if (!state) return;
+    document.body.classList.add("no-transition");
+    let raf2;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        document.body.classList.remove("no-transition");
+      });
+    });
+    return () => { cancelAnimationFrame(raf1); if (raf2) cancelAnimationFrame(raf2); };
+  }, [state]);
+
   // ---- Glatte Uhr ----
   useEffect(() => {
     if (!automationEnabled || !state?.timeControl?.enabled) {
