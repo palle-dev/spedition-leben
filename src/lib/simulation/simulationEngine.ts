@@ -189,7 +189,7 @@ import {
 } from "./developmentGoalsEngine.ts";
 import {
   migrateDisruptions, processDisruptions, generateAbsenceDisruption,
-  maybeGenerateLoadingDelay, handleDisruptionCommand,
+  maybeGenerateLoadingDelay, maybeGenerateTechnicalDefectForTrip, handleDisruptionCommand,
 } from "./disruptionEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
@@ -942,6 +942,10 @@ export function applyCommand(state, command, params) {
         }
       }
       // Kein MAX_DUTY_MIN-Ablehnungsgrund mehr — lange Aufträge sind mit Pausen/Ruhe ausführbar
+      // Störungsmanagement: Technischer Defekt vor Buchung von Kraftstoff/Maut prüfen
+      if (maybeGenerateTechnicalDefectForTrip(state, v, d, o, state.gameTime, [])) {
+        throw new Error("Technischer Defekt! " + v.id + " kann den Transport nicht antreten. Siehe Störungen im Büro.");
+      }
       const fuel = fuelCents(plan.totalKm, v.consumptionPer100km);
       const toll = tollCents(plan.totalKm);
       const totalCost = fuel + toll;

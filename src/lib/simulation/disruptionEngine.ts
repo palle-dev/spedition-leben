@@ -13,8 +13,7 @@
 // - Delegation und Kundenkommunikation über vorhandene Systeme
 
 import {
-  dayOf, formatGameTime, mulberry32, getDistance, driveMinutes,
-  LOAD_MIN, UNLOAD_MIN, REST_MIN, WORK_BUDGET_MIN,
+  dayOf, formatGameTime, mulberry32,
   MAINTENANCE_COST, MAINTENANCE_DURATION,
 } from "./gameRules.ts";
 import { pushEvent } from "./eventLog.ts";
@@ -22,14 +21,9 @@ import { deliverMessage } from "./mailEngine.ts";
 import { isPersonAvailable } from "./absenceEngine.ts";
 import { isActivelyEmployed } from "./terminationEngine.ts";
 import {
-  SERVICE_PROVIDERS, TOWING_BASE_CENTS, TOWING_PER_KM_CENTS,
-  TOWING_APPROACH_MIN, TOWING_SPEED, TOWING_HANDOVER_MIN,
-  BLOCK_DURATION_MIN,
+  SERVICE_PROVIDERS, BLOCK_DURATION_MIN,
 } from "./serviceEngine.ts";
-import {
-  checkSpendAuthority, recordSpend, createApprovalRequest,
-} from "./delegationEngine.ts";
-import { recordOrderOutcome } from "./customerEngine.ts";
+import { checkSpendAuthority } from "./delegationEngine.ts";
 
 // ---------- Zentrale Konfiguration ----------
 // Wahrscheinlichkeiten und Auswirkungen — kalibriert für ausgewogenen Betrieb.
@@ -523,6 +517,51 @@ export function maybeGenerateTechnicalDefect(state, tour, deployment, m, log) {
     fromId: "system", toId: "player",
     subject: "Stoerung: Technischer Defekt",
     body: vehicleLabel(vehicle) + " kann die geplante Tour nicht antreten.\nUrsache: Technischer Defekt (Zustand " + vehicle.condition + ").\nBetroffene Auftraege: " + affectedOrders.length + "\n\nBitte Massnahmen ergreifen: Ersatzfahrzeug, Miete, Reparatur oder Verschiebung.",
+    gameTime: m, category: "operations", priority: "high",
+    linkedRefs: { type: "disruption", id: disruption.id },
+    dedupKey: "disruption_msg:" + disruption.id,
+  });
+
+  return true;
+}
+
+// ---------- A2) Technischer Defekt bei manuellem Transport ----------
+// Wie maybeGenerateTechnicalDefect, aber für Einzeltrips (startTransport).
+// Wird vor der Buchung von Kraftstoff/Maut aufgerufen — bei Defekt wird
+// das Fahrzeug auf Wartung gesetzt und die Buchung verhindert.
+export function maybeGenerateTechnicalDefectForTrip(state, vehicle, driver, order, m, log) {
+  if (!canGenerateToday(state, "technical_defect", m)) return false;
+  if (!vehicle) return false;
+  if (vehicle.condition < DISRUPTION_CONFIG.technicalDefect.minConditionForDefect) return false;
+
+  const dedupKey = "defect:" + vehicle.id + ":manual:" + (order ? order.id : m);
+  if (hasExistingDisruption(state, dedupKey)) return false;
+
+  const conditionGap = 100 - vehicle.condition;
+  const probability = DISRUPTION_CONFIG.technicalDefect.baseRate
+    + conditionGap * DISRUPTION_CONFIG.technicalDefect.conditionRiskFactor;
+
+  if (nextRng(state) > probability) return false;
+
+  const disruption = createDisruption(state, {
+    type: "technical_defect",
+    cause: "Technischer Defekt an " + vehicleLabel(vehicle) + " (Zustand " + vehicle.condition + ") vor Transportbeginn",
+    vehicleId: vehicle.id,
+    orderIds: order ? [order.id] : [],
+    branchId: vehicle.branchId,
+    dedupKey,
+  });
+
+  vehicle.status = "maintenance";
+  vehicle.maintenanceUntil = null;
+
+  recordGeneration(state, "technical_defect", m);
+  log.push({ type: "disruption_technical_defect", disruption: disruption.id, vehicle: vehicle.id, atMin: m });
+
+  deliverMessage(state, {
+    fromId: "system", toId: "player",
+    subject: "Stoerung: Technischer Defekt",
+    body: vehicleLabel(vehicle) + " kann den Transport nicht antreten.\nUrsache: Technischer Defekt (Zustand " + vehicle.condition + ").\nBetroffener Auftrag: " + (order ? order.customer : "—") + "\n\nBitte Massnahmen ergreifen: Ersatzfahrzeug, Miete, Reparatur oder Verschiebung.",
     gameTime: m, category: "operations", priority: "high",
     linkedRefs: { type: "disruption", id: disruption.id },
     dedupKey: "disruption_msg:" + disruption.id,
