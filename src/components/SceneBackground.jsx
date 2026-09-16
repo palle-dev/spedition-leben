@@ -26,7 +26,7 @@ const SCENES = {
     shade: "shade-office",
   },
   finances: {
-    url: "https://media.base44.com/images/public/6aa52ebc01a939da57f8b78f/8304e7600_generated_image.png",
+    url: "https://media.base44.com/images/public/6aa52ebc01a939da57f8b78f/9d2375aa0_generated_image.png",
     shade: "shade-office",
   },
   branches: {
@@ -34,7 +34,7 @@ const SCENES = {
     shade: "shade-office",
   },
   investment: {
-    url: "https://media.base44.com/images/public/6aa52ebc01a939da57f8b78f/e146ba94c_generated_image.png",
+    url: "https://media.base44.com/images/public/6aa52ebc01a939da57f8b78f/cc7a558f1_generated_image.png",
     shade: "shade-office",
   },
 };
