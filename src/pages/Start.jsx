@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useGame } from "@/lib/gameContext";
-import { Plus, Play, Upload, FolderOpen } from "lucide-react";
+import { Plus, Play, Upload, FolderOpen, LogOut } from "lucide-react";
 import FernwerkLogo from "@/components/brand/FernwerkLogo";
+import { base44 } from "@/api/base44Client";
 
 const OFFICE_URL = "https://media.base44.com/images/public/6aa52ebc01a939da57f8b78f/af8b503ab_office_cinematic.png";
 
@@ -58,6 +59,15 @@ export default function StartScreen() {
         <img src={OFFICE_URL} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = "none"; }} />
         <div className="absolute inset-0 shade-office" />
       </div>
+
+      <button
+        onClick={() => base44.auth.logout("/login")}
+        className="fixed top-4 right-4 z-20 w-9 h-9 grid place-items-center rounded-full border border-white/10 bg-white/5 text-muted-foreground hover:text-coral transition"
+        aria-label="Abmelden"
+        title="Abmelden"
+      >
+        <LogOut className="w-4 h-4" />
+      </button>
 
       <div className="relative z-10 max-w-lg w-full">
         <div className="text-center mb-8">
