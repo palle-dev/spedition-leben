@@ -708,13 +708,11 @@ function processEventsAt(state, m, log) {
   // 5. Angebotsablauf
   for (const o of state.orders) { if (o.status === "offered" && o.acceptDeadlineMin === m) { o.status = "expired"; log.push({ type: "order_expired", order: o.id }); } }
   // 5a. Angenommene Aufträge mit überschrittener Lieferfrist als "failed" markieren.
-  // suggestTours/buildTourPlan lassen Aufträge bis zu 4h (LATE_GRACE_MIN = 240)
-  // nach der Lieferfrist noch zu. Danach sind sie nicht mehr planbar, bleiben aber
-  // sonst ewig als "angenommen" stehen — sie blähen die UI-Zahl auf, blockieren
-  // den Dispatcher-Skip-Cache (unplannedCount bleibt konstant → keine Neuplanung)
-  // und verhindern, dass die Disposition freie Lkw tatsächlich einsetzt.
+  // LATE_GRACE_MIN = 240 (4h Gnadenfrist nach buildTourPlan). Extern vergebene
+  // Aufträge überspringen (Partner-Transport läuft noch).
   for (const o of state.orders) {
     if (o.status === "angenommen" && o.deliveryDeadlineMin + 240 <= m) {
+      if (o.externalTransportId && (state.partners?.transports || []).some(t => t.id === o.externalTransportId && (t.status === "booked" || t.status === "in_progress"))) continue;
       o.status = "failed";
       o.failedAtMin = m;
       recordOrderOutcome(state, o, "failed", m, 0);
