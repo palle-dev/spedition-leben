@@ -21,6 +21,7 @@ import { suggestTours, confirmTour as doConfirmTour } from "./tourEngine.ts";
 import { previewCourseBooking, bookCourse, COURSE_CATALOG, hasQualification, isPersonInTraining, hasAssistantAdvanced } from "./trainingEngine.ts";
 import { isActivelyEmployed } from "./terminationEngine.ts";
 import { isPersonAvailable } from "./absenceEngine.ts";
+import { checkSpendAuthority, recordSpend, logDecision } from "./delegationEngine.ts";
 
 // ---------- Migration ----------
 
@@ -174,6 +175,10 @@ export function autoAcceptOrders(state, emp, m, log, force) {
     if (marginPct < minMarginPct) continue;
     if ((state.company?.accountCents || 0) - estimatedCostCents < minLiquidityCents) continue;
 
+    // Delegation: Budget-Prüfung für geschätzte Kraftstoff-/Mautkosten
+    const authCheck = checkSpendAuthority(state, emp.id, estimatedCostCents, { branchId: emp.assignedBranchId || emp.branchId });
+    if (!authCheck.allowed) continue;
+
     // Auftrag annehmen
     o.status = "angenommen";
     o.acceptedAtMin = m;
@@ -215,6 +220,13 @@ export function autoAcceptOrders(state, emp, m, log, force) {
     });
 
     log.push({ type: "assistant_order_accepted", employee: emp.id, order: o.id, atMin: m });
+    if (estimatedCostCents > 0) recordSpend(state, emp.id, estimatedCostCents, emp.assignedBranchId || emp.branchId);
+    logDecision(state, {
+      employeeId: emp.id, employeeName: emp.name,
+      type: "order_accepted", summary: `Auftrag ${o.customer} angenommen`,
+      reasoning: `Marge ${Math.round(marginPct*100)}%, geschätzte Kosten ${(estimatedCostCents/100).toFixed(0)} €`,
+      costCents: estimatedCostCents,
+    });
     accepted++;
   }
 

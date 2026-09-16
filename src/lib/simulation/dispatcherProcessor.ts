@@ -256,8 +256,9 @@ export function processDispatcher(state, emp, m, log) {
       }
       continue;
     }
-    // Begründung aus Planungsdaten
-    const reasoning = buildTourReasoning(state, sug, primaryOrder);
+    // Begründung aus Planungsdaten (primaryOrder wird unten definiert)
+    const _primaryOrder = state.orders.find(x => x.id === sug.orderIds[0]);
+    const reasoning = buildTourReasoning(state, sug, _primaryOrder);
     try {
       const r = doConfirmTour(state, {
         vehicleId: sug.vehicleId, driverId: sug.driverId, orderIds: sug.orderIds,
