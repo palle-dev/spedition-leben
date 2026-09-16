@@ -1984,6 +1984,9 @@ export function applyCommand(state, command, params) {
     case "approveVacation": {
       ensureNotBlocked(state);
       const r = approveVacation(state, { requestId: p.requestId, conflictResolution: p.conflictResolution });
+      // Entwicklungsziele: Zusage "Urlaubswunsch bearbeiten" erfüllen
+      const req = (state.absences?.vacationRequests || []).find(rr => rr.id === p.requestId);
+      if (req) fulfillPromiseByAction(state, req.personId, "approve_vacation", { requestId: p.requestId });
       result = r;
       break;
     }
@@ -2189,6 +2192,8 @@ export function applyCommand(state, command, params) {
     case "raiseSalary": {
       ensureNotBlocked(state);
       const r = raiseSalary(state, p.personId, p.newDailyWageCents);
+      // Entwicklungsziele: Zusage "Gehaltsanpassung" erfüllen
+      fulfillPromiseByAction(state, p.personId, "raise_salary", { newDailyWageCents: p.newDailyWageCents });
       result = r;
       break;
     }
