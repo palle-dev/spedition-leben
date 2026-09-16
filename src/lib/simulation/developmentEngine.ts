@@ -62,7 +62,7 @@ export const ONBOARDING_STEPS = [
   { id: "assign_vehicle", title: "Fahrzeug und Fahrer zuordnen", linkPath: "/disposition",
     hint: "Oeffne die Disposition und waehle einen freien Lkw und einen freien Fahrer am selben Standort. Das System prueft Kapazitaet, Zustand und Kontostand." },
   { id: "start_tour", title: "Die Tour starten", linkPath: "/disposition",
-    hint: "Bestaetige die Tour. Nutze Naechstes Ereignis oder 1 Std, um die Zeit weiterlaufen zu lassen. Fahrt, Beladung, Entladung und Pausen laufen automatisch ab." },
+    hint: `Bestaetige die Tour. Nutze Naechstes Ereignis oder 1 Std, um die Zeit weiterlaufen zu lassen. Fahrt, Beladung, Entladung und Pausen laufen automatisch ab.` },
   { id: "await_delivery", title: "Die Lieferung abwarten", linkPath: "/disposition",
     hint: "Die Tour laeuft durch Fahr- und Beladungsphasen. Warte, bis die Lieferung abgeschlossen ist oder beschleunige die Zeit." },
   { id: "review_delivery", title: "Die Lieferung auswerten", linkPath: "/finanzen",

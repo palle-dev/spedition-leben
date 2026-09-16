@@ -1,11 +1,8 @@
-// Entwicklungs-Engine für FERNWERK.
-// Verwaltet Entwicklungsschwerpunkte, geführten Einstieg (Onboarding),
-// Unternehmensmeilensteine und tägliche Auto-Entscheidungs-Statistik.
-// Trennung: developmentEngine (Logik) · achievementCatalog (statische Definitionen).
+// Frontend-Spiegel der Entwicklungs-Engine für FERNWERK.
+// Spiegelt base44/shared/developmentEngine.ts für Darstellung.
+// dayOf wird inline definiert (kein gameRules-Import im Frontend).
 
-import { dayOf } from "./gameRules.ts";
-
-// ---------- Entwicklungsschwerpunkte ----------
+function dayOf(min) { return Math.floor(min / 1440) + 1; }
 
 export const DEVELOPMENT_FOCI = [
   { id: "profitable", label: "Profitabel wirtschaften",
@@ -36,12 +33,10 @@ export function migrateDevelopment(state) {
   if (!state.onboarding.completedSteps) state.onboarding.completedSteps = [];
   if (state.onboarding.reviewedDelivery === undefined) state.onboarding.reviewedDelivery = false;
   if (!Array.isArray(state.developmentMilestones)) state.developmentMilestones = [];
-  // Altes Tutorial auf neues Onboarding migrieren (nur wenn noch aktiv)
   if (state.tutorial && state.tutorial.active && !state.onboarding.active && state.onboarding.startedAtMin === null) {
     state.onboarding.active = true;
     state.onboarding.startedAtMin = state.gameTime || 480;
   }
-  // Auto-Entscheidungs-Statistik initialisieren
   if (!state.stats) state.stats = {};
   if (!Array.isArray(state.stats.autoDecisionDays)) state.stats.autoDecisionDays = [];
 }
@@ -54,26 +49,21 @@ export function setDevelopmentFocus(state, focusId) {
   return { ok: true, focusId };
 }
 
-// ---------- Geführter Einstieg (Onboarding) ----------
-
 export const ONBOARDING_STEPS = [
   { id: "choose_order", title: "Einen Auftrag auswählen", linkPath: "/auftraege",
-    hint: "Oeffne die Auftraege-Seite und nimm ein passendes Angebot an. Achte auf Relation, Fracht, Verguetung und Lieferfrist." },
+    hint: `Öffne die Aufträge-Seite und nimm ein passendes Angebot an. Achte auf Relation, Fracht, Vergütung und Lieferfrist.` },
   { id: "assign_vehicle", title: "Fahrzeug und Fahrer zuordnen", linkPath: "/disposition",
-    hint: "Oeffne die Disposition und waehle einen freien Lkw und einen freien Fahrer am selben Standort. Das System prueft Kapazitaet, Zustand und Kontostand." },
+    hint: `Öffne die Disposition und wähle einen freien Lkw und einen freien Fahrer am selben Standort. Das System prüft Kapazität, Zustand und Kontostand.` },
   { id: "start_tour", title: "Die Tour starten", linkPath: "/disposition",
-    hint: `Bestaetige die Tour. Nutze Naechstes Ereignis oder 1 Std, um die Zeit weiterlaufen zu lassen. Fahrt, Beladung, Entladung und Pausen laufen automatisch ab.` },
+    hint: `Bestätige die Tour. Nutze „Nächstes Ereignis“ oder „1 Std“, um die Zeit weiterlaufen zu lassen. Fahrt, Beladung, Entladung und Pausen laufen automatisch ab.` },
   { id: "await_delivery", title: "Die Lieferung abwarten", linkPath: "/disposition",
-    hint: "Die Tour laeuft durch Fahr- und Beladungsphasen. Warte, bis die Lieferung abgeschlossen ist oder beschleunige die Zeit." },
+    hint: `Die Tour läuft durch Fahr- und Beladungsphasen. Warte, bis die Lieferung abgeschlossen ist oder beschleunige die Zeit.` },
   { id: "review_delivery", title: "Die Lieferung auswerten", linkPath: "/finanzen",
-    hint: "Oeffne die Finanzen. Vergleiche Verguetung (Umsatz) mit Kraftstoff, Maut und Fahrerlohn. Der Deckungsbeitrag zeigt, was nach variablen Kosten uebrig bleibt." },
-  { id: "next_decision", title: "Eine naechste Entscheidung treffen", linkPath: "/",
-    hint: "Waehle deinen naechsten Schritt: eine Rueckladung, Wartung, eine weitere Tour oder die erste Delegation an einen Mitarbeiter." },
+    hint: `Öffne die Finanzen. Vergleiche Vergütung (Umsatz) mit Kraftstoff, Maut und Fahrerlohn. Der Deckungsbeitrag zeigt, was nach variablen Kosten übrig bleibt.` },
+  { id: "next_decision", title: "Eine nächste Entscheidung treffen", linkPath: "/",
+    hint: `Wähle deinen nächsten Schritt: eine Rückladung, Wartung, eine weitere Tour oder die erste Delegation an einen Mitarbeiter.` },
 ];
 
-// Erkennt den aktuellen Onboarding-Schritt aus dem Spielzustand.
-// Rein zustaendsbasiert: ausserhalb der Reihenfolge ausgefuehrte Aktionen
-// werden korrekt erkannt.
 export function detectOnboardingStep(state) {
   const hasAccepted = (state.orders || []).some(o => o.status === "angenommen");
   const hasActiveTrip = (state.trips || []).some(t => t.status === "in_progress");
@@ -123,13 +113,12 @@ export function markOnboardingReviewed(state) {
   return { ok: true };
 }
 
-// Prueft, ob ein Schritt blockiert ist, und bietet ggf. eine Ersatzhandlung an.
 export function getOnboardingBlocker(state) {
   const step = detectOnboardingStep(state);
   if (step === "choose_order") {
     const offered = (state.orders || []).filter(o => o.status === "offered" && o.acceptDeadlineMin > state.gameTime);
     if (offered.length === 0) {
-      return { step, blocked: true, reason: "Keine offenen Angebote verfuegbar. Neue Auftraege erscheinen regelmaessig auf dem Markt.", alternative: "Warte auf die naechste Marktaktualisierung (jede Stunde) oder ueberspringe diesen Schritt." };
+      return { step, blocked: true, reason: "Keine offenen Angebote verfügbar. Neue Aufträge erscheinen regelmäßig auf dem Markt.", alternative: "Warte auf die nächste Marktaktualisierung (jede Stunde) oder überspringe diesen Schritt." };
     }
   }
   if (step === "assign_vehicle") {
@@ -140,25 +129,23 @@ export function getOnboardingBlocker(state) {
     const freeVehicles = (state.vehicles || []).filter(v => v.status === "free" && v.condition >= 20 && !v.markedForSale);
     const freeDrivers = (state.drivers || []).filter(d => d.employmentStatus === "employed" && d.attendance !== "released" && d.status === "free");
     if (freeVehicles.length === 0) {
-      return { step, blocked: true, reason: "Kein freier Lkw verfuegbar. Warte bis eine Tour endet oder kaufe einen weiteren Lkw.", alternative: "Ueberspringe die Disposition und nutze die Automatik, sobald ein Disponent eingestellt ist." };
+      return { step, blocked: true, reason: "Kein freier Lkw verfügbar. Warte bis eine Tour endet oder kaufe einen weiteren Lkw.", alternative: "Überspringe die Disposition und nutze die Automatik, sobald ein Disponent eingestellt ist." };
     }
     if (freeDrivers.length === 0) {
-      return { step, blocked: true, reason: "Kein freier Fahrer verfuegbar. Warte bis ein Fahrer sich erholt hat oder stelle einen neuen Fahrer ein.", alternative: "Ueberspringe die Disposition und nutze die Automatik." };
+      return { step, blocked: true, reason: "Kein freier Fahrer verfügbar. Warte bis ein Fahrer sich erholt hat oder stelle einen neuen Fahrer ein.", alternative: "Überspringe die Disposition und nutze die Automatik." };
     }
   }
   return { step, blocked: false, reason: null, alternative: null };
 }
 
-// ---------- Entwicklungsmeilensteine ----------
-
 export const DEVELOPMENT_MILESTONES = [
   { id: "dm_first_deliveries", label: "Erste Lieferungen",
     check: (s) => (s.stats?.totalDeliveries || 0) >= 1,
     progress: (s) => ({ current: Math.min(s.stats?.totalDeliveries || 0, 1), target: 1 }) },
-  { id: "dm_reliable_ops", label: "Verlaesslicher Betrieb",
+  { id: "dm_reliable_ops", label: "Verlässlicher Betrieb",
     check: (s) => (s.stats?.totalDeliveries || 0) >= 20 || (s.stats?.consecutiveTimely || 0) >= 10,
     progress: (s) => ({ current: Math.min(s.stats?.totalDeliveries || 0, 20), target: 20 }) },
-  { id: "dm_autonomous_team", label: "Eigenstaendiges Team",
+  { id: "dm_autonomous_team", label: "Eigenständiges Team",
     check: (s) => (s.employees || []).some(e => e.employmentStatus === "employed" && (e.role === "dispatcher" || e.role === "dispatcher_senior")),
     progress: (s) => ({ current: Math.min((s.employees || []).filter(e => e.employmentStatus === "employed" && (e.role === "dispatcher" || e.role === "dispatcher_senior")).length, 1), target: 1 }) },
   { id: "dm_multi_branch", label: "Mehrere Standorte",
@@ -184,8 +171,6 @@ export function checkDevelopmentMilestones(state, min) {
   return newlyAchieved;
 }
 
-// ---------- Taegliche Auto-Entscheidungs-Statistik (fuer Ziel E) ----------
-
 export function recordAutoDecisionDay(state, midnight) {
   migrateDevelopment(state);
   const day = dayOf(midnight);
@@ -196,7 +181,6 @@ export function recordAutoDecisionDay(state, midnight) {
   const hadOverdue = (state.approvals?.pending || []).some(a =>
     a.status === "pending" && a.deadlineMin != null && a.deadlineMin < midnight
   );
-
   let entry = state.stats.autoDecisionDays.find(e => e.day === day);
   if (!entry) {
     entry = { day, count, hadOverdue };
@@ -229,8 +213,6 @@ export function getConsecutiveAutoDelegationDays(state) {
   }
   return maxConsecutive;
 }
-
-// ---------- Hilfsfunktionen fuer Ziel-Evaluatoren ----------
 
 export function countOperationalBranches(state) {
   const branches = (state.branches || []).filter(b => b.status === "active");
