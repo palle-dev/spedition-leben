@@ -8,8 +8,11 @@ import { formatPlanningTime } from "@/lib/planningData";
 // Prüft bei Bestätigung erneut gegen den aktuellen Spielstand.
 export default function PlanningChangeForm({ open, onClose, tourId }) {
   const { state, send } = useGame();
+  const [mode, setMode] = useState("reassign");
   const [newVehicleId, setNewVehicleId] = useState("");
   const [newDriverId, setNewDriverId] = useState("");
+  const [delayDay, setDelayDay] = useState(0);
+  const [delayHour, setDelayHour] = useState(8);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -19,13 +22,26 @@ export default function PlanningChangeForm({ open, onClose, tourId }) {
     return (state.tours || []).find(t => t.id === tourId);
   }, [state.tours, tourId]);
 
+  // Neuer Startzeitpunkt aus Tag/Stunde-Auswahl berechnen
+  const newStartMin = useMemo(() => {
+    if (!state) return 0;
+    const midnight = Math.floor(state.gameTime / 1440) * 1440;
+    return midnight + delayDay * 1440 + delayHour * 60;
+  }, [state, delayDay, delayHour]);
+
   async function runPreview() {
-    if (!tourId || !newVehicleId || !newDriverId) return;
+    if (!tourId) return;
     setLoading(true);
     setError("");
     try {
-      const res = await send("previewReassignTour", { tourId, newVehicleId, newDriverId });
-      setPreview(res);
+      if (mode === "reassign") {
+        if (!newVehicleId || !newDriverId) { setLoading(false); return; }
+        const res = await send("previewReassignTour", { tourId, newVehicleId, newDriverId });
+        setPreview(res);
+      } else {
+        const res = await send("previewDelayTourStart", { tourId, newStartMin });
+        setPreview(res);
+      }
     } catch (e) {
       setError(e.message);
       setPreview(null);
@@ -38,16 +54,25 @@ export default function PlanningChangeForm({ open, onClose, tourId }) {
     setConfirming(true);
     setError("");
     try {
-      // Erneute Prüfung bei Bestätigung — veraltete Vorschau darf keine
-      // andere Planung überschreiben.
-      const freshPreview = await send("previewReassignTour", { tourId, newVehicleId, newDriverId });
-      if (!freshPreview?.canConfirm) {
-        setError("Die Situation hat sich geändert. Bitte Vorschau erneut prüfen: " + (freshPreview?.obstacles?.hard?.[0]?.message || "Neue Hindernisse aufgetreten."));
-        setPreview(freshPreview);
-        setConfirming(false);
-        return;
+      if (mode === "reassign") {
+        const freshPreview = await send("previewReassignTour", { tourId, newVehicleId, newDriverId });
+        if (!freshPreview?.canConfirm) {
+          setError("Die Situation hat sich geändert. Bitte Vorschau erneut prüfen: " + (freshPreview?.obstacles?.hard?.[0]?.message || "Neue Hindernisse aufgetreten."));
+          setPreview(freshPreview);
+          setConfirming(false);
+          return;
+        }
+        await send("reassignTour", { tourId, newVehicleId, newDriverId });
+      } else {
+        const freshPreview = await send("previewDelayTourStart", { tourId, newStartMin });
+        if (!freshPreview?.canConfirm) {
+          setError("Die Situation hat sich geändert. Bitte Vorschau erneut prüfen: " + (freshPreview?.obstacles?.hard?.[0]?.message || "Neue Hindernisse aufgetreten."));
+          setPreview(freshPreview);
+          setConfirming(false);
+          return;
+        }
+        await send("delayTourStart", { tourId, newStartMin });
       }
-      await send("reassignTour", { tourId, newVehicleId, newDriverId });
       onClose();
     } catch (e) {
       setError(e.message);
@@ -68,12 +93,28 @@ export default function PlanningChangeForm({ open, onClose, tourId }) {
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
           <h3 className="text-sm font-medium flex items-center gap-2">
             <ArrowRight className="w-4 h-4 text-lime" />
-            Tour neu zuweisen
+            Tour ändern
           </h3>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {/* Modus-Auswahl */}
+          <div className="flex rounded-lg border border-white/10 overflow-hidden">
+            <button
+              onClick={() => { setMode("reassign"); setPreview(null); }}
+              className={`flex-1 px-3 py-1.5 text-xs font-medium transition ${mode === "reassign" ? "bg-lime text-ink" : "text-muted-foreground hover:text-foreground hover:bg-white/5"}`}
+            >
+              Fahrzeug/Fahrer ändern
+            </button>
+            <button
+              onClick={() => { setMode("delay"); setPreview(null); }}
+              className={`flex-1 px-3 py-1.5 text-xs font-medium transition ${mode === "delay" ? "bg-lime text-ink" : "text-muted-foreground hover:text-foreground hover:bg-white/5"}`}
+            >
+              Startzeit verschieben
+            </button>
+          </div>
+
           {/* Aktuelle Zuweisung */}
           <div className="rounded-lg border border-white/10 bg-white/3 p-3 space-y-1">
             <div className="text-[11px] text-muted-foreground">Aktuelle Tour</div>
@@ -84,7 +125,8 @@ export default function PlanningChangeForm({ open, onClose, tourId }) {
             </div>
           </div>
 
-          {/* Neue Zuweisung */}
+          {/* Neue Zuweisung oder Startzeit */}
+          {mode === "reassign" ? (
           <div className="space-y-2">
             <label className="text-xs text-muted-foreground block">Neues Fahrzeug</label>
             <select
@@ -111,15 +153,51 @@ export default function PlanningChangeForm({ open, onClose, tourId }) {
                 <option key={d.id} value={d.id}>{d.name} — {d.locationCity}, {d.status}</option>
               ))}
             </select>
-
-            <button
-              onClick={runPreview}
-              disabled={loading || !newVehicleId || !newDriverId}
-              className="w-full rounded-md border border-lime/30 text-lime text-sm font-medium py-2 disabled:opacity-40 hover:bg-lime/10 transition"
-            >
-              {loading ? "Prüfe…" : "Vorschau prüfen"}
-            </button>
           </div>
+          ) : (
+          <div className="space-y-2">
+            <div className="text-[11px] text-muted-foreground">
+              Neuer Startzeitpunkt — Lieferfristen bleiben unverändert
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-muted-foreground block">Tag (ab heute)</label>
+                <select
+                  value={delayDay}
+                  onChange={e => { setDelayDay(parseInt(e.target.value)); setPreview(null); }}
+                  className="w-full rounded-md bg-white/5 border border-white/10 px-2 py-1.5 text-sm"
+                >
+                  {[0, 1, 2, 3, 4, 5, 6].map(d => (
+                    <option key={d} value={d}>{d === 0 ? "Heute" : `T+${d}`}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block">Uhrzeit</label>
+                <select
+                  value={delayHour}
+                  onChange={e => { setDelayHour(parseInt(e.target.value)); setPreview(null); }}
+                  className="w-full rounded-md bg-white/5 border border-white/10 px-2 py-1.5 text-sm"
+                >
+                  {Array.from({ length: 24 }, (_, h) => h).map(h => (
+                    <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Geplanter Start: <span className="text-foreground font-medium">{formatPlanningTime(newStartMin)}</span>
+            </div>
+          </div>
+          )}
+
+          <button
+            onClick={runPreview}
+            disabled={loading || (mode === "reassign" && (!newVehicleId || !newDriverId))}
+            className="w-full rounded-md border border-lime/30 text-lime text-sm font-medium py-2 disabled:opacity-40 hover:bg-lime/10 transition"
+          >
+            {loading ? "Prüfe…" : "Vorschau prüfen"}
+          </button>
 
           {/* Fehler */}
           {error && (

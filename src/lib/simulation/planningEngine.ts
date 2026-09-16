@@ -23,6 +23,7 @@ import {
   LOAD_MIN, UNLOAD_MIN, WORK_BUDGET_MIN, REST_MIN,
 } from "./gameRules.ts";
 import { isLeasingOverdueBlocked } from "./financingEngine.ts";
+import { cancelCourse, bookCourse } from "./trainingEngine.ts";
 
 const DAY_MIN = 1440;
 
@@ -472,5 +473,198 @@ export function findMaintenanceWindows(state, vehicleId) {
     busyIntervals,
     windows: windows.slice(0, 10),
     availableSlots: slots.length,
+  };
+}
+
+// ---------- Tour-Startzeit ändern ----------
+
+// Verschiebt den Beginn einer noch nicht gestarteten Tour auf einen späteren
+// Zeitpunkt. Nutzt minStartTime in buildTourPlan/confirmTour — die Tour
+// wird abgebrochen und mit dem neuen frühesten Start neu bestätigt.
+// Lieferfristen bleiben unverändert; die interne Umplanung verkürzt nur
+// den Puffer vor der Frist.
+export function delayTourStart(state, { tourId, newStartMin }) {
+  const tour = (state.tours || []).find(t => t.id === tourId);
+  if (!tour) throw new Error("Tour nicht gefunden.");
+  if (tour.status !== "active" && tour.status !== "planned") {
+    throw new Error("Nur aktive oder geplante Touren können verschoben werden.");
+  }
+  if (tour.pauseReason) throw new Error("Pausierte Touren können nicht verschoben werden.");
+  for (const dep of (tour.deployments || [])) {
+    if (dep.status === "in_progress" || dep.status === "completed") {
+      throw new Error("Tour hat bereits gestartete Einsätze und kann nicht verschoben werden.");
+    }
+  }
+  if (newStartMin <= state.gameTime) {
+    throw new Error("Neuer Startzeitpunkt muss in der Zukunft liegen.");
+  }
+
+  const orderIds = (tour.deployments || [])
+    .filter(d => d.orderId && d.status !== "cancelled")
+    .map(d => d.orderId);
+  if (orderIds.length === 0) throw new Error("Tour hat keine aktiven Aufträge.");
+
+  // Lieferfrist prüfen: Neuer Start darf keine Frist überschreiten
+  for (const oid of orderIds) {
+    const o = (state.orders || []).find(x => x.id === oid);
+    if (o && o.deliveryDeadlineMin && newStartMin >= o.deliveryDeadlineMin) {
+      throw new Error("Neuer Start überschreitet die Lieferfrist von " + o.customer + " (Frist: " + formatGameTime(o.deliveryDeadlineMin) + ").");
+    }
+  }
+
+  // Alte Tour stornieren
+  doCancelTour(state, tourId);
+
+  // Neue Tour mit verzögertem Start bestätigen
+  const result = doConfirmTour(state, {
+    vehicleId: tour.vehicleId,
+    driverId: tour.driverId,
+    orderIds,
+    desiredEndCity: tour.returnDeployment?.toCity || null,
+    latestReturnMin: tour.latestReturnMin || null,
+    minStartTime: newStartMin,
+  });
+
+  return {
+    ok: true,
+    oldTourId: tourId,
+    newTourId: result.tourId,
+    newStartMin,
+    orderIds,
+  };
+}
+
+// Vorschau: Tour-Startzeit ändern
+export function previewDelayTourStart(state, { tourId, newStartMin }) {
+  const tour = (state.tours || []).find(t => t.id === tourId);
+  if (!tour) return { ok: false, error: "Tour nicht gefunden." };
+  if (tour.status !== "active" && tour.status !== "planned") {
+    return { ok: false, error: "Nur aktive oder geplante Touren können verschoben werden." };
+  }
+  if (tour.pauseReason) return { ok: false, error: "Pausierte Tour." };
+  for (const dep of (tour.deployments || [])) {
+    if (dep.status === "in_progress" || dep.status === "completed") {
+      return { ok: false, error: "Tour hat bereits gestartete Einsätze." };
+    }
+  }
+  if (newStartMin <= state.gameTime) {
+    return { ok: false, error: "Neuer Startzeitpunkt muss in der Zukunft liegen." };
+  }
+
+  const orderIds = (tour.deployments || [])
+    .filter(d => d.orderId && d.status !== "cancelled")
+    .map(d => d.orderId);
+  if (orderIds.length === 0) return { ok: false, error: "Keine aktiven Aufträge." };
+
+  const obstacles = { hard: [], soft: [] };
+
+  // Lieferfristen prüfen
+  for (const oid of orderIds) {
+    const o = (state.orders || []).find(x => x.id === oid);
+    if (o && o.deliveryDeadlineMin && newStartMin >= o.deliveryDeadlineMin) {
+      obstacles.hard.push({
+        type: "deadline",
+        message: "Neuer Start überschreitet die Lieferfrist von " + o.customer + " (Frist: " + formatGameTime(o.deliveryDeadlineMin) + ").",
+      });
+    }
+  }
+
+  // Neue Planung validieren
+  let plan;
+  try {
+    plan = buildTourPlan(state, {
+      vehicleId: tour.vehicleId,
+      driverId: tour.driverId,
+      orderIds,
+      desiredEndCity: tour.returnDeployment?.toCity || null,
+      latestReturnMin: tour.latestReturnMin || null,
+      minStartTime: newStartMin,
+    });
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+  if (plan.error) return { ok: false, error: plan.error };
+
+  // Fahrzeug/Fahrer-Verfügbarkeit zum neuen Startzeitpunkt
+  const vehicle = (state.vehicles || []).find(v => v.id === tour.vehicleId);
+  const driver = (state.drivers || []).find(d => d.id === tour.driverId);
+  if (vehicle && vehicle.status === "on_trip") {
+    const trip = (state.trips || []).find(t => t.id === vehicle.tripId);
+    if (trip && trip.endMin > newStartMin) {
+      obstacles.hard.push({
+        type: "vehicle_busy",
+        message: "Fahrzeug ist bis " + formatGameTime(trip.endMin) + " auf anderer Tour.",
+      });
+    }
+  }
+  if (driver && driver.status === "on_trip") {
+    const trip = (state.trips || []).find(t => t.driverId === driver.id && t.status === "in_progress");
+    if (trip && trip.endMin > newStartMin) {
+      obstacles.hard.push({
+        type: "driver_busy",
+        message: "Fahrer ist bis " + formatGameTime(trip.endMin) + " auf anderer Tour.",
+      });
+    }
+  }
+  if (driver && !isPersonAvailable(state, driver.id, newStartMin)) {
+    obstacles.hard.push({
+      type: "driver_absent",
+      message: "Fahrer ist zum neuen Startzeitpunkt abwesend (Urlaub/Krankheit).",
+    });
+  }
+
+  const oldStart = tour.deployments?.[0]?.startMin || state.gameTime;
+  const oldEnd = tour.returnDeployment?.endMin || tour.deployments?.[tour.deployments.length - 1]?.endMin || state.gameTime;
+
+  return {
+    ok: true,
+    canConfirm: obstacles.hard.length === 0,
+    obstacles,
+    comparison: {
+      oldStart, oldEnd,
+      newStart: plan.startMin || newStartMin,
+      newEnd: plan.tourEndMin || plan.endMin,
+      totalContributionCents: plan.totalContributionCents,
+    },
+    affectedDeployments: orderIds.length,
+  };
+}
+
+// ---------- Lerntermin verlegen ----------
+
+// Bricht eine bestehende Kurseinschreibung ab und bucht denselben Kurs neu.
+// Der Anbieter teilt neue Block-Termine zu — die Weiterbildung wird in den
+// nächsten verfügbaren Slot eingeplant. Nutzt ausschließlich vorhandene
+// trainingEngine-Funktionen (cancelCourse + bookCourse).
+export function rescheduleTraining(state, { enrollmentId }) {
+  const enr = (state.training?.enrollments || []).find(e => e.id === enrollmentId);
+  if (!enr) throw new Error("Einschreibung nicht gefunden.");
+  if (["completed", "cancelled"].includes(enr.status)) {
+    throw new Error("Abgeschlossene oder stornierte Einschreibungen können nicht verlegt werden.");
+  }
+  if (enr.status === "in_progress") {
+    throw new Error("Laufende Weiterbildung kann nicht verlegt werden.");
+  }
+  // Prüfen, ob der erste Block bereits begonnen hat
+  const firstBlock = (enr.blockStarts || [])[0];
+  if (firstBlock != null && firstBlock <= state.gameTime) {
+    throw new Error("Die Weiterbildung hat bereits begonnen und kann nicht mehr verlegt werden.");
+  }
+
+  const personId = enr.personId;
+  const courseId = enr.courseId;
+
+  // Alte Einschreibung stornieren
+  cancelCourse(state, enrollmentId);
+
+  // Neuen Kurs buchen — der Anbieter weist neue Block-Termine zu
+  const result = bookCourse(state, personId, courseId, {});
+
+  return {
+    ok: true,
+    oldEnrollmentId: enrollmentId,
+    newEnrollmentId: result.enrollmentId,
+    courseId,
+    message: "Weiterbildung wurde neu eingeplant. Neue Block-Termine wurden vom Anbieter zugewiesen.",
   };
 }

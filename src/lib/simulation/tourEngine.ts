@@ -266,7 +266,7 @@ export function buildEmptyDeployment(state, fromCity, toCity, vehicle, earliestS
 // deployments: Array von { orderId } in Ausführungsreihenfolge.
 // Optional: emptyDeployments (Leerfahrten) zwischen Aufträgen.
 export function buildTourPlan(state, opts) {
-  const { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin } = opts;
+  const { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin, minStartTime } = opts;
   const vehicle = _vehicleById(state, vehicleId);
   const driver = _driverById(state, driverId);
   if (!vehicle || !driver) return { error: "Fahrzeug oder Fahrer nicht gefunden." };
@@ -286,7 +286,8 @@ export function buildTourPlan(state, opts) {
     driverTravelMin = driveMinutes(getDistance(driverFutureCity, vehicleFutureCity));
   }
 
-  const earliestStart = _cached("ea:" + vehicleId + "|" + driverId, () => earliestAvailable(state, vehicle, driver)) + driverTravelMin;
+  const _calcStart = _cached("ea:" + vehicleId + "|" + driverId, () => earliestAvailable(state, vehicle, driver)) + driverTravelMin;
+  const earliestStart = minStartTime ? Math.max(_calcStart, minStartTime) : _calcStart;
   let currentCity = vehicleFutureCity;
   let t = earliestStart;
   const deployments = [];
@@ -480,7 +481,7 @@ export function checkTourLiquidity(state, deployments, returnDeployment, startMi
 // ---------- Bestätigung (atomar) ----------
 
 export function confirmTour(state, params) {
-  const { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin } = params;
+  const { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin, minStartTime } = params;
 
   // Plan-Cache löschen: suggestTours bevölkert den Cache, aber zwischen
   // suggestTours und confirmTour ändert sich der Zustand (andere Touren werden
@@ -490,7 +491,7 @@ export function confirmTour(state, params) {
   _clearPlanCache();
 
   // 1. Plane die Tour (Validierung)
-  const plan = buildTourPlan(state, { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin });
+  const plan = buildTourPlan(state, { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin, minStartTime });
   if (plan.error) throw new Error(plan.error);
 
   const vehicle = _vehicleById(state, vehicleId);

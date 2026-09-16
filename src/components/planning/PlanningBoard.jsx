@@ -6,6 +6,7 @@ import PlanningTimeline from "./PlanningTimeline";
 import UnplannedOrders from "./UnplannedOrders";
 import PlanningHelpers from "./PlanningHelpers";
 import PlanningChangeForm from "./PlanningChangeForm";
+import TrainingRescheduleDialog from "./TrainingRescheduleDialog";
 
 // Hauptkomponente: Die Wochenplanungstafel.
 // Verbindet die vorhandene Disposition mit Fahrzeugverfügbarkeit,
@@ -23,6 +24,8 @@ export default function PlanningBoard({ onPlanOrder }) {
   const [helperVehicleId, setHelperVehicleId] = useState("");
   const [changeFormOpen, setChangeFormOpen] = useState(false);
   const [changeTourId, setChangeTourId] = useState("");
+  const [trainingRescheduleOpen, setTrainingRescheduleOpen] = useState(false);
+  const [trainingEnrollmentId, setTrainingEnrollmentId] = useState("");
 
   const planningData = useMemo(() => {
     if (!state) return null;
@@ -43,6 +46,10 @@ export default function PlanningBoard({ onPlanOrder }) {
         setChangeTourId(tour.id);
         setChangeFormOpen(true);
       }
+    }
+    if (block.sourceType === "training" && block.linkedRef?.id) {
+      setTrainingEnrollmentId(block.linkedRef.id);
+      setTrainingRescheduleOpen(true);
     }
   }
 
@@ -105,6 +112,11 @@ export default function PlanningBoard({ onPlanOrder }) {
         open={changeFormOpen}
         onClose={() => setChangeFormOpen(false)}
         tourId={changeTourId}
+      />
+      <TrainingRescheduleDialog
+        open={trainingRescheduleOpen}
+        onClose={() => setTrainingRescheduleOpen(false)}
+        enrollmentId={trainingEnrollmentId}
       />
     </div>
   );
