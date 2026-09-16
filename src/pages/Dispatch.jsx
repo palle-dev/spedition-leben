@@ -3,7 +3,8 @@ import { useGame } from "@/lib/gameContext";
 import { loadRouteGeometries, buildPlanRouteGeoJSON } from "@/lib/geoData";
 import DispatchMap from "@/components/dispatch/DispatchMap";
 import DispatchWorkspace from "@/components/dispatch/DispatchWorkspace";
-import { Truck, Home, Route as RouteIcon, TrafficCone, Sparkles, Network } from "lucide-react";
+import PlanningBoard from "@/components/planning/PlanningBoard";
+import { Truck, Home, Route as RouteIcon, TrafficCone, Sparkles, Network, CalendarDays } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useHeaderSlot } from "@/lib/headerSlot";
 import DispatchToolbar from "@/components/dispatch/DispatchToolbar";
@@ -31,6 +32,7 @@ export default function Dispatch() {
   const [showTraffic, setShowTraffic] = useState(true);
   const [overlayTripId, setOverlayTripId] = useState(null);
   const [optimizeOpen, setOptimizeOpen] = useState(false);
+  const [showPlanning, setShowPlanning] = useState(false);
 
   // Routengeometrien laden (einmalig)
   useEffect(() => {
@@ -166,8 +168,25 @@ export default function Dispatch() {
 
   return (
     <div className="h-full flex flex-col min-h-0 overflow-hidden">
-      <div className="px-4 sm:px-6 lg:px-12 pt-3 shrink-0"><PageHint pageKey="dispatch" /></div>
-      {/* Karte + Arbeitsbereich */}
+      <div className="px-4 sm:px-6 lg:px-12 pt-3 shrink-0">
+        <PageHint pageKey="dispatch" />
+        <div className="flex items-center justify-between mt-2">
+          <button
+            onClick={() => setShowPlanning(s => !s)}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium border transition ${
+              showPlanning ? "bg-lime text-ink border-lime" : "text-muted-foreground border-white/10 hover:text-foreground hover:bg-white/5"
+            }`}
+          >
+            <CalendarDays className="w-3.5 h-3.5" />
+            Wochenplanung
+          </button>
+        </div>
+      </div>
+      {showPlanning ? (
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-12 pb-6">
+          <PlanningBoard onPlanOrder={(orderId) => { setShowPlanning(false); setPlanningOrderId(orderId); setActiveTab("auftraege"); }} />
+        </div>
+      ) : (
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
         {/* Karte */}
         <div className={`min-h-0 min-w-0 relative ${mobileView === "list" ? "hidden" : "flex-1"} lg:block lg:flex-1`}>
@@ -231,6 +250,7 @@ export default function Dispatch() {
           />
         </div>
       </div>
+      )}
       <AutoOptimizePanel open={optimizeOpen} onClose={() => setOptimizeOpen(false)} />
     </div>
   );
