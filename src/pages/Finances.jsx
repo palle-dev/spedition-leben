@@ -9,11 +9,13 @@ import AssetRegister from "@/components/finance/AssetRegister";
 import AccountingTeam from "@/components/finance/AccountingTeam";
 import FinancingPanel from "@/components/finance/FinancingPanel";
 import FinanceTrendChart from "@/components/finance/FinanceTrendChart";
-import { Landmark } from "lucide-react";
+import LiquidityForecast from "@/components/finance/LiquidityForecast";
+import { Landmark, Wallet } from "lucide-react";
 import PageHint from "@/components/help/PageHint";
 
 const TABS = [
   { id: "overview", label: "Übersicht", icon: LayoutDashboard },
+  { id: "forecast", label: "Liquiditätsvorschau", icon: Wallet },
   { id: "trend", label: "Zeitverlauf", icon: TrendingUp },
   { id: "financing", label: "Finanzierung", icon: Landmark },
   { id: "journal", label: "Journal", icon: BookOpen },
@@ -66,6 +68,7 @@ export default function Finances() {
       </div>
 
       <div className="min-h-[400px]">
+        {tab === "forecast" && <LiquidityForecast />}
         {tab === "trend" && <FinanceTrendChart state={state} />}
         {tab === "overview" && <FinanceOverview state={state} />}
         {tab === "financing" && <FinancingPanel />}

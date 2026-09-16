@@ -1,5 +1,5 @@
 import React from "react";
-import { formatKEuro, formatDayLabel } from "@/lib/forecastData";
+import { formatKEuro } from "@/lib/forecastData";
 
 // Liquiditätskurve — zeigt den Kontostandverlauf über den Horizont.
 // Verwendet Recharts (bereits installiert) für die Darstellung.

@@ -19,6 +19,7 @@ import IdleReasonsList from "@/components/office/IdleReasonsList";
 import DevelopmentPanel from "@/components/office/DevelopmentPanel";
 import ScenarioProgressPanel from "@/components/scenarios/ScenarioProgressPanel";
 import DisruptionPanel from "@/components/office/DisruptionPanel";
+import ForecastHints from "@/components/office/ForecastHints";
 
 // Büro – zentrale Tagesübersicht und Führungsansicht.
 // Die Seite beantwortet unmittelbar:
@@ -57,6 +58,9 @@ export default function Office() {
 
       {/* Aktive Störungen (nur bei vorhandenen Störungen sichtbar) */}
       <DisruptionPanel />
+
+      {/* Liquiditäts-Warnhinweise (nur bei prognostizierten Engpässen) */}
+      <ForecastHints />
 
       {/* Kennzahlen */}
       <OfficeKPIs state={state} period={period} />

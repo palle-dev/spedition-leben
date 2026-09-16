@@ -21,15 +21,9 @@ import {
   DRIVER_COST_PER_DAY, BRANCH_COST_PER_DAY,
   PRIVATE_WITHDRAWAL_PER_DAY, PRIVATE_LIVING_PER_DAY,
   HIRE_FEE, BRANCH_OPEN_FEE,
-  VEHICLE_CATALOG, VEHICLE_CATALOG_LIST, getVehicleProfile,
-  FUEL_PRICE, TOLL_PER_KM, getDistance,
+  VEHICLE_CATALOG, getDistance,
 } from "./gameRules.ts";
-import { MONTH_MIN, getVehicleBookValue } from "./accountingEngine.ts";
-import {
-  LEASING_OFFERS, LOAN_INTEREST_RATE_MONTHLY, LOAN_FEE_RATE,
-  computeCreditLimit,
-} from "./financingEngine.ts";
-import { computeMarketValue, computeDealerOffer } from "./gameRules.ts";
+import { LEASING_OFFERS } from "./financingEngine.ts";
 import { isActivelyEmployed } from "./terminationEngine.ts";
 
 const DAY_MIN = 1440;

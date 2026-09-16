@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo } from "react";
 import { TrendingUp, AlertTriangle, Info, Eye, Calculator } from "lucide-react";
 import { useGame } from "@/lib/gameContext";
 import { computeLiquidityForecast, PAYMENT_RULES } from "@/lib/simulation/liquidityForecastEngine";
