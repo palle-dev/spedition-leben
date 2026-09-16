@@ -88,6 +88,14 @@ export function markAllEventsSeen(state) {
   }
 }
 
+export function clearEvents(state) {
+  state.events = [];
+}
+
+export function deleteEvent(state, eventId) {
+  state.events = (state.events || []).filter(e => e.id !== eventId);
+}
+
 // Gibt Ereignisse seit einem Sequenz-Cursor zurück (für Delta-Abfrage).
 // Sortiert nach seq aufsteigend. Paginiert.
 export function getEventsSince(state, lastSeq, limit = 100) {
