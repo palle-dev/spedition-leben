@@ -4,7 +4,7 @@
 
 import {
   STANDARD_TRUCK, VEHICLE_PRICE, DRIVER_COST_PER_DAY, BRANCH_COST_PER_DAY,
-  PORTRAIT_IDS, PRIVATE_WITHDRAWAL_PER_DAY,
+  PORTRAIT_IDS,
 } from "./gameRules.ts";
 import { ACHIEVEMENTS } from "./achievementCatalog.ts";
 import {
@@ -61,8 +61,7 @@ export function createInitialState(names) {
       partnerName: p.partnerName || "Mara",
       accountCents: 750000,
       stress: 30, happiness: 60, relationship: 60,
-      residence: "Wohnung in Hamburg",
-      dailyWithdrawalCents: PRIVATE_WITHDRAWAL_PER_DAY
+      residence: "Wohnung in Hamburg"
     },
     branches: [{ id: "b1", name: "Hauptniederlassung Hamburg", city: "Hamburg", costPerDayCents: BRANCH_COST_PER_DAY, isHeadquarters: true, status: "active", openedAtMin: 480, stats: { revenueCents: 0, deliveries: 0, expensesCents: 0 }, cleanliness: 85, lastCleaningDay: 0 }],
     vehicles: [1, 2, 3].map(i => ({
@@ -92,8 +91,14 @@ export function createInitialState(names) {
     xp: 0,
     goals: [],
     processedActions: {},
-    tutorial: { active: true, step: 0 },
+    tutorial: { active: false, step: 0 },
     lastDailyAccountingMin: 0,
+    developmentFocus: null,
+    onboarding: {
+      active: !!(p.onboarding), paused: false, step: null,
+      startedAtMin: p.onboarding ? 480 : null, reviewedDelivery: false, completedSteps: [],
+    },
+    developmentMilestones: [],
     stats: {
       timelyDeliveries: 0, totalDeliveries: 0, consecutiveTimely: 0, cancelledOrders: 0,
       totalRevenueCents: 0, maintainedVehicleIds: [], leisureCount: 0, leisureTypes: [],
@@ -101,6 +106,7 @@ export function createInitialState(names) {
       hobbyCounts: {}, friendshipQualities: {}, ownershipCount: 0,
       homeFurnishingTypes: [], hasHome: false, hasCar: false,
       hasSportCar: false, hasBoat: false, hasVilla: false, tripsCompleted: 0,
+      autoDecisionDays: [],
     },
     employees: [],
     availableApplicants: [],
@@ -163,10 +169,5 @@ export function createInitialState(names) {
   initStartApplicants(state);
   // Investment-Markt und Depots initialisieren (Auftrag 33)
   initInvestment(state);
-  // Geschichten und Chronik initialisieren
-  state.private.stories = { runs: [], lastOfferMin: 0, completedCount: {}, declinedAt: {} };
-  state.private.chronicle = [];
-  state.private.promises = [];
-  state.private.partnerId = state.private.partnerName ? "partner_initial" : null;
   return { state };
 }

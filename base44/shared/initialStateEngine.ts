@@ -91,8 +91,14 @@ export function createInitialState(names) {
     xp: 0,
     goals: [],
     processedActions: {},
-    tutorial: { active: true, step: 0 },
+    tutorial: { active: false, step: 0 },
     lastDailyAccountingMin: 0,
+    developmentFocus: null,
+    onboarding: {
+      active: !!(p.onboarding), paused: false, step: null,
+      startedAtMin: p.onboarding ? 480 : null, reviewedDelivery: false, completedSteps: [],
+    },
+    developmentMilestones: [],
     stats: {
       timelyDeliveries: 0, totalDeliveries: 0, consecutiveTimely: 0, cancelledOrders: 0,
       totalRevenueCents: 0, maintainedVehicleIds: [], leisureCount: 0, leisureTypes: [],
@@ -100,6 +106,7 @@ export function createInitialState(names) {
       hobbyCounts: {}, friendshipQualities: {}, ownershipCount: 0,
       homeFurnishingTypes: [], hasHome: false, hasCar: false,
       hasSportCar: false, hasBoat: false, hasVilla: false, tripsCompleted: 0,
+      autoDecisionDays: [],
     },
     employees: [],
     availableApplicants: [],
