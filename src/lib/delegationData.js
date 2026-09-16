@@ -47,4 +47,28 @@ export function getViolatedRuleLabel(rule) {
   return labels[rule] || rule;
 }
 
+// Natürliche Erklärung, WARUM eine Freigabe nötig ist — für Spieler verständlich.
+export function getApprovalExplanation(req) {
+  if (!req) return null;
+  const rule = req.violatedRule;
+  const cost = req.costCents || 0;
+  const costStr = cost > 0 ? formatCents(cost) : "";
+
+  if (rule === "maxSpendPerAction") {
+    return `Diese Aktion kostet ${costStr} und überschreitet das Limit für Einzelausgaben, das du in den Mitarbeiterbefugnissen festgelegt hast.`;
+  }
+  if (rule === "dailyBudget") {
+    return `Das Tagesbudget für diese Filiale ist erschöpft. Weitere Ausgaben brauchen deine Freigabe.`;
+  }
+  if (rule === "minLiquidity") {
+    return `Die Firmenliquidität ist unter den von dir festgelegten Kontopuffer gefallen. Ausgaben brauchen jetzt deine Freigabe, um die Liquidität zu schützen.`;
+  }
+  if (rule === "role_authority") {
+    return `Diese Aktion ist in den Mitarbeiterbefugnissen für diese Rolle nicht vorgesehen und braucht deine Zustimmung.`;
+  }
+  // Fallback: Begründung des Mitarbeiters verwenden
+  if (req.reasoning) return req.reasoning;
+  return "Diese Aktion überschreitet die festgelegten Befugnisse und braucht deine Freigabe.";
+}
+
 export { PRESETS, ROLE_AUTHORITY };

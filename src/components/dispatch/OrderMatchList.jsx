@@ -2,7 +2,8 @@ import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
 import { formatGameTime, formatEuro, getDistance, fuelEur, tollEur, driveMinutes, CITIES } from "@/lib/gameData";
-import { Package, Play, Route, ArrowRight, Truck, MapPin, Clock, TrendingUp, AlertTriangle, Filter, X, ChevronDown } from "lucide-react";
+import { Package, Play, Route, ArrowRight, Truck, MapPin, Clock, TrendingUp, AlertTriangle, Filter, X, ChevronDown, Info } from "lucide-react";
+import { getOrderObstacles, summarizeObstacles } from "@/lib/dispatchObstacles";
 
 // Sortier- und Filterkomponente für angenommene Aufträge.
 // Bewertet jeden Auftrag gegen die freie Flotte (Standort, Kapazität, Zustand)
@@ -169,6 +170,7 @@ export default function OrderMatchList({ orders, onPlanOrder, onTourPlan, search
 }
 
 function OrderMatchCard({ scored, onPlanOrder, onTourPlan }) {
+  const { state } = useGame();
   const { order: o, score, candidates, nearestVehicle, nearestEmptyKm, totalKm, contribution, deadlineSlackMin, deadlineUrgency } = scored;
   const hasMatch = candidates.length > 0;
 
@@ -177,6 +179,12 @@ function OrderMatchCard({ scored, onPlanOrder, onTourPlan }) {
 
   const slackH = Math.floor(Math.abs(deadlineSlackMin) / 60);
   const slackM = Math.abs(deadlineSlackMin) % 60;
+
+  // Hindernisse berechnen — erklärt WARUM ein Auftrag nicht disponiert werden kann
+  const obstacles = useMemo(() => {
+    if (hasMatch) return [];
+    return summarizeObstacles(getOrderObstacles(state, o)) || [];
+  }, [hasMatch, state, o]);
 
   return (
     <div className={`rounded-xl p-3 border transition ${hasMatch ? "border-white/10 hover:border-lime/30 bg-surface/30" : "border-coral/20 bg-coral/5"}`}>
@@ -231,9 +239,20 @@ function OrderMatchCard({ scored, onPlanOrder, onTourPlan }) {
           )}
         </div>
       ) : (
-        <div className="mt-2 text-[10px] text-coral/80 flex items-center gap-1">
-          <AlertTriangle className="w-3 h-3" />
-          Kein freier Lkw mit Fahrer am passenden Standort
+        <div className="mt-2 space-y-1">
+          {obstacles.length > 0 ? (
+            obstacles.map((obs, i) => (
+              <div key={i} className={`text-[10px] flex items-start gap-1 ${obs.severity === "hard" ? "text-coral" : obs.severity === "soft" ? "text-amber-300/80" : "text-muted-foreground"}`}>
+                {obs.severity === "hard" ? <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" /> : <Info className="w-3 h-3 mt-0.5 shrink-0" />}
+                <span>{obs.reason}</span>
+              </div>
+            ))
+          ) : (
+            <div className="text-[10px] text-coral/80 flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3" />
+              Kein freier Lkw mit Fahrer am passenden Standort
+            </div>
+          )}
         </div>
       )}
 

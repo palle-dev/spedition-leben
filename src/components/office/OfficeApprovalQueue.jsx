@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, XCircle, ArrowRight, Clock, Settings } from "lucide-react";
 import { useGame } from "@/lib/gameContext";
-import { getUrgencyColor, getViolatedRuleLabel, formatCents } from "@/lib/delegationData";
+import { getUrgencyColor, getViolatedRuleLabel, getApprovalExplanation, formatCents } from "@/lib/delegationData";
 
 // Kompakte Freigabe-Warteschlange für die Büro-Seite.
 // Zeigt ausstehende Freigaben mit Freigeben/Ablehnen-Buttons.
@@ -61,7 +61,7 @@ export default function OfficeApprovalQueue({ state }) {
                   {req.branchName && <span className="text-[10px] text-muted-foreground">· {req.branchName}</span>}
                 </div>
                 <div className="text-sm font-medium leading-tight">{req.title}</div>
-                {req.reasoning && <div className="text-[11px] text-muted-foreground mt-1">{req.reasoning}</div>}
+                <div className="text-[11px] text-muted-foreground mt-1 leading-relaxed">{getApprovalExplanation(req)}</div>
                 {req.violatedRule && (
                   <div className="text-[10px] text-coral/80 mt-1 flex items-center gap-1">
                     <AlertTriangle className="w-2.5 h-2.5" /> {getViolatedRuleLabel(req.violatedRule)}
