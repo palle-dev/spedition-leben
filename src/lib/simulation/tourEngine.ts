@@ -36,6 +36,23 @@ function _cached(key, fn) {
   return v;
 }
 
+// Lookup-Maps für O(1) Zugriff auf Fahrzeuge, Fahrer und Aufträge.
+// Werden von suggestTours einmal pro Aufruf aufgebaut (buildLookupMaps) und
+// von buildTourPlan genutzt, wenn verfügbar. Eliminiert O(n) .find()-Aufrufe
+// bei 192K+ buildTourPlan-Aufrufen pro Tagesvorlauf.
+function _vehicleById(state, id) {
+  if (state._vehicleMap) return state._vehicleMap.get(id);
+  return state.vehicles.find(v => v.id === id);
+}
+function _driverById(state, id) {
+  if (state._driverMap) return state._driverMap.get(id);
+  return state.drivers.find(d => d.id === id);
+}
+function _orderById(state, id) {
+  if (state._orderMap) return state._orderMap.get(id);
+  return state.orders.find(o => o.id === id);
+}
+
 // Prüft, ob ein Fahrer/Fahrzeug-Paar für ein gegebenes Intervall frei ist.
 // Berücksichtigt bestehende Trips, Touren und Erholung.
 export function isResourceFree(state, resource, fromMin, toMin) {
@@ -249,8 +266,8 @@ export function buildEmptyDeployment(state, fromCity, toCity, vehicle, earliestS
 // Optional: emptyDeployments (Leerfahrten) zwischen Aufträgen.
 export function buildTourPlan(state, opts) {
   const { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin } = opts;
-  const vehicle = state.vehicles.find(v => v.id === vehicleId);
-  const driver = state.drivers.find(d => d.id === driverId);
+  const vehicle = _vehicleById(state, vehicleId);
+  const driver = _driverById(state, driverId);
   if (!vehicle || !driver) return { error: "Fahrzeug oder Fahrer nicht gefunden." };
 
   // Prüfe Grundvoraussetzungen
@@ -292,7 +309,7 @@ export function buildTourPlan(state, opts) {
     let counters = { ...initCounters };
 
     for (const orderId of orderIds) {
-      const order = state.orders.find(o => o.id === orderId);
+      const order = _orderById(state, orderId);
       if (!order) return { error: "Auftrag nicht gefunden: " + orderId };
       if (order.status !== "offered" && order.status !== "angenommen") {
         return { error: "Auftrag " + order.customer + " ist nicht verfügbar (Status: " + order.status + ")." };
@@ -959,6 +976,12 @@ export function suggestTours(state, opts) {
   const { vehicleIds, earliestStart, horizonMin, desiredEndCity, latestReturnMin, mode, acceptNew, restrictOrderIds, fastMode } = opts;
   const restrictSet = restrictOrderIds ? new Set(restrictOrderIds) : null;
   const suggestions = [];
+
+  // Lookup-Maps aufbauen: O(1) Zugriff für buildTourPlan statt O(n) .find().
+  // Bei 192K buildTourPlan-Aufrufen mit 320 Aufträgen spart das ~46M Iterationen.
+  state._vehicleMap = new Map(state.vehicles.map(v => [v.id, v]));
+  state._driverMap = new Map(state.drivers.map(d => [d.id, d]));
+  state._orderMap = new Map(state.orders.map(o => [o.id, o]));
 
   const startMin = earliestStart || state.gameTime;
   const maxMin = startMin + (horizonMin || 48 * 60);
