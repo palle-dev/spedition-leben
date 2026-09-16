@@ -16,6 +16,7 @@ import { onOrderAccepted, onTourConfirmed } from "./mailReports.ts";
 import { hasDgDispatch, hasDispoEfficiency } from "./trainingEngine.ts";
 import { processAccountant } from "./accountingEngine.ts";
 import { applyCleaningEffect } from "./serviceEngine.ts";
+import { checkSpendAuthority, recordSpend, logDecision, createApprovalRequest, ROLE_AUTHORITY } from "./delegationEngine.ts";
 
 // Lokale Kopie von uid (inkrementiert state.idCounter).
 function uid(state, prefix) {
@@ -233,10 +234,42 @@ export function processDispatcher(state, emp, m, log) {
     if (newOrderIds.length > 0 && sug.plan.totalContributionCents <= 0) continue;
     if (sug.orderIds.some(oid => state.orders.find(x => x.id === oid)?.isDangerousGoods) && !hasDgDispatch(state, emp.id)) continue;
 
+    // Budget-Prüfung: Kraftstoff + Maut für diese Tour
+    const tourFuelCents = sug.plan.fuelCents || 0;
+    const tourTollCents = sug.plan.tollCents || 0;
+    const tourCostCents = tourFuelCents + tourTollCents;
+    const authCheck = checkSpendAuthority(state, emp.id, tourCostCents, { branchId: emp.assignedBranchId || emp.branchId });
+    if (!authCheck.allowed) {
+      // Freigabe anfordern wenn Kosten über Befugnis
+      if (authCheck.violatedRule === "maxSpendPerAction" || authCheck.violatedRule === "dailyBudget") {
+        createApprovalRequest(state, {
+          employeeId: emp.id, employeeName: emp.name, employeeRole: emp.role,
+          branchId: emp.assignedBranchId || emp.branchId,
+          type: "spend", title: "Tour-Kosten über Befugnis",
+          description: `Tour für ${sug.orderIds.length} Auftrag(e) kostet ${(tourCostCents/100).toFixed(2)} € (Kraftstoff + Maut).`,
+          reasoning: authCheck.reason,
+          costCents: tourCostCents, violatedRule: authCheck.violatedRule,
+          urgency: "medium", deadlineMin: null,
+          actionData: { vehicleId: sug.vehicleId, driverId: sug.driverId, orderIds: sug.orderIds },
+          dedupKey: "tour_spend:" + emp.id + ":" + state.gameTime + ":" + sug.vehicleId,
+        });
+      }
+      continue;
+    }
+    // Begründung aus Planungsdaten
+    const reasoning = buildTourReasoning(state, sug, primaryOrder);
     try {
       const r = doConfirmTour(state, {
         vehicleId: sug.vehicleId, driverId: sug.driverId, orderIds: sug.orderIds,
         desiredEndCity: sug.plan.desiredEndCity || null, latestReturnMin: sug.plan.latestReturnMin || null,
+      });
+      // Ausgabe im Tagesbudget erfassen
+      if (tourCostCents > 0) recordSpend(state, emp.id, tourCostCents, emp.assignedBranchId || emp.branchId);
+      // Entscheidung protokollieren
+      logDecision(state, {
+        employeeId: emp.id, employeeName: emp.name,
+        type: "tour_planned", summary: `Tour für ${sug.orderIds.length} Auftrag(e) geplant`,
+        reasoning, costCents: tourCostCents,
       });
       usedVehicleIds.add(sug.vehicleId);
       sug.orderIds.forEach(oid => usedOrderIds.add(oid));
