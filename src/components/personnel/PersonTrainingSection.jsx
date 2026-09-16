@@ -22,7 +22,8 @@ export default function PersonTrainingSection({ personId, kind, role }) {
   const quals = (state.training?.qualifications || []).filter(q => q.personId === personId);
   const enrollments = (state.training?.enrollments || []).filter(e => e.personId === personId && ["reserved", "in_progress"].includes(e.status));
 
-  const personRole = kind === "driver" ? "driver" : role;
+  // Senior-Rollen auf Basis-Rolle mappen, damit Kurse mit targetRole "dispatcher"/"accountant" auch für Senior-Varianten sichtbar sind.
+  const personRole = kind === "driver" ? "driver" : (role === "dispatcher_senior" ? "dispatcher" : (role === "accountant_senior" ? "accountant" : role));
   const activeQualTypes = new Set(quals.filter(q => q.status === "active").map(q => q.type));
 
   // Prüft, ob die Voraussetzungen für einen Kurs erfüllt sind.
