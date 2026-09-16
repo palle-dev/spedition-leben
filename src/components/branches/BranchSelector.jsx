@@ -15,7 +15,7 @@ export default function BranchSelector({ branches, value, onChange, className = 
         className="appearance-none rounded-lg pl-8 pr-8 py-2.5 bg-white/5 border border-white/10 text-sm text-foreground hover:bg-white/10 transition cursor-pointer min-h-[44px]"
       >
         {active.map(b => (
-          <option key={b.id} value={b.id} className="bg-ink text-foreground">
+          <option key={b.id} value={b.id} style={{ backgroundColor: '#0b1011', color: '#f4f0e8' }}>
             {b.name} · {b.city}
           </option>
         ))}

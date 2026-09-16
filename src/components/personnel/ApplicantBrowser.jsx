@@ -163,11 +163,11 @@ export default function ApplicantBrowser({ onPostJob, dailyCosts }) {
             onChange={e => setSort(e.target.value)}
             className="rounded-lg bg-surface-2/50 border border-white/10 text-sm px-3 py-2 focus:outline-none focus:border-lime/30"
           >
-            <option value="created_desc">Neueste zuerst</option>
-            <option value="created_asc">Älteste zuerst</option>
-            <option value="fee_asc">Gebühr aufsteigend</option>
-            <option value="fee_desc">Gebühr absteigend</option>
-            <option value="expiry_asc">Ablauf bald</option>
+            <option value="created_desc" style={{ backgroundColor: '#0b1011', color: '#f4f0e8' }}>Neueste zuerst</option>
+            <option value="created_asc" style={{ backgroundColor: '#0b1011', color: '#f4f0e8' }}>Älteste zuerst</option>
+            <option value="fee_asc" style={{ backgroundColor: '#0b1011', color: '#f4f0e8' }}>Gebühr aufsteigend</option>
+            <option value="fee_desc" style={{ backgroundColor: '#0b1011', color: '#f4f0e8' }}>Gebühr absteigend</option>
+            <option value="expiry_asc" style={{ backgroundColor: '#0b1011', color: '#f4f0e8' }}>Ablauf bald</option>
           </select>
           {hasActiveFilters && (
             <button
@@ -210,8 +210,8 @@ export default function ApplicantBrowser({ onPostJob, dailyCosts }) {
             onChange={e => { setLocationFilter(e.target.value); setPage(1); }}
             className="rounded-lg bg-surface-2/50 border border-white/10 text-xs px-3 py-1.5 focus:outline-none focus:border-lime/30"
           >
-            <option value="all">Alle Standorte</option>
-            {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+            <option value="all" style={{ backgroundColor: '#0b1011', color: '#f4f0e8' }}>Alle Standorte</option>
+            {locations.map(loc => <option key={loc} value={loc} style={{ backgroundColor: '#0b1011', color: '#f4f0e8' }}>{loc}</option>)}
           </select>
           {/* Profil-Filter */}
           <select
@@ -219,9 +219,9 @@ export default function ApplicantBrowser({ onPostJob, dailyCosts }) {
             onChange={e => { setProfileFilter(e.target.value); setPage(1); }}
             className="rounded-lg bg-surface-2/50 border border-white/10 text-xs px-3 py-1.5 focus:outline-none focus:border-lime/30"
           >
-            <option value="all">Alle Profile</option>
-            <option value="standard">Standard</option>
-            <option value="senior">Erfahren</option>
+            <option value="all" style={{ backgroundColor: '#0b1011', color: '#f4f0e8' }}>Alle Profile</option>
+            <option value="standard" style={{ backgroundColor: '#0b1011', color: '#f4f0e8' }}>Standard</option>
+            <option value="senior" style={{ backgroundColor: '#0b1011', color: '#f4f0e8' }}>Erfahren</option>
           </select>
         </div>
       </div>
