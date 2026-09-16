@@ -21,6 +21,7 @@ import {
 import { pushEvent } from "./eventLog.ts";
 import { getMarketWeightsForBranch, migrateBusinessFocus } from "./businessFocusEngine.ts";
 import { getRegionOfCity, getDemandFactor, getPriceFactor, migrateMarketDynamics } from "./marketDynamicsEngine.ts";
+import { getEffectiveParams, applyBufferHoursFactor } from "./difficultyProfiles.ts";
 
 // ---------- Hilfsfunktionen ----------
 
@@ -206,6 +207,14 @@ function computeTimeWindows(state, m, offerType, fromCity, toCity, km, rng) {
   const driveMin = driveMinutes(km);
   const opMin = LOAD_MIN + driveMin + UNLOAD_MIN;
 
+  // Schwierigkeitsprofil: Zeitpuffer-Faktor. Wirkt ausschließlich auf den
+  // zusätzlichen Spielraum (buffer), NICHT auf Transportdauer, Ruhepausen
+  // oder Anfahrt. Ein kürzerer Puffer drückt einen Auftrag nie unter seine
+  // grundsätzlich notwendige Transportdauer.
+  const dParams = getEffectiveParams(state);
+  const [expressBufLo, expressBufHi] = applyBufferHoursFactor(EXPRESS_BUFFER_HOURS, dParams);
+  const [normalBufLo, normalBufHi] = applyBufferHoursFactor(NORMAL_BUFFER_HOURS, dParams);
+
   // Anfahrtsweg vom nächsten Flottenstandort zur Abholung.
   // Bei weit entfernten Abholorten (z. B. München bei Flotte in Hamburg)
   // benötigen die Zeitfenster mehr Vorlaufzeit für die Leerfahrt.
@@ -225,7 +234,7 @@ function computeTimeWindows(state, m, offerType, fromCity, toCity, km, rng) {
     const acceptDeadline = m + Math.round(acceptHours * 60) + approachMin;
     const earliestPickup = m + 30;
     const latestLoadStart = acceptDeadline;
-    const bufferMin = Math.round((EXPRESS_BUFFER_HOURS[0] + rng() * (EXPRESS_BUFFER_HOURS[1] - EXPRESS_BUFFER_HOURS[0])) * 60);
+    const bufferMin = Math.max(0, Math.round((expressBufLo + rng() * (expressBufHi - expressBufLo)) * 60));
     const deliveryDeadline = Math.max(earliestPickup, m + approachMin) + opMin + restTime + bufferMin;
     return { acceptDeadline, earliestPickup, latestLoadStart, deliveryDeadline, paymentTermsDays: 0 };
   }
@@ -236,7 +245,7 @@ function computeTimeWindows(state, m, offerType, fromCity, toCity, km, rng) {
     const nextDay = Math.floor(m / 1440) * 1440 + 1440;
     const earliestPickup = nextDay + 480 + Math.floor(rng() * 240); // 08:00–12:00
     const latestLoadStart = acceptDeadline;
-    const bufferMin = Math.round((NORMAL_BUFFER_HOURS[0] + rng() * (NORMAL_BUFFER_HOURS[1] - NORMAL_BUFFER_HOURS[0])) * 60);
+    const bufferMin = Math.max(0, Math.round((normalBufLo + rng() * (normalBufHi - normalBufLo)) * 60));
     const deliveryDeadline = Math.max(earliestPickup, m + approachMin) + opMin + restTime + bufferMin;
     return { acceptDeadline, earliestPickup, latestLoadStart, deliveryDeadline, paymentTermsDays: 3 };
   }
@@ -246,7 +255,7 @@ function computeTimeWindows(state, m, offerType, fromCity, toCity, km, rng) {
   let acceptDeadline = m + Math.round(acceptHours * 60) + approachMin;
   const earliestPickup = m + 60 + Math.floor(rng() * 120); // 1–3 h
   const latestLoadStart = acceptDeadline;
-  const bufferMin = Math.round((NORMAL_BUFFER_HOURS[0] + rng() * (NORMAL_BUFFER_HOURS[1] - NORMAL_BUFFER_HOURS[0])) * 60);
+  const bufferMin = Math.max(0, Math.round((normalBufLo + rng() * (normalBufHi - normalBufLo)) * 60));
   const deliveryDeadline = Math.max(earliestPickup, m + approachMin) + opMin + restTime + bufferMin;
 
   // Außerhalb Dienstzeit: Annahmefrist bis nächsten Dienstbeginn verlängern

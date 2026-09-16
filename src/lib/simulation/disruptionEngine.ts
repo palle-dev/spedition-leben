@@ -24,6 +24,7 @@ import {
   SERVICE_PROVIDERS, BLOCK_DURATION_MIN,
 } from "./serviceEngine.ts";
 import { checkSpendAuthority } from "./delegationEngine.ts";
+import { getEffectiveParams, applyDisruptionRate } from "./difficultyProfiles.ts";
 
 // ---------- Zentrale Konfiguration ----------
 // Wahrscheinlichkeiten und Auswirkungen — kalibriert für ausgewogenen Betrieb.
@@ -489,7 +490,10 @@ export function maybeGenerateTechnicalDefect(state, tour, deployment, m, log) {
   if (hasExistingDisruption(state, dedupKey)) return false;
 
   const conditionGap = 100 - vehicle.condition;
-  const probability = DISRUPTION_CONFIG.technicalDefect.baseRate
+  const baseRate = applyDisruptionRate(
+    DISRUPTION_CONFIG.technicalDefect.baseRate, getEffectiveParams(state)
+  );
+  const probability = baseRate
     + conditionGap * DISRUPTION_CONFIG.technicalDefect.conditionRiskFactor;
 
   if (nextRng(state) > probability) return false;
@@ -538,7 +542,10 @@ export function maybeGenerateTechnicalDefectForTrip(state, vehicle, driver, orde
   if (hasExistingDisruption(state, dedupKey)) return false;
 
   const conditionGap = 100 - vehicle.condition;
-  const probability = DISRUPTION_CONFIG.technicalDefect.baseRate
+  const baseRate = applyDisruptionRate(
+    DISRUPTION_CONFIG.technicalDefect.baseRate, getEffectiveParams(state)
+  );
+  const probability = baseRate
     + conditionGap * DISRUPTION_CONFIG.technicalDefect.conditionRiskFactor;
 
   if (nextRng(state) > probability) return false;
@@ -587,7 +594,10 @@ export function maybeGenerateLoadingDelay(state, trip, m, log) {
   const dedupKey = "delay:" + trip.id + ":" + delayPhaseIndex;
   if (hasExistingDisruption(state, dedupKey)) return false;
 
-  if (nextRng(state) > DISRUPTION_CONFIG.loadingDelay.baseRate) return false;
+  const loadingRate = applyDisruptionRate(
+    DISRUPTION_CONFIG.loadingDelay.baseRate, getEffectiveParams(state)
+  );
+  if (nextRng(state) > loadingRate) return false;
 
   const delayMin = DISRUPTION_CONFIG.loadingDelay.minDelayMin
     + Math.floor(nextRng(state) * (DISRUPTION_CONFIG.loadingDelay.maxDelayMin - DISRUPTION_CONFIG.loadingDelay.minDelayMin + 1));
