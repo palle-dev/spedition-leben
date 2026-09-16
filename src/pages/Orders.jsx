@@ -6,7 +6,7 @@ import { getMarketStats } from "@/lib/marketData";
 import StatusBadge from "@/components/ui/StatusBadge";
 import OfferCard from "@/components/orders/OfferCard";
 import PageHint from "@/components/help/PageHint";
-import { Check, X, MapPin, ArrowRight, Clock, Route as RouteIcon, Truck, TrendingUp, Calendar, Package, Layers, Loader2 } from "lucide-react";
+import { Check, X, MapPin, ArrowRight, Clock, Route as RouteIcon, Truck, TrendingUp, Calendar, Package, Layers, Loader2, Filter, SlidersHorizontal } from "lucide-react";
 
 // Ermittelt die zuständige Filiale für einen Abholort (nächste aktive Filiale).
 function nearestBranchFor(state, fromCity) {
@@ -33,6 +33,7 @@ export default function Orders() {
   const [filterDg, setFilterDg] = useState("");
   const [filterBranch, setFilterBranch] = useState("");
   const [sortBy, setSortBy] = useState("deadline");
+  const [filterOpen, setFilterOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
 
@@ -157,6 +158,10 @@ export default function Orders() {
     setSearch(""); setFilterCity(""); setFilterType(""); setFilterFeasible(""); setFilterDg(""); setFilterBranch(""); setSortBy("deadline");
   }
 
+  const activeFilterCount = [filterCity, filterType, filterFeasible, filterDg, filterBranch].filter(Boolean).length;
+  const selectCls = "w-full px-3 py-1.5 rounded-lg bg-surface-2 border border-white/10 text-xs text-foreground focus:border-lime/50 outline-none";
+  const optionStyle = { backgroundColor: "#0b1011", color: "#f4f0e8" };
+
   return (
     <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1600px] mx-auto space-y-6">
       <PageHint pageKey="orders" />
@@ -181,53 +186,85 @@ export default function Orders() {
 
       {tab === "boerse" && (
         <div className="space-y-4">
-          {/* Filter */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <input
-              type="text"
-              placeholder="Suche nach Kunde, Ort, Fracht..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="flex-1 min-w-[180px] px-3 py-1.5 rounded-lg bg-surface-2 border border-white/10 text-xs text-foreground focus:border-lime/50 outline-none"
-            />
-            <select value={filterCity} onChange={e => setFilterCity(e.target.value)} className="px-3 py-1.5 rounded-lg bg-surface-2 border border-white/10 text-xs text-foreground focus:border-lime/50 outline-none">
-              <option value="">Alle Startorte</option>
-              {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <select value={filterType} onChange={e => setFilterType(e.target.value)} className="px-3 py-1.5 rounded-lg bg-surface-2 border border-white/10 text-xs text-foreground focus:border-lime/50 outline-none">
-              <option value="">Alle Arten</option>
-              <option value="normal">Standard</option>
-              <option value="express">Express</option>
-              <option value="advance">Vorlauf</option>
-            </select>
-            <select value={filterFeasible} onChange={e => setFilterFeasible(e.target.value)} className="px-3 py-1.5 rounded-lg bg-surface-2 border border-white/10 text-xs text-foreground focus:border-lime/50 outline-none">
-              <option value="">Alle</option>
-              <option value="yes">Passend</option>
-              <option value="no">Schwer ausführbar</option>
-            </select>
-            <select value={filterDg} onChange={e => setFilterDg(e.target.value)} className="px-3 py-1.5 rounded-lg bg-surface-2 border border-white/10 text-xs text-foreground focus:border-lime/50 outline-none">
-              <option value="">Alle Frachten</option>
-              <option value="yes">Nur Gefahrgut</option>
-              <option value="no">Kein Gefahrgut</option>
-            </select>
-            {((state.branches || []).filter(b => b.status === "active").length > 1) && (
-              <select value={filterBranch} onChange={e => setFilterBranch(e.target.value)} className="px-3 py-1.5 rounded-lg bg-surface-2 border border-white/10 text-xs text-foreground focus:border-lime/50 outline-none">
-                <option value="">Alle Filialen</option>
-                {(state.branches || []).filter(b => b.status === "active").map(b => <option key={b.id} value={b.id}>{b.name} ({b.city})</option>)}
+          {/* Filter — kompakte Leiste + aufklappbares Panel */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 min-w-[180px]">
+                <input
+                  type="text"
+                  placeholder="Suche nach Kunde, Ort, Fracht..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-surface-2 border border-white/10 text-xs text-foreground focus:border-lime/50 outline-none"
+                />
+                <Filter className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+              <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="px-3 py-1.5 rounded-lg bg-surface-2 border border-white/10 text-xs text-foreground focus:border-lime/50 outline-none">
+                <option value="deadline" style={optionStyle}>Sortieren: Lieferfrist</option>
+                <option value="accept" style={optionStyle}>Sortieren: Annahmefrist</option>
+                <option value="payment" style={optionStyle}>Sortieren: Vergütung</option>
               </select>
+              <button
+                onClick={() => setFilterOpen(v => !v)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs transition ${filterOpen ? "bg-lime/15 border-lime/30 text-lime" : "bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10"}`}
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                Filter
+                {activeFilterCount > 0 && (
+                  <span className="grid place-items-center min-w-[16px] h-4 px-1 rounded-full bg-lime text-ink text-[9px] font-bold">{activeFilterCount}</span>
+                )}
+              </button>
+              {activeFilterCount > 0 && (
+                <button onClick={resetFilter} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-muted-foreground hover:text-foreground hover:bg-white/10 transition">
+                  <X className="w-3.5 h-3.5" /> Zurücksetzen
+                </button>
+              )}
+              <button onClick={clearOpenOrders} disabled={clearing}
+                className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-400/25 text-red-200 text-xs hover:bg-red-500/20 disabled:opacity-50 transition ml-auto">
+                {clearing ? "Lösche…" : "Alle offenen löschen"}
+              </button>
+            </div>
+
+            {filterOpen && (
+              <div className="glass border border-white/10 rounded-xl p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                <FilterField label="Startort">
+                  <select value={filterCity} onChange={e => setFilterCity(e.target.value)} className={selectCls}>
+                    <option value="" style={optionStyle}>Alle Startorte</option>
+                    {CITIES.map(c => <option key={c} value={c} style={optionStyle}>{c}</option>)}
+                  </select>
+                </FilterField>
+                <FilterField label="Frachtart">
+                  <select value={filterType} onChange={e => setFilterType(e.target.value)} className={selectCls}>
+                    <option value="" style={optionStyle}>Alle Arten</option>
+                    <option value="normal" style={optionStyle}>Standard</option>
+                    <option value="express" style={optionStyle}>Express</option>
+                    <option value="advance" style={optionStyle}>Vorlauf</option>
+                  </select>
+                </FilterField>
+                <FilterField label="Ausführbarkeit">
+                  <select value={filterFeasible} onChange={e => setFilterFeasible(e.target.value)} className={selectCls}>
+                    <option value="" style={optionStyle}>Alle</option>
+                    <option value="yes" style={optionStyle}>Passend</option>
+                    <option value="no" style={optionStyle}>Schwer ausführbar</option>
+                  </select>
+                </FilterField>
+                <FilterField label="Gefahrgut">
+                  <select value={filterDg} onChange={e => setFilterDg(e.target.value)} className={selectCls}>
+                    <option value="" style={optionStyle}>Alle Frachten</option>
+                    <option value="yes" style={optionStyle}>Nur Gefahrgut</option>
+                    <option value="no" style={optionStyle}>Kein Gefahrgut</option>
+                  </select>
+                </FilterField>
+                {((state.branches || []).filter(b => b.status === "active").length > 1) && (
+                  <FilterField label="Filiale">
+                    <select value={filterBranch} onChange={e => setFilterBranch(e.target.value)} className={selectCls}>
+                      <option value="" style={optionStyle}>Alle Filialen</option>
+                      {(state.branches || []).filter(b => b.status === "active").map(b => <option key={b.id} value={b.id} style={optionStyle}>{b.name} ({b.city})</option>)}
+                    </select>
+                  </FilterField>
+                )}
+              </div>
             )}
-            <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="px-3 py-1.5 rounded-lg bg-surface-2 border border-white/10 text-xs text-foreground focus:border-lime/50 outline-none">
-              <option value="deadline">Nach Lieferfrist</option>
-              <option value="accept">Nach Annahmefrist</option>
-              <option value="payment">Nach Vergütung</option>
-            </select>
-            <button onClick={resetFilter} className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-muted-foreground hover:bg-white/10 transition">
-              Filter zurücksetzen
-            </button>
-            <button onClick={clearOpenOrders} disabled={clearing}
-              className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-400/25 text-red-200 text-xs hover:bg-red-500/20 disabled:opacity-50 transition ml-auto">
-              {clearing ? "Lösche…" : "Alle offenen löschen"}
-            </button>
           </div>
 
           <div className="text-xs text-muted-foreground">{offered.length} Treffer</div>
@@ -357,3 +394,12 @@ function Section({ title, count, children }) {
 }
 
 function Empty({ text }) { return <div className="text-sm text-muted-foreground/50">{text}</div>; }
+
+function FilterField({ label, children }) {
+  return (
+    <label className="block">
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground block mb-1.5">{label}</span>
+      {children}
+    </label>
+  );
+}
