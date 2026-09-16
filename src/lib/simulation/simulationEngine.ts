@@ -156,6 +156,12 @@ import {
   becomePartners, breakUp, getDateEventTimes, processDates, handleDatingCommand,
 } from "./datingEngine.ts";
 import { cleanupHistory } from "./historyCleanup.ts";
+import {
+  migrateCustomerRelations, migrateContracts,
+  recordOrderOutcome, processContractDay, evaluateContracts,
+  notifyContractEndingSoon,
+} from "./customerEngine.ts";
+import { handleCustomerCommand } from "./customerCommands.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -393,6 +399,8 @@ function completeTrip(state, trip, m, log) {
   const payment = onTime ? trip.paymentCents : Math.round(trip.paymentCents * 0.9);
   addBooking(state, m, "Vergütung: " + order.customer, payment, "company", order.id);
   order.paidCents = payment;
+  // Kundenbeziehung: Reputation bei Lieferung erfassen (idempotent)
+  recordOrderOutcome(state, order, onTime ? "timely" : "late", m, payment);
   order.history = order.history || [];
   order.history.push({ type: "delivered", min: m, actor: driver.id, actorName: driver.name, details: { onTime, paymentCents: payment } });
   state.stats.totalDeliveries++;
@@ -597,6 +605,11 @@ function processEventsAt(state, m, log) {
     // Wachstum von state.trips/orders/tours über lange Spiele und
     // beschleunigt earliestEventAfter (iteriert über alle Trips pro Event).
     cleanupHistory(state, m);
+    // Rahmenverträge: Tägliche Auftragsgenerierung, Auswertung und
+    // Benachrichtigung bei bevorstehendem Vertragsende.
+    processContractDay(state, m, log);
+    evaluateContracts(state, m, log);
+    notifyContractEndingSoon(state, m, log);
   }
   // Auftrag 25: Krankheitsgenesung – nur bei aktiven Krankmeldungen
   if ((state.absences?.sicknesses || []).length > 0) processSicknessRecovery(state, m);
@@ -641,6 +654,7 @@ function processEventsAt(state, m, log) {
     if (o.status === "angenommen" && o.deliveryDeadlineMin + 240 <= m) {
       o.status = "failed";
       o.failedAtMin = m;
+      recordOrderOutcome(state, o, "failed", m, 0);
       log.push({ type: "order_failed", order: o.id, customer: o.customer, reason: "Lieferfrist überschritten" });
     }
   }
@@ -765,6 +779,8 @@ export function applyCommand(state, command, params) {
   migrateBranches(state);
   migrateRelationship(state);
   migrateDating(state);
+  migrateCustomerRelations(state);
+  migrateContracts(state);
   if (state.bookings && state.bookings.length > 200) state.bookings = state.bookings.slice(-200);
   // Historie begrenzen: abgeschlossene Touren, Aufträge und Termine älter als 30 Tage
   // entfernen. Hält den Zustand kompakt und beschleunigt Laden/Speichern bei langen Spielen.
@@ -836,6 +852,7 @@ export function applyCommand(state, command, params) {
       if (state.company.accountCents < fee) throw new Error("Firmenkonto reicht für die Stornogebühr nicht aus.");
       addBooking(state, state.gameTime, "Stornogebühr: " + o.customer, -fee, "company", "cancel:" + o.id);
       o.status = "storniert";
+      recordOrderOutcome(state, o, "cancelled", state.gameTime, 0);
       state.stats.cancelledOrders = (state.stats.cancelledOrders || 0) + 1;
       result = { ok: true, feeCents: fee };
       break;
@@ -2462,6 +2479,8 @@ export function applyCommand(state, command, params) {
       if (invResult !== null) { result = invResult; break; }
       const datingResult = handleDatingCommand(state, command, p);
       if (datingResult !== null) { result = datingResult; break; }
+      const customerResult = handleCustomerCommand(state, command, p);
+      if (customerResult !== null) { result = customerResult; break; }
       throw new Error("Unbekannter Befehl: " + command);
     }
   }

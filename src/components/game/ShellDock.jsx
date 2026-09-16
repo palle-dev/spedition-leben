@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import { dayOf, clockOf } from "@/lib/gameData";
-import { Building2, Package, Map, Truck, Users, Wallet, Home as HomeIcon, BookOpen, Clock, MoreHorizontal, Trophy, Mail as MailIcon, LineChart, Network, Calendar, Loader2, BarChart3, Gauge } from "lucide-react";
+import { Building2, Package, Map, Truck, Users, Wallet, Home as HomeIcon, BookOpen, Clock, MoreHorizontal, Trophy, Mail as MailIcon, LineChart, Network, Calendar, Loader2, BarChart3, Gauge, UserCircle } from "lucide-react";
 import AdvanceProgressModal from "@/components/game/AdvanceProgressModal";
 import DiagPanel from "@/components/game/DiagPanel";
 
@@ -18,6 +18,7 @@ const QUICK_NAV = [
   { to: "/finanzen", label: "Finanzen", icon: Wallet },
 ];
 const MORE_NAV = [
+  { to: "/kunden", label: "Kunden", icon: UserCircle },
   { to: "/filialen", label: "Filialen", icon: Network },
   { to: "/auslastung", label: "Auslastung", icon: BarChart3 },
   { to: "/effizienz", label: "Effizienz", icon: Gauge },
