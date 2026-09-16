@@ -91,6 +91,17 @@ export async function executeCommand(state, command, params) {
   try {
     const r = applyCommand(slim, command, paramsWithTime);
     let newState = r.state;
+    // Hilfs-Maps und Transient-Flags entfernen — sie dürfen nicht persistiert
+    // oder an die Oberfläche übertragen werden. try/finally in suggestTours
+    // und advanceTo sorgt bereits für Cleanup im Normalfall; dies ist ein
+    // Safety-Net für Fehlerpfade.
+    if (newState) {
+      delete newState._vehicleMap;
+      delete newState._driverMap;
+      delete newState._orderMap;
+      delete newState._bulkAdvance;
+      delete newState._largeAdvance;
+    }
     // Assistent der Geschäftsführung: stündliche Verarbeitung.
     // Läuft bei Zeitautomatik (syncAutomation) UND manuellem Zeitvorlauf (advanceTo).
     if (newState && (command === "syncAutomation" || command === "advanceTime" || command === "advanceToNextEvent")) {

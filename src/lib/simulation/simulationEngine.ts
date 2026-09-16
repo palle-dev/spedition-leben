@@ -686,26 +686,29 @@ function advanceTo(state, targetMin, log, reportStart) {
   let eventCount = 0;
   let lastReportMs = startTime;
   let stopped = false;
-  while (true) {
-    if (eventCount >= MAX_EVENTS) { stopped = true; break; }
-    const next = earliestEventAfter(state, t, targetMin);
-    if (next === null) break;
-    processEventsAt(state, next, log);
-    t = next;
-    eventCount++;
-    // Fortschritt nur alle 250 ms melden — nicht nach jedem Event.
-    // Reduziert postMessage-Overhead massiv bei Tausenden Events.
-    if (reportStart !== undefined) {
-      const now = Date.now();
-      if (now - lastReportMs >= 250 || t >= targetMin) {
-        reportProgress(t - reportStart, targetMin - reportStart, eventCount, null);
-        lastReportMs = now;
+  try {
+    while (true) {
+      if (eventCount >= MAX_EVENTS) { stopped = true; break; }
+      const next = earliestEventAfter(state, t, targetMin);
+      if (next === null) break;
+      processEventsAt(state, next, log);
+      t = next;
+      eventCount++;
+      // Fortschritt nur alle 250 ms melden — nicht nach jedem Event.
+      // Reduziert postMessage-Overhead massiv bei Tausenden Events.
+      if (reportStart !== undefined) {
+        const now = Date.now();
+        if (now - lastReportMs >= 250 || t >= targetMin) {
+          reportProgress(t - reportStart, targetMin - reportStart, eventCount, null);
+          lastReportMs = now;
+        }
       }
     }
+    state.gameTime = stopped ? t : targetMin;
+  } finally {
+    state._bulkAdvance = false;
+    state._largeAdvance = false;
   }
-  state.gameTime = stopped ? t : targetMin;
-  state._bulkAdvance = false;
-  state._largeAdvance = false;
   if (stopped) log.push({ type: "advance_stopped", atMin: t, targetMin, reason: "max_events_safety" });
   if (reportStart !== undefined) {
     reportProgress(state.gameTime - reportStart, targetMin - reportStart, eventCount, null);

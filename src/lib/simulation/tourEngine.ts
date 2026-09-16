@@ -983,6 +983,7 @@ export function suggestTours(state, opts) {
   state._driverMap = new Map(state.drivers.map(d => [d.id, d]));
   state._orderMap = new Map(state.orders.map(o => [o.id, o]));
 
+  try {
   const startMin = earliestStart || state.gameTime;
   const maxMin = startMin + (horizonMin || 48 * 60);
   const usedDriverIds = new Set();
@@ -1220,12 +1221,12 @@ export function suggestTours(state, opts) {
     if (usedOrderIds.size >= totalAvailableOrders) break;
   }
 
-  // Lookup-Maps abbauen — verhindert stale Daten zwischen suggestTours-Aufrufen
-  state._vehicleMap = null;
-  state._driverMap = null;
-  state._orderMap = null;
-
   return { suggestions };
+  } finally {
+    state._vehicleMap = null;
+    state._driverMap = null;
+    state._orderMap = null;
+  }
 }
 
 function comparePlans(a, b, mode) {

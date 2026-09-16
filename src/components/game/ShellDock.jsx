@@ -4,6 +4,7 @@ import { useGame } from "@/lib/gameContext";
 import { dayOf, clockOf } from "@/lib/gameData";
 import { Building2, Package, Map, Truck, Users, Wallet, Home as HomeIcon, BookOpen, Clock, MoreHorizontal, Trophy, Mail as MailIcon, LineChart, Network, Calendar, Loader2, BarChart3, Gauge } from "lucide-react";
 import AdvanceProgressModal from "@/components/game/AdvanceProgressModal";
+import DiagPanel from "@/components/game/DiagPanel";
 
 const PRIMARY_NAV = [
   { to: "/", label: "Büro", icon: Building2 },
@@ -33,7 +34,20 @@ export default function ShellDock() {
   const location = useLocation();
   const [advancing, setAdvancing] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [diagOpen, setDiagOpen] = useState(false);
   const moreRef = useRef(null);
+
+  // Entwickler-Diagnose: Strg+Umschalt+D öffnet das Diag-Panel
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.ctrlKey && e.shiftKey && (e.key === "D" || e.key === "d")) {
+        e.preventDefault();
+        setDiagOpen(v => !v);
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, []);
 
   const bgActive = !!backgroundAdvance?.active;
   const bgProgress = backgroundAdvance?.progress;
@@ -191,6 +205,7 @@ export default function ShellDock() {
         </div>
       </div>
       {summaryModal && <AdvanceProgressModal progress={summaryModal} onClose={dismissBackgroundAdvanceResult} state={state} />}
+      {diagOpen && <DiagPanel onClose={() => setDiagOpen(false)} />}
     </footer>
   );
 }

@@ -27,11 +27,20 @@ simWorker.onerror = (e) => {
     resolver({ error: "Simulations-Worker abgestürzt: " + (e.message || "Unbekannter Fehler") });
   }
 };
-function executeInWorker(state, command, params, onProgress) {
+function executeInWorker(state, command, params, onProgress, diag) {
   const id = ++_workerMsgId;
+  const tSend = performance.now();
+  let stateSize = 0;
+  try { stateSize = new Blob([JSON.stringify(state)]).size; } catch(e) {}
   return new Promise((resolve) => {
     if (onProgress) _workerProgress.set(id, onProgress);
-    _workerPending.set(id, resolve);
+    _workerPending.set(id, (data) => {
+      if (diag) {
+        diag.workerMs = performance.now() - tSend;
+        diag.stateSizeKb = Math.round(stateSize / 1024);
+      }
+      resolve(data);
+    });
     simWorker.postMessage({ id, state, command, params });
   });
 }
@@ -92,6 +101,7 @@ export function GameProvider({ children }) {
   const [autosaveMetas, setAutosaveMetas] = useState([null, null, null]);
   const [backgroundAdvance, setBackgroundAdvance] = useState(null);
   const backgroundAdvanceRef = useRef(false);
+  const diagRef = useRef(null);
 
   useEffect(() => {
     document.body.classList.toggle("no-motion", !motionEnabled);
@@ -212,23 +222,35 @@ export function GameProvider({ children }) {
   // ---- Tagesvorlauf im Hintergrund (nicht-blockierend) ----
   // Der Tagesvorlauf läuft im Worker, während der Spieler weiter navigieren
   // und Menüs nutzen kann. send() wird blockiert, bis der Vorlauf fertig ist.
-  const startBackgroundAdvance = useCallback(async (minutes) => {
-    // Auf laufende Synchronisation und Befehle warten, bevor der Hintergrundvorlauf
-    // startet. Ohne diese Warteschleife würde ein parallel laufender syncAutomation-
-    // Tick denselben (veralteten) Zustand an den Worker senden; beide Antworten
-    // würden nacheinander stateRef überschreiben — Zeit doppelt verarbeitet,
-    // syncAutomation-Ergebnis verloren. (sendInFlightRef allein reicht nicht,
-    // da syncAutomation sendInFlightRef nicht setzt.)
-    while (syncInFlightRef.current || sendInFlightRef.current) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
-    if (!stateRef.current || backgroundAdvanceRef.current) return;
+  const startBackgroundAdvance = useCallback(async (minutes, diag) => {
+    if (backgroundAdvanceRef.current) return;
+    const tClick = performance.now();
+    // bgRef VOR der Warteschleife setzen: verhindert, dass der Nutzer
+    // erneut klickt (Button wird sofort disabled) und dass syncAutomation
+    // während der Wartezeit neu startet (syncAutomation prüft bgRef).
     backgroundAdvanceRef.current = true;
     setBackgroundAdvance({ active: true, progress: null, result: null });
+    // Auf bereits laufende syncAutomation- oder send-Aufrufe warten.
+    // Ein bereits im Worker laufender syncAutomation-Tick muss erst
+    // fertig werden, damit stateRef.current den aktualisierten Zustand
+    // hat — sonst würde der Vorlauf auf einem veralteten Zustand arbeiten.
+    let waitPolls = 0;
+    const tWaitStart = performance.now();
+    while (syncInFlightRef.current || sendInFlightRef.current) {
+      waitPolls++;
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    const tWaitEnd = performance.now();
+    if (!stateRef.current) {
+      backgroundAdvanceRef.current = false;
+      setBackgroundAdvance({ active: false, progress: null, result: null });
+      return;
+    }
     try {
       const data = await executeInWorker(stateRef.current, "advanceTime", { minutes }, (progress) => {
         setBackgroundAdvance(prev => prev ? { ...prev, progress } : prev);
-      });
+      }, diag);
+      const tRecv = performance.now();
       if (!data) throw new Error("Simulations-Worker hat keine Antwort gesendet.");
       if (data.error) throw new Error(data.error);
       const newState = data.state; const result = data.result;
@@ -236,6 +258,13 @@ export function GameProvider({ children }) {
       markDirty();
       processNewEvents(newState);
       await processResult(newState, result, "advanceTime");
+      const tProcessEnd = performance.now();
+      if (diag) {
+        diag.waitMs = tWaitEnd - tWaitStart;
+        diag.waitPolls = waitPolls;
+        diag.processMs = tProcessEnd - tRecv;
+        diag.totalMs = tProcessEnd - tClick;
+      }
       setBackgroundAdvance({ active: false, progress: null, result });
     } catch (e) {
       showToast(e.message, "error");
@@ -493,6 +522,56 @@ export function GameProvider({ children }) {
     setBackgroundAdvance(null);
   }, []);
 
+  // ---- Entwickler-Diagnose: gemessener Tagesvorlauf ----
+  const runDiagnosedAdvance = useCallback(async () => {
+    const diag = {};
+    diag.automationEnabled = automationEnabled;
+    diag.gameTimeBefore = stateRef.current?.gameTime || 0;
+    await startBackgroundAdvance(1440, diag);
+    diag.gameTimeAfter = stateRef.current?.gameTime || 0;
+    diagRef.current = diag;
+    return diag;
+  }, [startBackgroundAdvance, automationEnabled]);
+
+  const getDiagReport = useCallback(() => {
+    const s = stateRef.current;
+    const diag = diagRef.current || {};
+    if (!s) return null;
+    const stats = {
+      vehicles: (s.vehicles || []).filter(v => v.status !== "sold" && v.status !== "archived").length,
+      drivers: (s.drivers || []).filter(d => d.employmentStatus === "employed").length,
+      dispatchers: (s.employees || []).filter(e => e.employmentStatus === "employed" && (e.role === "dispatcher" || e.role === "dispatcher_senior")).length,
+      ordersTotal: (s.orders || []).length,
+      ordersOffered: (s.orders || []).filter(o => o.status === "offered").length,
+      ordersAccepted: (s.orders || []).filter(o => o.status === "angenommen").length,
+      ordersUnterwegs: (s.orders || []).filter(o => o.status === "unterwegs").length,
+      toursActive: (s.tours || []).filter(t => t.status === "active").length,
+      tripsInProgress: (s.trips || []).filter(t => t.status === "in_progress").length,
+      events: (s.events || []).length,
+      bookings: (s.bookings || []).length,
+      employees: (s.employees || []).filter(e => e.employmentStatus === "employed").length,
+      branches: (s.branches || []).filter(b => b.status === "active").length,
+    };
+    let stateSizeKb = 0;
+    try { stateSizeKb = Math.round(new Blob([JSON.stringify(s)]).size / 1024); } catch(e) {}
+    return {
+      timestamp: new Date().toISOString(),
+      gameTimeBefore: diag.gameTimeBefore || 0,
+      gameTimeAfter: diag.gameTimeAfter || 0,
+      automationEnabled: diag.automationEnabled ?? false,
+      timings: {
+        waitMs: Math.round(diag.waitMs || 0),
+        waitPolls: diag.waitPolls || 0,
+        workerMs: Math.round(diag.workerMs || 0),
+        processMs: Math.round(diag.processMs || 0),
+        totalMs: Math.round(diag.totalMs || 0),
+        stateSizeKb: diag.stateSizeKb || stateSizeKb,
+      },
+      stats,
+      stateSizeKb,
+    };
+  }, []);
+
   // Actions sind stabil (alle Callbacks haben stabile Deps) — eigener Context,
   // damit Komponenten, die nur Aktionen brauchen, nicht bei jeder Zustandsänderung
   // neu rendern.
@@ -500,6 +579,7 @@ export function GameProvider({ children }) {
     send, newGame, reload,
     enableAutomation, pauseAutomation,
     startBackgroundAdvance, dismissBackgroundAdvanceResult,
+    runDiagnosedAdvance, getDiagReport,
     markAllEventsSeen,
     showToast, dismissToast, dismissOverlay, dismissStart, toggleMotion,
     exportGame, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
@@ -507,6 +587,7 @@ export function GameProvider({ children }) {
     send, newGame, reload,
     enableAutomation, pauseAutomation,
     startBackgroundAdvance, dismissBackgroundAdvanceResult,
+    runDiagnosedAdvance, getDiagReport,
     markAllEventsSeen,
     showToast, dismissToast, dismissOverlay, dismissStart, toggleMotion,
     exportGame, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
