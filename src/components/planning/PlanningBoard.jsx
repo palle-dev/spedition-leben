@@ -68,9 +68,10 @@ export default function PlanningBoard({ onPlanOrder }) {
   }
 
   return (
-    <div className="space-y-4">
-      <ViewSwitcher view={view} setView={setView} />
+    <div className="space-y-3">
       <Toolbar
+        view={view}
+        setView={setView}
         showPrivate={showPrivate}
         setShowPrivate={setShowPrivate}
         showExpected={showExpected}
@@ -122,39 +123,36 @@ export default function PlanningBoard({ onPlanOrder }) {
   );
 }
 
-function ViewSwitcher({ view, setView }) {
+function Toolbar({ view, setView, showPrivate, setShowPrivate, showExpected, setShowExpected, conflictCount, onResources, onMaintenance, onConflicts }) {
   const views = [
     { id: "vehicles", label: "Fahrzeuge", icon: Truck },
-    { id: "personnel", label: "Fahrer & Mitarbeiter", icon: Users },
+    { id: "personnel", label: "Personal", icon: Users },
     { id: "workshop", label: "Werkstatt", icon: Wrench },
   ];
   return (
-    <div className="flex rounded-lg border border-white/10 overflow-hidden">
-      {views.map(v => {
-        const Icon = v.icon;
-        return (
-          <button
-            key={v.id}
-            onClick={() => setView(v.id)}
-            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium transition ${
-              view === v.id ? "bg-lime text-ink" : "text-muted-foreground hover:text-foreground hover:bg-white/5"
-            }`}
-          >
-            <Icon className="w-3.5 h-3.5" />
-            {v.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function Toolbar({ showPrivate, setShowPrivate, showExpected, setShowExpected, conflictCount, onResources, onMaintenance, onConflicts }) {
-  return (
     <div className="flex items-center gap-2 flex-wrap">
+      {/* Ansichts-Tabs */}
+      <div className="flex rounded-lg border border-white/10 overflow-hidden">
+        {views.map(v => {
+          const Icon = v.icon;
+          return (
+            <button
+              key={v.id}
+              onClick={() => setView(v.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition ${
+                view === v.id ? "bg-lime text-ink" : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {v.label}
+            </button>
+          );
+        })}
+      </div>
+      {/* Filter */}
       <button
         onClick={() => setShowPrivate(s => !s)}
-        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs transition ${
+        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition ${
           showPrivate ? "border-coral/30 text-coral" : "border-white/10 text-muted-foreground"
         }`}
       >
@@ -163,31 +161,32 @@ function Toolbar({ showPrivate, setShowPrivate, showExpected, setShowExpected, c
       </button>
       <button
         onClick={() => setShowExpected(s => !s)}
-        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs transition ${
+        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition ${
           showExpected ? "border-violet-500/30 text-violet-300" : "border-white/10 text-muted-foreground"
         }`}
       >
         {showExpected ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
         Erwartet
       </button>
+      {/* Aktionen */}
       <div className="flex items-center gap-2 ml-auto">
         <button
           onClick={onResources}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 text-xs text-muted-foreground hover:text-foreground hover:bg-white/5 transition"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 text-xs text-muted-foreground hover:text-foreground hover:bg-white/5 transition"
         >
           <Search className="w-3.5 h-3.5" />
           Ressourcen
         </button>
         <button
           onClick={onMaintenance}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 text-xs text-muted-foreground hover:text-foreground hover:bg-white/5 transition"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 text-xs text-muted-foreground hover:text-foreground hover:bg-white/5 transition"
         >
           <Wrench className="w-3.5 h-3.5" />
           Wartung
         </button>
         <button
           onClick={onConflicts}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs transition ${
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition ${
             conflictCount > 0 ? "border-red-500/30 text-red-400" : "border-white/10 text-muted-foreground hover:text-foreground hover:bg-white/5"
           }`}
         >
