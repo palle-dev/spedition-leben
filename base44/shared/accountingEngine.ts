@@ -696,12 +696,22 @@ export function processAccountant(state, emp, m, log) {
 // ---------- Auswertungen ----------
 export function getAccountBalance(state, accountNo, upToMin) {
   if (!state.accounting) return 0;
-  const cap = upToMin === undefined ? Infinity : upToMin;
-  let bal = 0;
-  for (const e of state.accounting.journal) {
-    if (e.gameTime > cap) continue;
+  // Fast path: cumulative balance from accountBalances cache (maintained
+  // incrementally by postJournal). O(1) instead of O(journal).
+  if (upToMin === undefined) {
+    return state.accounting.accountBalances?.[accountNo] || 0;
+  }
+  // Historical balance: start from cumulative cache and subtract entries
+  // newer than upToMin. Iterates from the end (newest first), so cost is
+  // O(recent_entries) — typically just the current period.
+  const cum = state.accounting.accountBalances?.[accountNo] || 0;
+  const journal = state.accounting.journal;
+  let bal = cum;
+  for (let i = journal.length - 1; i >= 0; i--) {
+    const e = journal[i];
+    if (e.gameTime <= upToMin) break;
     for (const l of e.lines) {
-      if (l.account === accountNo) bal += l.debitCents - l.creditCents;
+      if (l.account === accountNo) bal -= l.debitCents - l.creditCents;
     }
   }
   return bal;
@@ -872,6 +882,15 @@ export function migrateAccounting(state) {
   if (!a.assets) a.assets = [];
   if (!a.periods) a.periods = [];
   if (!a.accountBalances) a.accountBalances = {};
+  // Cache aus Journal rekonstruieren falls leer aber Journal hat Einträge
+  // (alte Spielstände vor dem Balance-Cache). O(journal) einmalig beim Laden.
+  if (a.journal.length > 0 && Object.keys(a.accountBalances).length === 0) {
+    for (const e of a.journal) {
+      for (const l of e.lines) {
+        a.accountBalances[l.account] = (a.accountBalances[l.account] || 0) + l.debitCents - l.creditCents;
+      }
+    }
+  }
   if (!a.nextEntryNo) a.nextEntryNo = 1;
   if (!a.nextReceiptNo) a.nextReceiptNo = 1;
   if (!a.nextOpenItemNo) a.nextOpenItemNo = 1;
