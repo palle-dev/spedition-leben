@@ -32,8 +32,10 @@ import { pushEvent } from "./eventLog.ts";
 import { deliverMessage } from "./mailEngine.ts";
 import {
   checkSpendAuthority, recordSpend, createApprovalRequest, logDecision,
+  ROLE_AUTHORITY,
 } from "./delegationEngine.ts";
-import { book, bookExpense } from "./accountingEngine.ts";
+import { book, bookExpense, postJournal } from "./accountingEngine.ts";
+import { recordOrderOutcome } from "./customerEngine.ts";
 
 const DAY_MIN = 1440;
 const OFFER_VALID_HOURS = 6; // Angebote gelten 6h
@@ -325,7 +327,6 @@ export function bookPartnerTransport(state, { orderId, partnerId, employeeId }) 
       || (state.drivers || []).find(d => d.id === employeeId);
     if (emp) {
       // Rolle-Befugnis: darf diese Rolle überhaupt Fremdvergaben tätigen?
-      const { ROLE_AUTHORITY } = require("./delegationEngine.ts");
       const roleAuth = ROLE_AUTHORITY[emp.role] || ROLE_AUTHORITY.driver;
       if (roleAuth.canDispatchExternally === false) {
         throw new Error("Rolle \"" + emp.role + "\" hat keine Befugnis für Fremdvergaben.");
@@ -516,20 +517,22 @@ export function cancelPartnerTransport(state, { transportId }) {
     refundCents = transport.priceCents;
   }
 
-  // Erstattung genau einmal buchen
+  // Erstattung genau einmal buchen — ausgeglichene Buchung:
+  // Bank wird gutgeschrieben (1000 debit), Fremdtransport-Aufwand reduziert (5020 credit).
+  // postJournal aktualisiert state.company.accountCents automatisch über Konto 1000.
   if (refundCents > 0) {
-    // Gutschrift auf Firmenkonto (Rückbuchung der Fremdtransport-Ausgabe)
-    book(state, "expense", {
+    postJournal(state, {
       text: "Storno-Erstattung: " + transport.partnerName,
-      expenseAccount: "5020",
-      amountCents: -refundCents,
-      paidCents: -refundCents,
-      unpaidCents: 0,
+      type: "expense_refund",
+      actor: "system",
       partnerName: transport.partnerName,
       orderId: transport.orderId,
       gameTime: state.gameTime,
+      lines: [
+        { account: "1000", debit: refundCents },
+        { account: "5020", credit: refundCents },
+      ],
     });
-    state.company.accountCents += refundCents;
   }
 
   // Kontingent freigeben
@@ -718,18 +721,8 @@ function completePartnerTransport(state, tr, m, log) {
 // Reputation für externe Lieferung erfassen — nutzt die bestehende Kundenbeziehungs-Logik.
 // Die Spedition bleibt gegenüber ihrem Kunden verantwortlich.
 function recordOrderOutcomeForPartner(state, order, outcome, m, payment) {
-  // Import der bestehenden Funktion aus customerEngine
-  // Wir rufen die gleiche Logik auf wie completeTrip
-  try {
-    // Dynamischer Import vermeiden — direkter Aufruf über customerEngine
-    const { recordOrderOutcome } = require("./customerEngine.ts");
-    if (typeof recordOrderOutcome === "function") {
-      recordOrderOutcome(state, order, outcome, m, payment);
-    }
-  } catch (e) {
-    // Fallback: minimale Erfassung, falls customerEngine nicht geladen
-    order._reputationApplied = true;
-  }
+  // Nutzt die bestehende Kundenbeziehungs-Logik (statischer Import).
+  recordOrderOutcome(state, order, outcome, m, payment);
 }
 
 // ---------- Abfragen ----------

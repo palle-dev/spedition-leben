@@ -23,6 +23,7 @@ import { getMentoringEventTimes } from "./developmentGoalsEngine.ts";
 import { getDisruptionEventTimes } from "./disruptionEngine.ts";
 import { getUsedMarketEventTimes } from "./vehicleMarketEngine.ts";
 import { getAcquisitionEventTimes } from "./acquisitionEngine.ts";
+import { getPartnerTransportEventTimes } from "./partnerEngine.ts";
 
 export function earliestEventAfter(state, t, maxMin) {
   let best = null;
@@ -153,6 +154,8 @@ export function earliestEventAfter(state, t, maxMin) {
   for (const tm of getMentoringEventTimes(state, t, maxMin)) cand(tm);
   // Stoerungsmanagement: Abschluss laufender Maßnahmen
   for (const tm of getDisruptionEventTimes(state, t, maxMin)) cand(tm);
+  // Partner-Transporte: Start und Lieferung externer Vergaben
+  for (const tm of getPartnerTransportEventTimes(state, t, maxMin)) cand(tm);
   // Gebrauchtfahrzeugmarkt: Generierung + Ablauf
   if (state.usedVehicleMarket) {
     for (const tm of getUsedMarketEventTimes(state, t, maxMin)) cand(tm);

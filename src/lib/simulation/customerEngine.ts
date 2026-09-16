@@ -287,6 +287,9 @@ function generateContractOfferInternal(state, customerId, customer, relation) {
     opMin,
     requiresDg,
     minCapacityTons,
+    // Standard: externe Vergabe zulässig (kompatibel mit Bestandsverträgen).
+    // Wird zukünftig pro Kunde konfigurierbar — derzeit false für alle.
+    requiresOwnFulfillment: false,
     status: "offered",
     offerCreatedAtMin: state.gameTime,
     acceptedAtMin: null,
