@@ -5,6 +5,7 @@ import { formatEuro, formatGameTime, CITIES, getDistance } from "@/lib/gameData"
 import { getMarketStats } from "@/lib/marketData";
 import StatusBadge from "@/components/ui/StatusBadge";
 import OfferCard from "@/components/orders/OfferCard";
+import CompletedOrdersReport from "@/components/orders/CompletedOrdersReport";
 import PageHint from "@/components/help/PageHint";
 import { Check, X, MapPin, ArrowRight, Clock, Route as RouteIcon, Truck, TrendingUp, Calendar, Package, Layers, Loader2, Filter, SlidersHorizontal } from "lucide-react";
 
@@ -108,6 +109,7 @@ export default function Orders() {
 
   const active = state.orders.filter(o => ["angenommen", "unterwegs"].includes(o.status));
   const done = state.orders.filter(o => ["geliefert", "storniert", "expired", "failed"].includes(o.status)).slice(-12);
+  const doneCount = state.orders.filter(o => ["geliefert", "storniert", "expired", "failed"].includes(o.status)).length;
 
   // Verwaiste Auswahlen entfernen (Aufträge nicht mehr offered)
   React.useEffect(() => {
@@ -182,6 +184,7 @@ export default function Orders() {
       <div className="flex gap-1 border-b border-white/10">
         <TabButton active={tab === "boerse"} onClick={() => setTab("boerse")} label="Frachtbörse" count={offered.length} />
         <TabButton active={tab === "eigene"} onClick={() => setTab("eigene")} label="Eigene Aufträge" count={active.length} />
+        <TabButton active={tab === "erledigt"} onClick={() => setTab("erledigt")} label="Erledigte Aufträge" count={doneCount} />
       </div>
 
       {tab === "boerse" && (
@@ -357,6 +360,8 @@ export default function Orders() {
           </Section>
         </div>
       )}
+
+      {tab === "erledigt" && <CompletedOrdersReport state={state} />}
     </div>
   );
 }
