@@ -9,6 +9,7 @@ import PageHint from "@/components/help/PageHint";
 import OfficeTrends from "@/components/office/OfficeTrends";
 import OfficeBranches from "@/components/office/OfficeBranches";
 import OfficeCustomerRelations from "@/components/office/OfficeCustomerRelations";
+import OfficeApprovalQueue from "@/components/office/OfficeApprovalQueue";
 import UtilizationControl from "@/components/office/UtilizationControl";
 
 // Büro – zentrale Führungsansicht für die gesamte Firma.
@@ -40,6 +41,9 @@ export default function Office() {
 
       {/* Auslastungs-Steuerung (flottenweit) */}
       <UtilizationControl state={state} />
+
+      {/* Ausstehende Freigaben (Führung & Delegation) */}
+      <OfficeApprovalQueue state={state} />
 
       {/* Kundenbeziehungen: aktive Rahmenverträge + Stammkunden-Zufriedenheit */}
       <OfficeCustomerRelations state={state} />

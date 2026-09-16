@@ -28,6 +28,7 @@ import Branches from '@/pages/Branches';
 import Utilization from '@/pages/Utilization';
 import Efficiency from '@/pages/Efficiency';
 import Customers from '@/pages/Customers';
+import Leadership from '@/pages/Leadership';
 // Add page imports here
 
 const AuthenticatedApp = () => {
@@ -77,6 +78,7 @@ const AuthenticatedApp = () => {
         <Route path="/auslastung" element={<Utilization />} />
         <Route path="/effizienz" element={<Efficiency />} />
         <Route path="/kunden" element={<Customers />} />
+        <Route path="/fuehrung" element={<Leadership />} />
       </Route>
     </Route>
     <Route path="*" element={<PageNotFound />} />
