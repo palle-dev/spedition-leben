@@ -4,6 +4,7 @@
 export const BRANCH_OPEN_FEE = 5000000; // 50.000 €
 export const BRANCH_MIN_GAME_DAY = 3;
 export const BRANCH_MIN_CAPITAL_RATIO = 2;
+export const BRANCH_COST_PER_DAY = 10000; // 100 € in Cent
 export const DRIVER_TRAVEL_COST_PER_KM = 15; // 0,15 €/km
 export const DRIVER_TRAVEL_SPEED = 80; // km/h
 

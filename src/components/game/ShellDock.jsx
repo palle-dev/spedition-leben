@@ -19,6 +19,7 @@ const QUICK_NAV = [
   { to: "/filialen", label: "Filialen", icon: Network },
 ];
 const MORE_NAV = [
+  { to: "/netzwerk", label: "Netzkarte", icon: Network },
   { to: "/fuehrung", label: "Führung", icon: Shield },
   { to: "/geschaeftsmodelle", label: "Geschäftsmodelle", icon: Briefcase },
   { to: "/auslastung", label: "Auslastung", icon: BarChart3 },

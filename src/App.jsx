@@ -30,6 +30,7 @@ import Efficiency from '@/pages/Efficiency';
 import Customers from '@/pages/Customers';
 import Leadership from '@/pages/Leadership';
 import BusinessModels from '@/pages/BusinessModels';
+import NetworkMap from '@/pages/NetworkMap';
 // Add page imports here
 
 const AuthenticatedApp = () => {
@@ -81,6 +82,7 @@ const AuthenticatedApp = () => {
         <Route path="/kunden" element={<Customers />} />
         <Route path="/fuehrung" element={<Leadership />} />
         <Route path="/geschaeftsmodelle" element={<BusinessModels />} />
+        <Route path="/netzwerk" element={<NetworkMap />} />
       </Route>
     </Route>
     <Route path="*" element={<PageNotFound />} />
