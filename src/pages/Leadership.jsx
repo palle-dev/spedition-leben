@@ -151,12 +151,14 @@ export default function Leadership() {
                 value={summary.rules.maxSpendPerActionCents}
                 step={5000}
                 onChange={v => handleRuleChange("maxSpendPerActionCents", v)}
+                currency
               />
               <RuleInput
                 label={getRuleLabel("dailyBudgetCents")}
                 value={summary.rules.dailyBudgetCents}
                 step={50000}
                 onChange={v => handleRuleChange("dailyBudgetCents", v)}
+                currency
                 extra={
                   <div className="mt-2">
                     <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
@@ -175,6 +177,7 @@ export default function Leadership() {
                 step={10000}
                 onChange={v => handleRuleChange("minLiquidityCents", v)}
                 hint="Einfacher Kontopuffer — keine vollständige Liquiditätsprognose."
+                currency
               />
               <div>
                 <label className="text-xs text-muted-foreground block mb-1.5">{getRuleLabel("approvalMode")}</label>
@@ -228,12 +231,14 @@ export default function Leadership() {
                             value={(summary.d.branchOverrides[b.id] || {}).maxSpendPerActionCents ?? summary.rules.maxSpendPerActionCents}
                             step={5000}
                             onChange={v => handleRuleChange("maxSpendPerActionCents", v, b.id)}
+                            currency
                           />
                           <RuleInput
                             label={getRuleLabel("dailyBudgetCents")}
                             value={(summary.d.branchOverrides[b.id] || {}).dailyBudgetCents ?? summary.rules.dailyBudgetCents}
                             step={50000}
                             onChange={v => handleRuleChange("dailyBudgetCents", v, b.id)}
+                            currency
                           />
                           {hasOverride && (
                             <button
@@ -357,17 +362,24 @@ export default function Leadership() {
 }
 
 // --- Hilfskomponenten ---
-function RuleInput({ label, value, onChange, step, hint, extra }) {
+function RuleInput({ label, value, onChange, step, hint, extra, currency }) {
+  const displayValue = currency ? Math.round((value || 0) / 100) : (value || 0);
+  const handleChange = currency
+    ? e => onChange(Math.max(0, Math.round(Number(e.target.value) * 100)))
+    : e => onChange(Math.max(0, Number(e.target.value)));
   return (
     <div>
       <label className="text-xs text-muted-foreground block mb-1.5">{label}</label>
-      <input
-        type="number"
-        value={value || 0}
-        onChange={e => onChange(Math.max(0, Number(e.target.value)))}
-        step={step || 1000}
-        className="w-full bg-surface-2 border border-white/10 rounded-lg px-3 py-2 text-sm tabular-nums"
-      />
+      <div className="relative">
+        <input
+          type="number"
+          value={displayValue}
+          onChange={handleChange}
+          step={currency ? 50 : (step || 1000)}
+          className="w-full bg-surface-2 border border-white/10 rounded-lg px-3 py-2 text-sm tabular-nums"
+        />
+        {currency && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">€</span>}
+      </div>
       {hint && <p className="text-[10px] text-muted-foreground mt-1">{hint}</p>}
       {extra}
     </div>
