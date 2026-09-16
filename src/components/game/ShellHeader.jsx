@@ -4,6 +4,7 @@ import { useGame } from "@/lib/gameContext";
 import MoneyText from "@/components/MoneyText";
 import FernwerkSignet from "@/components/brand/FernwerkSignet";
 import SaveSlotsDialog from "@/components/game/SaveSlotsDialog";
+import MailModal from "@/components/mail/MailModal";
 import { Sparkles, Mail as MailIcon, Save, Loader2, HardDrive, HelpCircle, LogOut } from "lucide-react";
 import HelpPanel from "@/components/help/HelpPanel";
 import { getMailboxStats } from "@/lib/mailData";
@@ -19,6 +20,7 @@ export default function ShellHeader() {
   const location = useLocation();
   const [slotsOpen, setSlotsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [mailOpen, setMailOpen] = useState(false);
   const mailStats = state?.mail ? getMailboxStats(state) : null;
   const unreadCount = mailStats?.unread || 0;
 
@@ -82,7 +84,7 @@ export default function ShellHeader() {
           <HardDrive className="w-4 h-4" />
         </button>
         <button
-          onClick={() => navigate("/postfach")}
+          onClick={() => setMailOpen(true)}
           className="relative w-9 h-9 grid place-items-center rounded-full border border-white/10 bg-white/5 text-muted-foreground hover:text-lime transition shrink-0"
           aria-label={`Postfach${unreadCount > 0 ? ` – ${unreadCount} ungelesen` : ""}`}
           title="Postfach"
@@ -122,6 +124,7 @@ export default function ShellHeader() {
       </div>
       <SaveSlotsDialog open={slotsOpen} onOpenChange={setSlotsOpen} />
       <HelpPanel open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <MailModal open={mailOpen} onClose={() => setMailOpen(false)} />
     </header>
   );
 }
