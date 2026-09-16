@@ -454,13 +454,35 @@ export function evaluateWorkshopAutomation(state, m, log) {
     const { cost } = computePartsCost(state);
     if (cost > profile.maxCostCents) continue;
     if (state.company.accountCents < cost) continue;
+    // Delegation: Budget-Prüfung für automatisierte Wartung
+    const authCheck = checkSpendAuthority(state, mech.id, cost, { branchId: branch.id });
+    if (!authCheck.allowed) {
+      if (authCheck.violatedRule === "maxSpendPerAction" || authCheck.violatedRule === "dailyBudget") {
+        createApprovalRequest(state, {
+          employeeId: mech.id, employeeName: mech.name, employeeRole: mech.role,
+          branchId: branch.id, branchName: branch.name,
+          type: "maintenance", title: "Wartung " + vehicleLabel(v) + " benötigt Freigabe",
+          description: "Automatische Wartung – Teile/Material: " + (cost / 100).toFixed(2) + " €, Zustand " + v.condition + ".",
+          reasoning: authCheck.reason,
+          costCents: cost, violatedRule: authCheck.violatedRule,
+          urgency: v.condition <= profile.urgentThreshold ? "high" : "medium",
+          deadlineMin: null,
+          actionData: { vehicleId: v.id, branchId: branch.id, type: "standard", costCents: cost },
+          dedupKey: "workshop_auto:" + v.id + ":" + state.gameTime,
+        });
+      }
+      continue;
+    }
     // Auftrag erstellen und starten
     try {
       const r = createMaintenanceOrder(state, {
         vehicleId: v.id, branchId: branch.id, type: "standard", isAutomated: true,
       });
       const order = (state.workshop?.maintenanceOrders || []).find(o => o.id === r.orderId);
-      if (order) startWork(state, order, freeSlot, mech, cost, m, log);
+      if (order) {
+        startWork(state, order, freeSlot, mech, cost, m, log);
+        recordSpend(state, mech.id, cost, branch.id);
+      }
     } catch (e) {
       log.push({ type: "auto_maintenance_failed", vehicle: v.id, error: e.message, atMin: m });
     }
