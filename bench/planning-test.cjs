@@ -20,24 +20,26 @@ Module._resolveFilename = function (request, parent, ...rest) {
   return origResolve.call(this, resolved, parent, ...rest);
 };
 
-require.extensions[".ts"] = function (module, filename) {
+require.extensions[".ts"] = require.extensions[".js"] = function (module, filename) {
   const src = Fs.readFileSync(filename, "utf8");
   const result = ts.transpileModule(src, {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
       target: ts.ScriptTarget.ES2020,
       esModuleInterop: true,
+      allowSyntheticDefaultImports: true,
       allowJs: true,
     },
+    fileName: filename,
   });
   module._compile(result.outputText, filename);
 };
 
 // Tests laden
-const { createInitialState } = require("./src/lib/simulation/initialStateEngine.ts");
-const { collectPlanningData } = require("./src/lib/planningData.js");
-const { findResourcesForOrder, findMaintenanceWindows, previewDelayTourStart, delayTourStart } = require("./src/lib/simulation/planningEngine.ts");
-const { applyCommand } = require("./src/lib/simulation/simulationEngine.ts");
+const { createInitialState } = require("@/lib/simulation/initialStateEngine.ts");
+const { collectPlanningData } = require("@/lib/planningData.js");
+const { findResourcesForOrder, findMaintenanceWindows, previewDelayTourStart, delayTourStart } = require("@/lib/simulation/planningEngine.ts");
+const { applyCommand } = require("@/lib/simulation/simulationEngine.ts");
 
 const results = [];
 function test(name, fn) {
@@ -49,9 +51,15 @@ function test(name, fn) {
   }
 }
 
+function makeState() {
+  return createInitialState({
+    companyName: "Testspedition", playerName: "Tester", partnerName: "Mara",
+  }).state;
+}
+
 // --- Test 1: collectPlanningData ---
 test("collectPlanningData", () => {
-  const state = createInitialState();
+  const state = makeState();
   state.gameTime = 720;
   const data = collectPlanningData(state, { horizonDays: 7 });
   return {
@@ -68,7 +76,7 @@ test("collectPlanningData", () => {
 
 // --- Test 2: findResourcesForOrder ---
 test("findResourcesForOrder", () => {
-  const state = createInitialState();
+  const state = makeState();
   state.gameTime = 720;
   // Ersten Auftrag annehmen
   const order = state.orders[0];
@@ -83,7 +91,7 @@ test("findResourcesForOrder", () => {
 
 // --- Test 3: findMaintenanceWindows ---
 test("findMaintenanceWindows", () => {
-  const state = createInitialState();
+  const state = makeState();
   state.gameTime = 720;
   const v = state.vehicles[0];
   const result = findMaintenanceWindows(state, v.id);
@@ -95,7 +103,7 @@ test("findMaintenanceWindows", () => {
 
 // --- Test 4: previewDelayTourStart ---
 test("previewDelayTourStart", () => {
-  const state = createInitialState();
+  const state = makeState();
   state.gameTime = 720;
   // Eine Tour erstellen: Auftrag annehmen und bestätigen
   const order = state.orders[0];
@@ -104,9 +112,10 @@ test("previewDelayTourStart", () => {
   order.acceptedAtMin = state.gameTime;
   const v = state.vehicles[0];
   const d = state.drivers[0];
-  // confirmTour über applyCommand
+  // confirmTour mit minStartTime in der Zukunft, damit die Tour nicht sofort startet
+  const futureStart = state.gameTime + 480; // +8h
   const { result } = applyCommand(state, "confirmTour", {
-    vehicleId: v.id, driverId: d.id, orderIds: [order.id],
+    vehicleId: v.id, driverId: d.id, orderIds: [order.id], minStartTime: futureStart,
   });
   if (!result?.ok) return { ok: false, error: "confirmTour fehlgeschlagen: " + JSON.stringify(result) };
   const tourId = result.tourId;
@@ -118,12 +127,15 @@ test("previewDelayTourStart", () => {
     canConfirm: preview.canConfirm,
     hasComparison: !!preview.comparison,
     obstacleHard: preview.obstacles?.hard?.length || 0,
+    previewError: preview.error || null,
+    tourStatus: (state.tours || []).find(t => t.id === tourId)?.status,
+    firstDepStatus: (state.tours || []).find(t => t.id === tourId)?.deployments?.[0]?.status,
   };
 });
 
 // --- Test 5: applyCommand mit Planungs-Befehlen ---
 test("applyCommand planning routing", () => {
-  const state = createInitialState();
+  const state = makeState();
   state.gameTime = 720;
   const v = state.vehicles[0];
   // findMaintenanceWindows über applyCommand
@@ -136,7 +148,7 @@ test("applyCommand planning routing", () => {
 
 // --- Test 6: Unbekannter Befehl wirft Fehler ---
 test("unknown command throws", () => {
-  const state = createInitialState();
+  const state = makeState();
   try {
     applyCommand(state, "nonExistentPlanningCommand", {});
     return { ok: false, error: "Sollte Fehler werfen" };

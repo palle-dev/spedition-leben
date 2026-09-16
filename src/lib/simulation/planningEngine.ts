@@ -42,11 +42,11 @@ export function reassignTour(state, { tourId, newVehicleId, newDriverId }) {
 
   // Prüfen, dass kein Deployment bereits gestartet hat
   for (const dep of (tour.deployments || [])) {
-    if (dep.status === "in_progress" || dep.status === "completed") {
+    if (dep.status === "active" || dep.status === "in_progress" || dep.status === "completed") {
       throw new Error("Tour hat bereits gestartete Einsätze und kann nicht neu zugewiesen werden.");
     }
   }
-  if (tour.returnDeployment && (tour.returnDeployment.status === "in_progress" || tour.returnDeployment.status === "completed")) {
+  if (tour.returnDeployment && (tour.returnDeployment.status === "active" || tour.returnDeployment.status === "in_progress" || tour.returnDeployment.status === "completed")) {
     throw new Error("Tour hat bereits eine gestartete Rückfahrt.");
   }
 
@@ -114,7 +114,7 @@ export function previewReassignTour(state, { tourId, newVehicleId, newDriverId }
   if (tour.pauseReason) return { ok: false, error: "Pausierte Tour." };
 
   for (const dep of (tour.deployments || [])) {
-    if (dep.status === "in_progress" || dep.status === "completed") {
+    if (dep.status === "active" || dep.status === "in_progress" || dep.status === "completed") {
       return { ok: false, error: "Tour hat bereits gestartete Einsätze." };
     }
   }
@@ -491,7 +491,7 @@ export function delayTourStart(state, { tourId, newStartMin }) {
   }
   if (tour.pauseReason) throw new Error("Pausierte Touren können nicht verschoben werden.");
   for (const dep of (tour.deployments || [])) {
-    if (dep.status === "in_progress" || dep.status === "completed") {
+    if (dep.status === "active" || dep.status === "in_progress" || dep.status === "completed") {
       throw new Error("Tour hat bereits gestartete Einsätze und kann nicht verschoben werden.");
     }
   }
@@ -543,7 +543,7 @@ export function previewDelayTourStart(state, { tourId, newStartMin }) {
   }
   if (tour.pauseReason) return { ok: false, error: "Pausierte Tour." };
   for (const dep of (tour.deployments || [])) {
-    if (dep.status === "in_progress" || dep.status === "completed") {
+    if (dep.status === "active" || dep.status === "in_progress" || dep.status === "completed") {
       return { ok: false, error: "Tour hat bereits gestartete Einsätze." };
     }
   }
