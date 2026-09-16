@@ -4,7 +4,8 @@ import { formatEuro, formatGameTime } from "@/lib/gameData";
 import { roleLabel } from "@/lib/displayHelpers";
 import { COURSE_CATALOG, getCourseById, qualTypeLabel, qualStatusLabel, enrollmentStatusLabel } from "@/lib/trainingData";
 import Drawer from "@/components/ui/Drawer";
-import { Award, Check, AlertCircle, Clock, Euro, ChevronRight, GraduationCap } from "lucide-react";
+import CompletedCoursesSection from "@/components/personnel/CompletedCoursesSection";
+import { Award, Check, AlertCircle, Clock, Euro, ChevronRight, GraduationCap, CheckCircle } from "lucide-react";
 
 const DAY_MIN = 1440;
 
@@ -98,6 +99,14 @@ export default function PersonTrainingSection({ personId, kind, role }) {
 
   return (
     <div className="space-y-3">
+      {/* Abgeschlossene Weiterbildungen */}
+      <div>
+        <h4 className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-2 flex items-center gap-1">
+          <CheckCircle className="w-3 h-3 text-lime" /> Abgeschlossene Weiterbildungen
+        </h4>
+        <CompletedCoursesSection personId={personId} />
+      </div>
+
       {/* Qualifikationen */}
       {quals.length > 0 && (
         <div>

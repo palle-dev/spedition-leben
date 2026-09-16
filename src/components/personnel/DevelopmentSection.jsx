@@ -5,7 +5,8 @@ import ApprenticeshipTab from "@/components/personnel/ApprenticeshipTab";
 import QualificationsTab from "@/components/personnel/QualificationsTab";
 import TrainingScheduleTab from "@/components/personnel/TrainingScheduleTab";
 import TrainingOverviewTab from "@/components/personnel/TrainingOverviewTab";
-import { GraduationCap, BookOpen, Users, Award, Calendar, BarChart } from "lucide-react";
+import KpiDashboardTab from "@/components/personnel/KpiDashboardTab";
+import { GraduationCap, BookOpen, Users, Award, Calendar, BarChart, TrendingUp } from "lucide-react";
 
 // Hauptbereich „Entwicklung" in der Personal-Verwaltung.
 // Bietet Tabs für Übersicht, Weiterbildungen, Ausbildung, Qualifikationen und Termine.
@@ -19,6 +20,7 @@ export default function DevelopmentSection() {
     { id: "apprenticeship", label: "Ausbildung", icon: GraduationCap },
     { id: "qualifications", label: "Qualifikationen", icon: Award },
     { id: "schedule", label: "Termine", icon: Calendar },
+    { id: "kpi", label: "KPI-Dashboard", icon: TrendingUp },
   ];
 
   return (
@@ -44,6 +46,7 @@ export default function DevelopmentSection() {
       {tab === "apprenticeship" && <ApprenticeshipTab />}
       {tab === "qualifications" && <QualificationsTab />}
       {tab === "schedule" && <TrainingScheduleTab />}
+      {tab === "kpi" && <KpiDashboardTab />}
     </div>
   );
 }
