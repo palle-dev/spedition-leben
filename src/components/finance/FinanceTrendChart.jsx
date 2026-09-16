@@ -98,6 +98,8 @@ export default function FinanceTrendChart({ state }) {
   const hasData = series.length > 0 && (kpis.totalRevenue > 0 || kpis.totalExpenses > 0);
   const xInterval = period <= 7 ? 0 : period <= 30 ? 2 : 6;
   const profitAccent = kpis.netProfit >= 0 ? "text-lime" : "text-coral";
+  const actualRange = series.length > 0 ? `T${series[0].day}–T${series[series.length - 1].day}` : "";
+  const fewerDays = series.length < period;
 
   return (
     <div className="space-y-5">
@@ -139,7 +141,7 @@ export default function FinanceTrendChart({ state }) {
           {/* Main chart: Revenue vs Expenses + Cumulative Profit */}
           <ChartCard
             title="Einnahmen vs. Ausgaben"
-            subtitle="Tägliche Erlöse und Kosten mit kumuliertem Gewinn (rechte Achse) und 7-Tage-Schnitt"
+            subtitle={`Tägliche Erlöse und Kosten mit kumuliertem Gewinn (rechte Achse) und 7-Tage-Schnitt · ${actualRange}`}
             actions={
               <div className="flex items-center gap-1.5 shrink-0">
                 {PERIODS.map(p => {
@@ -176,7 +178,7 @@ export default function FinanceTrendChart({ state }) {
           </ChartCard>
 
           {/* Expense breakdown */}
-          <ChartCard title="Ausgaben-Struktur" subtitle="Kostenkategorien im Zeitverlauf (gestapelt)">
+          <ChartCard title="Ausgaben-Struktur" subtitle={`Kostenkategorien im Zeitverlauf (gestapelt) · ${actualRange}`}>
             <ResponsiveContainer width="100%" height={280}>
               <AreaChart data={series} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -193,6 +195,11 @@ export default function FinanceTrendChart({ state }) {
 
           {/* Expense category summary */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            {fewerDays && (
+              <div className="col-span-full text-xs text-muted-foreground bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                Es liegen erst {series.length} Tage Daten vor ({actualRange}) — der gewählte Zeitraum ({period} Tage) zeigt daher dieselben Werte wie kürzere Zeiträume.
+              </div>
+            )}
             {EXPENSE_CATEGORIES.map(cat => {
               const total = expenseTotals[cat.key];
               const pct = kpis.totalExpenses > 0 ? Math.round(total / kpis.totalExpenses * 100) : 0;
