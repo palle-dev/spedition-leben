@@ -76,19 +76,17 @@ export default function Fleet() {
             </button>
           </div>
         </div>
-        {tab === "fleet" && (
-          <div className="flex gap-2 items-center">
-            <BranchSelector branches={activeBranches} value={selectedBranchId} onChange={setBuyBranchId} />
-            <button onClick={lease} disabled={leasing || state.company.accountCents < 150000}
-              className="flex items-center gap-2 rounded-lg px-4 py-2.5 bg-white/5 border border-white/10 text-sm font-medium hover:bg-white/10 disabled:opacity-40 transition active:scale-[0.98]">
-              {leasing ? <span className="w-4 h-4 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" /> : <FileText className="w-4 h-4" />} Leasen (1.500 €)
-            </button>
-            <button onClick={buy} disabled={buying || state.company.accountCents < 3000000 || openCompany}
-              className="flex items-center gap-2 rounded-lg px-4 py-2.5 bg-lime text-ink font-semibold text-sm hover:brightness-110 disabled:opacity-40 transition active:scale-[0.98]">
-              {buying ? <span className="w-4 h-4 border-2 border-ink/30 border-t-ink rounded-full animate-spin" /> : <Plus className="w-4 h-4" />} Kaufen (30.000 €)
-            </button>
-          </div>
-        )}
+        <div className="flex gap-2 items-center">
+          <BranchSelector branches={activeBranches} value={selectedBranchId} onChange={setBuyBranchId} />
+          <button onClick={lease} disabled={leasing || state.company.accountCents < 150000}
+            className="flex items-center gap-2 rounded-lg px-4 py-2.5 bg-white/5 border border-white/10 text-sm font-medium hover:bg-white/10 disabled:opacity-40 transition active:scale-[0.98]">
+            {leasing ? <span className="w-4 h-4 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" /> : <FileText className="w-4 h-4" />} Leasen (1.500 €)
+          </button>
+          <button onClick={buy} disabled={buying || state.company.accountCents < 3000000 || openCompany}
+            className="flex items-center gap-2 rounded-lg px-4 py-2.5 bg-lime text-ink font-semibold text-sm hover:brightness-110 disabled:opacity-40 transition active:scale-[0.98]">
+            {buying ? <span className="w-4 h-4 border-2 border-ink/30 border-t-ink rounded-full animate-spin" /> : <Plus className="w-4 h-4" />} Kaufen (30.000 €)
+          </button>
+        </div>
       </div>
       {tab === "workshop" ? (
         <WorkshopSection state={state} send={send} showToast={showToast} />
