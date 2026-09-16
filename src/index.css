@@ -133,14 +133,10 @@
     background: linear-gradient(0deg, rgba(11, 16, 17, 0.92) 1%, rgba(11, 16, 17, 0.55) 40%, transparent 80%);
   }
   .glass {
-    background: linear-gradient(150deg, hsl(var(--surface) / 0.55), hsl(var(--ink) / 0.65));
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
+    background: linear-gradient(150deg, hsl(var(--surface) / 0.92), hsl(var(--ink) / 0.94));
   }
   .glass-coral {
-    background: linear-gradient(150deg, hsl(15 30% 20% / 0.55), hsl(190 21% 8% / 0.65));
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
+    background: linear-gradient(150deg, hsl(15 30% 20% / 0.92), hsl(190 21% 8% / 0.94));
   }
   .text-balance {
     text-wrap: balance;
