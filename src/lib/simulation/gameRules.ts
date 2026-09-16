@@ -95,6 +95,65 @@ export const STANDARD_TRUCK = {
 // Referenz-Neupreis für die Marktwertberechnung (Auftrag 21).
 export const VEHICLE_REFERENCE_PRICE = 3000000; // 30.000 €
 
+// ---------- Fahrzeugkatalog (Fahrzeugprofile) ----------
+// Drei normale Fahrzeugprofile mit unterschiedlichen Kapazitäten, Anschaffungskosten
+// und Verbrauchswerten. Die Wahl hängt von Aufträgen, Geschäftsmodell und finanziellen
+// Möglichkeiten ab. Geschwindigkeit und Fahrerzeitregeln bleiben für alle Typen gleich.
+export const VEHICLE_CATALOG = {
+  regional: {
+    id: "regional",
+    label: "Regional-Lkw",
+    capacityTons: 8,
+    priceCents: 1800000,          // 18.000 €
+    consumptionPer100km: 22,       // geringerer Verbrauch
+    maintenanceCostCents: 120000,  // 1.200 € (geringere Wartungskosten)
+    maintenanceDurationMin: 360,  // 6 h (kürzere Wartung)
+    referencePriceCents: 1800000,
+    description: "Kompakter Lkw für regionale Transporte. Günstige Anschaffung und niedriger Verbrauch.",
+    suitableFor: ["regional", "normal"],
+  },
+  standard: {
+    id: "standard",
+    label: "Standard-Lkw",
+    capacityTons: 12,
+    priceCents: 3000000,           // 30.000 € (wie bisher)
+    consumptionPer100km: 28,
+    maintenanceCostCents: 150000,  // 1.500 € (wie bisher)
+    maintenanceDurationMin: 480,   // 8 h (wie bisher)
+    referencePriceCents: 3000000,
+    description: "Universeller Lkw für mittlere bis lange Strecken. Ausgewogenes Verhältnis von Kapazität und Kosten.",
+    suitableFor: ["regional", "normal", "express"],
+  },
+  heavy: {
+    id: "heavy",
+    label: "Schwerer Fernverkehrs-Lkw",
+    capacityTons: 24,
+    priceCents: 5500000,            // 55.000 €
+    consumptionPer100km: 35,        // höherer Verbrauch
+    maintenanceCostCents: 220000,   // 2.200 € (höhere Wartungskosten)
+    maintenanceDurationMin: 600,   // 10 h (längere Wartung)
+    referencePriceCents: 5500000,
+    description: "Großer Lkw für schwere Ladungen und lange Fernverkehrsstrecken. Hohe Nutzlast bei höheren Kosten.",
+    suitableFor: ["normal", "express", "heavy"],
+  },
+};
+
+export const VEHICLE_CATALOG_LIST = [
+  VEHICLE_CATALOG.regional,
+  VEHICLE_CATALOG.standard,
+  VEHICLE_CATALOG.heavy,
+];
+
+export function getVehicleProfile(vehicle) {
+  if (!vehicle) return VEHICLE_CATALOG.standard;
+  // Bestimmung über catalogId (neue Fahrzeuge) oder Rückwärtskompatibel über type
+  if (vehicle.catalogId && VEHICLE_CATALOG[vehicle.catalogId]) return VEHICLE_CATALOG[vehicle.catalogId];
+  if (vehicle.type === "Regional-Lkw") return VEHICLE_CATALOG.regional;
+  if (vehicle.type === "Schwerer Fernverkehrs-Lkw") return VEHICLE_CATALOG.heavy;
+  // Standard-Lkw und alle älteren Fahrzeuge (inkl. Miet-Lkw, Leasing, Tank) → Standard
+  return VEHICLE_CATALOG.standard;
+}
+
 // ---------- Marktwertfunktion (Auftrag 21) ----------
 // R = gespeicherter Referenz-Neupreis des Modells.
 // A = seit Inbetriebnahme verstrichene Spielmonate (kontinuierlich, 1 Monat = 30 Tage = 43200 Min).

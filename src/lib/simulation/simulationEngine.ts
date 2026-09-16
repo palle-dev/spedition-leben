@@ -13,6 +13,7 @@ import {
   PERSONNEL_ROLES, SERVICE_START_MIN, SERVICE_END_MIN, SERVICE_INTERVAL_MIN, SHIFT_TEMPLATES,
   APPLICANT_NAMES, PORTRAIT_IDS, NOTICE_PERIOD_MIN,
   computeMarketValue, computeDealerOffer,
+  VEHICLE_CATALOG, VEHICLE_CATALOG_LIST, getVehicleProfile,
 } from "./gameRules.ts";
 import { buildTourPlan, confirmTour as doConfirmTour, cancelTour as doCancelTour, processTours, onTripCompleted, findReturnLoads, suggestTours, futureLocation, futureDriverLocation, _clearPlanCache } from "./tourEngine.ts";
 import {
@@ -191,6 +192,10 @@ import {
   migrateDisruptions, processDisruptions, generateAbsenceDisruption,
   maybeGenerateLoadingDelay, maybeGenerateTechnicalDefectForTrip, handleDisruptionCommand,
 } from "./disruptionEngine.ts";
+import {
+  migrateUsedVehicleMarket, generateUsedVehicleOffers,
+} from "./vehicleMarketEngine.ts";
+import { handleVehicleMarketCommand } from "./vehicleMarketCommands.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -671,6 +676,8 @@ function processEventsAt(state, m, log) {
   evaluateWorkshopAutomation(state, m, log);
   // Stoerungsmanagement: Auto-Auflösung, Abschluss laufender Maßnahmen
   processDisruptions(state, m, log);
+  // Gebrauchtfahrzeugmarkt: Angebote generieren/ablaufen lassen (alle 3 Tage)
+  generateUsedVehicleOffers(state, m, log);
   // Auftrag 29: Personalmarkt-Wellen und Ablauf
   if (isRegularWaveTime(m)) {
     generatePersonnelWave(state, m, log, false);
@@ -810,7 +817,7 @@ function planTrip(state, order, vehicle, driver) {
 // ---------- Befehle ----------
 export function applyCommand(state, command, params) {
   _clearPlanCache(); migrateState(state);
-  [migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories, migrateSegmentFields, migrateBusinessFocus, migrateSegmentStats, migrateMarketDynamics, migrateDevelopmentGoals, migrateDisruptions].forEach(fn => fn(state));
+  [migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories, migrateSegmentFields, migrateBusinessFocus, migrateSegmentStats, migrateMarketDynamics, migrateDevelopmentGoals, migrateDisruptions, migrateUsedVehicleMarket].forEach(fn => fn(state));
   if (state.bookings && state.bookings.length > 200) state.bookings = state.bookings.slice(-200);
   // Historie begrenzen: abgeschlossene Touren, Aufträge und Termine älter als 30 Tage
   // entfernen. Hält den Zustand kompakt und beschleunigt Laden/Speichern bei langen Spielen.
@@ -1014,12 +1021,14 @@ export function applyCommand(state, command, params) {
       if (!v) throw new Error("Fahrzeug nicht gefunden.");
       if (v.status !== "free") throw new Error("Wartung ist nur für freie Fahrzeuge möglich.");
       if (v.condition >= 100) throw new Error("Fahrzeug ist bereits in bestem Zustand.");
-      let cost = MAINTENANCE_COST;
+      const maintProfile = getVehicleProfile(v);
+      let cost = maintProfile.maintenanceCostCents;
+      const maintDuration = maintProfile.maintenanceDurationMin;
       const stressed = state.private.stress >= STRESS_MAINT_THRESHOLD;
       if (stressed) cost = Math.round(cost * MAINT_STRESS_FACTOR);
       if (state.company.accountCents < cost) throw new Error("Firmenkonto reicht für die Wartung (" + (cost / 100).toFixed(2) + " €) nicht aus.");
       addBooking(state, state.gameTime, "Wartung: " + v.id, -cost, "company", "maintain:" + v.id);
-      v.status = "maintenance"; v.maintenanceUntil = state.gameTime + MAINTENANCE_DURATION;
+      v.status = "maintenance"; v.maintenanceUntil = state.gameTime + maintDuration;
       result = { ok: true, vehicleId: v.id, costCents: cost, stressed, until: v.maintenanceUntil };
       break;
     }
@@ -1027,23 +1036,26 @@ export function applyCommand(state, command, params) {
     case "buyVehicle": {
       ensureNotBlocked(state);
       if (state.openCosts.some(o => o.account === "company")) throw new Error("Es gibt offene betriebliche Kosten. Bitte bezahle diese zuerst.");
-      if (state.company.accountCents < VEHICLE_PRICE) throw new Error("Firmenkonto reicht für den Lkw-Kauf (30.000 €) nicht aus.");
+      const profile = VEHICLE_CATALOG[p.vehicleType] || VEHICLE_CATALOG.standard;
+      const buyPrice = profile.priceCents;
+      if (state.company.accountCents < buyPrice) throw new Error("Firmenkonto reicht für den Kauf (" + (buyPrice / 100).toFixed(0) + " €) nicht aus.");
       const buyBranch = p.branchId ? state.branches.find(b => b.id === p.branchId) : state.branches[0];
       if (!buyBranch || buyBranch.status !== "active") throw new Error("Keine aktive Filiale verfügbar.");
-      addBooking(state, state.gameTime, "Fahrzeugkauf", -VEHICLE_PRICE, "company", "buy");
-      const v = { id: uid(state, "v"), branchId: buyBranch.id, type: STANDARD_TRUCK.type, capacityTons: 12,
-        consumptionPer100km: 28, bookValueCents: VEHICLE_PRICE, condition: 85,
+      addBooking(state, state.gameTime, "Fahrzeugkauf: " + profile.label, -buyPrice, "company", "buy");
+      const v = { id: uid(state, "v"), branchId: buyBranch.id, type: profile.label, catalogId: profile.id,
+        capacityTons: profile.capacityTons, consumptionPer100km: profile.consumptionPer100km,
+        bookValueCents: buyPrice, condition: 85,
         locationCity: buyBranch.city, status: "free", tripId: null, maintenanceUntil: null,
-        ownership_type: "owned", odometerKm: 0, acquiredAtMin: state.gameTime, referencePriceCents: VEHICLE_PRICE,
+        ownership_type: "owned", odometerKm: 0, acquiredAtMin: state.gameTime, referencePriceCents: profile.referencePriceCents,
         markedForSale: false, saleOffer: null, };
       state.vehicles.push(v);
       registerAsset(state, {
         vehicleId: v.id, account: "1200",
         name: "Lkw " + String(parseInt(String(v.id).replace(/[^0-9]/g, ""), 10) || 1).padStart(2, "0"),
-        acquisitionCostCents: VEHICLE_PRICE, acquiredAtMin: state.gameTime,
+        acquisitionCostCents: buyPrice, acquiredAtMin: state.gameTime,
       });
       const newAchs = checkAchievements(state, state.gameTime);
-      result = { ok: true, vehicleId: v.id, newAchievements: newAchs };
+      result = { ok: true, vehicleId: v.id, vehicleType: profile.id, priceCents: buyPrice, newAchievements: newAchs };
       break;
     }
 
@@ -2471,6 +2483,7 @@ export function applyCommand(state, command, params) {
       const mailResult = handleMailCommand(state, command, p); if (mailResult !== null) { result = mailResult; break; }
       const devGoalsResult = handleDevelopmentGoalsCommand(state, command, p); if (devGoalsResult !== undefined) { result = devGoalsResult; break; }
       const disruptionResult = handleDisruptionCommand(state, command, p); if (disruptionResult !== null) { result = disruptionResult; break; }
+      const vehicleMarketResult = handleVehicleMarketCommand(state, command, p); if (vehicleMarketResult !== null) { result = vehicleMarketResult; break; }
       throw new Error("Unbekannter Befehl: " + command);
     }
   }

@@ -16,10 +16,29 @@ export const LOAN_TERMS = [12, 24, 36];
 export const DAY_MIN = 1440;
 
 export const LEASING_OFFERS = {
+  // ---------- Regional-Lkw ----------
+  regional_flex: {
+    id: "regional_flex",
+    vehicleType: "Regional-Lkw",
+    catalogId: "regional",
+    capacityTons: 8,
+    consumptionPer100km: 22,
+    termMonths: 24,
+    specialPaymentCents: 0,
+    monthlyRateCents: 54000,                   // 540 €
+    includedKm: 200000,
+    mileageRatePerKmCents: 10,
+    buyoutPriceCents: 900000,                   // 9.000 €
+    minConditionAtReturn: 70,
+    conditionPenaltyPerPointCents: 4000,        // 40 €/Punkt
+    returnLocationCity: "Hamburg",
+  },
+  // ---------- Standard-Lkw ----------
   // Variante A – Flexibler Einstieg (0 € Sonderzahlung, 900 €/Monat)
   standard_flex: {
     id: "standard_flex",
     vehicleType: "Standard-Lkw",
+    catalogId: "standard",
     capacityTons: 12,
     consumptionPer100km: 28,
     termMonths: 24,
@@ -36,6 +55,7 @@ export const LEASING_OFFERS = {
   standard: {
     id: "standard",
     vehicleType: "Standard-Lkw",
+    catalogId: "standard",
     capacityTons: 12,
     consumptionPer100km: 28,
     termMonths: 24,
@@ -46,6 +66,23 @@ export const LEASING_OFFERS = {
     buyoutPriceCents: 1500000,                  // 15.000 €
     minConditionAtReturn: 70,
     conditionPenaltyPerPointCents: 5000,        // 50 €/Punkt
+    returnLocationCity: "Hamburg",
+  },
+  // ---------- Schwerer Fernverkehrs-Lkw ----------
+  heavy_flex: {
+    id: "heavy_flex",
+    vehicleType: "Schwerer Fernverkehrs-Lkw",
+    catalogId: "heavy",
+    capacityTons: 24,
+    consumptionPer100km: 35,
+    termMonths: 24,
+    specialPaymentCents: 0,
+    monthlyRateCents: 140000,                  // 1.400 €
+    includedKm: 280000,
+    mileageRatePerKmCents: 12,                  // 0,12 €/km
+    buyoutPriceCents: 2750000,                  // 27.500 €
+    minConditionAtReturn: 70,
+    conditionPenaltyPerPointCents: 7000,        // 70 €/Punkt
     returnLocationCity: "Hamburg",
   },
 };
@@ -532,7 +569,12 @@ export function getLeasingOffer(offerId) {
   return LEASING_OFFERS[offerId] || LEASING_OFFERS.standard_flex;
 }
 export function getAllLeasingOffers() {
-  return [LEASING_OFFERS.standard_flex, LEASING_OFFERS.standard];
+  return [
+    LEASING_OFFERS.regional_flex,
+    LEASING_OFFERS.standard_flex,
+    LEASING_OFFERS.standard,
+    LEASING_OFFERS.heavy_flex,
+  ];
 }
 
 export function leaseTruck(state, { provisionCity, offerId, branchId } = {}) {
@@ -549,11 +591,12 @@ export function leaseTruck(state, { provisionCity, offerId, branchId } = {}) {
   const vehicleId = uid(state, "v");
   const vehicle = {
     id: vehicleId, branchId: leaseBranch.id, type: offer.vehicleType,
+    catalogId: offer.catalogId || "standard",
     capacityTons: offer.capacityTons, consumptionPer100km: offer.consumptionPer100km,
     bookValueCents: 0, condition: 100, locationCity: provisionCity,
     status: "free", tripId: null, maintenanceUntil: null,
     ownership_type: "leased", leasingContractId: null, odometerKm: 0,
-    acquiredAtMin: startMin, referencePriceCents: 3000000,
+    acquiredAtMin: startMin, referencePriceCents: offer.referencePriceCents || (offer.catalogId === "regional" ? 1800000 : offer.catalogId === "heavy" ? 5500000 : 3000000),
     markedForSale: false, saleOffer: null,
   };
   state.vehicles.push(vehicle);

@@ -372,7 +372,18 @@ function makeMarketOffer(state, m) {
   }
 
   const cargo = customer.cargoTypes[Math.floor(rng() * customer.cargoTypes.length)];
-  const tons = 4 + Math.floor(rng() * 9); // 4–12 t
+  // Gewichtete Tonnen-Verteilung: 45 % klein (4–8 t), 35 % mittel (8–14 t), 20 % schwer (14–24 t).
+  // Schwere Ladungen erfordern einen schweren Lkw (24 t). Die Gesamtzahl der Angebote
+  // wird durch computeWaveBudget begrenzt — nur die Tonnage-Verteilung ändert sich.
+  const tonRoll = rng();
+  let tons;
+  if (tonRoll < 0.45) {
+    tons = 4 + Math.floor(rng() * 5);   // 4–8 t
+  } else if (tonRoll < 0.80) {
+    tons = 8 + Math.floor(rng() * 7);   // 8–14 t
+  } else {
+    tons = 14 + Math.floor(rng() * 11); // 14–24 t
+  }
 
   const km = getDistance(fromCity, toCity);
   const relFactor = relationFactor(state, fromCity, toCity);
