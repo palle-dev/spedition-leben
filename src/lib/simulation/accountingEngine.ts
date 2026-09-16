@@ -882,6 +882,7 @@ export function migrateAccounting(state) {
   if (!a.taskQueue) a.taskQueue = [];
   if (!a.lastDepreciationMonth) a.lastDepreciationMonth = 0;
   if (!a.depreciationStartMonth) a.depreciationStartMonth = Math.max(2, periodOf(state.gameTime) + 1);
+  if (a.dailySummaryRebuilt === undefined) a.dailySummaryRebuilt = false;
 
   // Wenn noch keine Journal-Einträge existieren: Eröffnungsbilanz aus aktuellem Zustand
   if (a.journal.length === 0 && !a.migrationDone) {
@@ -918,11 +919,15 @@ export function migrateAccounting(state) {
     a.migrationDone = true;
   }
 
-  // Tageszusammenfassung aus vorhandenem Journal befüllen (Backfill).
-  // Alte Spielstände haben dailySummary noch nicht — wir rekonstruieren es
-  // aus den vorhandenen Journal-Einträgen, bevor das Journal abgeschnitten
-  // wird. So bleiben die historischen Chart-Daten erhalten.
-  if (a.journal.length > 0) {
+  // Tageszusammenfassung: einmaliger Reset und Neuaufbau aus dem Journal.
+  // Durch einen früheren Bug wurde dailySummary bei jedem migrateAccounting-
+  // Aufruf aus dem Journal neu addiert (statt nur einmal), was die Beträge
+  // massiv überhöht hat. Wir erkennen das an einer Flag und bauen die
+  // Zusammenfassung einmalig korrekt neu auf. postJournal pflegt sie danach
+  // laufend weiter. Daten älter als 14 Tage (vor Journal-Kürzung) gehen
+  // dabei verloren, waren aber bereits korrupt.
+  if (!a.dailySummaryRebuilt) {
+    a.dailySummary = {};
     for (const e of a.journal) {
       if (!e || !e.lines) continue;
       const day = Math.floor(e.gameTime / 1440) + 1;
@@ -943,6 +948,7 @@ export function migrateAccounting(state) {
         }
       }
     }
+    a.dailySummaryRebuilt = true;
   }
 
   // Performance: Journal auf 14 Tage begrenzen – die Tageszusammenfassung
