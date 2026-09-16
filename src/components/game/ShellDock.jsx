@@ -15,12 +15,12 @@ const QUICK_NAV = [
   { to: "/fuhrpark", label: "Fuhrpark", icon: Truck },
   { to: "/personal", label: "Personal", icon: Users },
   { to: "/finanzen", label: "Finanzen", icon: Wallet },
+  { to: "/kunden", label: "Kunden", icon: UserCircle },
+  { to: "/filialen", label: "Filialen", icon: Network },
 ];
 const MORE_NAV = [
-  { to: "/kunden", label: "Kunden", icon: UserCircle },
   { to: "/fuehrung", label: "Führung", icon: Shield },
   { to: "/geschaeftsmodelle", label: "Geschäftsmodelle", icon: Briefcase },
-  { to: "/filialen", label: "Filialen", icon: Network },
   { to: "/auslastung", label: "Auslastung", icon: BarChart3 },
   { to: "/effizienz", label: "Effizienz", icon: Gauge },
   { to: "/erfolge", label: "Erfolge", icon: Trophy },
