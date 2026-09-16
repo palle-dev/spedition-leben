@@ -8,6 +8,7 @@ import DispatchTourDetails from "./DispatchTourDetails";
 import DispatchPlanner from "./DispatchPlanner";
 import TourPlanner from "./TourPlanner";
 import OrderMatchList from "./OrderMatchList";
+import BulkAssignPanel from "./BulkAssignPanel";
 import DispatchActiveTours from "./DispatchActiveTours";
 import DriverWorkBudget from "./DriverWorkBudget";
 import DispatcherPanel from "./DispatcherPanel";
@@ -34,6 +35,7 @@ export default function DispatchWorkspace({
   const [emptyDriverId, setEmptyDriverId] = useState("");
   const [startingEmpty, setStartingEmpty] = useState(false);
   const [tourOrderId, setTourOrderId] = useState(null);
+  const [bulkMode, setBulkMode] = useState(false);
 
   const running = state.trips.filter(t => t.status === "in_progress");
   const allAccepted = state.orders.filter(o => o.status === "angenommen");
@@ -107,6 +109,12 @@ export default function DispatchWorkspace({
               onConfirmed={(r) => { setTourOrderId(null); onPlanRoute?.(null); onStarted?.(r); }}
               onPlanRoute={onPlanRoute}
             />
+          ) : bulkMode ? (
+            <BulkAssignPanel
+              orders={accepted}
+              onBack={() => setBulkMode(false)}
+              onStarted={() => { setBulkMode(false); onStarted?.(); }}
+            />
           ) : emptyMode ? (
             <EmptyTripPlanner
               state={state} onBack={() => setEmptyMode(false)}
@@ -150,12 +158,20 @@ export default function DispatchWorkspace({
                   searchLower={searchLower}
                 />
               )}
-              <button
-                onClick={() => setEmptyMode(true)}
-                className="w-full rounded-xl p-3 border border-dashed border-white/20 hover:border-coral/40 hover:bg-coral/5 text-xs text-muted-foreground hover:text-coral transition flex items-center justify-center gap-2"
-              >
-                <Truck className="w-4 h-4" /> Leerfahrt planen
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setBulkMode(true)}
+                  className="flex-1 rounded-xl p-3 border border-dashed border-white/20 hover:border-lime/40 hover:bg-lime/5 text-xs text-muted-foreground hover:text-lime transition flex items-center justify-center gap-2"
+                >
+                  <Package className="w-4 h-4" /> Mehrfach-Zuweisung
+                </button>
+                <button
+                  onClick={() => setEmptyMode(true)}
+                  className="rounded-xl p-3 border border-dashed border-white/20 hover:border-coral/40 hover:bg-coral/5 text-xs text-muted-foreground hover:text-coral transition flex items-center justify-center gap-2"
+                >
+                  <Truck className="w-4 h-4" /> Leerfahrt
+                </button>
+              </div>
             </div>
           )
         )}
