@@ -10,6 +10,7 @@ import {
   STANDARD_TRUCK, VEHICLE_PRICE, HIRE_FEE,
   PORTRAIT_IDS,
 } from "./gameRules.ts";
+import { checkParkingCapacity, findBranchWithCapacity } from "./siteExpansionEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 
@@ -200,6 +201,14 @@ export function moveVehicle(state, { vehicleId, targetBranchId }) {
   if (!target) throw new Error("Zielfiliale nicht gefunden.");
   if (target.status !== "active") throw new Error("Zielfiliale ist nicht aktiv.");
   if (v.branchId === targetBranchId) throw new Error("Fahrzeug ist bereits an dieser Filiale.");
+
+  // Kapazitätsprüfung am Zielstandort
+  const capCheck = checkParkingCapacity(state, targetBranchId, 1);
+  if (!capCheck.ok) {
+    const alt = findBranchWithCapacity(state, target.city, 1);
+    throw new Error("Zielfiliale hat keine freien Stellplätze. " + capCheck.message +
+      (alt ? ` Alternative: ${alt.name} (${alt.city}).` : "") + " Ein Stellplatzausbau ist möglich.");
+  }
 
   // Fahrer am selben Ort finden, der das Fahrzeug überstellen kann
   const driver = (state.drivers || []).find(d =>

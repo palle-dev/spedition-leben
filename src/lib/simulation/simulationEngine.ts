@@ -196,7 +196,7 @@ import {
   migrateUsedVehicleMarket, generateUsedVehicleOffers,
 } from "./vehicleMarketEngine.ts";
 import { handleVehicleMarketCommand } from "./vehicleMarketCommands.ts";
-import { handlePlanningCommand } from "./planningCommands.ts"; import { handlePartnerCommand } from "./partnerCommands.ts"; import { migratePartners, processPartnerTransports, getPartnerTransportEventTimes } from "./partnerEngine.ts";
+import { handlePlanningCommand } from "./planningCommands.ts"; import { handlePartnerCommand } from "./partnerCommands.ts"; import { migratePartners, processPartnerTransports, getPartnerTransportEventTimes } from "./partnerEngine.ts"; import { migrateSiteExpansion, processExpansionCompletion, getExpansionEventTimes, processBreakAreaDecay, checkParkingCapacity, findBranchWithCapacity } from "./siteExpansionEngine.ts"; import { handleSiteExpansionCommand } from "./siteExpansionCommands.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -646,9 +646,7 @@ function processEventsAt(state, m, log) {
     }
     maybeGenerateVacationRequest(state, m);
     processVacationDayConsumption(state, m);
-    processDailyCleaningDecay(state, m);
-    // Auftrag 26: Taeglicher Unterhalt fuer Anschaffungen
-    processDailyMaintenance(state, m);
+    processDailyCleaningDecay(state, m); processBreakAreaDecay(state, m); processDailyMaintenance(state, m);
     // History-Cleanup: Abgeschlossene Trips/Tours und erledigte Aufträge
     // entfernen, die älter als 7 bzw. 30 Tage sind. Verhindert unendliches
     // Wachstum von state.trips/orders/tours über lange Spiele und
@@ -676,7 +674,7 @@ function processEventsAt(state, m, log) {
   processWorkshop(state, m, log);
   evaluateWorkshopAutomation(state, m, log);
   // Stoerungsmanagement: Auto-Auflösung, Abschluss laufender Maßnahmen
-  processDisruptions(state, m, log); processPartnerTransports(state, m, log);
+  processDisruptions(state, m, log); processPartnerTransports(state, m, log); processExpansionCompletion(state, m, log);
   // Gebrauchtfahrzeugmarkt: Angebote generieren/ablaufen lassen (alle 3 Tage)
   generateUsedVehicleOffers(state, m, log);
   // Auftrag 29: Personalmarkt-Wellen und Ablauf
@@ -816,7 +814,7 @@ function planTrip(state, order, vehicle, driver) {
 // ---------- Befehle ----------
 export function applyCommand(state, command, params) {
   _clearPlanCache(); migrateState(state);
-  [migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories, migrateSegmentFields, migrateBusinessFocus, migrateSegmentStats, migrateMarketDynamics, migrateDevelopmentGoals, migrateDisruptions, migrateUsedVehicleMarket, migratePartners].forEach(fn => fn(state));
+  [migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories, migrateSegmentFields, migrateBusinessFocus, migrateSegmentStats, migrateMarketDynamics, migrateDevelopmentGoals, migrateDisruptions, migrateUsedVehicleMarket, migratePartners, migrateSiteExpansion].forEach(fn => fn(state));
   if (state.bookings && state.bookings.length > 200) state.bookings = state.bookings.slice(-200);
   // Historie begrenzen: abgeschlossene Touren, Aufträge und Termine älter als 30 Tage
   // entfernen. Hält den Zustand kompakt und beschleunigt Laden/Speichern bei langen Spielen.
@@ -1040,6 +1038,7 @@ export function applyCommand(state, command, params) {
       if (state.company.accountCents < buyPrice) throw new Error("Firmenkonto reicht für den Kauf (" + (buyPrice / 100).toFixed(0) + " €) nicht aus.");
       const buyBranch = p.branchId ? state.branches.find(b => b.id === p.branchId) : state.branches[0];
       if (!buyBranch || buyBranch.status !== "active") throw new Error("Keine aktive Filiale verfügbar.");
+      { const _c=checkParkingCapacity(state,buyBranch.id,1); if(!_c.ok){ const _a=findBranchWithCapacity(state,buyBranch.city,1); throw new Error(_c.message+(_a?` Alternative: ${_a.name} (${_a.city}).`:"")+" Stellplatzausbau möglich."); } }
       addBooking(state, state.gameTime, "Fahrzeugkauf: " + profile.label, -buyPrice, "company", "buy");
       const v = { id: uid(state, "v"), branchId: buyBranch.id, type: profile.label, catalogId: profile.id,
         capacityTons: profile.capacityTons, consumptionPer100km: profile.consumptionPer100km,
@@ -2484,6 +2483,7 @@ export function applyCommand(state, command, params) {
       const disruptionResult = handleDisruptionCommand(state, command, p); if (disruptionResult !== null) { result = disruptionResult; break; }
       const vehicleMarketResult = handleVehicleMarketCommand(state, command, p); if (vehicleMarketResult !== null) { result = vehicleMarketResult; break; }
       const planningResult = handlePlanningCommand(state, command, p); if (planningResult !== null) { result = planningResult; break; } const partnerResult = handlePartnerCommand(state, command, p); if (partnerResult !== null) { result = partnerResult; break; }
+      const expansionResult = handleSiteExpansionCommand(state, command, p); if (expansionResult !== null) { result = expansionResult; break; }
       throw new Error("Unbekannter Befehl: " + command);
     }
   }
