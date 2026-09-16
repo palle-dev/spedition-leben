@@ -60,13 +60,13 @@ export default function ShellHeader() {
         )}
         {/* Konten-Panel */}
         <div className="flex items-stretch rounded-lg border border-white/10 bg-white/[0.03] divide-x divide-white/10 overflow-hidden shrink-0">
-          <button onClick={() => navigate("/finanzen")} className="text-left group px-2.5 py-1 transition-colors hover:bg-white/5" aria-label="Firmenkonto und Finanzen">
+          <button onClick={() => navigate("/finanzen")} className="text-center group px-3 py-1 transition-colors hover:bg-white/5" aria-label="Firmenkonto und Finanzen">
             <div className="text-[9px] uppercase tracking-[0.1em] text-muted-foreground">Firma</div>
-            <MoneyText value={state.company.accountCents} className="text-sm lg:text-base font-medium tracking-tight text-foreground group-hover:text-lime transition-colors" accentOnFlash="text-lime" />
+            <MoneyText value={state.company.accountCents} className="block text-sm lg:text-base font-medium tracking-tight text-foreground group-hover:text-lime transition-colors" accentOnFlash="text-lime" />
           </button>
-          <button onClick={() => navigate("/finanzen")} className="text-left group px-2.5 py-1 transition-colors hover:bg-white/5 hidden lg:block" aria-label="Privatkonto und Haushalt">
+          <button onClick={() => navigate("/finanzen")} className="text-center group px-3 py-1 transition-colors hover:bg-white/5 hidden lg:block" aria-label="Privatkonto und Haushalt">
             <div className="text-[9px] uppercase tracking-[0.1em] text-muted-foreground">Privat</div>
-            <MoneyText value={state.private.accountCents} className="text-sm lg:text-base font-medium tracking-tight text-foreground group-hover:text-coral transition-colors" accentOnFlash="text-coral" />
+            <MoneyText value={state.private.accountCents} className="block text-sm lg:text-base font-medium tracking-tight text-foreground group-hover:text-coral transition-colors" accentOnFlash="text-coral" />
           </button>
         </div>
         {/* Trennlinie zu Icon-Buttons */}
