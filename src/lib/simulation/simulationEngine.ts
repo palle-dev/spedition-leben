@@ -187,6 +187,10 @@ import {
   assignMentor, removeMentoring, getConversationCooldown, setConversationCooldown,
   createPromise, getOpenPromises, getSuggestedCourses, getAvailableMentors,
 } from "./developmentGoalsEngine.ts";
+import {
+  migrateDisruptions, processDisruptions, generateAbsenceDisruption,
+  maybeGenerateLoadingDelay, handleDisruptionCommand,
+} from "./disruptionEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -630,6 +634,10 @@ function processEventsAt(state, m, log) {
     log.push({ type: "daily_accounting", min: m, details: dlog });
     // Auftrag 25: Krankheitsgenerator, Urlaubsverbrauch, Sauberkeitsverlust
     maybeGenerateSickness(state, m);
+    // Stoerungsmanagement: Bei neuer Krankheit Personalausfall-Stoerungen erzeugen
+    for (const s of (state.absences?.sicknesses || [])) {
+      if (s.status === "active") generateAbsenceDisruption(state, s.personId, m, log);
+    }
     maybeGenerateVacationRequest(state, m);
     processVacationDayConsumption(state, m);
     processDailyCleaningDecay(state, m);
@@ -661,6 +669,8 @@ function processEventsAt(state, m, log) {
   // Auftrag 27: Werkstatt-Verarbeitung und Automatik
   processWorkshop(state, m, log);
   evaluateWorkshopAutomation(state, m, log);
+  // Stoerungsmanagement: Auto-Auflösung, Abschluss laufender Maßnahmen
+  processDisruptions(state, m, log);
   // Auftrag 29: Personalmarkt-Wellen und Ablauf
   if (isRegularWaveTime(m)) {
     generatePersonnelWave(state, m, log, false);
@@ -800,7 +810,7 @@ function planTrip(state, order, vehicle, driver) {
 // ---------- Befehle ----------
 export function applyCommand(state, command, params) {
   _clearPlanCache(); migrateState(state);
-  [migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories, migrateSegmentFields, migrateBusinessFocus, migrateSegmentStats, migrateMarketDynamics, migrateDevelopmentGoals].forEach(fn => fn(state));
+  [migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories, migrateSegmentFields, migrateBusinessFocus, migrateSegmentStats, migrateMarketDynamics, migrateDevelopmentGoals, migrateDisruptions].forEach(fn => fn(state));
   if (state.bookings && state.bookings.length > 200) state.bookings = state.bookings.slice(-200);
   // Historie begrenzen: abgeschlossene Touren, Aufträge und Termine älter als 30 Tage
   // entfernen. Hält den Zustand kompakt und beschleunigt Laden/Speichern bei langen Spielen.
@@ -955,6 +965,8 @@ export function applyCommand(state, command, params) {
       o.history.push({ type: "planned", min: state.gameTime, actor: "player", actorName: state.private.playerName, details: { vehicleId: v.id, driverId: d.id, startMin: state.gameTime, endMin: plan.endMin, fuelCents: fuel, tollCents: toll } });
       o.history.push({ type: "started", min: state.gameTime, actor: "player", actorName: state.private.playerName, details: { tripId: trip.id, vehicleId: v.id, driverId: d.id } });
       if (state.tutorial.active && state.tutorial.step === 1) state.tutorial.step = 2;
+      // Stoerungsmanagement: Ladeverzoegerung fuer manuellen Transport pruefen
+      maybeGenerateLoadingDelay(state, trip, state.gameTime, []);
       result = { ok: true, tripId: trip.id, fuelCents: fuel, tollCents: toll, totalKm: plan.totalKm, endMin: plan.endMin, phases: plan.phases };
       break;
     }
@@ -2016,6 +2028,8 @@ export function applyCommand(state, command, params) {
     case "reportSickness": {
       ensureNotBlocked(state);
       const r = reportSickness(state, { personId: p.personId, startMin: p.startMin, expectedDurationDays: p.expectedDurationDays });
+      // Stoerungsmanagement: Personalausfall-Stoerung erzeugen bei betroffenen Touren
+      if (r.ok) generateAbsenceDisruption(state, p.personId, state.gameTime, []);
       result = r;
       break;
     }
@@ -2452,6 +2466,7 @@ export function applyCommand(state, command, params) {
       const storyResult = handleStoryCommand(state, command, p); if (storyResult !== null) { result = storyResult; break; }
       const mailResult = handleMailCommand(state, command, p); if (mailResult !== null) { result = mailResult; break; }
       const devGoalsResult = handleDevelopmentGoalsCommand(state, command, p); if (devGoalsResult !== undefined) { result = devGoalsResult; break; }
+      const disruptionResult = handleDisruptionCommand(state, command, p); if (disruptionResult !== null) { result = disruptionResult; break; }
       throw new Error("Unbekannter Befehl: " + command);
     }
   }

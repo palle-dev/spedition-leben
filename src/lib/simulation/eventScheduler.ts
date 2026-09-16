@@ -20,6 +20,7 @@ import { getPregnancyEventTimes } from "./relationshipEngine.ts";
 import { getDateEventTimes } from "./datingEngine.ts";
 import { getStoryEventTimes } from "./storyEngine.ts";
 import { getMentoringEventTimes } from "./developmentGoalsEngine.ts";
+import { getDisruptionEventTimes } from "./disruptionEngine.ts";
 
 export function earliestEventAfter(state, t, maxMin) {
   let best = null;
@@ -148,5 +149,7 @@ export function earliestEventAfter(state, t, maxMin) {
   for (const tm of getStoryEventTimes(state, t, maxMin)) cand(tm);
   // Mentoring-Lerntermine (Entwicklungsziele)
   for (const tm of getMentoringEventTimes(state, t, maxMin)) cand(tm);
+  // Stoerungsmanagement: Abschluss laufender Maßnahmen
+  for (const tm of getDisruptionEventTimes(state, t, maxMin)) cand(tm);
   return best;
 }

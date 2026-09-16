@@ -18,6 +18,7 @@ import UtilizationControl from "@/components/office/UtilizationControl";
 import IdleReasonsList from "@/components/office/IdleReasonsList";
 import DevelopmentPanel from "@/components/office/DevelopmentPanel";
 import ScenarioProgressPanel from "@/components/scenarios/ScenarioProgressPanel";
+import DisruptionPanel from "@/components/office/DisruptionPanel";
 
 // Büro – zentrale Tagesübersicht und Führungsansicht.
 // Die Seite beantwortet unmittelbar:
@@ -53,6 +54,9 @@ export default function Office() {
 
       {/* Tagesübersicht: Natürliche Aussagen aus Spieldaten */}
       <DailyOverview state={state} />
+
+      {/* Aktive Störungen (nur bei vorhandenen Störungen sichtbar) */}
+      <DisruptionPanel />
 
       {/* Kennzahlen */}
       <OfficeKPIs state={state} period={period} />

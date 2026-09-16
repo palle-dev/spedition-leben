@@ -15,6 +15,7 @@ import {
   getDgProfile, getEffectiveLoadMin, getEffectiveUnloadMin,
   validateDgTransport, isTankClean, chargeDgHandlingFee,
 } from "./dangerousGoodsEngine.ts";
+import { maybeGenerateTechnicalDefect, maybeGenerateLoadingDelay } from "./disruptionEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 
@@ -786,6 +787,8 @@ export function processTours(state, m, log) {
   for (const tour of state.tours || []) {
     if (tour.status !== "active") continue;
     if (tour.pauseReason) continue;
+    // Tour durch Stoerung blockiert — nicht starten, aber auch nicht aufloesen
+    if (tour.disruptionId) continue;
 
     // Finde den nächsten geplanten Einsatz
     const nextDep = findNextDeployment(tour);
@@ -835,6 +838,13 @@ export function processTours(state, m, log) {
       continue;
     }
 
+    // Stoerungsmanagement: Technischen Defekt vor Tourbeginn pruefen
+    if (maybeGenerateTechnicalDefect(state, tour, nextDep.dep, m, log)) {
+      // Defekt aufgetreten — Tour blockiert, Einsatz nicht starten
+      log.push({ type: "tour_blocked_defect", tour: tour.id, atMin: m });
+      continue;
+    }
+
     // Starte den Einsatz
     const startResult = startDeployment(state, tour, nextDep.dep, nextDep.index);
     nextDep.dep.tripId = startResult.tripId;
@@ -842,6 +852,10 @@ export function processTours(state, m, log) {
     nextDep.dep.actualStartMin = m;
     tour.currentDepIndex = nextDep.index;
     log.push({ type: "tour_deployment_started", tour: tour.id, deployment: nextDep.dep.id, trip: startResult.tripId, customer: nextDep.dep.customer, atMin: m, branchId: vehicle.branchId });
+
+    // Stoerungsmanagement: Ladeverzoegerung fuer den neuen Trip pruefen
+    const newTrip = state.trips.find(t => t.id === startResult.tripId);
+    if (newTrip) maybeGenerateLoadingDelay(state, newTrip, m, log);
   }
 }
 
