@@ -169,6 +169,10 @@ import {
 import { handleDelegationCommand } from "./delegationCommands.ts";
 import { migrateStories, processStoryDeadlines, processStoryAppointments, processDailyStories, getStoryEventTimes } from "./storyEngine.ts";
 import { handleStoryCommand } from "./storyCommands.ts";
+import {
+  setDevelopmentFocus as doSetFocus, startOnboarding, pauseOnboarding,
+  resumeOnboarding, dismissOnboarding, markOnboardingReviewed, recordAutoDecisionDay,
+} from "./developmentEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -338,6 +342,7 @@ function doDailyAccounting(state, midnight) {
     state.stats.consecutiveBalanceDays = 0;
   }
   state.stats.lastBalanceDay = day;
+  recordAutoDecisionDay(state, midnight);
   state.lastDailyAccountingMin = midnight;
   // Auftrag 30: Zufriedenheitsregeln, Erholung und Kündigungsrisiken
   processDailySatisfaction(state, midnight);
@@ -594,6 +599,7 @@ function processEventsAt(state, m, log) {
   processDriverTravels(state, m, log);
   // 3e.5 Schwangerschaft / Geburt (Beziehungs-Engine)
   processPregnancy(state, m, log); processDates(state, m, log);
+  // 3e.3 Tatsächlicher Austritt bei Fristende (Auftrag 18)
   processEmployeeExit(state, m, log); processStoryDeadlines(state, m, log); processStoryAppointments(state, m, log);
   // 4. Tagesabrechnung (Mitternacht)
   if (m % 1440 === 0 && m > 0) {
@@ -2484,10 +2490,7 @@ export function applyCommand(state, command, params) {
       throw new Error("Unbekannter Befehl: " + command);
     }
   }
-  // processedGameMinute mit gameTime synchronisieren: manuelle Zeitfortschritte
-  // (advanceTime, advanceToNextEvent, Befehle mit advanceTo) aktualisieren gameTime,
-  // aber nicht processedGameMinute. Ohne Synchronisation würde enableAutomation
-  // die Zeit auf den alten processedGameMinute-Wert zurücksetzen.
+  // processedGameMinute mit gameTime synchronisieren (manuelle Zeitfortschritte aktualisieren gameTime, aber nicht processedGameMinute).
   if (state.timeControl && state.gameTime > (state.timeControl.processedGameMinute || 0)) {
     state.timeControl.processedGameMinute = state.gameTime;
   }
