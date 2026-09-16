@@ -62,61 +62,87 @@ async function idbKeys() {
   });
 }
 
+// ---- Namensraum-Präfix ----
+// Szenario-Spielstände nutzen einen separaten Präfix, damit Autosaves
+// und Slots des Szenarios keine freie Partie überschreiben.
+function nsPrefix(state) {
+  return state?.scenario ? "scenario_" : "";
+}
+
 // ---- Aktueller Spielstand ----
 
 export async function saveCurrent(state) {
-  await idbPut("current", { state, savedAt: Date.now() });
+  const prefix = nsPrefix(state);
+  await idbPut(prefix + "current", { state, savedAt: Date.now() });
 }
 
 export async function loadCurrent() {
+  // Zuerst Szenario-Current versuchen, dann freies Current
+  let v = await idbGet("scenario_current");
+  if (!v) v = await idbGet("current");
+  return v ? v.state : null;
+}
+
+export async function loadCurrentFree() {
   const v = await idbGet("current");
   return v ? v.state : null;
+}
+
+export async function clearScenarioCurrent() {
+  await idbDelete("scenario_current");
 }
 
 // ---- Rotierende Autosaves (3 Slots) ----
 
 export async function saveAutosave(index, state) {
-  await idbPut("autosave_" + index, { state, savedAt: Date.now() });
+  const prefix = nsPrefix(state);
+  await idbPut(prefix + "autosave_" + index, { state, savedAt: Date.now() });
 }
 
-export async function loadAutosave(index) {
-  const v = await idbGet("autosave_" + index);
+export async function loadAutosave(index, isScenario) {
+  const prefix = isScenario ? "scenario_" : "";
+  const v = await idbGet(prefix + "autosave_" + index);
   return v ? v.state : null;
 }
 
-export async function getAutosaveMeta(index) {
-  const v = await idbGet("autosave_" + index);
+export async function getAutosaveMeta(index, isScenario) {
+  const prefix = isScenario ? "scenario_" : "";
+  const v = await idbGet(prefix + "autosave_" + index);
   return v ? { savedAt: v.savedAt } : null;
 }
 
-export async function getAllAutosaveMetas() {
+export async function getAllAutosaveMetas(isScenario) {
   const metas = [];
-  for (let i = 0; i < 3; i++) metas.push(await getAutosaveMeta(i));
+  for (let i = 0; i < 3; i++) metas.push(await getAutosaveMeta(i, isScenario));
   return metas;
 }
 
 // ---- Manuelle Slots ----
 
 export async function saveManualSlot(name, state) {
-  await idbPut("slot_" + name, { state, savedAt: Date.now(), name });
+  const prefix = nsPrefix(state);
+  await idbPut(prefix + "slot_" + name, { state, savedAt: Date.now(), name });
 }
 
-export async function loadManualSlot(name) {
-  const v = await idbGet("slot_" + name);
+export async function loadManualSlot(name, isScenario) {
+  const prefix = isScenario ? "scenario_" : "";
+  const v = await idbGet(prefix + "slot_" + name);
   return v ? v.state : null;
 }
 
-export async function deleteManualSlot(name) {
-  await idbDelete("slot_" + name);
+export async function deleteManualSlot(name, isScenario) {
+  const prefix = isScenario ? "scenario_" : "";
+  await idbDelete(prefix + "slot_" + name);
 }
 
-export async function listManualSlots() {
+export async function listManualSlots(isScenario) {
+  const prefix = isScenario ? "scenario_slot_" : "slot_";
   const keys = await idbKeys();
-  const slotKeys = keys.filter(k => typeof k === "string" && k.startsWith("slot_"));
+  const slotKeys = keys.filter(k => typeof k === "string" && k.startsWith(prefix));
   const slots = [];
   for (const k of slotKeys) {
     const v = await idbGet(k);
-    if (v) slots.push({ name: v.name || k.slice(5), savedAt: v.savedAt });
+    if (v) slots.push({ name: v.name || k.slice(prefix.length), savedAt: v.savedAt });
   }
   return slots.sort((a, b) => b.savedAt - a.savedAt);
 }

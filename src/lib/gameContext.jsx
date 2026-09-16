@@ -452,6 +452,46 @@ export function GameProvider({ children }) {
     } finally { setBusy(false); }
   }, [saveNow, processNewEvents, showToast]);
 
+  // Neues Szenario-Spiel starten
+  const newScenarioGame = useCallback(async (scenarioId, names) => {
+    setBusy(true);
+    try {
+      const data = await executeInWorker(null, "newScenarioGame", { scenarioId, names: names || {} });
+      if (data.error) throw new Error(data.error);
+      const newState = data.state;
+      stateRef.current = newState; setState(newState);
+      setShowStart(false);
+      saveNow(newState);
+      setAutomationEnabled(false);
+      lastSyncGameTimeRef.current = newState.gameTime || 0;
+      lastSyncRealMsRef.current = Date.now();
+      prevAchievementsRef.current = new Set((newState.achievements || []).filter(a => a.unlocked).map(a => a.id));
+      processNewEvents(newState);
+      return { ok: true };
+    } catch (e) {
+      showToast(e.message, "error");
+      throw e;
+    } finally { setBusy(false); }
+  }, [saveNow, processNewEvents, showToast]);
+
+  // Szenario als freies Spiel fortsetzen
+  const continueScenarioAsFreePlay = useCallback(async () => {
+    if (!stateRef.current) return;
+    try {
+      const data = await executeInWorker(stateRef.current, "continueScenarioAsFreePlay", {});
+      if (data.error) throw new Error(data.error);
+      const newState = data.state;
+      // Alten Szenario-Current löschen, neuen freien Current speichern
+      const { clearScenarioCurrent } = await import("@/lib/persistence");
+      await clearScenarioCurrent();
+      stateRef.current = newState; setState(newState);
+      saveNow(newState);
+      showToast("Szenario abgeschlossen — das Spiel wird als freie Partie fortgesetzt.", "success");
+    } catch (e) {
+      showToast(e.message, "error");
+    }
+  }, [saveNow, showToast]);
+
   const reload = useCallback(async () => {
     let loaded = null;
     try { loaded = await loadCurrent(); } catch (e) {}
@@ -488,7 +528,8 @@ export function GameProvider({ children }) {
 
   const loadSlot = useCallback(async (name) => {
     try {
-      const loaded = await loadManualSlot(name);
+      const isScenario = !!stateRef.current?.scenario;
+      const loaded = await loadManualSlot(name, isScenario);
       if (!loaded) return { ok: false, error: "Slot nicht gefunden" };
       stateRef.current = loaded; setState(loaded);
       setShowStart(false);
@@ -498,18 +539,19 @@ export function GameProvider({ children }) {
   }, [saveNow]);
 
   const deleteSlot = useCallback(async (name) => {
-    try { await deleteManualSlot(name); return { ok: true }; }
+    try { await deleteManualSlot(name, !!stateRef.current?.scenario); return { ok: true }; }
     catch (e) { return { ok: false, error: e.message }; }
   }, []);
 
   const listSlots = useCallback(async () => {
-    try { return await listManualSlots(); }
+    try { return await listManualSlots(!!stateRef.current?.scenario); }
     catch (e) { return []; }
   }, []);
 
   const loadAutosaveSlot = useCallback(async (index) => {
     try {
-      const loaded = await loadAutosave(index);
+      const isScenario = !!stateRef.current?.scenario;
+      const loaded = await loadAutosave(index, isScenario);
       if (!loaded) return { ok: false, error: "Autosave-Slot leer" };
       stateRef.current = loaded; setState(loaded);
       setShowStart(false);
@@ -576,7 +618,7 @@ export function GameProvider({ children }) {
   // damit Komponenten, die nur Aktionen brauchen, nicht bei jeder Zustandsänderung
   // neu rendern.
   const actions = useMemo(() => ({
-    send, newGame, reload,
+    send, newGame, newScenarioGame, continueScenarioAsFreePlay, reload,
     enableAutomation, pauseAutomation,
     startBackgroundAdvance, dismissBackgroundAdvanceResult,
     runDiagnosedAdvance, getDiagReport,
@@ -584,7 +626,7 @@ export function GameProvider({ children }) {
     showToast, dismissToast, dismissOverlay, dismissStart, toggleMotion,
     exportGame, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
   }), [
-    send, newGame, reload,
+    send, newGame, newScenarioGame, continueScenarioAsFreePlay, reload,
     enableAutomation, pauseAutomation,
     startBackgroundAdvance, dismissBackgroundAdvanceResult,
     runDiagnosedAdvance, getDiagReport,

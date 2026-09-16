@@ -229,7 +229,8 @@ function addBooking(state, min, cause, amountCents, account, refId) {
   }
 }
 function isPlayerBlocked(state) {
-  return state.appointments.some(a => a.status === "active");
+  // Szenario-Auszeit blockiert keine operativen Aktionen — Eingriffe werden gezählt.
+  return state.appointments.some(a => a.status === "active" && a.type !== "scenario_timeoff");
 }
 function nextBlockEnd(state) {
   let end = null;
@@ -413,6 +414,14 @@ function completeTrip(state, trip, m, log) {
   order.history = order.history || [];
   order.history.push({ type: "delivered", min: m, actor: driver.id, actorName: driver.name, details: { onTime, paymentCents: payment } });
   state.stats.totalDeliveries++;
+  // Szenario: Lieferungen zählen (gesamt und während Auszeit)
+  if (state.scenario && state.scenario.status === "active") {
+    state.scenario.totalDeliveries = (state.scenario.totalDeliveries || 0) + 1;
+    if (state.scenario.timeoffStartMin != null && state.scenario.timeoffEndMin != null &&
+        m >= state.scenario.timeoffStartMin && m < state.scenario.timeoffEndMin) {
+      state.scenario.deliveriesDuringTimeoff = (state.scenario.deliveriesDuringTimeoff || 0) + 1;
+    }
+  }
   if (onTime) { state.stats.timelyDeliveries++; state.stats.consecutiveTimely = (state.stats.consecutiveTimely || 0) + 1; }
   else { state.stats.consecutiveTimely = 0; }
   state.stats.totalRevenueCents = (state.stats.totalRevenueCents || 0) + payment;
@@ -707,6 +716,10 @@ function processEventsAt(state, m, log) {
   // Beide sind idempotent und checkAchievements ruft computeCompanyValue auf,
   // das alle Fahrzeuge/Anlagen iteriert — bei der Zeitautomatik mit vielen
   // Ereignissen pro Tick war das der CPU-Flaschenhals.
+  // 8. Szenario: Stichtags-Flag setzen (Auswertung erfolgt im Adapter)
+  if (state.scenario && state.scenario.status === "active" && m >= state.scenario.deadlineMin && !state.scenario.pendingEvaluation) {
+    state.scenario.pendingEvaluation = true;
+  }
 }
 function advanceTo(state, targetMin, log, reportStart) {
   // Flag für processDispatcher: während eines Vorlaufs (reportStart definiert)
@@ -1156,6 +1169,10 @@ export function applyCommand(state, command, params) {
         linkedRefs: { type: "vehicle", id: v.id }, dedupKey: `vehicle_sold:${v.id}`,
       });
       const newAchs = checkAchievements(state, state.gameTime);
+      // Szenario: Fahrzeugverkauf-Erlös verfolgen
+      if (state.scenario && state.scenario.status === "active") {
+        state.scenario.vehicleSaleRevenue = (state.scenario.vehicleSaleRevenue || 0) + offerPrice;
+      }
       result = { ok: true, vehicleId: v.id, salePriceCents: offerPrice, bookValueCents: bookValue, gainLossCents: gainLoss, newAchievements: newAchs };
       break;
     }

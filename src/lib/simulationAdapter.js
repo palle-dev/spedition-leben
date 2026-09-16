@@ -9,6 +9,7 @@
 import { applyCommand, createInitialState } from "@/lib/simulation/simulationEngine";
 import { generateBranchDecisions, approveBranchDecision, rejectBranchDecision, setBranchManagerMode } from "@/lib/simulation/branchManagerEngine";
 import { processAssistant, migrateAssistant } from "@/lib/simulation/assistantEngine";
+import { createScenarioState, evaluateScenario, continueAsFreePlay, recordIntervention, isOperativeCommand } from "@/lib/scenarios/scenarioEngine";
 
 // Reduziert die Zustandsgröße vor der Ausführung.
 // Entfernt gesehene Events (>1 Tag alt), kappt das Legacy-Buchungs-Array,
@@ -75,6 +76,30 @@ export async function executeCommand(state, command, params) {
     }
   }
 
+  // Neues Szenario-Spiel erstellen
+  if (command === "newScenarioGame") {
+    try {
+      const init = createScenarioState(params?.scenarioId, params?.names || {});
+      return { state: init.state, result: { ok: true, command: "newScenarioGame" } };
+    } catch (e) {
+      return { error: e.message };
+    }
+  }
+
+  // Szenario als freies Spiel fortsetzen
+  if (command === "continueScenarioAsFreePlay") {
+    if (!state) return { error: "state erforderlich" };
+    const newState = continueAsFreePlay(state);
+    return { state: newState, result: { ok: true, command: "continueScenarioAsFreePlay" } };
+  }
+
+  // Szenario auswerten (vom Adapter nach Zeitvorlauf aufgerufen)
+  if (command === "evaluateScenarioNow") {
+    if (!state) return { error: "state erforderlich" };
+    const result = evaluateScenario(state);
+    return { state, result: { ok: true, evaluation: result } };
+  }
+
   if (!state) return { error: "state erforderlich" };
 
   // Geschäftsführergehalt setzen – rein clientseitig, keine Simulations-Engine nötig.
@@ -136,6 +161,19 @@ export async function executeCommand(state, command, params) {
       delete newState._orderMap;
       delete newState._bulkAdvance;
       delete newState._largeAdvance;
+    }
+    // Szenario: operative Eingriffe während der Auszeit zählen.
+    // Nur bei erfolgreicher Ausführung (applyCommand hat nicht geworfen).
+    // preCommandGameTime aus dem Original-State (vor slimming).
+    if (newState && newState.scenario && newState.scenario.status === "active") {
+      const preTime = state.gameTime || 0;
+      recordIntervention(newState, command, preTime);
+    }
+    // Szenario: Stichtags-Auswertung nach Zeitvorlauf.
+    // processEventsAt setzt pendingEvaluation, wenn der Stichtag erreicht ist.
+    // Die Auswertung erfolgt hier nach allen Ereignissen dieses Zeitpunkts.
+    if (newState && newState.scenario && newState.scenario.pendingEvaluation) {
+      evaluateScenario(newState);
     }
     // Assistent der Geschäftsführung: stündliche Verarbeitung.
     // Läuft bei Zeitautomatik (syncAutomation) UND manuellem Zeitvorlauf (advanceTo).
