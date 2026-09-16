@@ -69,7 +69,7 @@ export default function Leadership() {
             <Shield className="w-5 h-5 text-lime/70" /> Führung & Delegation
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Verantwortung übertragen, nachvollziehen was Mitarbeiter entscheiden, sich auf das Wesentliche konzentrieren.
+            Mitarbeiterbefugnisse festlegen — welche Handlungen selbstständig erlaubt sind und welche Freigaben erforderlich sind.
           </p>
         </div>
         <div className="flex items-center gap-2 text-sm">
@@ -89,7 +89,7 @@ export default function Leadership() {
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-white/10">
         {[
-          { id: "rules", label: "Führungsregeln", icon: Settings },
+          { id: "rules", label: "Mitarbeiterbefugnisse", icon: Settings },
           { id: "approvals", label: "Freigaben", icon: AlertTriangle, badge: summary.pending.length },
           { id: "activity", label: "Aktivität", icon: TrendingUp },
         ].map(t => {

@@ -29,7 +29,7 @@ export default function DevelopmentPanel({ state }) {
     try {
       await send("setDevelopmentFocus", { focusId: fid });
       setShowFocusPicker(false);
-      showToast("Schwerpunkt gesetzt: " + getFocusLabel(fid), "success");
+      showToast("Entwicklungsziel gesetzt: " + getFocusLabel(fid), "success");
     } catch (e) { showToast(e.message, "error"); }
     finally { setBusy(false); }
   }
@@ -49,7 +49,7 @@ export default function DevelopmentPanel({ state }) {
       <div>
         <div className="flex items-center gap-2 mb-3">
           <Compass className="w-4 h-4 text-lime/70" />
-          <span className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground">Entwicklungsschwerpunkt</span>
+          <span className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground">Entwicklungsziel</span>
         </div>
         {focusId ? (
           <div className="flex items-center justify-between">
@@ -65,7 +65,7 @@ export default function DevelopmentPanel({ state }) {
         ) : (
           <button onClick={() => setShowFocusPicker(true)}
             className="w-full text-left px-3 py-2.5 rounded-lg border border-dashed border-white/15 hover:border-lime/30 hover:bg-lime/5 transition text-sm text-muted-foreground">
-            Schwerpunkt wählen — beeinflusst vorgeschlagene Ziele und hervorgehobene Informationen.
+            Entwicklungsziel wählen — beeinflusst vorgeschlagene Ziele und hervorgehobene Informationen.
           </button>
         )}
       </div>
@@ -187,8 +187,8 @@ export default function DevelopmentPanel({ state }) {
               className="glass border border-white/15 rounded-2xl max-w-lg w-full p-6 shadow-2xl max-h-[80vh] overflow-y-auto"
               onClick={e => e.stopPropagation()}
             >
-              <h3 className="text-lg font-medium mb-1">Schwerpunkt wählen</h3>
-              <p className="text-xs text-muted-foreground mb-4">Der Schwerpunkt beeinflusst vorgeschlagene Ziele. Er verändert keine Preise oder Regeln. Ein Wechsel erhält alle Fortschritte.</p>
+              <h3 className="text-lg font-medium mb-1">Entwicklungsziel wählen</h3>
+              <p className="text-xs text-muted-foreground mb-4">Das Entwicklungsziel beeinflusst vorgeschlagene Ziele. Es verändert keine Preise oder Regeln. Ein Wechsel erhält alle Fortschritte.</p>
               <div className="space-y-2">
                 {DEVELOPMENT_FOCI.map(f => (
                   <button key={f.id} onClick={() => selectFocus(f.id)} disabled={busy}
