@@ -22,7 +22,7 @@ const SCENES = {
     shade: "shade-office",
   },
   personnel: {
-    url: "https://media.base44.com/images/public/6aa52ebc01a939da57f8b78f/cf88eef93_generated_image.png",
+    url: "https://media.base44.com/images/public/6aa52ebc01a939da57f8b78f/7a2ddddca_generated_image.png",
     shade: "shade-office",
   },
   finances: {
