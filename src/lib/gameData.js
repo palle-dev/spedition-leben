@@ -45,6 +45,58 @@ export const TOLL_PER_KM = 0.20;
 // Gespiegelte Spielwerte (Spiegel von base44/shared/gameRules.ts) für die Darstellung.
 export const VEHICLE_PRICE_EUR = 30000;
 export const VEHICLE_REFERENCE_PRICE = 3000000; // 30.000 € in Cent
+
+// ---------- Fahrzeugkatalog (Spiegel von gameRules.ts) ----------
+export const VEHICLE_CATALOG = {
+  regional: {
+    id: "regional",
+    label: "Regional-Lkw",
+    capacityTons: 8,
+    consumptionPer100km: 22,
+    priceCents: 1800000,
+    maintenanceCostCents: 120000,
+    maintenanceDurationMin: 360,
+    referencePriceCents: 1800000,
+    description: "Wendiger Lkw für regionale Verteilerverkehre. Geringer Verbrauch, geringere Wartungskosten.",
+    suitableFor: ["normal", "express"],
+  },
+  standard: {
+    id: "standard",
+    label: "Standard-Lkw",
+    capacityTons: 12,
+    consumptionPer100km: 28,
+    priceCents: 3000000,
+    maintenanceCostCents: 150000,
+    maintenanceDurationMin: 480,
+    referencePriceCents: 3000000,
+    description: "Vielseitiger Lkw für mittlere bis lange Strecken. Ausgewogenes Verhältnis von Kapazität und Kosten.",
+    suitableFor: ["normal", "express", "heavy"],
+  },
+  heavy: {
+    id: "heavy",
+    label: "Schwerer Fernverkehrs-Lkw",
+    capacityTons: 24,
+    consumptionPer100km: 35,
+    priceCents: 5500000,
+    maintenanceCostCents: 220000,
+    maintenanceDurationMin: 600,
+    referencePriceCents: 5500000,
+    description: "Großer Lkw für schwere Ladungen und lange Fernverkehrsstrecken. Hohe Nutzlast bei höheren Kosten.",
+    suitableFor: ["normal", "express", "heavy"],
+  },
+};
+export const VEHICLE_CATALOG_LIST = [
+  VEHICLE_CATALOG.regional,
+  VEHICLE_CATALOG.standard,
+  VEHICLE_CATALOG.heavy,
+];
+export function getVehicleProfile(vehicle) {
+  if (!vehicle) return VEHICLE_CATALOG.standard;
+  if (vehicle.catalogId && VEHICLE_CATALOG[vehicle.catalogId]) return VEHICLE_CATALOG[vehicle.catalogId];
+  if (vehicle.type === "Regional-Lkw") return VEHICLE_CATALOG.regional;
+  if (vehicle.type === "Schwerer Fernverkehrs-Lkw") return VEHICLE_CATALOG.heavy;
+  return VEHICLE_CATALOG.standard;
+}
 export const HIRE_FEE_EUR = 500;
 export const DRIVER_COST_PER_DAY_EUR = 100;
 export const BRANCH_COST_PER_DAY_EUR = 100;

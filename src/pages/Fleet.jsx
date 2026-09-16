@@ -1,14 +1,16 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
-import { formatEuro, formatGameTime, computeDealerOffer } from "@/lib/gameData";
+import { formatEuro, formatGameTime, computeDealerOffer, getVehicleProfile } from "@/lib/gameData";
 import { ownershipLabel, getVehicleBookValue } from "@/lib/financingData";
 import StatusBadge from "@/components/ui/StatusBadge";
 import SellVehicleDialog from "@/components/fleet/SellVehicleDialog";
 import WorkshopSection from "@/components/fleet/WorkshopSection";
 import DgSection from "@/components/fleet/DgSection";
+import UsedVehicleMarket from "@/components/fleet/UsedVehicleMarket";
+import VehicleAnalysis from "@/components/fleet/VehicleAnalysis";
 import BranchSelector from "@/components/branches/BranchSelector";
-import { Wrench, Plus, Truck, MapPin, Gauge, FileText, TrendingUp, FileCheck, Settings, Flame } from "lucide-react";
+import { Wrench, Plus, Truck, MapPin, Gauge, FileText, TrendingUp, FileCheck, Settings, Flame, Store, BarChart3 } from "lucide-react";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
 import PageHint from "@/components/help/PageHint";
 
@@ -24,7 +26,6 @@ export default function Fleet() {
   const activeBranches = (state.branches || []).filter(b => b.status === "active");
   const selectedBranchId = buyBranchId || (activeBranches[0]?.id || null);
   const stressed = state.private.stress >= 80;
-  const maintCost = stressed ? Math.round(150000 * 1.25) : 150000;
   const openCompany = state.openCosts.some(o => o.account === "company");
   const activeVehicles = state.vehicles.filter(v => v.status !== "archived" && v.status !== "sold");
   const ownedCount = activeVehicles.filter(v => (v.ownership_type || "owned") === "owned").length;
@@ -74,6 +75,12 @@ export default function Fleet() {
             <button onClick={() => setTab("dg")} className={`px-3 py-2.5 text-sm font-medium transition flex items-center gap-1.5 ${tab === "dg" ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
               <Flame className="w-3.5 h-3.5" /> Gefahrgut
             </button>
+            <button onClick={() => setTab("used")} className={`px-3 py-2.5 text-sm font-medium transition flex items-center gap-1.5 ${tab === "used" ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+              <Store className="w-3.5 h-3.5" /> Gebraucht
+            </button>
+            <button onClick={() => setTab("analysis")} className={`px-3 py-2.5 text-sm font-medium transition flex items-center gap-1.5 ${tab === "analysis" ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+              <BarChart3 className="w-3.5 h-3.5" /> Analyse
+            </button>
           </div>
         </div>
         <div className="flex gap-2 items-center">
@@ -92,15 +99,20 @@ export default function Fleet() {
         <WorkshopSection state={state} send={send} showToast={showToast} />
       ) : tab === "dg" ? (
         <DgSection state={state} send={send} showToast={showToast} />
+      ) : tab === "used" ? (
+        <UsedVehicleMarket state={state} send={send} showToast={showToast} branches={activeBranches} />
+      ) : tab === "analysis" ? (
+        <VehicleAnalysis state={state} send={send} showToast={showToast} />
       ) : (
         <>
           {openCompany && <div className="text-sm text-red-300 bg-red-500/10 border border-red-400/20 rounded-lg px-4 py-2.5">Solange betriebliche Pflichtkosten offen sind, ist kein Fahrzeugkauf möglich.</div>}
-          {stressed && <div className="text-sm text-amber-300 bg-amber-500/10 border border-amber-400/20 rounded-lg px-4 py-2.5">Deine Belastung ist hoch (≥ 80): Wartung kostet 25 % mehr ({formatEuro(maintCost)}).</div>}
+          {stressed && <div className="text-sm text-amber-300 bg-amber-500/10 border border-amber-400/20 rounded-lg px-4 py-2.5">Deine Belastung ist hoch (≥ 80): Wartung kostet 25 % mehr.</div>}
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
             {activeVehicles.map(v => {
               const trip = v.tripId ? state.trips.find(t => t.id === v.tripId) : null;
               const canMaint = v.status === "free" && v.condition < 100;
+              const profile = getVehicleProfile(v);
               const isLeased = (v.ownership_type || "owned") === "leased";
               const isOwned = !isLeased;
               const bookValue = isOwned ? getVehicleBookValue(state, v.id) : 0;
@@ -123,13 +135,13 @@ export default function Fleet() {
                   <div className="text-xs text-muted-foreground mt-2">
                     {isLeased
                       ? `Geleast · km ${(v.odometerKm || 0).toLocaleString("de-DE")}`
-                      : `Buchwert ${formatEuro(bookValue)} · Markt ${formatEuro(dealerOffer)}`} · 12 t · 28 L/100km
+                      : `Buchwert ${formatEuro(bookValue)} · Markt ${formatEuro(dealerOffer)}`} · {profile.capacityTons} t · {profile.consumptionPer100km} L/100km
                   </div>
                   {trip && <div className="text-xs text-amber-300 mt-1">Unterwegs bis {formatGameTime(trip.endMin)}</div>}
                   {v.status === "maintenance" && <div className="text-xs text-sky-300 mt-1">Wartung bis {formatGameTime(v.maintenanceUntil)}</div>}
                   {hasValidOffer && <div className="text-xs text-lime mt-1">Angebot: {formatEuro(v.saleOffer.priceCents)} bis {formatGameTime(v.saleOffer.validUntilMin)}</div>}
                   <div className="mt-3 flex gap-2">
-                    <button onClick={() => maintain(v)} disabled={!canMaint || busyId === v.id || state.company.accountCents < maintCost}
+                    <button onClick={() => maintain(v)} disabled={!canMaint || busyId === v.id || state.company.accountCents < (stressed ? Math.round(profile.maintenanceCostCents * 1.25) : profile.maintenanceCostCents)}
                       className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2.5 bg-white/5 border border-white/10 text-sm hover:bg-white/10 disabled:opacity-40 transition active:scale-[0.98]">
                       {busyId === v.id ? <span className="w-4 h-4 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" /> : <><Wrench className="w-4 h-4" /> Schnellwartung</>}
                     </button>

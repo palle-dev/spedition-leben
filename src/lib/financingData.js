@@ -15,11 +15,30 @@ export const BASE_CREDIT_LIMIT_CENTS = 10000000;       // 100.000 €
 export const EQUITY_GROWTH_THRESHOLD_CENTS = 16500000;  // 165.000 €
 
 export const LEASING_OFFERS = {
-  // Variante A – Flexibler Einstieg (zuerst anzeigen)
+  // ---------- Regional-Lkw ----------
+  regional_flex: {
+    id: "regional_flex",
+    label: "Regional – Flexibler Einstieg",
+    vehicleType: "Regional-Lkw",
+    catalogId: "regional",
+    capacityTons: 8,
+    consumptionPer100km: 22,
+    termMonths: 24,
+    specialPaymentCents: 0,
+    monthlyRateCents: 55000,
+    includedKm: 200000,
+    mileageRatePerKmCents: 8,
+    buyoutPriceCents: 900000,
+    minConditionAtReturn: 70,
+    conditionPenaltyPerPointCents: 4000,
+    returnLocationCity: "Hamburg",
+  },
+  // ---------- Standard-Lkw ----------
   standard_flex: {
     id: "standard_flex",
-    label: "Variante A – Flexibler Einstieg",
+    label: "Standard A – Flexibler Einstieg",
     vehicleType: "Standard-Lkw",
+    catalogId: "standard",
     capacityTons: 12,
     consumptionPer100km: 28,
     termMonths: 24,
@@ -32,11 +51,11 @@ export const LEASING_OFFERS = {
     conditionPenaltyPerPointCents: 5000,
     returnLocationCity: "Hamburg",
   },
-  // Variante B – Niedrigere laufende Rate
   standard: {
     id: "standard",
-    label: "Variante B – Niedrigere Rate",
+    label: "Standard B – Niedrigere Rate",
     vehicleType: "Standard-Lkw",
+    catalogId: "standard",
     capacityTons: 12,
     consumptionPer100km: 28,
     termMonths: 24,
@@ -49,9 +68,32 @@ export const LEASING_OFFERS = {
     conditionPenaltyPerPointCents: 5000,
     returnLocationCity: "Hamburg",
   },
+  // ---------- Schwerer Fernverkehrs-Lkw ----------
+  heavy_flex: {
+    id: "heavy_flex",
+    label: "Schwer – Flexibler Einstieg",
+    vehicleType: "Schwerer Fernverkehrs-Lkw",
+    catalogId: "heavy",
+    capacityTons: 24,
+    consumptionPer100km: 35,
+    termMonths: 24,
+    specialPaymentCents: 0,
+    monthlyRateCents: 140000,
+    includedKm: 280000,
+    mileageRatePerKmCents: 12,
+    buyoutPriceCents: 2750000,
+    minConditionAtReturn: 70,
+    conditionPenaltyPerPointCents: 7000,
+    returnLocationCity: "Hamburg",
+  },
 };
 
-export const LEASING_OFFER_LIST = [LEASING_OFFERS.standard_flex, LEASING_OFFERS.standard];
+export const LEASING_OFFER_LIST = [
+  LEASING_OFFERS.regional_flex,
+  LEASING_OFFERS.standard_flex,
+  LEASING_OFFERS.standard,
+  LEASING_OFFERS.heavy_flex,
+];
 
 // Kompatibilität: altes Export-Objekt
 export const LEASING_OFFER = LEASING_OFFERS.standard;

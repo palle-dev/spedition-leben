@@ -3,14 +3,12 @@
 // Reine Lese-Funktion — verändert weder Konten, Spielstand noch Zufallszustand.
 
 import {
-  VEHICLE_CATALOG, VEHICLE_CATALOG_LIST, getVehicleProfile,
-  computeMarketValue, computeDealerOffer, fuelCents, tollCents,
-  FUEL_PRICE, TOLL_PER_KM, MONTH_MIN, DAY_MIN,
+  VEHICLE_CATALOG, getVehicleProfile,
+  computeMarketValue, computeDealerOffer,
 } from "./gameRules.ts";
 import { getVehicleBookValue } from "./accountingEngine.ts";
 import {
-  LEASING_OFFERS, getAllLeasingOffers, computeCreditLimit,
-  isLeasingOverdueBlocked,
+  getAllLeasingOffers, computeCreditLimit, DAY_MIN,
 } from "./financingEngine.ts";
 import { SERVICE_PROVIDERS } from "./serviceEngine.ts";
 
