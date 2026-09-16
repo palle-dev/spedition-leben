@@ -10,6 +10,7 @@ import {
 import { pushEvent } from "./eventLog.ts";
 import { deliverMessage } from "./mailEngine.ts";
 import { isPersonAvailable } from "./absenceEngine.ts";
+import { applyCleaningToBreakArea } from "./siteExpansionEngine.ts";
 
 const DAY_MIN = 1440;
 
@@ -125,6 +126,8 @@ export function applyCleaningEffect(state, branchId, unitsDone, dayId) {
   if (deltaEffect > 0) {
     b.cleanliness = Math.min(100, b.cleanliness + deltaEffect);
     progress.effectApplied = newEffect;
+    // Reinigung pflegt auch den Aufenthaltsbereich (Auftrag 34)
+    applyCleaningToBreakArea(state, branchId, deltaEffect);
   }
   progress.unitsDone = totalUnits;
   b.cleanlingProgress = b.cleanlingProgress || {};
