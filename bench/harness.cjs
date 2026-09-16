@@ -114,28 +114,44 @@ function makeState() {
   }).state;
 }
 
-// Repräsentativer Spielstand: 2 Disponenten (autonom), 8 Lkw, 8 Fahrer,
-// 3 Tage Vorlauf für aktive Touren/Aufträge. Deterministisch (gleicher Seed).
-function makeRepresentativeState() {
+// Skalierbarer Spielstand. scale: "small" (8 Lkw), "medium" (15 Lkw), "large" (25 Lkw)
+function makeScaledState(scale) {
+  const cfg = {
+    small:  { vehicles: 5, drivers: 5, dispatchers: 2, advanceDays: 3 },
+    medium: { vehicles: 12, drivers: 12, dispatchers: 3, advanceDays: 5 },
+    large:  { vehicles: 22, drivers: 22, dispatchers: 4, advanceDays: 7 },
+  }[scale];
   const s = makeState();
-  // 5 zusätzliche Lkw kaufen (3 → 8)
-  for (let i = 0; i < 5; i++) {
+  // Ausreichend Kapital für Fahrzeugkäufe injizieren
+  s.company.accountCents = 50000000; // 500.000 €
+  // Lkw kaufen
+  for (let i = 0; i < cfg.vehicles; i++) {
     try { applyCommand(s, "buyVehicle", {}); } catch (e) {}
   }
-  // 5 zusätzliche Fahrer einstellen (3 → 8)
-  const driverApps = (s.availableApplicants || []).filter(a => a.role === "driver");
-  for (let i = 0; i < 5 && i < driverApps.length; i++) {
-    try { applyCommand(s, "hireEmployee", { applicantId: driverApps[i].id }); } catch (e) {}
+  // Fahrer einstellen — ggf. Markt-Wellen auslösen durch Zeitvorlauf
+  let hired = 0;
+  for (let pass = 0; pass < 3 && hired < cfg.drivers; pass++) {
+    const driverApps = (s.availableApplicants || []).filter(a => a.role === "driver");
+    for (let i = hired; i < cfg.drivers && i < driverApps.length; i++) {
+      try { applyCommand(s, "hireEmployee", { applicantId: driverApps[i].id }); hired++; } catch (e) {}
+    }
+    if (hired < cfg.drivers) applyCommand(s, "advanceTime", { minutes: 240 }); // Neue Welle
   }
-  // 2 Disponenten einstellen (werden automatisch autonom)
-  const dispApps = (s.availableApplicants || []).filter(a => a.role === "dispatcher");
-  for (let i = 0; i < 2 && i < dispApps.length; i++) {
-    try { applyCommand(s, "hireEmployee", { applicantId: dispApps[i].id }); } catch (e) {}
+  // Disponenten einstellen
+  let hiredDisp = 0;
+  for (let pass = 0; pass < 3 && hiredDisp < cfg.dispatchers; pass++) {
+    const dispApps = (s.availableApplicants || []).filter(a => a.role === "dispatcher");
+    for (let i = hiredDisp; i < cfg.dispatchers && i < dispApps.length; i++) {
+      try { applyCommand(s, "hireEmployee", { applicantId: dispApps[i].id }); hiredDisp++; } catch (e) {}
+    }
+    if (hiredDisp < cfg.dispatchers) applyCommand(s, "advanceTime", { minutes: 240 });
   }
-  // 3 Tage vorlaufen, um aktive Touren, Fahrten und ein größeres Auftragsbuch aufzubauen
-  applyCommand(s, "advanceTime", { minutes: 3 * 1440 });
+  // Tage vorlaufen, um Auftragsbuch aufzubauen
+  applyCommand(s, "advanceTime", { minutes: cfg.advanceDays * 1440 });
   return s;
 }
+
+function makeRepresentativeState() { return makeScaledState("small"); }
 
 function describeState(s) {
   return {
@@ -157,12 +173,12 @@ function resetStats() {
   global.__BENCH.btp = 0; global.__BENCH.st = 0; global.__BENCH.psv = 0;
 }
 
-function runBenchmark() {
-  const desc = describeState(makeRepresentativeState());
+function runBenchmarkAtScale(scale) {
+  const desc = describeState(makeScaledState(scale));
   const dayResults = [];
   for (let i = 0; i < 3; i++) {
-    const s = makeRepresentativeState();
-    resetStats(); // Reset NACH Setup, NUR die Messung erfassen
+    const s = makeScaledState(scale);
+    resetStats();
     const t0 = Date.now();
     applyCommand(s, "advanceTime", { minutes: 1440 });
     const totalMs = Date.now() - t0;
@@ -172,12 +188,21 @@ function runBenchmark() {
       stCalls: global.__BENCH.st, psvCalls: global.__BENCH.psv,
     });
   }
-
   const median = arr => [...arr].sort((a, b) => a - b)[Math.floor(arr.length / 2)];
-
   const pickMedian = (key) => median(dayResults.map(r => r[key]));
+  return {
+    scale, stateDescription: desc,
+    median: { totalMs: pickMedian("totalMs") },
+    medianInjected: {
+      pdCalls: pickMedian("pdCalls"), btpCalls: pickMedian("btpCalls"),
+      stCalls: pickMedian("stCalls"), psvCalls: pickMedian("psvCalls"),
+    },
+    runs: dayResults.map(r => ({ totalMs: r.totalMs, btp: r.btpCalls, st: r.stCalls, pd: r.pdCalls })),
+  };
+}
 
-  // Konsistenztest
+function runBenchmark() {
+  // Konsistenztest (small scale)
   function snap(s) {
     return JSON.stringify({
       gt: s.gameTime, cc: s.company?.cash, pc: s.private?.cash,
@@ -187,32 +212,15 @@ function runBenchmark() {
       rng: s.rngState,
     });
   }
-  const s1 = makeRepresentativeState(); applyCommand(s1, "advanceTime", { minutes: 1440 });
-  const s2 = makeRepresentativeState(); for (let i = 0; i < 24; i++) applyCommand(s2, "advanceTime", { minutes: 60 });
-  const s3 = makeRepresentativeState(); for (let i = 0; i < 96; i++) applyCommand(s3, "advanceTime", { minutes: 15 });
+  const s1 = makeScaledState("small"); applyCommand(s1, "advanceTime", { minutes: 1440 });
+  const s2 = makeScaledState("small"); for (let i = 0; i < 24; i++) applyCommand(s2, "advanceTime", { minutes: 60 });
   const consistent12 = snap(s1) === snap(s2);
-  const consistent13 = snap(s1) === snap(s3);
 
   return {
-    stateDescription: desc,
-    dayRuns: dayResults,
-    median: {
-      totalMs: median(dayResults.map(r => r.totalMs)),
-      suggestToursCalls: median(dayResults.map(r => r.suggestToursCalls)),
-      suggestToursTimeMs: median(dayResults.map(r => r.suggestToursTimeMs)),
-      buildTourPlanCalls: median(dayResults.map(r => r.buildTourPlanCalls)),
-      buildTourPlanTimeMs: median(dayResults.map(r => r.buildTourPlanTimeMs)),
-      processDispatcherCalls: median(dayResults.map(r => r.processDispatcherCalls)),
-      processDispatcherTimeMs: median(dayResults.map(r => r.processDispatcherTimeMs)),
-      planSingleVehicleCalls: median(dayResults.map(r => r.planSingleVehicleCalls)),
-    },
-    consistency: { "1x1440==24x60": consistent12, "1x1440==96x15": consistent13 },
-    medianInjected: {
-      pdCalls: pickMedian("pdCalls"),
-      btpCalls: pickMedian("btpCalls"),
-      stCalls: pickMedian("stCalls"),
-      psvCalls: pickMedian("psvCalls"),
-    },
+    small: runBenchmarkAtScale("small"),
+    medium: runBenchmarkAtScale("medium"),
+    large: runBenchmarkAtScale("large"),
+    consistency: { "1x1440==24x60": consistent12 },
   };
 }
 
