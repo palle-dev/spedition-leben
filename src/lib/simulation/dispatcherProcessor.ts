@@ -13,7 +13,7 @@ import {
 import { isActivelyEmployed } from "./terminationEngine.ts";
 import { pushEvent } from "./eventLog.ts";
 import { onOrderAccepted, onTourConfirmed } from "./mailReports.ts";
-import { hasDgDispatch } from "./trainingEngine.ts";
+import { hasDgDispatch, hasDispoEfficiency } from "./trainingEngine.ts";
 import { processAccountant } from "./accountingEngine.ts";
 import { applyCleaningEffect } from "./serviceEngine.ts";
 
@@ -141,6 +141,10 @@ export function processDispatcher(state, emp, m, log) {
 
   // ---------- Modus B/C: flottenweite Planung mit suggestTours ----------
   const acceptNew = emp.workMode === "autonomous";
+  // Effiziente-Tourenplanung-Qualifikation: längerer Horizont (72h) und
+  // schnellere Reaktion (halbierte Skip-Cache-Zeiten) → weniger scheiternde Aufträge.
+  const efficiencyQual = hasDispoEfficiency(state, emp.id);
+  const horizonMin = efficiencyQual ? 72 * 60 : 48 * 60;
   // Build Set of order IDs already in a trip or active tour.
   // Replaces O(orders × tours × deployments) nested .some() with O(1) lookups.
   const busyOrderIds = new Set();
@@ -201,14 +205,14 @@ export function processDispatcher(state, emp, m, log) {
     // wird 60 Min übersprungen statt 10 — das reduziert suggestTours-Aufrufe
     // pro Tag von ~96 auf ~24, ohne dass Touren oder Lieferungen verloren
     // gehen. Außerhalb von Vorläufen bleibt die kurze 10-Min-Schwelle.
-    const skipMin = state._bulkAdvance ? 60 : 10;
+    const skipMin = state._bulkAdvance ? 60 : (efficiencyQual ? 5 : 10);
     if (emp._lastPlanPlanned === 0 && m - (emp.lastDecisionMin || 0) < skipMin) return;
-    if (emp._lastPlanPlanned > 0 && unplannedCount === 0 && m - (emp.lastDecisionMin || 0) < 60) return;
+    if (emp._lastPlanPlanned > 0 && unplannedCount === 0 && m - (emp.lastDecisionMin || 0) < (efficiencyQual ? 30 : 60)) return;
   }
   emp._lastPlanContext = contextKey;
 
   const result = suggestTours(state, {
-    vehicleIds: poolVehicleIds, earliestStart: m, horizonMin: 48 * 60,
+    vehicleIds: poolVehicleIds, earliestStart: m, horizonMin,
     desiredEndCity: null, latestReturnMin: null, mode: state.marketPriority || "balanced", acceptNew,
     fastMode: state._largeAdvance === false,
   });
@@ -380,7 +384,7 @@ export function planSingleVehicle(state, vehicle, m, log) {
 
   const acceptNew = dispatcher.workMode === "autonomous";
   const result = suggestTours(state, {
-    vehicleIds: [vehicle.id], earliestStart: m, horizonMin: 48 * 60,
+    vehicleIds: [vehicle.id], earliestStart: m, horizonMin: hasDispoEfficiency(state, dispatcher.id) ? 72 * 60 : 48 * 60,
     desiredEndCity: null, latestReturnMin: null,
     mode: state.marketPriority || "balanced", acceptNew,
     fastMode: state._largeAdvance === false,

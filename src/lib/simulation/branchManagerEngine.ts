@@ -4,7 +4,7 @@
 // und legen wichtige Entscheidungen dem Geschäftsführer zur Freigabe vor.
 
 import { dayOf, HIRE_FEE, DRIVER_COST_PER_DAY, CITIES, PORTRAIT_IDS, APPLICANT_NAMES, PERSONNEL_ROLES, VEHICLE_PRICE, STANDARD_TRUCK } from "./gameRules.ts";
-import { previewCourseBooking, bookCourse, COURSE_CATALOG, hasQualification, isPersonInTraining } from "./trainingEngine.ts";
+import { previewCourseBooking, bookCourse, COURSE_CATALOG, hasQualification, isPersonInTraining, hasBranchManagerAdvanced } from "./trainingEngine.ts";
 import { isActivelyEmployed, findPerson } from "./terminationEngine.ts";
 import { isPersonAvailable } from "./absenceEngine.ts";
 import { pushEvent } from "./eventLog.ts";
@@ -88,14 +88,18 @@ export function generateBranchDecisions(state: any): any {
     );
     if (hasPending) continue;
 
-    // 50 % Chance pro Tag
-    if (Math.random() > 0.5) continue;
+    // Filialmanagement-Qualifikation: häufigere Entscheidungen (70% statt 50%)
+    // und höhere Auto-Freigabegrenze (10.000€ statt 5.000€) → Filiale läuft autonomer.
+    const advanced = hasBranchManagerAdvanced(state, mgr.id);
+    const decisionChance = advanced ? 0.7 : 0.5;
+    if (Math.random() > decisionChance) continue;
 
     const decision = createDecision(state, mgr, branch);
     if (!decision) continue;
 
     // Autonomer Modus: kleine Entscheidungen auto-freigeben
-    if (mgr.managementMode === "autonomous" && decision.costCents <= AUTONOMOUS_THRESHOLD) {
+    const autoThreshold = advanced ? AUTONOMOUS_THRESHOLD * 2 : AUTONOMOUS_THRESHOLD;
+    if (mgr.managementMode === "autonomous" && decision.costCents <= autoThreshold) {
       decision.status = "auto_approved";
       decision.resolvedAt = state.gameTime;
       applyDecision(state, decision);

@@ -120,6 +120,45 @@ export const COURSE_CATALOG = [
     description: "Gefahrgutdisposition für Disponenten.",
   },
   {
+    id: "dispo_efficiency",
+    label: "Effiziente Tourenplanung",
+    targetRole: "dispatcher",
+    targetRoleSenior: "dispatcher_senior",
+    feeCents: 80000,
+    hours: 16,
+    blocks: 2,
+    effect: "dispo_efficiency",
+    effectDesc: "Längerer Planungshorizont (72h) und schnellere Reaktion auf neue Aufträge – weniger scheiternde Aufträge",
+    requires: ["dispatcher_role"],
+    description: "Fortgeschrittene Tourenplanung mit erweitertem Horizont und verkürzten Reaktionszeiten.",
+  },
+  {
+    id: "assistant_advanced",
+    label: "Betriebliche Analyse & Steuerung",
+    targetRole: "assistant",
+    targetRoleSenior: null,
+    feeCents: 90000,
+    hours: 16,
+    blocks: 2,
+    effect: "assistant_advanced",
+    effectDesc: "Höhere Auftragsannahme-Quote, frühere Fristwarnung, früherer Auto-Dispatch – weniger verfallende und scheiternde Aufträge",
+    requires: ["assistant_role"],
+    description: "Fortgeschrittene betriebswirtschaftliche Analyse für Assistenten der Geschäftsführung.",
+  },
+  {
+    id: "branch_manager_advanced",
+    label: "Filialmanagement & Steuerung",
+    targetRole: "branch_manager",
+    targetRoleSenior: null,
+    feeCents: 110000,
+    hours: 16,
+    blocks: 2,
+    effect: "branch_manager_advanced",
+    effectDesc: "Höhere Auto-Freigabegrenze und häufigere Entscheidungen – Filiale läuft autonomer und Engpässe werden früher erkannt",
+    requires: ["branch_manager_role"],
+    description: "Fortgeschrittenes Filialmanagement für Filialleiter.",
+  },
+  {
     id: "mechanic_material_1",
     label: "Materialeffiziente Wartung",
     targetRole: "mechanic",
@@ -333,6 +372,14 @@ export function checkCoursePrerequisites(state, personId, courseId) {
     } else if (req === "dispatcher_role") {
       if (role !== "dispatcher" && role !== "dispatcher_senior") {
         return { ok: false, reason: "Nur für Disponenten." };
+      }
+    } else if (req === "assistant_role") {
+      if (role !== "assistant") {
+        return { ok: false, reason: "Nur für Assistenten." };
+      }
+    } else if (req === "branch_manager_role") {
+      if (role !== "branch_manager") {
+        return { ok: false, reason: "Nur für Filialleiter." };
       }
     } else if (req === "mechanic_role") {
       if (role !== "mechanic") return { ok: false, reason: "Nur für Mechaniker." };
@@ -933,6 +980,21 @@ export function hasMentorQualification(state, personId) {
 // Prüft ob ein Disponent Gefahrgutdisposition hat
 export function hasDgDispatch(state, personId) {
   return hasQualification(state, personId, "dispo_dg");
+}
+
+// Prüft ob ein Disponent effiziente Tourenplanung gelernt hat
+export function hasDispoEfficiency(state, personId) {
+  return hasQualification(state, personId, "dispo_efficiency");
+}
+
+// Prüft ob ein Assistent die betriebliche Analyse & Steuerung absolviert hat
+export function hasAssistantAdvanced(state, personId) {
+  return hasQualification(state, personId, "assistant_advanced");
+}
+
+// Prüft ob ein Filialleiter das Filialmanagement absolviert hat
+export function hasBranchManagerAdvanced(state, personId) {
+  return hasQualification(state, personId, "branch_manager_advanced");
 }
 
 // Liefert die effektive Kapazität einer Person (mit Qualifikationen)

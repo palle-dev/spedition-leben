@@ -18,7 +18,7 @@ import {
 import { deliverMessage } from "./mailEngine.ts";
 import { pushEvent } from "./eventLog.ts";
 import { suggestTours, confirmTour as doConfirmTour } from "./tourEngine.ts";
-import { previewCourseBooking, bookCourse, COURSE_CATALOG, hasQualification, isPersonInTraining } from "./trainingEngine.ts";
+import { previewCourseBooking, bookCourse, COURSE_CATALOG, hasQualification, isPersonInTraining, hasAssistantAdvanced } from "./trainingEngine.ts";
 import { isActivelyEmployed } from "./terminationEngine.ts";
 import { isPersonAvailable } from "./absenceEngine.ts";
 
@@ -130,9 +130,12 @@ export function autoAcceptOrders(state, emp, m, log, force) {
   const clock = m % 1440;
   if (!force && clock % 60 !== 0) return;
 
-  const minMarginPct = (config.autoAcceptMarginPct ?? 15) / 100;
+  // Betriebliche-Analyse-Qualifikation: höhere Annahme-Quote (mehr Aufträge/Stunde,
+  // niedrigere Margenschwelle, größerer Rückstau-Toleranz) → weniger verfallende Aufträge.
+  const advanced = hasAssistantAdvanced(state, emp.id);
+  const minMarginPct = ((config.autoAcceptMarginPct ?? 15) - (advanced ? 5 : 0)) / 100;
   const minLiquidityCents = config.autoAcceptMinLiquidityCents ?? 50000;
-  const maxPerHour = config.maxOrdersPerHour ?? 3;
+  const maxPerHour = (config.maxOrdersPerHour ?? 3) + (advanced ? 2 : 0);
 
   // Stunden-Zähler (verhindert Massenannahme)
   const hourBucket = "autoAccept_h" + Math.floor(m / 60);
@@ -154,7 +157,7 @@ export function autoAcceptOrders(state, emp, m, log, force) {
     for (const d of (tr.deployments || [])) { if (d.orderId && d.status !== "cancelled") busyOrderIds.add(d.orderId); }
   }
   const unplannedBacklog = (state.orders || []).filter(o => o.status === "angenommen" && !busyOrderIds.has(o.id)).length;
-  const maxBacklog = config.maxBacklogOrders ?? 5;
+  const maxBacklog = (config.maxBacklogOrders ?? 5) + (advanced ? 3 : 0);
   if (unplannedBacklog >= maxBacklog) return;
 
   let accepted = 0;
@@ -398,7 +401,8 @@ export function monitorOrderDeadlines(state, emp, m, log) {
   const config = state.assistantConfig || {};
   if (config.orderMonitoring === false) return;
 
-  const hoursBefore = config.autoDispatchHoursBeforeDeadline ?? 4;
+  // Qualifizierter Assistent greift 2 Stunden früher ein → weniger scheiternde Aufträge.
+  const hoursBefore = (config.autoDispatchHoursBeforeDeadline ?? 4) + (hasAssistantAdvanced(state, emp.id) ? 2 : 0);
   const thresholdMin = hoursBefore * 60;
 
   // Angenommene Aufträge, die noch nicht Teil einer aktiven Tour sind
