@@ -29,6 +29,7 @@ import Utilization from '@/pages/Utilization';
 import Efficiency from '@/pages/Efficiency';
 import Customers from '@/pages/Customers';
 import Leadership from '@/pages/Leadership';
+import BusinessModels from '@/pages/BusinessModels';
 // Add page imports here
 
 const AuthenticatedApp = () => {
@@ -79,6 +80,7 @@ const AuthenticatedApp = () => {
         <Route path="/effizienz" element={<Efficiency />} />
         <Route path="/kunden" element={<Customers />} />
         <Route path="/fuehrung" element={<Leadership />} />
+        <Route path="/geschaeftsmodelle" element={<BusinessModels />} />
       </Route>
     </Route>
     <Route path="*" element={<PageNotFound />} />
