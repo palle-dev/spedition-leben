@@ -44,8 +44,22 @@ export default function ShellHeader() {
         </>
       )}
 
-      {/* Konten */}
-      <div className="ml-auto flex items-center gap-2 lg:gap-3">
+      {/* Konten-Panel — zentriert im Header */}
+      <div className="flex-1 flex justify-center px-4">
+        <div className="flex items-stretch rounded-lg border border-white/10 bg-white/[0.03] divide-x divide-white/10 overflow-hidden shrink-0">
+          <button onClick={() => navigate("/finanzen")} className="text-center group px-4 py-1 transition-colors hover:bg-white/5" aria-label="Firmenkonto und Finanzen">
+            <div className="text-[9px] uppercase tracking-[0.1em] text-muted-foreground">Firma</div>
+            <MoneyText value={state.company.accountCents} className="block text-sm lg:text-base font-medium tracking-tight text-foreground group-hover:text-lime transition-colors" accentOnFlash="text-lime" />
+          </button>
+          <button onClick={() => navigate("/finanzen")} className="text-center group px-4 py-1 transition-colors hover:bg-white/5 hidden lg:block" aria-label="Privatkonto und Haushalt">
+            <div className="text-[9px] uppercase tracking-[0.1em] text-muted-foreground">Privat</div>
+            <MoneyText value={state.private.accountCents} className="block text-sm lg:text-base font-medium tracking-tight text-foreground group-hover:text-coral transition-colors" accentOnFlash="text-coral" />
+          </button>
+        </div>
+      </div>
+
+      {/* Rechte Steuerleiste */}
+      <div className="flex items-center gap-2 lg:gap-3 shrink-0">
         {dirty && (
           <button
             onClick={() => save()}
@@ -58,18 +72,6 @@ export default function ShellHeader() {
             <span className="hidden sm:inline">Speichern</span>
           </button>
         )}
-        {/* Konten-Panel */}
-        <div className="flex items-stretch rounded-lg border border-white/10 bg-white/[0.03] divide-x divide-white/10 overflow-hidden shrink-0">
-          <button onClick={() => navigate("/finanzen")} className="text-center group px-3 py-1 transition-colors hover:bg-white/5" aria-label="Firmenkonto und Finanzen">
-            <div className="text-[9px] uppercase tracking-[0.1em] text-muted-foreground">Firma</div>
-            <MoneyText value={state.company.accountCents} className="block text-sm lg:text-base font-medium tracking-tight text-foreground group-hover:text-lime transition-colors" accentOnFlash="text-lime" />
-          </button>
-          <button onClick={() => navigate("/finanzen")} className="text-center group px-3 py-1 transition-colors hover:bg-white/5 hidden lg:block" aria-label="Privatkonto und Haushalt">
-            <div className="text-[9px] uppercase tracking-[0.1em] text-muted-foreground">Privat</div>
-            <MoneyText value={state.private.accountCents} className="block text-sm lg:text-base font-medium tracking-tight text-foreground group-hover:text-coral transition-colors" accentOnFlash="text-coral" />
-          </button>
-        </div>
-        {/* Trennlinie zu Icon-Buttons */}
         <div className="w-px h-8 bg-white/10 shrink-0" />
         <button
           onClick={() => setSlotsOpen(true)}
