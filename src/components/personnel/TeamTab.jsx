@@ -134,9 +134,9 @@ export default function TeamTab({ drivers, employees, state, filter, setFilter, 
                 onChange={e => setBranchFilter(e.target.value)}
                 className="appearance-none rounded-lg pl-9 pr-8 py-2 text-sm bg-white/5 border border-white/10 text-foreground focus:outline-none focus:border-lime/30 transition cursor-pointer"
               >
-                <option value="all">Alle Filialen</option>
+                <option value="all" className="bg-ink text-foreground">Alle Filialen</option>
                 {activeBranches.map(b => (
-                  <option key={b.id} value={b.id}>{b.name} · {b.city}</option>
+                  <option key={b.id} value={b.id} className="bg-ink text-foreground">{b.name} · {b.city}</option>
                 ))}
               </select>
             </div>
