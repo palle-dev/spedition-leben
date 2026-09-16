@@ -11,6 +11,7 @@ export default function StartScreen() {
   const [slots, setSlots] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [names, setNames] = useState({ companyName: "", playerName: "", partnerName: "Mara" });
+  const [withOnboarding, setWithOnboarding] = useState(true);
   const fileRef = useRef(null);
 
   useEffect(() => {
@@ -22,7 +23,8 @@ export default function StartScreen() {
       await newGame({
         companyName: names.companyName || "Nordlicht Transport GmbH",
         playerName: names.playerName || "Spielerin",
-        partnerName: names.partnerName || "Mara"
+        partnerName: names.partnerName || "Mara",
+        onboarding: withOnboarding
       });
     } catch (e) { showToast(e.message, "error"); }
   }
@@ -127,6 +129,21 @@ export default function StartScreen() {
             <Field label="Firmenname" value={names.companyName} onChange={(v) => setNames({ ...names, companyName: v })} placeholder="Nordlicht Transport GmbH" />
             <Field label="Dein Name" value={names.playerName} onChange={(v) => setNames({ ...names, playerName: v })} placeholder="Spielerin" />
             <Field label="Name der Partnerin / des Partners" value={names.partnerName} onChange={(v) => setNames({ ...names, partnerName: v })} placeholder="Mara" />
+            <div>
+              <span className="text-xs text-muted-foreground">Einstieg</span>
+              <div className="mt-1.5 grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => setWithOnboarding(true)}
+                  className={`px-3 py-2.5 rounded-lg border text-left transition ${withOnboarding ? "border-lime/40 bg-lime/5" : "border-white/10 hover:border-white/20"}`}>
+                  <div className="text-sm font-medium">Mit Begleitung</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">Geführter Einstieg in 5 Schritten</div>
+                </button>
+                <button type="button" onClick={() => setWithOnboarding(false)}
+                  className={`px-3 py-2.5 rounded-lg border text-left transition ${!withOnboarding ? "border-lime/40 bg-lime/5" : "border-white/10 hover:border-white/20"}`}>
+                  <div className="text-sm font-medium">Frei spielen</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">Ohne Anleitung entdecken</div>
+                </button>
+              </div>
+            </div>
             <div className="flex gap-2">
               <button onClick={create} disabled={busy} className="flex-1 px-4 py-2.5 rounded-lg bg-lime text-ink hover:brightness-110 disabled:opacity-50 font-semibold transition active:scale-[0.98]">Gründen</button>
               <button onClick={() => setShowForm(false)} className="px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-sm hover:bg-white/10 transition">Abbrechen</button>

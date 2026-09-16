@@ -2475,6 +2475,42 @@ export function applyCommand(state, command, params) {
       break;
     }
 
+    case "setDevelopmentFocus": {
+      const r = doSetFocus(state, p.focusId);
+      result = r;
+      break;
+    }
+
+    case "startOnboarding": {
+      const r = startOnboarding(state);
+      result = r;
+      break;
+    }
+
+    case "pauseOnboarding": {
+      const r = pauseOnboarding(state);
+      result = r;
+      break;
+    }
+
+    case "resumeOnboarding": {
+      const r = resumeOnboarding(state);
+      result = r;
+      break;
+    }
+
+    case "dismissOnboarding": {
+      const r = dismissOnboarding(state);
+      result = r;
+      break;
+    }
+
+    case "markOnboardingReviewed": {
+      const r = markOnboardingReviewed(state);
+      result = r;
+      break;
+    }
+
     default: {
       const dgResult = handleDgCommand(state, command, p);
       if (dgResult !== null) { result = dgResult; break; }

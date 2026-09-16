@@ -1,14 +1,21 @@
 import React from "react";
-import { Target, X, CheckCircle2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Target, X, CheckCircle2, ChevronRight, Gift, Lock } from "lucide-react";
 import { motion } from "framer-motion";
 import { EASE } from "@/lib/motion";
 import { getGoalProgress } from "@/lib/progressEngine";
+import { GOAL_TEMPLATES } from "@/lib/achievementCatalog.js";
 import { formatEuro } from "@/lib/gameData";
 
 export default function GoalCard({ goal, state, onRemove }) {
+  const navigate = useNavigate();
   const prog = getGoalProgress(state, goal);
   const pct = Math.min(100, (prog.current / prog.target) * 100);
   const isMoney = prog.target >= 100000;
+  const tpl = GOAL_TEMPLATES.find(t => t.id === goal.templateId);
+  const criterion = tpl?.criterion || goal.criterion;
+  const rewardDesc = tpl?.rewardDesc || goal.rewardDesc;
+  const linkPath = prog.linkPath || tpl?.linkPath;
 
   return (
     <motion.div
@@ -37,6 +44,16 @@ export default function GoalCard({ goal, state, onRemove }) {
             </button>
           </div>
           <p className="text-[11px] text-muted-foreground mt-0.5">{goal.desc || ""}</p>
+
+          {/* Erfüllungskriterium */}
+          {criterion && !prog.completed && (
+            <div className="text-[10px] text-muted-foreground/60 mt-2 leading-snug flex items-start gap-1">
+              <Lock className="w-2.5 h-2.5 shrink-0 mt-0.5" />
+              <span>Kriterium: {criterion}</span>
+            </div>
+          )}
+
+          {/* Fortschrittsbalken */}
           <div className="mt-3">
             <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
               <div className={`h-full rounded-full transition-all duration-500 ${prog.completed ? "bg-lime" : "bg-coral"}`} style={{ width: `${pct}%` }} />
@@ -50,7 +67,26 @@ export default function GoalCard({ goal, state, onRemove }) {
               )}
             </div>
           </div>
+
+          {/* Nächster Schritt */}
           <div className="text-[10px] text-muted-foreground/50 mt-2 leading-snug">→ {prog.nextAction}</div>
+
+          {/* Belohnung + Link */}
+          <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-white/5">
+            {rewardDesc && (
+              <div className="flex items-center gap-1 text-[10px] text-lime/60">
+                <Gift className="w-2.5 h-2.5" /> {rewardDesc}
+              </div>
+            )}
+            {linkPath && !prog.completed && (
+              <button
+                onClick={() => navigate(linkPath)}
+                className="flex items-center gap-0.5 text-[10px] text-muted-foreground/60 hover:text-foreground transition ml-auto"
+              >
+                Öffnen <ChevronRight className="w-2.5 h-2.5" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </motion.div>

@@ -12,6 +12,7 @@ import OfficeCustomerRelations from "@/components/office/OfficeCustomerRelations
 import OfficeApprovalQueue from "@/components/office/OfficeApprovalQueue";
 import UtilizationControl from "@/components/office/UtilizationControl";
 import IdleReasonsList from "@/components/office/IdleReasonsList";
+import DevelopmentPanel from "@/components/office/DevelopmentPanel";
 
 // Büro – zentrale Führungsansicht für die gesamte Firma.
 // Kompakte Kopfzeile, Kennzahlen, Flottenlage, Entscheidungen,
@@ -48,6 +49,9 @@ export default function Office() {
 
       {/* Ausstehende Freigaben (Führung & Delegation) */}
       <OfficeApprovalQueue state={state} />
+
+      {/* Entwicklung: Schwerpunkt, Ziele, Meilensteine */}
+      <DevelopmentPanel state={state} />
 
       {/* Kundenbeziehungen: aktive Rahmenverträge + Stammkunden-Zufriedenheit */}
       <OfficeCustomerRelations state={state} />

@@ -2,10 +2,9 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import { detectOnboardingStep, getOnboardingBlocker, ONBOARDING_STEPS } from "@/lib/developmentEngine.js";
-import { formatGameTime } from "@/lib/gameData";
-import { X, Pause, Play, ChevronRight, AlertCircle, CheckCircle2, Info } from "lucide-react";
+import { X, Pause, ChevronRight, AlertCircle, CheckCircle2, Info } from "lucide-react";
 import { EASE } from "@/lib/motion";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 // Geführter Einstieg — zustandsbasiert, robust gegen abweichende Reihenfolge.
 // Zeigt einen kompakten Hinweis-Kasten (kein blockierendes Modal).

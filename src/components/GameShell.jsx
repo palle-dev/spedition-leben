@@ -65,7 +65,7 @@ function GameShellContent() {
           </main>
           <ShellDock />
         </div>
-        {state.tutorial.active && <Tutorial />}
+        {(state.onboarding?.active || state.tutorial?.active) && <Tutorial />}
         <ToastStack toasts={toasts} onDismiss={dismissToast} />
         <AnimatePresence>
           {toast && <ToastView key={toast.id} toast={toast} />}

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
-import { DEVELOPMENT_FOCI, DEVELOPMENT_MILESTONES } from "@/lib/developmentEngine.js";
+import { DEVELOPMENT_FOCI } from "@/lib/developmentEngine.js";
 import { getMilestoneSummary, getDevelopmentHistory, getFocusLabel, getSuggestedGoalIds } from "@/lib/developmentData.js";
 import { GOAL_TEMPLATES } from "@/lib/achievementCatalog.js";
 import { getGoalProgress } from "@/lib/progressEngine.js";

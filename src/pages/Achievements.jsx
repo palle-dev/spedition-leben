@@ -3,6 +3,9 @@ import { useGame } from "@/lib/gameContext";
 import { ACHIEVEMENT_CATEGORIES, ACHIEVEMENTS, GOAL_TEMPLATES } from "@/lib/achievementCatalog.js";
 import { computeCompanyValue, getExperienceLevel, getDevelopmentStage } from "@/lib/progressEngine.js";
 import { formatEuro } from "@/lib/gameData";
+import { DEVELOPMENT_FOCI } from "@/lib/developmentEngine.js";
+import { getMilestoneSummary, getFocusLabel } from "@/lib/developmentData.js";
+import { Compass, Flag, Check, ChevronRight } from "lucide-react";
 import XPBar from "@/components/achievements/XPBar";
 import AchievementCard from "@/components/achievements/AchievementCard";
 import GoalCard from "@/components/achievements/GoalCard";
@@ -21,6 +24,7 @@ export default function Achievements() {
   const { state, send, showToast } = useGame();
   const [activeCategory, setActiveCategory] = useState("unternehmen");
   const [showGoalPicker, setShowGoalPicker] = useState(false);
+  const [showFocusPicker, setShowFocusPicker] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const xp = state.xp || 0;
@@ -45,6 +49,16 @@ export default function Achievements() {
       await send("removeGoal", { goalId });
       showToast("Ziel entfernt.", "info");
     } catch (e) { showToast(e.message, "error"); }
+  }
+
+  async function selectFocus(focusId) {
+    setBusy(true);
+    try {
+      await send("setDevelopmentFocus", { focusId });
+      setShowFocusPicker(false);
+      showToast("Schwerpunkt gesetzt: " + getFocusLabel(focusId), "success");
+    } catch (e) { showToast(e.message, "error"); }
+    finally { setBusy(false); }
   }
 
   const filteredAchievements = ACHIEVEMENTS.filter(a => a.category === activeCategory);
@@ -100,6 +114,52 @@ export default function Achievements() {
                 </div>
               );
             })}
+          </div>
+        </div>
+      </div>
+
+      {/* Entwicklungsschwerpunkt + Meilensteine */}
+      <div className="grid lg:grid-cols-2 gap-4">
+        {/* Schwerpunkt */}
+        <div className="glass border border-white/10 rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Compass className="w-4 h-4 text-lime/70" />
+            <span className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground">Schwerpunkt</span>
+          </div>
+          {state.developmentFocus ? (
+            <div>
+              <div className="text-sm font-medium">{getFocusLabel(state.developmentFocus)}</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">{DEVELOPMENT_FOCI.find(f => f.id === state.developmentFocus)?.desc}</div>
+              <button onClick={() => setShowFocusPicker(true)}
+                className="mt-3 text-xs text-muted-foreground hover:text-foreground transition flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:border-white/20">
+                Wechseln <ChevronRight className="w-3 h-3" />
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => setShowFocusPicker(true)}
+              className="w-full text-left px-3 py-2.5 rounded-lg border border-dashed border-white/15 hover:border-lime/30 hover:bg-lime/5 transition text-sm text-muted-foreground">
+              Schwerpunkt wählen — beeinflusst vorgeschlagene Ziele.
+            </button>
+          )}
+        </div>
+
+        {/* Meilensteine */}
+        <div className="glass border border-white/10 rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Flag className="w-4 h-4 text-lime/70" />
+            <span className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground">Meilensteine</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {getMilestoneSummary(state).map(m => (
+              <div key={m.id} className={`rounded-lg p-2.5 border ${m.achieved ? "border-lime/20 bg-lime/[0.04]" : "border-white/8 bg-white/[0.02]"}`}>
+                <div className="flex items-center gap-1.5">
+                  <div className={`w-2 h-2 rounded-full ${m.achieved ? "bg-lime" : "bg-white/20"}`} />
+                  <span className={`text-xs font-medium ${m.achieved ? "text-foreground" : "text-muted-foreground"}`}>{m.label}</span>
+                  {m.achieved && <Check className="w-3 h-3 text-lime ml-auto" />}
+                </div>
+                {!m.achieved && <div className="text-[10px] text-muted-foreground/50 mt-1 tabular-nums">{m.current} / {m.target}</div>}
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -214,6 +274,45 @@ export default function Achievements() {
                   ))}
                 </div>
               )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Schwerpunkt-Wähler */}
+      <AnimatePresence>
+        {showFocusPicker && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: EASE }}
+            className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowFocusPicker(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
+              transition={{ duration: 0.3, ease: EASE }}
+              className="glass border border-white/15 rounded-2xl max-w-lg w-full p-6 shadow-2xl max-h-[80vh] overflow-y-auto"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium">Schwerpunkt wählen</h3>
+                <button onClick={() => setShowFocusPicker(false)} className="text-muted-foreground hover:text-foreground p-1"><X className="w-5 h-5" /></button>
+              </div>
+              <p className="text-xs text-muted-foreground mb-4">Der Schwerpunkt beeinflusst vorgeschlagene Ziele. Er verändert keine Preise oder Regeln.</p>
+              <div className="space-y-2">
+                {DEVELOPMENT_FOCI.map(f => (
+                  <button key={f.id} onClick={() => selectFocus(f.id)} disabled={busy}
+                    className={`w-full text-left rounded-xl p-3 border transition active:scale-[0.99] disabled:opacity-50 ${
+                      state.developmentFocus === f.id ? "border-lime/30 bg-lime/5" : "border-white/10 hover:border-lime/20 bg-surface/30 hover:bg-surface/50"
+                    }`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{f.label}</span>
+                      {state.developmentFocus === f.id && <Check className="w-4 h-4 text-lime" />}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-1">{f.desc}</p>
+                  </button>
+                ))}
+              </div>
             </motion.div>
           </motion.div>
         )}
