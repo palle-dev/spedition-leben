@@ -114,14 +114,14 @@ export default function OfficeBottom({ state }) {
           <div>
             <div className="flex justify-between text-xs mb-1">
               <span className="text-muted-foreground">Belastung</span>
-              <span className={privatePreview.stress >= 80 ? "text-red-300" : privatePreview.stress >= 60 ? "text-amber-300" : "text-lime"}>{privatePreview.stress}/100</span>
+              <span className={privatePreview.stress >= 80 ? "text-red-300" : privatePreview.stress >= 60 ? "text-amber-300" : "text-lime"}>{Math.round(privatePreview.stress)}/100</span>
             </div>
             <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden">
-              <div className={`h-full rounded-full ${privatePreview.stress >= 80 ? "bg-red-400" : privatePreview.stress >= 60 ? "bg-amber-400" : "bg-lime"}`} style={{ width: `${privatePreview.stress}%` }} />
+              <div className={`h-full rounded-full ${privatePreview.stress >= 80 ? "bg-red-400" : privatePreview.stress >= 60 ? "bg-amber-400" : "bg-lime"}`} style={{ width: `${Math.round(privatePreview.stress)}%` }} />
             </div>
           </div>
-          <Row label="Zufriedenheit" value={`${privatePreview.happiness}/100`} tone="default" />
-          <Row label="Beziehung" value={`${privatePreview.relationship}/100`} tone="muted" />
+          <Row label="Zufriedenheit" value={`${Math.round(privatePreview.happiness)}/100`} tone="default" />
+          <Row label="Beziehung" value={`${Math.round(privatePreview.relationship)}/100`} tone="muted" />
         </div>
         {privatePreview.nextAppointment && (
           <div className="flex items-center gap-1.5 text-[11px] text-coral mt-3 pt-2 border-t border-white/5">
