@@ -10,6 +10,7 @@ import { isPersonAvailable } from "./absenceEngine.ts";
 import { pushEvent } from "./eventLog.ts";
 import { buildWorkshopSlot, WORKSHOP_SLOT_PRICE } from "./workshopEngine.ts";
 import { registerAsset } from "./accountingEngine.ts";
+import { checkSpendAuthority, recordSpend, createApprovalRequest, logDecision, getEffectiveRules } from "./delegationEngine.ts";
 
 function uid(state: any, prefix: string): string {
   state.idCounter = (state.idCounter || 100) + 1;

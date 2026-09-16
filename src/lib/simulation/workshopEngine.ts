@@ -12,6 +12,7 @@ import { deliverMessage } from "./mailEngine.ts";
 import { isPersonAvailable } from "./absenceEngine.ts";
 import { isActivelyEmployed } from "./terminationEngine.ts";
 import { registerAsset, bookExpense } from "./accountingEngine.ts";
+import { checkSpendAuthority, recordSpend } from "./delegationEngine.ts";
 
 const DAY_MIN = 1440;
 
