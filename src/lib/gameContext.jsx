@@ -189,7 +189,7 @@ export function GameProvider({ children }) {
     const updated = typeof updater === "function" ? updater(current) : { ...current, ...updater };
     syncMetaRef.current = updated;
     setSyncMeta(updated);
-    if (userIdRef.current) setSyncMeta(userIdRef.current, updated).catch(() => {});
+
     return updated;
   }, []);
 
@@ -315,7 +315,7 @@ export function GameProvider({ children }) {
       );
       syncMetaRef.current = newMeta;
       setSyncMeta(newMeta);
-      if (userIdRef.current) setSyncMeta(userIdRef.current, newMeta).catch(() => {});
+
       stateRef.current = loaded; setState(loaded);
       setShowStart(false);
       saveNow(loaded);
@@ -402,7 +402,7 @@ export function GameProvider({ children }) {
       const newMeta = makeSyncMeta(loaded.meta?.partyId, meta.cloudId, res.revision, "synced", Date.now(), null);
       syncMetaRef.current = newMeta;
       setSyncMeta(newMeta);
-      if (userIdRef.current) setSyncMeta(userIdRef.current, newMeta).catch(() => {});
+
       stateRef.current = loaded; setState(loaded);
       saveNow(loaded);
       processNewEvents(loaded);
