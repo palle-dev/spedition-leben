@@ -11,6 +11,7 @@ import SettingsDialog from "@/components/game/SettingsDialog";
 import { getMailboxStats } from "@/lib/mailData";
 import { useHeaderSlot } from "@/lib/headerSlot";
 import WorldSwitch from "@/components/game/WorldSwitch";
+import SyncStatusBadge from "@/components/game/SyncStatusBadge";
 import { base44 } from "@/api/base44Client";
 
 // Obere Statusleiste: FERNWERK-Marke, Welt-Umschaltung, beide Konten, Bewegungs-Toggle.
@@ -77,6 +78,7 @@ export default function ShellHeader() {
           </button>
         )}
         <div className="w-px h-8 bg-white/10 shrink-0" />
+        <SyncStatusBadge />
         <button
           onClick={() => setSlotsOpen(true)}
           className="w-9 h-9 grid place-items-center rounded-full border border-white/10 bg-white/5 text-muted-foreground hover:text-lime transition shrink-0"

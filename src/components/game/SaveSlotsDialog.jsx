@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Save, FolderOpen, Trash2, Download, Upload, Loader2, History, HardDrive, X, AlertTriangle } from "lucide-react";
 import { formatGameTime } from "@/lib/gameData";
+import CloudSyncSection from "@/components/game/CloudSyncSection";
 
 // Spielstände-Dialog: manuelle Slots sichern/laden, Autosaves laden,
 // Export als Datei und Import.
@@ -218,6 +219,9 @@ export default function SaveSlotsDialog({ open, onOpenChange }) {
             })}
           </div>
         </div>
+
+        {/* Cloud-Synchronisation */}
+        <CloudSyncSection />
 
         {/* Export / Import */}
         <div className="space-y-2">

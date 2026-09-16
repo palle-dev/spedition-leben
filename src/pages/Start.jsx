@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useGame } from "@/lib/gameContext";
-import { Plus, Play, Upload, FolderOpen, LogOut, Check } from "lucide-react";
+import { Plus, Play, Upload, FolderOpen, LogOut, Check, Cloud, Loader2 } from "lucide-react";
 import FernwerkLogo from "@/components/brand/FernwerkLogo";
 import { base44 } from "@/api/base44Client";
 import { DIFFICULTY_PROFILES, DEFAULT_PROFILE_ID } from "@/lib/simulation/difficultyProfiles";
@@ -9,7 +9,7 @@ import { HELP_OPTIONS, DEFAULT_HELP_SETTINGS } from "@/lib/simulation/helpSettin
 const OFFICE_URL = "https://media.base44.com/images/public/6aa52ebc01a939da57f8b78f/af8b503ab_office_cinematic.png";
 
 export default function StartScreen() {
-  const { state, newGame, listSlots, loadSlot, loadAutosaveSlot, autosaveMetas, importGame, busy, showToast, dismissStart } = useGame();
+  const { state, newGame, listSlots, loadSlot, loadAutosaveSlot, autosaveMetas, importGame, busy, showToast, dismissStart, cloudSaves, cloudLoading, loadCloudGame, refreshCloudSaves } = useGame();
   const [slots, setSlots] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [names, setNames] = useState({ companyName: "", playerName: "", partnerName: "Mara" });
@@ -20,7 +20,8 @@ export default function StartScreen() {
 
   useEffect(() => {
     listSlots().then(setSlots).catch(() => {});
-  }, [listSlots]);
+    refreshCloudSaves();
+  }, [listSlots, refreshCloudSaves]);
 
   async function create() {
     try {
@@ -42,6 +43,11 @@ export default function StartScreen() {
 
   async function handleLoadAutosave(index) {
     const r = await loadAutosaveSlot(index);
+    if (!r.ok) showToast(r.error, "error");
+  }
+
+  async function handleLoadCloud(id) {
+    const r = await loadCloudGame(id);
     if (!r.ok) showToast(r.error, "error");
   }
 
@@ -126,6 +132,30 @@ export default function StartScreen() {
               <Upload className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm text-foreground">Save-Datei importieren</span>
             </button>
+          </div>
+        )}
+
+        {!showForm && cloudSaves.length > 0 && (
+          <div className="space-y-2 mb-4">
+            <h2 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground flex items-center gap-1.5">
+              <Cloud className="w-3.5 h-3.5" /> Cloud-Spielstände
+            </h2>
+            {cloudLoading && (
+              <div className="flex items-center justify-center py-3"><Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /></div>
+            )}
+            {cloudSaves.map((s) => (
+              <button key={s.id} onClick={() => handleLoadCloud(s.id)}
+                className="w-full text-left px-4 py-3 rounded-xl glass border border-white/10 hover:border-lime/30 transition flex items-center justify-between">
+                <div>
+                  <div className="font-medium text-foreground">{s.save_label || s.company_name || "Unbenannter Stand"}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {s.company_name ? s.company_name + " · " : ""}Tag {s.game_day ?? "—"}
+                    {s.cloud_saved_at ? " · " + fmt(s.cloud_saved_at) : ""}
+                  </div>
+                </div>
+                <Play className="w-4 h-4 text-lime" />
+              </button>
+            ))}
           </div>
         )}
 
