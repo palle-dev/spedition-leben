@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus, Truck, Package, Search, X, Map, List, Sparkles } from "lucide-react";
+import { Plus, Truck, Package, Search, X, Map, List, Sparkles, CalendarDays, Building2 } from "lucide-react";
 import MarketPriorityControl from "./MarketPriorityControl";
 
 // Kompakte Werkzeugleiste für den globalen Header (nur auf /disposition sichtbar).
@@ -8,10 +8,40 @@ export default function DispatchToolbar({
   runningCount, acceptedCount, onPlan, onZuzuweisen, onTouren, onOptimize,
   search, setSearch, searchOpen, setSearchOpen,
   mobileView, setMobileView,
+  showPlanning, onTogglePlanning, showPartners, onTogglePartners, partnerTransportCount,
 }) {
   const isMapVisible = mobileView === "map";
   return (
     <div className="flex items-center gap-1 shrink-0">
+      {/* Wochenplanung / Partner Umschalter */}
+      <div className="flex items-center gap-0.5 rounded-lg border border-white/10 p-0.5 shrink-0">
+        <button
+          onClick={onTogglePlanning}
+          className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition ${
+            showPlanning ? "bg-lime text-ink" : "text-muted-foreground hover:text-foreground"
+          }`}
+          title="Wochenplanung öffnen"
+        >
+          <CalendarDays className="w-3 h-3" />
+          <span className="hidden lg:inline">Planung</span>
+        </button>
+        <button
+          onClick={onTogglePartners}
+          className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition relative ${
+            showPartners ? "bg-lime text-ink" : "text-muted-foreground hover:text-foreground"
+          }`}
+          title="Partner-Speditionen"
+        >
+          <Building2 className="w-3 h-3" />
+          <span className="hidden lg:inline">Partner</span>
+          {partnerTransportCount > 0 && (
+            <span className="grid place-items-center min-w-[14px] h-3.5 px-0.5 rounded-full bg-lime/20 text-lime text-[9px] font-bold leading-none">
+              {partnerTransportCount}
+            </span>
+          )}
+        </button>
+      </div>
+
       <button
         onClick={onPlan}
         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-lime text-ink text-xs font-semibold hover:brightness-110 transition active:scale-95 shrink-0"
