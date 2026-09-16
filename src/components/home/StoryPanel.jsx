@@ -3,6 +3,7 @@ import { formatGameTime, formatEuro } from "@/lib/gameData";
 import { motion, AnimatePresence } from "framer-motion";
 import { EASE } from "@/lib/motion";
 import { BookOpen, Clock, Check, X, Users, Heart, Calendar, AlertCircle } from "lucide-react";
+import StoryStatusOverview from "@/components/home/StoryStatusOverview";
 
 // Zeigt aktive Geschichten mit Entscheidungen und anstehende Versprechen.
 export default function StoryPanel({ state, send, showToast }) {
@@ -29,11 +30,14 @@ export default function StoryPanel({ state, send, showToast }) {
     finally { setBusyKey(null); }
   }
 
-  if (!stories || stories.length === 0) return null;
+  const hasStories = stories && stories.length > 0;
+  const openPromises = ((state.private?.promises) || []).filter(pr => pr.status === "open");
+  if (!hasStories && openPromises.length === 0) return null;
 
   return (
     <div className="space-y-4">
-      {stories.map(run => (
+      <StoryStatusOverview state={state} />
+      {hasStories && stories.map(run => (
         <StoryCard key={run.runId} run={run} onDecide={decide} busyKey={busyKey} state={state} />
       ))}
     </div>
