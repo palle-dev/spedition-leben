@@ -34,7 +34,7 @@ export default function MailModal({ open, onClose }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <motion.div className="absolute inset-0 bg-black/50 backdrop-blur-sm" {...backdrop} onClick={onClose} />
           <motion.div
-            className="relative w-[94vw] max-w-[1400px] h-[88vh] glass rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col"
+            className="relative w-[94vw] max-w-[1400px] h-[82vh] max-h-[calc(100dvh-2rem)] glass rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col"
             {...modalPop}
             role="dialog"
             aria-modal="true"
