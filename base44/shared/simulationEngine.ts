@@ -34,6 +34,8 @@ import {
   starMessage, archiveMessage, saveDraft, deleteDraft,
   getMailboxStats, searchConversations, getConversationMessages,
   exportCorrespondence, createStaffTask, isEmployeeAvailable,
+  deleteConversation,
+  clearAllConversations,
 } from "./mailEngine.ts";
 import { detectIntent, processStaffTasks, getQuickReplies, getIntentByType } from "./mailIntents.ts";
 import {
@@ -59,14 +61,14 @@ import {
 } from "./timeControlEngine.ts";
 import {
   initEvents, migrateEvents, pushEvent, markEventSeen, markAllEventsSeen,
-  getRecentEvents, getUnseenEventCount,
+  getRecentEvents, getUnseenEventCount, clearEvents, deleteEvent,
 } from "./eventLog.ts";
 import {
   migrateAbsences, requestVacation, approveVacation, rejectVacation,
   cancelVacation, returnEarlyFromVacation, reportSickness, maybeGenerateSickness,
   processSicknessRecovery, processVacationDayConsumption, isPersonAvailable,
   getVacationAvailable, getVacationAccount, accrueVacationDays, detectAbsenceConflicts,
-  getAbsenceCalendar,
+  getAbsenceCalendar, maybeGenerateVacationRequest, autoApproveVacationRequests,
 } from "./absenceEngine.ts";
 import {
   migrateServices, bookCleaning, bookMaintenance, bookTowing, bookTempStaff,
@@ -143,8 +145,28 @@ import {
   assignDispatcherToBranch, assignEmployeeToBranch, getBranchStats, processDriverTravels,
   getDriverTravelEventTimes, creditBranchDelivery,
 } from "./branchEngine.ts";
-import { processEmployees, triggerDispatcherPlanning } from "./dispatcherProcessor.ts";
+import { processEmployees, triggerDispatcherPlanning, planSingleVehicle } from "./dispatcherProcessor.ts";
+import {
+  migrateRelationship, getRelationshipStatus, proposeMarriage, getMarried,
+  planChild, processPregnancy, getPregnancyEventTimes, processDailyRelationship,
+  getGiftOptions, giveGift,
+} from "./relationshipEngine.ts";
+import {
+  migrateDating, getDatingStatus, likeProfile, passProfile, goOnDate,
+  becomePartners, breakUp, getDateEventTimes, processDates, handleDatingCommand,
+} from "./datingEngine.ts";
 import { cleanupHistory } from "./historyCleanup.ts";
+import {
+  migrateCustomerRelations, migrateContracts,
+  recordOrderOutcome, processContractDay, evaluateContracts,
+  notifyContractEndingSoon,
+} from "./customerEngine.ts";
+import { handleCustomerCommand } from "./customerCommands.ts";
+import {
+  migrateDelegation, migrateApprovals, resetDailySpendIfNeeded,
+  expireApprovals, shouldStopForApproval,
+} from "./delegationEngine.ts";
+import { handleDelegationCommand } from "./delegationCommands.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -210,7 +232,6 @@ function ensureNotBlocked(state) {
   }
 }
 
-
 function checkMilestones(state, min) {
   const set = (id, cond) => {
     const m = state.milestones.find(x => x.id === id);
@@ -247,11 +268,11 @@ function payCost(state, account, amountCents, cause, refId, min, opts) {
   return { paid: r.paidCents, unpaid: r.unpaidCents };
 }
 function doWithdrawal(state, min) {
-  const hasCompanyLiabilities = (state.accounting?.openItems || []).some(o => o.remainingCents > 0) || (state.openCosts || []).some(o => o.account === "company" && o.amountCents > 0);
-  if (hasCompanyLiabilities) return { done: false, reason: "offene betriebliche Kosten" };
-  if (state.company.accountCents < PRIVATE_WITHDRAWAL_PER_DAY) return { done: false, reason: "Firma kann Entnahme nach Tageskosten nicht bezahlen" };
-  addBooking(state, min, "Private Entnahme", -PRIVATE_WITHDRAWAL_PER_DAY, "company", "withdrawal");
-  state.private.accountCents += PRIVATE_WITHDRAWAL_PER_DAY;
+  const amt = state.private.dailyWithdrawalCents ?? PRIVATE_WITHDRAWAL_PER_DAY; if (amt <= 0) return { done: true };
+  const hasLiab = (state.accounting?.openItems || []).some(o => o.remainingCents > 0) || (state.openCosts || []).some(o => o.account === "company" && o.amountCents > 0);
+  if (hasLiab) return { done: false, reason: "offene betriebliche Kosten" };
+  if (state.company.accountCents < amt) return { done: false, reason: "Firma kann Entnahme nicht bezahlen" };
+  addBooking(state, min, "Private Entnahme", -amt, "company", "withdrawal"); state.private.accountCents += amt;
   return { done: true };
 }
 // Alt-Generator entfernt – durch marketEngine.ts ersetzt (Auftrag 19).
@@ -299,7 +320,7 @@ function doDailyAccounting(state, midnight) {
     const causeLabel = emp.role === "dispatcher" || emp.role === "dispatcher_senior" ? "Disposition"
       : emp.role === "cleaner" || emp.role === "mechanic" ? "Reinigung und Werkstatt"
       : emp.role === "accountant" || emp.role === "accountant_senior" ? "Buchhaltung"
-      : "Lohn";
+      : emp.role === "assistant" || emp.role === "branch_manager" ? "Geschäftsführung" : "Lohn";
     const r = payCost(state, "company", emp.costPerDayCents, causeLabel + ": " + emp.name, emp.id, midnight, { employeeId: emp.id });
     log.push({ cause: causeLabel, employee: emp.name, role: emp.role, paid: r.paid, unpaid: r.unpaid });
   }
@@ -320,107 +341,14 @@ function doDailyAccounting(state, midnight) {
   processDailySatisfaction(state, midnight);
   processDailyRecovery(state, midnight);
   processTerminationWarnings(state, midnight);
+  processDailyRelationship(state, midnight);
   return log;
 }
 
 // ---------- Zeitverarbeitung ----------
-function earliestEventAfter(state, t, maxMin) {
-  let best = null;
-  const cand = (m) => { if (m > t && m <= maxMin) { if (best === null || m < best) best = m; } };
-  for (const trip of state.trips) {
-    if (trip.status === "in_progress" && trip.currentPhase < (trip.phases || []).length) cand(trip.phases[trip.currentPhase].endMin);
-  }
-  for (const a of state.appointments) {
-    if (a.status === "pending") cand(a.decisionDeadline);
-    else if (a.status === "accepted") { cand(a.startMin); cand(a.endMin); }
-    else if (a.status === "active") cand(a.endMin);
-  }
-  cand(Math.floor(t / 1440) * 1440 + 1440); // nächste Mitternacht
-  cand(Math.floor(t / 60) * 60 + 60); // nächste Marktwelle (volle Stunde)
-  cand(Math.floor(t / MONTH_MIN) * MONTH_MIN + MONTH_MIN); // nächste Monatsgrenze
-  for (const o of state.orders) { if (o.status === "offered") cand(o.acceptDeadlineMin); }
-  if (!state.tutorialInviteCreated) cand(720);
-  for (const d of state.drivers) { if (d.status === "resting" && d.restUntil !== null) cand(d.restUntil); }
-  for (const v of state.vehicles) { if (v.status === "maintenance" && v.maintenanceUntil !== null) cand(v.maintenanceUntil); }
-  // Dienstzeiten für Angestellte (Buchhaltung/Reinigung tagsüber, Disponenten Schicht-basiert)
-  const hasNonDriverStaff = (state.employees || []).some(e => e.employmentStatus === "employed" && e.attendance === "present" && e.role !== "driver");
-  if (hasNonDriverStaff) {
-    const dayStart = Math.floor(t / 1440) * 1440;
-    // Buchhaltung, Reinigung etc.: feste Dienstzeiten 08:00–16:00
-    for (let st = dayStart + SERVICE_START_MIN; st <= dayStart + SERVICE_END_MIN; st += SERVICE_INTERVAL_MIN) {
-      cand(st);
-    }
-    // Disponenten: Union-Set für Schichtzeiten (Performance bei vielen Disponenten)
-    const shiftTimes = new Set();
-    for (const emp of (state.employees || [])) {
-      if (emp.role !== "dispatcher" && emp.role !== "dispatcher_senior") continue;
-      if (!isActivelyEmployed(emp) || emp.attendance !== "present") continue;
-      const sStart = emp.shiftStart ?? SERVICE_START_MIN;
-      const sEnd = emp.shiftEnd ?? SERVICE_END_MIN;
-      for (let day = 0; day <= 1; day++) {
-        const base = dayStart + day * 1440;
-        if (sStart <= sEnd) { for (let st = base + sStart; st <= base + sEnd; st += SERVICE_INTERVAL_MIN) shiftTimes.add(st); }
-        else { for (let st = base + sStart; st < base + 1440; st += SERVICE_INTERVAL_MIN) shiftTimes.add(st); for (let st = base; st <= base + sEnd; st += SERVICE_INTERVAL_MIN) shiftTimes.add(st); }
-      }
-    }
-    for (const st of shiftTimes) cand(st);
-  }
-  // Tour-Deployment-Startzeiten
-  for (const tour of state.tours || []) {
-    if (tour.status !== "active") continue;
-    for (const dep of tour.deployments) {
-      if (dep.status === "planned") cand(dep.startMin);
-    }
-    if (tour.returnDeployment && tour.returnDeployment.status === "planned") cand(tour.returnDeployment.startMin);
-  }
-  // Staff-Task-Verarbeitungszeiten (Postfach)
-  for (const task of (state.mail?.staffTasks || [])) {
-    if (task.status === "pending") cand(task.earliestProcessMin);
-  }
-  // Finanzierungs-Fälligkeiten (Kredite, Leasing) – Auftrag 17
-  for (const dueMin of getFinancingDueEvents(state, t, maxMin)) cand(dueMin);
-  // Kündigungs-Austritte (Auftrag 18)
-  for (const dueMin of getTerminationExitEvents(state, t, maxMin)) cand(dueMin);
-  // Dienstleistungsverträge (Auftrag 25)
-  for (const c of (state.serviceContracts || [])) {
-    if (c.status === "planned") cand(c.startMin);
-    if (c.status === "active" || c.status === "planned") cand(c.endMin);
-  }
-  // Krankheitsenden (Auftrag 25)
-  for (const s of (state.absences?.sicknesses || [])) {
-    if (s.status === "active") cand(s.expectedEndMin);
-  }
-  // Urlaubsbeginn und -ende (Auftrag 25)
-  for (const r of (state.absences?.vacationRequests || [])) {
-    if (r.status === "approved") { cand(r.startMin); cand(r.endMin); }
-  }
-  // Werkstatt-Ereignisse (Auftrag 27)
-  for (const wt of getWorkshopEventTimes(state, t, maxMin)) cand(wt);
-  // Personalmarkt-Wellen (Auftrag 29): regulär 08:00/14:00, bedarfsbezogen
-  {
-    const nextReg = getNextRegularWaveTime(t);
-    if (nextReg <= maxMin) cand(nextReg);
-    const nextDemand = state.personnelMarket?.nextDemandWaveMin;
-    if (nextDemand && nextDemand > t && nextDemand <= maxMin) cand(nextDemand);
-  }
-  // Gespräche (Auftrag 30): Endzeit aktiver Gesprächstermine
-  for (const a of (state.appointments || [])) {
-    if (a.type === "conversation" && a.status === "active" && a.endMin > t && a.endMin <= maxMin) cand(a.endMin);
-  }
-  // Aus- und Weiterbildung (Auftrag 31): Kursblöcke, Ausbildungen, Ablauf
-  for (const tm of getTrainingEventTimes(state, t, maxMin)) cand(tm);
-  // Gefahrgut (Auftrag 32): Tankreinigung, Ausrüstung, Spielprüfung
-  for (const tm of getTankCleaningEventTimes(state, t, maxMin)) cand(tm);
-  for (const tm of getEquipmentJobEventTimes(state, t, maxMin)) cand(tm);
-  for (const tm of getInspectionJobEventTimes(state, t, maxMin)) cand(tm);
-  // Investment: Order-Ablaufzeiten (Auftrag 33)
-  if (state.investment?.market) {
-    for (const tm of getInvestmentEventTimes(state, t, maxMin)) cand(tm);
-  }
-  // Fahrer-Reisen (Filialverschiebung)
-  for (const tm of getDriverTravelEventTimes(state, t, maxMin)) cand(tm);
-  return best;
-}
+import { earliestEventAfter } from "./eventScheduler.ts";
+import { reportProgress } from "./progressHook.js";
+
 function completeTrip(state, trip, m, log) {
   trip.status = "completed";
   trip.endMin = m;
@@ -467,6 +395,7 @@ function completeTrip(state, trip, m, log) {
   if (trip.type === "empty") {
     onTripCompleted(state, trip, m, log);
     log.push({ type: "emptytrip_completed", trip: trip.id, vehicle: vehicle.id, driver: driver.id, atCity: finalCity });
+    planSingleVehicle(state, vehicle, m, log);
     return;
   }
   const order = state.orders.find(o => o.id === trip.orderId);
@@ -475,6 +404,8 @@ function completeTrip(state, trip, m, log) {
   const payment = onTime ? trip.paymentCents : Math.round(trip.paymentCents * 0.9);
   addBooking(state, m, "Vergütung: " + order.customer, payment, "company", order.id);
   order.paidCents = payment;
+  // Kundenbeziehung: Reputation bei Lieferung erfassen (idempotent)
+  recordOrderOutcome(state, order, onTime ? "timely" : "late", m, payment);
   order.history = order.history || [];
   order.history.push({ type: "delivered", min: m, actor: driver.id, actorName: driver.name, details: { onTime, paymentCents: payment } });
   state.stats.totalDeliveries++;
@@ -485,7 +416,7 @@ function completeTrip(state, trip, m, log) {
   const newAchs = checkAchievements(state, m);
   if (newAchs.length) log.push({ type: "achievements_unlocked", achievements: newAchs, atMin: m });
   if (state.tutorial.active && state.tutorial.step === 2) state.tutorial.step = 3;
-  log.push({ type: "delivery", trip: trip.id, order: order.id, onTime, paymentCents: payment });
+  log.push({ type: "delivery", trip: trip.id, order: order.id, onTime, paymentCents: payment, branchId: vehicle.branchId });
   // Dauerhaftes Lieferungs-Ereignis
   pushEvent(state, {
     type: "delivery_completed",
@@ -519,6 +450,8 @@ function completeTrip(state, trip, m, log) {
       dedupKey: "dg_delivery:" + trip.id,
     });
   }
+  // Inkrementelle Disposition: Fahrzeug ist frei → sofort neu planen
+  planSingleVehicle(state, vehicle, m, log);
 }
 function processEventsAt(state, m, log) {
   // Spielzeit auf Ereigniszeit aktualisieren (startDeployment nutzt state.gameTime)
@@ -605,15 +538,20 @@ function processEventsAt(state, m, log) {
     }
   }
   // 3b. Tour-automatische Folge-Einsätze starten (nach Erholung, vor Tagesabrechnung)
+  const _logLenBeforeTours = log.length;
   processTours(state, m, log);
   // 3b.1 Tour-Start-Ereignisse aus Log in dauerhaftes Ereignisprotokoll übernehmen
-  for (const le of log) {
+  // Nur die in diesem processTours-Aufruf neu hinzugefügten Einträge durchsuchen
+  // (verhindert O(n²) bei Tausenden Log-Einträgen).
+  for (let li = _logLenBeforeTours; li < log.length; li++) {
+    const le = log[li];
     if (le.type === "tour_deployment_started" && le.atMin === m) {
       const tour = (state.tours || []).find(t => t.id === le.tour);
       const vehicle = state.vehicles.find(v => v.id === tour?.vehicleId);
       const driver = state.drivers.find(d => d.id === tour?.driverId);
       const dep = tour?.deployments?.find(d => d.id === le.deployment);
       const order = dep?.orderId ? state.orders.find(o => o.id === dep.orderId) : null;
+      if (vehicle) le.branchId = vehicle.branchId;
       pushEvent(state, {
         type: "tour_started",
         gameTime: m, isSystem: true,
@@ -632,10 +570,16 @@ function processEventsAt(state, m, log) {
     }
   }
   // 3b.2 Ereignisgesteuerte Dispositionsplanung (außerhalb des regulären Diensttakts)
-  triggerDispatcherPlanning(state, m, log);
+  // Nur alle 15 Min aufrufen, nicht bei jedem Event. suggestTours ist
+  // O(Fahrzeuge × Fahrer × Aufträge²) — bei jedem Event aufgerufen war das
+  // der Haupt-CPU-Killer beim Tagesvorlauf. Die reguläre Planung läuft
+  // ohnehin alle 60 Min (SERVICE_INTERVAL_MIN); 15 Min reichen für
+  // ereignisgesteuerte Reaktion (z.B. Fahrer wird frei nach Tour-Ende).
+  if (m % 15 === 0) triggerDispatcherPlanning(state, m, log);
   // 3c. Angestellte verarbeiten (Disponenten Schicht-basiert, Buchhaltung/Reinigung tagsüber)
   if (m % SERVICE_INTERVAL_MIN === 0) {
     processEmployees(state, m, log);
+    if (m % 1440 === SERVICE_START_MIN) autoApproveVacationRequests(state, m);
   }
   // 3d. Berichte generieren und Staff-Tasks verarbeiten
   processReportSchedules(state, m, log);
@@ -646,6 +590,8 @@ function processEventsAt(state, m, log) {
   processReleaseAfterTrip(state, m, log);
   // 3e.4 Fahrer-Reisen abschließen (Filialverschiebung)
   processDriverTravels(state, m, log);
+  // 3e.5 Schwangerschaft / Geburt (Beziehungs-Engine)
+  processPregnancy(state, m, log); processDates(state, m, log);
   // 3e.3 Tatsächlicher Austritt bei Fristende (Auftrag 18)
   processEmployeeExit(state, m, log);
   // 4. Tagesabrechnung (Mitternacht)
@@ -654,19 +600,31 @@ function processEventsAt(state, m, log) {
     log.push({ type: "daily_accounting", min: m, details: dlog });
     // Auftrag 25: Krankheitsgenerator, Urlaubsverbrauch, Sauberkeitsverlust
     maybeGenerateSickness(state, m);
+    maybeGenerateVacationRequest(state, m);
     processVacationDayConsumption(state, m);
     processDailyCleaningDecay(state, m);
     // Auftrag 26: Taeglicher Unterhalt fuer Anschaffungen
     processDailyMaintenance(state, m);
-    // History-Cleanup: Alte abgeschlossene Trips/Tours und erledigte Aufträge
-    // entfernen. Verhindert unendliches Wachstum und beschleunigt
-    // earliestEventAfter (iteriert über alle Trips pro Event).
+    // History-Cleanup: Abgeschlossene Trips/Tours und erledigte Aufträge
+    // entfernen, die älter als 7 bzw. 30 Tage sind. Verhindert unendliches
+    // Wachstum von state.trips/orders/tours über lange Spiele und
+    // beschleunigt earliestEventAfter (iteriert über alle Trips pro Event).
     cleanupHistory(state, m);
+    resetDailySpendIfNeeded(state);
+    expireApprovals(state);
+    // Rahmenverträge: Tägliche Auftragsgenerierung, Auswertung und
+    // Benachrichtigung bei bevorstehendem Vertragsende.
+    processContractDay(state, m, log);
+    evaluateContracts(state, m, log);
+    notifyContractEndingSoon(state, m, log);
   }
-  // Auftrag 25: Krankheitsgenesung und Dienstleistungsverarbeitung bei jedem Ereignis
-  processSicknessRecovery(state, m);
-  processServiceContracts(state, m, log);
-  processTempStaffBilling(state, m, log);
+  // Auftrag 25: Krankheitsgenesung – nur bei aktiven Krankmeldungen
+  if ((state.absences?.sicknesses || []).length > 0) processSicknessRecovery(state, m);
+  // Dienstleistungsverarbeitung – nur bei vorhandenen Verträgen
+  if ((state.serviceContracts || []).length > 0) {
+    processServiceContracts(state, m, log);
+    processTempStaffBilling(state, m, log);
+  }
   // Auftrag 27: Werkstatt-Verarbeitung und Automatik
   processWorkshop(state, m, log);
   evaluateWorkshopAutomation(state, m, log);
@@ -691,8 +649,22 @@ function processEventsAt(state, m, log) {
     calculateDepreciation(state, m);
     processMonthEnd(state, m, log);
   }
-  // 5. Angebotsablauf + überfällige angenommene Aufträge als "failed" markieren
-  for (const o of state.orders) { if (o.status === "offered" && o.acceptDeadlineMin === m) { o.status = "expired"; log.push({ type: "order_expired", order: o.id }); } if (o.status === "angenommen" && o.deliveryDeadlineMin + 240 <= m) { o.status = "failed"; o.failedAtMin = m; log.push({ type: "order_failed", order: o.id, customer: o.customer, reason: "Lieferfrist überschritten" }); } }
+  // 5. Angebotsablauf
+  for (const o of state.orders) { if (o.status === "offered" && o.acceptDeadlineMin === m) { o.status = "expired"; log.push({ type: "order_expired", order: o.id }); } }
+  // 5a. Angenommene Aufträge mit überschrittener Lieferfrist als "failed" markieren.
+  // suggestTours/buildTourPlan lassen Aufträge bis zu 4h (LATE_GRACE_MIN = 240)
+  // nach der Lieferfrist noch zu. Danach sind sie nicht mehr planbar, bleiben aber
+  // sonst ewig als "angenommen" stehen — sie blähen die UI-Zahl auf, blockieren
+  // den Dispatcher-Skip-Cache (unplannedCount bleibt konstant → keine Neuplanung)
+  // und verhindern, dass die Disposition freie Lkw tatsächlich einsetzt.
+  for (const o of state.orders) {
+    if (o.status === "angenommen" && o.deliveryDeadlineMin + 240 <= m) {
+      o.status = "failed";
+      o.failedAtMin = m;
+      recordOrderOutcome(state, o, "failed", m, 0);
+      log.push({ type: "order_failed", order: o.id, customer: o.customer, reason: "Lieferfrist überschritten" });
+    }
+  }
   // 5b. Marktwelle zu jeder vollen Spielstunde (Auftrag 19)
   if (m % 60 === 0) {
     generateMarketWave(state, m, log);
@@ -719,28 +691,56 @@ function processEventsAt(state, m, log) {
   // das alle Fahrzeuge/Anlagen iteriert — bei der Zeitautomatik mit vielen
   // Ereignissen pro Tick war das der CPU-Flaschenhals.
 }
-function advanceTo(state, targetMin, log) {
+function advanceTo(state, targetMin, log, reportStart) {
+  // Flag für processDispatcher: während eines Vorlaufs (reportStart definiert)
+  // wird die Skip-Cache-Schwelle von 10 auf 60 Min angehoben — der Context-Key
+  // erfasst alle handlungsrelevanten Änderungen, sodass 15-Min-Ticks mit
+  // unverändertem Context reine Verschwendung wären.
+  state._bulkAdvance = reportStart !== undefined;
+  // _largeAdvance: nur für Vorläufe ≥ 120 Min (Tagesvorlauf). Steuert die
+  // 2-Stunden-Skip für Disponenten — bei 1-Stunden-Schritten würden
+  // Disponenten sonst bei jedem zweiten Schritt gar nicht planen.
+  state._largeAdvance = reportStart !== undefined && (targetMin - state.gameTime) >= 120;
   let t = state.gameTime;
-  // CPU-Schutz: begrenzt Verarbeitungsdauer und Ereignisanzahl pro Aufruf.
-  // Verhindert cpu-exceeded bei sehr langen Zeit-Sprüngen oder vielen Ereignissen.
-  // Bei vorzeitigem Abbruch wird gameTime auf die letzte verarbeitete Minute gesetzt;
-  // der nächste Tick/Sync setzt ab dort fort.
   const startTime = Date.now();
-  const CPU_BUDGET_MS = 12000; // 12 s — Puffer unter dem Plattform-Limit
-  const MAX_EVENTS = 500;
+  // Der Vorlauf läuft im Web-Worker — der Haupt-Thread bleibt frei, daher gibt
+  // es KEIN CPU-Zeitbudget. Alle Vorgänge müssen verarbeitet werden, sonst wäre
+  // die Funktion wertlos (unvollständige Buchungen, fehlende Lieferungen).
+  // MAX_EVENTS ist eine reine Sicherheitsgrenze gegen Endlosschleifen-Bugs
+  // (earliestEventAfter gibt immer m > t zurück, daher ist ein Stillstand
+  // ausgeschlossen — die Grenze liegt hoch genug für jede reale Flotte).
+  const MAX_EVENTS = 5000000;
   let eventCount = 0;
+  let lastReportMs = startTime;
   let stopped = false;
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    if (eventCount >= MAX_EVENTS || Date.now() - startTime > CPU_BUDGET_MS) { stopped = true; break; }
-    const next = earliestEventAfter(state, t, targetMin);
-    if (next === null) break;
-    processEventsAt(state, next, log);
-    t = next;
-    eventCount++;
+  try {
+    while (true) {
+      if (eventCount >= MAX_EVENTS) { stopped = true; break; }
+      if (shouldStopForApproval(state)) { stopped = true; log.push({ type: "advance_stopped_approval", atMin: t, targetMin, reason: "pending_approval" }); break; }
+      const next = earliestEventAfter(state, t, targetMin);
+      if (next === null) break;
+      processEventsAt(state, next, log);
+      t = next;
+      eventCount++;
+      // Fortschritt nur alle 250 ms melden — nicht nach jedem Event.
+      // Reduziert postMessage-Overhead massiv bei Tausenden Events.
+      if (reportStart !== undefined) {
+        const now = Date.now();
+        if (now - lastReportMs >= 250 || t >= targetMin) {
+          reportProgress(t - reportStart, targetMin - reportStart, eventCount, null);
+          lastReportMs = now;
+        }
+      }
+    }
+    state.gameTime = stopped ? t : targetMin;
+  } finally {
+    state._bulkAdvance = false;
+    state._largeAdvance = false;
   }
-  state.gameTime = stopped ? t : targetMin;
-  if (stopped) log.push({ type: "advance_stopped", atMin: t, targetMin, reason: eventCount >= MAX_EVENTS ? "max_events" : "cpu_budget" });
+  if (stopped) log.push({ type: "advance_stopped", atMin: t, targetMin, reason: "max_events_safety" });
+  if (reportStart !== undefined) {
+    reportProgress(state.gameTime - reportStart, targetMin - reportStart, eventCount, null);
+  }
 }
 
 // ---------- Dispositionsplanung ----------
@@ -754,15 +754,6 @@ function planTrip(state, order, vehicle, driver) {
   const totalKm = workSteps.reduce((s, step) => s + (step.distanceKm || 0), 0);
   return { phases: result.phases, totalKm, totalDuration: result.endMin - state.gameTime, endMin: result.endMin };
 }
-
-// ---------- Angestellten-Verarbeitung ----------
-
-
-
-
-
-
-
 
 // ---------- Task-Parameter Extraktion ----------
 function extractTaskParams(body, state, conv) {
@@ -784,16 +775,7 @@ function extractTaskParams(body, state, conv) {
 // ---------- Befehle ----------
 export function applyCommand(state, command, params) {
   _clearPlanCache(); migrateState(state);
-  migrateAbsences(state);
-  migrateServices(state);
-  migrateRewards(state);
-  migratePurchases(state);
-  migrateWorkshop(state);
-  migratePersonnelMarket(state);
-  migrateTraining(state);
-  migrateDangerousGoods(state);
-  migrateInvestment(state);
-  migrateBranches(state);
+  [migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals].forEach(fn => fn(state));
   if (state.bookings && state.bookings.length > 200) state.bookings = state.bookings.slice(-200);
   // Historie begrenzen: abgeschlossene Touren, Aufträge und Termine älter als 30 Tage
   // entfernen. Hält den Zustand kompakt und beschleunigt Laden/Speichern bei langen Spielen.
@@ -808,7 +790,7 @@ export function applyCommand(state, command, params) {
     if (Array.isArray(state.orders) && state.orders.length > 100) {
       state.orders = state.orders.filter(o => {
         if (o.status === "offered" || o.status === "angenommen" || o.status === "unterwegs") return true;
-        const ref = o.deliveredAtMin || o.acceptDeadlineMin || o.acceptedAtMin || 0;
+        const ref = o.deliveredAtMin || o.failedAtMin || o.acceptDeadlineMin || o.acceptedAtMin || 0;
         return ref > cutoff;
       });
     }
@@ -865,8 +847,35 @@ export function applyCommand(state, command, params) {
       if (state.company.accountCents < fee) throw new Error("Firmenkonto reicht für die Stornogebühr nicht aus.");
       addBooking(state, state.gameTime, "Stornogebühr: " + o.customer, -fee, "company", "cancel:" + o.id);
       o.status = "storniert";
+      recordOrderOutcome(state, o, "cancelled", state.gameTime, 0);
       state.stats.cancelledOrders = (state.stats.cancelledOrders || 0) + 1;
       result = { ok: true, feeCents: fee };
+      break;
+    }
+
+    case "clearOpenOrders": {
+      ensureNotBlocked(state);
+      // Auftrags-IDs sammeln, die bereits disponiert sind (aktive Tour oder laufende Fahrt)
+      const busyOrderIds = new Set();
+      for (const tr of (state.trips || [])) {
+        if (tr.status === "in_progress" && tr.orderId) busyOrderIds.add(tr.orderId);
+      }
+      for (const tr of (state.tours || [])) {
+        if (tr.status !== "active") continue;
+        for (const d of (tr.deployments || [])) {
+          if (d.orderId && d.status !== "cancelled") busyOrderIds.add(d.orderId);
+        }
+      }
+      const before = state.orders.length;
+      // Lösche: offene Marktangebote (offered) und ungesplante angenommene Aufträge.
+      // Behalte: unterwegs/abgeschlossen/storniert/abgelaufen + bereits disponierte Aufträge.
+      state.orders = state.orders.filter(o => {
+        if (o.status !== "offered" && o.status !== "angenommen") return true;
+        if (o.status === "angenommen" && busyOrderIds.has(o.id)) return true;
+        return false;
+      });
+      const removed = before - state.orders.length;
+      result = { ok: true, removedCount: removed };
       break;
     }
 
@@ -1451,6 +1460,46 @@ export function applyCommand(state, command, params) {
       break;
     }
 
+    // ---------- Beziehung & Familie ----------
+
+    case "getRelationshipStatus": {
+      result = { ok: true, ...getRelationshipStatus(state) };
+      break;
+    }
+
+    case "getGiftOptions": {
+      result = { ok: true, gifts: getGiftOptions(state) };
+      break;
+    }
+
+    case "giveGift": {
+      ensureNotBlocked(state);
+      const r = giveGift(state, { giftId: p.giftId });
+      result = r;
+      break;
+    }
+
+    case "proposeMarriage": {
+      ensureNotBlocked(state);
+      const r = proposeMarriage(state);
+      result = r;
+      break;
+    }
+
+    case "getMarried": {
+      ensureNotBlocked(state);
+      const r = getMarried(state);
+      result = r;
+      break;
+    }
+
+    case "planChild": {
+      ensureNotBlocked(state);
+      const r = planChild(state);
+      result = r;
+      break;
+    }
+
     case "previewPurchase": {
       const entry = PURCHASE_CATALOG.find(p2 => p2.id === p.catalogId);
       if (!entry) throw new Error("Unbekannter Katalogeintrag.");
@@ -1495,9 +1544,35 @@ export function applyCommand(state, command, params) {
     case "advanceTime": {
       const minutes = Math.max(0, Math.min(p.minutes || 0, 1440));
       const target = state.gameTime + minutes;
+      const startMin = state.gameTime;
       const log = [];
-      advanceTo(state, target, log);
-      result = { ok: true, events: log, gameTime: state.gameTime };
+      // Ein einzelner advanceTo-Aufruf mit ausreichend CPU-Budget (45s) schließt
+      // den Vorlauf in einem Durchlauf ab. Die frühere äußere while-Schleife
+      // (guard < 60) hat bei CPU-Budget-Abbrüchen bis zu 60×8s = 8 Min blockiert.
+      advanceTo(state, target, log, startMin);
+      // Statistik direkt aus dem vollen Log (vor Trimming) ableiten.
+      // delivery-Events tragen branchId und paymentCents direkt im Log,
+      // tour_deployment_started-Events tragen branchId und atMin.
+      const stats = { totalDeliveries: 0, totalRevenue: 0, totalTours: 0, branches: {} };
+      for (const ev of log) {
+        if (ev.type === "delivery") {
+          stats.totalDeliveries++;
+          stats.totalRevenue += ev.paymentCents || 0;
+          const bid = ev.branchId || "_haupt";
+          if (!stats.branches[bid]) stats.branches[bid] = { deliveries: 0, revenue: 0, tours: 0 };
+          stats.branches[bid].deliveries++;
+          stats.branches[bid].revenue += ev.paymentCents || 0;
+        } else if (ev.type === "tour_deployment_started") {
+          stats.totalTours++;
+          const bid = ev.branchId || "_haupt";
+          if (!stats.branches[bid]) stats.branches[bid] = { deliveries: 0, revenue: 0, tours: 0 };
+          stats.branches[bid].tours++;
+        }
+      }
+      const MAX_LOG = 200;
+      const trimmedLog = log.length > MAX_LOG ? log.slice(-MAX_LOG) : log;
+      const stoppedEvent = log.find(ev => ev.type === "advance_stopped");
+      result = { ok: true, events: trimmedLog, gameTime: state.gameTime, stats, stopped: !!stoppedEvent, stopReason: stoppedEvent?.reason || null };
       break;
     }
 
@@ -1511,7 +1586,9 @@ export function applyCommand(state, command, params) {
       const target = next === null ? state.gameTime + 1440 : next;
       const log = [];
       advanceTo(state, target, log);
-      result = { ok: true, events: log, gameTime: state.gameTime, target };
+      const MAX_LOG = 200;
+      const trimmedLog = log.length > MAX_LOG ? log.slice(-MAX_LOG) : log;
+      result = { ok: true, events: trimmedLog, gameTime: state.gameTime, target };
       break;
     }
 
@@ -1585,6 +1662,76 @@ export function applyCommand(state, command, params) {
         acceptNew: p.acceptNew !== false,
       });
       result = { ok: true, suggestions: r.suggestions };
+      break;
+    }
+
+    case "setGlobalDispatchMode": {
+      const mode = p.mode || "autonomous";
+      if (!["suggestions", "dispatch_accepted", "autonomous"].includes(mode)) {
+        throw new Error("Ungültiger Dispositions-Modus: " + mode);
+      }
+      let count = 0;
+      for (const emp of (state.employees || [])) {
+        if (emp.role !== "dispatcher" && emp.role !== "dispatcher_senior") continue;
+        if (emp.employmentStatus !== "employed") continue;
+        emp.workMode = mode;
+        emp.suggestions = [];
+        count++;
+      }
+      result = { ok: true, mode, dispatcherCount: count };
+      break;
+    }
+
+    case "dispatchAllNow": {
+      ensureNotBlocked(state);
+      const freeVehicles = (state.vehicles || []).filter(v =>
+        v.status === "free" && v.condition >= 20 && !v.markedForSale &&
+        v.ownership_type !== "sold"
+      );
+      if (freeVehicles.length === 0) {
+        result = { ok: true, planned: 0, ordersAccepted: 0, totalContributionCents: 0, vehiclesUsed: 0, reason: "Keine freien Fahrzeuge" };
+        break;
+      }
+      const vehicleIds = freeVehicles.map(v => v.id);
+      const r = suggestTours(state, {
+        vehicleIds, earliestStart: state.gameTime, horizonMin: 2880,
+        desiredEndCity: null, latestReturnMin: null,
+        mode: state.marketPriority || "balanced", acceptNew: true,
+      });
+      const busyOrderIds = new Set();
+      for (const tr of state.trips) { if (tr.status === "in_progress" && tr.orderId) busyOrderIds.add(tr.orderId); }
+      for (const tr of (state.tours || [])) {
+        if (tr.status !== "active") continue;
+        for (const d of (tr.deployments || [])) { if (d.orderId && d.status !== "cancelled") busyOrderIds.add(d.orderId); }
+      }
+      const usedVehicleIds = new Set();
+      const usedOrderIds = new Set();
+      let planned = 0;
+      let ordersAccepted = 0;
+      let totalContributionCents = 0;
+      for (const sug of r.suggestions) {
+        if (usedVehicleIds.has(sug.vehicleId)) continue;
+        const allAvailable = sug.orderIds.every(oid => {
+          if (usedOrderIds.has(oid) || busyOrderIds.has(oid)) return false;
+          const o = state.orders.find(x => x.id === oid);
+          return o && (o.status === "offered" || o.status === "angenommen");
+        });
+        if (!allAvailable) continue;
+        const newOrderIds = sug.plan.acceptedOrderIds || [];
+        if (newOrderIds.length > 0 && sug.plan.totalContributionCents <= 0) continue;
+        try {
+          const cr = doConfirmTour(state, {
+            vehicleId: sug.vehicleId, driverId: sug.driverId, orderIds: sug.orderIds,
+            desiredEndCity: sug.plan.desiredEndCity || null, latestReturnMin: sug.plan.latestReturnMin || null,
+          });
+          usedVehicleIds.add(sug.vehicleId);
+          sug.orderIds.forEach(oid => usedOrderIds.add(oid));
+          planned++;
+          ordersAccepted += (cr.acceptedOrderIds || []).length;
+          totalContributionCents += sug.plan.totalContributionCents || 0;
+        } catch (e) { /* skip failed tour */ }
+      }
+      result = { ok: true, planned, ordersAccepted, totalContributionCents, vehiclesUsed: usedVehicleIds.size, freeVehicles: freeVehicles.length };
       break;
     }
 
@@ -1793,6 +1940,18 @@ export function applyCommand(state, command, params) {
       break;
     }
 
+    case "deleteConversation": {
+      deleteConversation(state, p.conversationId);
+      result = { ok: true };
+      break;
+    }
+
+    case "clearAllConversations": {
+      clearAllConversations(state);
+      result = { ok: true };
+      break;
+    }
+
     case "exportCorrespondence": {
       const data = exportCorrespondence(state);
       result = { ok: true, export: data };
@@ -1891,6 +2050,18 @@ export function applyCommand(state, command, params) {
 
     case "markAllEventsSeen": {
       markAllEventsSeen(state);
+      result = { ok: true };
+      break;
+    }
+
+    case "clearEvents": {
+      clearEvents(state);
+      result = { ok: true };
+      break;
+    }
+
+    case "deleteEvent": {
+      deleteEvent(state, p.eventId);
       result = { ok: true };
       break;
     }
@@ -2283,7 +2454,8 @@ export function applyCommand(state, command, params) {
       break;
     }
 
-    case "assignDispatcherToBranch": case "assignEmployeeToBranch": {
+    case "assignDispatcherToBranch":
+    case "assignEmployeeToBranch": {
       ensureNotBlocked(state);
       const r = assignDispatcherToBranch(state, { employeeId: p.employeeId, branchId: p.branchId });
       result = r;
@@ -2300,6 +2472,12 @@ export function applyCommand(state, command, params) {
       if (dgResult !== null) { result = dgResult; break; }
       const invResult = handleInvestmentCommand(state, command, p);
       if (invResult !== null) { result = invResult; break; }
+      const datingResult = handleDatingCommand(state, command, p);
+      if (datingResult !== null) { result = datingResult; break; }
+      const customerResult = handleCustomerCommand(state, command, p);
+      if (customerResult !== null) { result = customerResult; break; }
+      const delegationResult = handleDelegationCommand(state, command, p);
+      if (delegationResult !== null) { result = delegationResult; break; }
       throw new Error("Unbekannter Befehl: " + command);
     }
   }

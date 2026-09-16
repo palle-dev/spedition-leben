@@ -775,22 +775,7 @@ function extractTaskParams(body, state, conv) {
 // ---------- Befehle ----------
 export function applyCommand(state, command, params) {
   _clearPlanCache(); migrateState(state);
-  migrateAbsences(state);
-  migrateServices(state);
-  migrateRewards(state);
-  migratePurchases(state);
-  migrateWorkshop(state);
-  migratePersonnelMarket(state);
-  migrateTraining(state);
-  migrateDangerousGoods(state);
-  migrateInvestment(state);
-  migrateBranches(state);
-  migrateRelationship(state);
-  migrateDating(state);
-  migrateCustomerRelations(state);
-  migrateContracts(state);
-  migrateDelegation(state);
-  migrateApprovals(state);
+  [migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals].forEach(fn => fn(state));
   if (state.bookings && state.bookings.length > 200) state.bookings = state.bookings.slice(-200);
   // Historie begrenzen: abgeschlossene Touren, Aufträge und Termine älter als 30 Tage
   // entfernen. Hält den Zustand kompakt und beschleunigt Laden/Speichern bei langen Spielen.
@@ -2491,6 +2476,8 @@ export function applyCommand(state, command, params) {
       if (datingResult !== null) { result = datingResult; break; }
       const customerResult = handleCustomerCommand(state, command, p);
       if (customerResult !== null) { result = customerResult; break; }
+      const delegationResult = handleDelegationCommand(state, command, p);
+      if (delegationResult !== null) { result = delegationResult; break; }
       throw new Error("Unbekannter Befehl: " + command);
     }
   }
