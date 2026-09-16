@@ -2481,13 +2481,11 @@ export function applyCommand(state, command, params) {
       if (customerResult !== null) { result = customerResult; break; }
       const delegationResult = handleDelegationCommand(state, command, p);
       if (delegationResult !== null) { result = delegationResult; break; }
+      const storyResult = handleStoryCommand(state, command, p); if (storyResult !== null) { result = storyResult; break; }
       throw new Error("Unbekannter Befehl: " + command);
     }
   }
-  // processedGameMinute mit gameTime synchronisieren: manuelle Zeitfortschritte
-  // (advanceTime, advanceToNextEvent, Befehle mit advanceTo) aktualisieren gameTime,
-  // aber nicht processedGameMinute. Ohne Synchronisation würde enableAutomation
-  // die Zeit auf den alten processedGameMinute-Wert zurücksetzen.
+  // processedGameMinute mit gameTime synchronisieren (manuelle Zeitfortschritte aktualisieren gameTime, aber nicht processedGameMinute).
   if (state.timeControl && state.gameTime > (state.timeControl.processedGameMinute || 0)) {
     state.timeControl.processedGameMinute = state.gameTime;
   }
