@@ -30,8 +30,16 @@ function GameShellContent() {
   if (loading) return <LoadingScreen />;
   if (showStart || !state) return <StartScreen />;
 
-  const isHome = location.pathname === "/zuhause";
-  const scene = isHome ? "home" : "office";
+  const SCENE_MAP = {
+    "/zuhause": "home",
+    "/auftraege": "orders",
+    "/fuhrpark": "fleet",
+    "/personal": "personnel",
+    "/finanzen": "finances",
+    "/filialen": "branches",
+    "/investment": "investment",
+  };
+  const scene = SCENE_MAP[location.pathname] || "office";
   const blocked = state.appointments.find(a => a.status === "active");
 
   return (
