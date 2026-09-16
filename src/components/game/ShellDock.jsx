@@ -36,6 +36,8 @@ export default function ShellDock() {
   const moreRef = useRef(null);
 
   const bgActive = !!backgroundAdvance?.active;
+  const bgProgress = backgroundAdvance?.progress;
+  const bgPct = bgProgress && bgProgress.total > 0 ? Math.min(100, Math.round((bgProgress.current / bgProgress.total) * 100)) : 0;
 
   useEffect(() => {
     if (!moreOpen) return;
@@ -155,11 +157,16 @@ export default function ShellDock() {
             <div className="text-[9px] text-muted-foreground">T{dayOf(displayGameTime || state.gameTime)}</div>
             <div className="text-xs font-medium tabular-nums">{clockOf(displayGameTime || state.gameTime)}</div>
           </div>
-          {/* Kleiner Hintergrund-Indikator während des Tagesvorlaufs */}
+          {/* Fortschritts-Anzeige während des Tagesvorlaufs */}
           {bgActive && (
-            <div className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs bg-lime/10 text-lime border border-lime/20 shrink-0 animate-pulse-ring">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              <span className="hidden sm:inline">Tag wird simuliert…</span>
+            <div className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs bg-lime/10 text-lime border border-lime/20 shrink-0">
+              <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+              <div className="flex flex-col gap-1 min-w-[90px]">
+                <span className="hidden sm:inline leading-none">{bgProgress ? `${bgPct}%` : "Tag wird simuliert…"}</span>
+                <div className="hidden sm:block h-1 rounded-full bg-lime/20 overflow-hidden">
+                  <div className="h-full bg-lime rounded-full transition-all duration-300 ease-out" style={{ width: `${bgPct}%` }} />
+                </div>
+              </div>
             </div>
           )}
           <button
