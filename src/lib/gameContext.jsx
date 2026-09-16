@@ -1002,7 +1002,7 @@ export function GameProvider({ children }) {
     resolveConflictKeepBoth, resolveConflictKeepLocal, resolveConflictKeepCloud,
   ]);
 
-  const value = {
+  const value = useMemo(() => ({
     state, loading, busy, toast,
     motionEnabled, overlay,
     automationEnabled, automationBusy,
@@ -1013,7 +1013,16 @@ export function GameProvider({ children }) {
     hasLock, autosaveMetas,
     backgroundAdvance,
     syncMeta, cloudSaves, cloudLoading,
-  };
+  }), [
+    state, loading, busy, toast,
+    motionEnabled, overlay,
+    automationEnabled, automationBusy,
+    toasts, unseenCount,
+    showStart,
+    hasLock, autosaveMetas,
+    backgroundAdvance,
+    syncMeta, cloudSaves, cloudLoading,
+  ]);
   return (
     <GameActionsContext.Provider value={actions}>
       <GameContext.Provider value={value}>
