@@ -13,8 +13,8 @@ import { Landmark } from "lucide-react";
 import PageHint from "@/components/help/PageHint";
 
 const TABS = [
-  { id: "trend", label: "Zeitverlauf", icon: TrendingUp },
   { id: "overview", label: "Übersicht", icon: LayoutDashboard },
+  { id: "trend", label: "Zeitverlauf", icon: TrendingUp },
   { id: "financing", label: "Finanzierung", icon: Landmark },
   { id: "journal", label: "Journal", icon: BookOpen },
   { id: "open", label: "Offene Posten", icon: AlertCircle },
@@ -25,7 +25,7 @@ const TABS = [
 
 export default function Finances() {
   const { state } = useGame();
-  const [tab, setTab] = useState("trend");
+  const [tab, setTab] = useState("overview");
 
   const openItems = (state.accounting?.openItems || []).filter(i => i.remainingCents > 0);
   const openBadge = openItems.length > 0 ? openItems.length : null;

@@ -73,12 +73,15 @@ function KPICard({ icon: Icon, label, value, sub, accent }) {
   );
 }
 
-function ChartCard({ title, subtitle, children }) {
+function ChartCard({ title, subtitle, actions, children }) {
   return (
     <div className="glass rounded-xl border border-white/10 p-4 lg:p-5">
-      <div className="mb-4">
-        <h3 className="text-sm font-medium text-foreground">{title}</h3>
-        {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-medium text-foreground">{title}</h3>
+          {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+        </div>
+        {actions}
       </div>
       {children}
     </div>
@@ -98,24 +101,6 @@ export default function FinanceTrendChart({ state }) {
 
   return (
     <div className="space-y-5">
-      {/* Period selector */}
-      <div className="flex items-center gap-2">
-        {PERIODS.map(p => {
-          const active = period === p.id;
-          return (
-            <button
-              key={p.id}
-              onClick={() => setPeriod(p.id)}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition active:scale-95 ${
-                active ? "bg-lime text-ink" : "text-muted-foreground hover:text-foreground hover:bg-white/5 border border-white/10"
-              }`}
-            >
-              {p.label}
-            </button>
-          );
-        })}
-      </div>
-
       {!hasData ? (
         <div className="text-center py-16 text-muted-foreground text-sm">
           Noch keine Buchungsdaten vorhanden. Sobald du Aufträge auslieferst und Kosten buchst, erscheint hier der Verlauf.
@@ -152,7 +137,28 @@ export default function FinanceTrendChart({ state }) {
           </div>
 
           {/* Main chart: Revenue vs Expenses + Cumulative Profit */}
-          <ChartCard title="Einnahmen vs. Ausgaben" subtitle="Tägliche Erlöse und Kosten mit kumuliertem Gewinn (rechte Achse) und 7-Tage-Schnitt">
+          <ChartCard
+            title="Einnahmen vs. Ausgaben"
+            subtitle="Tägliche Erlöse und Kosten mit kumuliertem Gewinn (rechte Achse) und 7-Tage-Schnitt"
+            actions={
+              <div className="flex items-center gap-1.5 shrink-0">
+                {PERIODS.map(p => {
+                  const active = period === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => setPeriod(p.id)}
+                      className={`rounded-lg px-2.5 py-1 text-xs font-medium transition active:scale-95 ${
+                        active ? "bg-lime text-ink" : "text-muted-foreground hover:text-foreground hover:bg-white/5 border border-white/10"
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
+            }
+          >
             <ResponsiveContainer width="100%" height={320}>
               <ComposedChart data={series} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
