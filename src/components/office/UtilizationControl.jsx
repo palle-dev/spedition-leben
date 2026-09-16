@@ -79,7 +79,7 @@ export default function UtilizationControl({ state }) {
           <span>{stats.free} frei · {stats.maintenance} Wartung</span>
         </div>
         <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-          <div className={`h-full rounded-full transition-all duration-500 ${utilColor}`} style={{ width: `${stats.utilization}%` }} />
+          <div className={`h-full rounded-full ${utilColor}`} style={{ width: `${stats.utilization}%` }} />
         </div>
       </div>
 

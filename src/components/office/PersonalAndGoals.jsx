@@ -77,7 +77,7 @@ export default function PersonalAndGoals({ state }) {
               </div>
               <div className="h-2 rounded-full bg-white/8 overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-lime transition-all duration-500"
+                  className="h-full rounded-full bg-lime"
                   style={{ width: `${Math.min(100, nextGoal.pct)}%` }}
                 />
               </div>

@@ -98,7 +98,7 @@ export default function DevelopmentPanel({ state }) {
                     {prog.completed && <Check className="w-3.5 h-3.5 text-lime shrink-0" />}
                   </div>
                   <div className="h-1 rounded-full bg-white/8 overflow-hidden mt-2">
-                    <div className={`h-full rounded-full transition-all duration-500 ${prog.completed ? "bg-lime" : "bg-coral"}`} style={{ width: `${pct}%` }} />
+                    <div className={`h-full rounded-full ${prog.completed ? "bg-lime" : "bg-coral"}`} style={{ width: `${pct}%` }} />
                   </div>
                   <div className="flex items-center justify-between mt-1">
                     <span className="text-[10px] text-muted-foreground/60 tabular-nums">

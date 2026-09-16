@@ -87,7 +87,7 @@ export default function OfficeBottom({ state }) {
           {/* Stufen-Balken */}
           <div className="flex gap-1 pt-1">
             {stages.map((threshold, i) => (
-              <div key={i} className={`flex-1 h-1.5 rounded-full transition ${growth.companyValue >= threshold ? "bg-lime" : "bg-white/10"}`} />
+              <div key={i} className={`flex-1 h-1.5 rounded-full ${growth.companyValue >= threshold ? "bg-lime" : "bg-white/10"}`} />
             ))}
           </div>
           <div className="h-px bg-white/5 mt-1" />

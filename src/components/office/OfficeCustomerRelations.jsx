@@ -90,7 +90,7 @@ export default function OfficeCustomerRelations({ state }) {
                   </div>
                   <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-lime transition-all duration-500"
+                      className="h-full rounded-full bg-lime"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
@@ -158,7 +158,7 @@ export default function OfficeCustomerRelations({ state }) {
                 {/* Vertrauensbarometer */}
                 <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all duration-500 ${
+                    className={`h-full rounded-full ${
                       r.trust >= 80 ? "bg-lime" : r.trust >= 60 ? "bg-lime/70" : "bg-amber-300/70"
                     }`}
                     style={{ width: `${r.trust}%` }}
