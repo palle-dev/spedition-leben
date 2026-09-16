@@ -4,11 +4,12 @@ import { useGame } from "@/lib/gameContext";
 import MoneyText from "@/components/MoneyText";
 import FernwerkSignet from "@/components/brand/FernwerkSignet";
 import SaveSlotsDialog from "@/components/game/SaveSlotsDialog";
-import { Sparkles, Mail as MailIcon, Save, Loader2, HardDrive, HelpCircle } from "lucide-react";
+import { Sparkles, Mail as MailIcon, Save, Loader2, HardDrive, HelpCircle, LogOut } from "lucide-react";
 import HelpPanel from "@/components/help/HelpPanel";
 import { getMailboxStats } from "@/lib/mailData";
 import { useHeaderSlot } from "@/lib/headerSlot";
 import WorldSwitch from "@/components/game/WorldSwitch";
+import { base44 } from "@/api/base44Client";
 
 // Obere Statusleiste: FERNWERK-Marke, Welt-Umschaltung, beide Konten, Bewegungs-Toggle.
 export default function ShellHeader() {
@@ -107,6 +108,14 @@ export default function ShellHeader() {
           title={motionEnabled ? "Bewegung reduzieren" : "Bewegung aktivieren"}
         >
           <Sparkles className={`w-4 h-4 ${motionEnabled ? "text-lime" : ""}`} />
+        </button>
+        <button
+          onClick={() => base44.auth.logout("/login")}
+          className="w-9 h-9 grid place-items-center rounded-full border border-white/10 bg-white/5 text-muted-foreground hover:text-coral transition shrink-0"
+          aria-label="Abmelden"
+          title="Abmelden"
+        >
+          <LogOut className="w-4 h-4" />
         </button>
       </div>
       <SaveSlotsDialog open={slotsOpen} onOpenChange={setSlotsOpen} />
