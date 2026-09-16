@@ -49,6 +49,7 @@ function executeInWorker(state, command, params, onProgress, diag) {
 
 const GameContext = createContext(null);
 const GameActionsContext = createContext(null);
+const DisplayGameTimeContext = createContext(null);
 
 export function useGame() {
   const ctx = useContext(GameContext);
@@ -61,6 +62,10 @@ export function useGameActions() {
   const ctx = useContext(GameActionsContext);
   if (!ctx) throw new Error("useGameActions muss innerhalb von GameProvider verwendet werden");
   return ctx;
+}
+
+export function useDisplayGameTime() {
+  return useContext(DisplayGameTimeContext);
 }
 
 const LS_STATE = "spedition_leben_state";
