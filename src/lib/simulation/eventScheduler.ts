@@ -22,6 +22,7 @@ import { getStoryEventTimes } from "./storyEngine.ts";
 import { getMentoringEventTimes } from "./developmentGoalsEngine.ts";
 import { getDisruptionEventTimes } from "./disruptionEngine.ts";
 import { getUsedMarketEventTimes } from "./vehicleMarketEngine.ts";
+import { getAcquisitionEventTimes } from "./acquisitionEngine.ts";
 
 export function earliestEventAfter(state, t, maxMin) {
   let best = null;
@@ -155,6 +156,10 @@ export function earliestEventAfter(state, t, maxMin) {
   // Gebrauchtfahrzeugmarkt: Generierung + Ablauf
   if (state.usedVehicleMarket) {
     for (const tm of getUsedMarketEventTimes(state, t, maxMin)) cand(tm);
+  }
+  // Akquise: Ausschreibungsfristen, Entscheidungen, Vertragsablauf
+  if (state.acquisition) {
+    for (const tm of getAcquisitionEventTimes(state, t, maxMin)) cand(tm);
   }
   return best;
 }

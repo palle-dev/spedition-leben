@@ -3,6 +3,7 @@ import { useGame } from "@/lib/gameContext";
 import { getTrustLabel, getTrustColor, formatEuro, formatDay, TRUST_START, STAMMKUNDE_MIN_TRANSPORTS, STAMMKUNDE_MIN_TRUST } from "@/lib/customerData";
 import ContractOfferCard from "./ContractOfferCard";
 import ContractView from "./ContractView";
+import OutreachPanel from "./OutreachPanel";
 import { Star, MapPin, Phone, TrendingUp, Clock, ArrowLeft, Package } from "lucide-react";
 
 export default function CustomerDetail({ customerId, onBack }) {
@@ -187,6 +188,11 @@ export default function CustomerDetail({ customerId, onBack }) {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Gezielte Kundenansprache (nur ohne aktiven Vertrag) */}
+      {(!activeContract || activeContract.status === "terminated") && (
+        <OutreachPanel customerId={customerId} />
       )}
 
       {/* Vertragsangebot (nur Stammkunden ohne aktiven Vertrag) */}

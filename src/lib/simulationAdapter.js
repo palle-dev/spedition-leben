@@ -10,6 +10,7 @@ import { applyCommand, createInitialState } from "@/lib/simulation/simulationEng
 import { generateBranchDecisions, approveBranchDecision, rejectBranchDecision, setBranchManagerMode } from "@/lib/simulation/branchManagerEngine";
 import { processAssistant, migrateAssistant } from "@/lib/simulation/assistantEngine";
 import { createScenarioState, evaluateScenario, continueAsFreePlay, recordIntervention, isOperativeCommand } from "@/lib/scenarios/scenarioEngine";
+import { migrateAcquisition, processAcquisitionEvents } from "@/lib/simulation/acquisitionEngine";
 
 // Reduziert die Zustandsgröße vor der Ausführung.
 // Entfernt gesehene Events (>1 Tag alt), kappt das Legacy-Buchungs-Array,
@@ -138,6 +139,9 @@ export async function executeCommand(state, command, params) {
   const isTimeCommand = ["enableAutomation", "pauseAutomation", "syncAutomation", "getAutomationStatus"].includes(command);
   const paramsWithTime = isTimeCommand ? { ...(params || {}), serverNowMs: Date.now() } : (params || {});
 
+  // Akquise-State migrieren vor Ausführung
+  migrateAcquisition(state);
+
   let slim = slimState(state);
 
   // Hinweis: Ein früherer Pre-Dispatch (dispatchAllNow vor advanceTime ≥ 1440)
@@ -151,6 +155,11 @@ export async function executeCommand(state, command, params) {
   try {
     const r = applyCommand(slim, command, paramsWithTime);
     let newState = r.state;
+    // Akquise-Ereignisse nach Zeitvorlauf verarbeiten (Fristen, Entscheidungen, Ablauf)
+    if (newState && (command === "advanceTime" || command === "advanceToNextEvent" || command === "syncAutomation")) {
+      migrateAcquisition(newState);
+      processAcquisitionEvents(newState, newState.gameTime, []);
+    }
     // Hilfs-Maps und Transient-Flags entfernen — sie dürfen nicht persistiert
     // oder an die Oberfläche übertragen werden. try/finally in suggestTours
     // und advanceTo sorgt bereits für Cleanup im Normalfall; dies ist ein

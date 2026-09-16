@@ -9,8 +9,13 @@ import {
 } from "./customerEngine.ts";
 import { deliverMessage } from "./mailEngine.ts";
 import { dayOf } from "./gameRules.ts";
+import { handleAcquisitionCommand } from "./acquisitionCommands.ts";
 
 export function handleCustomerCommand(state, command, p) {
+  // Akquise-Befehle zuerst versuchen (wird in simulationEngine default case aufgerufen)
+  const acqResult = handleAcquisitionCommand(state, command, p);
+  if (acqResult !== null) return acqResult;
+
   switch (command) {
     case "getCustomerSummaries": {
       return { ok: true, customers: getAllCustomerSummaries(state) };

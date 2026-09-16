@@ -15,24 +15,20 @@
 // - Bestehende Verträge bleiben von neuen Verhandlungen unberührt
 
 import {
-  CUSTOMER_PROFILES, CITIES, getDistance, driveMinutes,
+  CUSTOMER_PROFILES, getDistance, driveMinutes,
   dayOf, formatGameTime, mulberry32,
-  LOAD_MIN, UNLOAD_MIN, WORK_BUDGET_MIN, REST_MIN,
-  PRICE_BASE_CENTS, PRICE_PER_KM_CENTS, PRICE_PER_TON_CENTS,
-  FUEL_PRICE, TOLL_PER_KM, VEHICLE_CATALOG, getVehicleProfile,
+  LOAD_MIN, UNLOAD_MIN,
 } from "./gameRules.ts";
 import { computeOfferPrice } from "./marketEngine.ts";
-import { computeNearestApproach } from "./marketEngine.ts";
 import {
   TRUST_START, STAMMKUNDE_MIN_TRANSPORTS, STAMMKUNDE_MIN_TRUST,
-  CONTRACT_DISCOUNT, CONTRACT_DURATION_DAYS, CONTRACT_DELIVERY_BUFFER_HOURS,
+  CONTRACT_DURATION_DAYS, CONTRACT_DELIVERY_BUFFER_HOURS,
   getCustomerRelation, isStammkunde, generateContractOffer,
 } from "./customerEngine.ts";
-import { hasAdrBasic, hasAdrTank, hasDgDispatch, getPersonQualifications } from "./trainingEngine.ts";
+import { hasAdrBasic, hasAdrTank, hasDgDispatch } from "./trainingEngine.ts";
 import { DG_PROFILES, getDgProfile } from "./dangerousGoodsEngine.ts";
 import { deliverMessage } from "./mailEngine.ts";
 import { pushEvent } from "./eventLog.ts";
-import { isPersonAvailable } from "./absenceEngine.ts";
 import { isActivelyEmployed } from "./terminationEngine.ts";
 
 // ---------- Konstanten ----------
@@ -62,6 +58,25 @@ function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
 function customerById(customerId) {
   return CUSTOMER_PROFILES.find(c => c.id === customerId) || null;
+}
+
+// Schätzt die Anfahrtzeit zum Abholort (Minuten) — vereinfacht:
+// 0 wenn ein Fahrzeug dort steht, sonst Fahrtzeit vom nächsten Fahrzeug.
+function estimateApproachMin(state, fromCity) {
+  const vehicles = (state.vehicles || []).filter(v =>
+    v.status === "free" && v.condition >= 20
+  );
+  // Fahrzeug am Abholort?
+  if (vehicles.some(v => v.locationCity === fromCity)) return 0;
+  // Nächstes Fahrzeug: Anfahrtzeit schätzen
+  let minApproach = Infinity;
+  for (const v of vehicles) {
+    if (v.locationCity === fromCity) return 0;
+    const dist = getDistance(v.locationCity, fromCity);
+    const approach = driveMinutes(dist);
+    if (approach < minApproach) minApproach = approach;
+  }
+  return minApproach === Infinity ? 480 : minApproach; // max 8h Fallback
 }
 
 // Deterministischer Zufall für Akquise (unabhängig vom Haupt-RNG)
@@ -140,7 +155,7 @@ export function getOutreachFeasibility(state, customerId) {
     const opMin = LOAD_MIN + driveMin + UNLOAD_MIN;
 
     // Finde passendes Fahrzeug am Abholort oder mit Anfahrt
-    const approachMin = computeNearestApproach(state, fromCity);
+    const approachMin = estimateApproachMin(state, fromCity);
     const suitableVehicles = vehicles.filter(v => v.capacityTons >= 4);
     const hasVehicleAtDepot = vehicles.some(v => v.locationCity === fromCity);
     const hasDriverAtDepot = drivers.some(d => d.locationCity === fromCity);
@@ -810,7 +825,7 @@ function checkRelationFit(state, tender) {
   ).length;
 
   // Hat das Unternehmen Fahrzeuge in der Nähe?
-  const approachMin = computeNearestApproach(state, tender.fromCity);
+  const approachMin = estimateApproachMin(state, tender.fromCity);
   const approachScore = Math.max(0, Math.round(100 - approachMin / 10));
 
   const score = Math.min(100, Math.round(50 + pastDeliveries * 10 + approachScore * 0.3));
