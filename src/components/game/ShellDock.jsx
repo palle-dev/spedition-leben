@@ -113,7 +113,7 @@ export default function ShellDock() {
   } : null;
 
   return (
-    <footer className="relative z-20 border-t border-white/10 backdrop-blur-md bg-ink/70 shrink-0">
+    <footer className="relative z-20 border-t border-white/10 bg-ink/95 shrink-0">
       <div className="flex items-center gap-2 lg:gap-4 px-3 lg:px-12 py-2.5">
         {/* Navigation – primär + schnell + Mehr-Aufklappmenü */}
         <nav className="flex items-center gap-1 flex-1 min-w-0" aria-label="Spielnavigation">

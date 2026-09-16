@@ -28,7 +28,7 @@ export default function ShellHeader() {
   const unreadCount = mailStats?.unread || 0;
 
   return (
-    <header className="relative z-20 flex items-center gap-2 lg:gap-3 px-4 lg:px-6 h-14 lg:h-16 border-b border-white/10 backdrop-blur-md bg-ink/60 shrink-0">
+    <header className="relative z-20 flex items-center gap-2 lg:gap-3 px-4 lg:px-6 h-14 lg:h-16 border-b border-white/10 bg-ink/95 shrink-0">
       {/* Marke */}
       <button onClick={() => navigate("/")} className="flex items-center gap-2.5 shrink-0" aria-label="FERNWERK – zum Büro">
         <FernwerkSignet size={26} />
