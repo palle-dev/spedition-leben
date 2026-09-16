@@ -4,6 +4,7 @@
 
 import { pushEvent } from "./eventLog.ts";
 import { deliverMessage } from "./mailEngine.ts";
+import { onPartnershipEnded } from "./storyEngine.ts";
 
 const DAY_MIN = 1440;
 const PREGNANCY_DAYS = 14; // Spiel-Tage bis Geburt
@@ -78,6 +79,7 @@ export function migrateRelationship(state) {
   if (state.private.marriageDate === undefined) state.private.marriageDate = null;
   if (state.private.engagementDate === undefined) state.private.engagementDate = null;
   if (!state.private.giftLog) state.private.giftLog = [];
+  if (state.private.partnerId === undefined) state.private.partnerId = state.private.partnerName ? "partner_existing" : null;
 }
 
 // ---------- Abfragen ----------

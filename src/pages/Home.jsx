@@ -12,6 +12,8 @@ import ActivityPanel from "@/components/home/ActivityPanel";
 import GoalsPanel from "@/components/home/GoalsPanel";
 import RelationshipPanel from "@/components/home/RelationshipPanel";
 import DatingPanel from "@/components/home/DatingPanel";
+import StoryPanel from "@/components/home/StoryPanel";
+import ChroniclePanel from "@/components/home/ChroniclePanel";
 import PageHint from "@/components/help/PageHint";
 
 export default function Home() {

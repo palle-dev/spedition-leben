@@ -18,6 +18,7 @@ import { getInvestmentEventTimes } from "./investmentEngine.ts";
 import { getDriverTravelEventTimes } from "./branchEngine.ts";
 import { getPregnancyEventTimes } from "./relationshipEngine.ts";
 import { getDateEventTimes } from "./datingEngine.ts";
+import { getStoryEventTimes } from "./storyEngine.ts";
 
 export function earliestEventAfter(state, t, maxMin) {
   let best = null;
@@ -143,5 +144,6 @@ export function earliestEventAfter(state, t, maxMin) {
   // Fahrer-Reisen (Filialverschiebung)
   for (const tm of getDriverTravelEventTimes(state, t, maxMin)) cand(tm);
   for (const tm of [...getPregnancyEventTimes(state, t, maxMin), ...getDateEventTimes(state, t, maxMin)]) cand(tm);
+  for (const tm of getStoryEventTimes(state, t, maxMin)) cand(tm);
   return best;
 }

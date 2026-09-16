@@ -163,5 +163,10 @@ export function createInitialState(names) {
   initStartApplicants(state);
   // Investment-Markt und Depots initialisieren (Auftrag 33)
   initInvestment(state);
+  // Geschichten und Chronik initialisieren
+  state.private.stories = { runs: [], lastOfferMin: 0, completedCount: {}, declinedAt: {} };
+  state.private.chronicle = [];
+  state.private.promises = [];
+  state.private.partnerId = state.private.partnerName ? "partner_initial" : null;
   return { state };
 }

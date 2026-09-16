@@ -6,6 +6,7 @@
 import { pushEvent } from "./eventLog.ts";
 import { deliverMessage } from "./mailEngine.ts";
 import { migrateRelationship } from "./relationshipEngine.ts";
+import { onPartnershipEnded } from "./storyEngine.ts";
 
 const DAY_MIN = 1440;
 const PROFILES_MAX = 5;
@@ -261,6 +262,7 @@ export function becomePartners(state, { matchId }) {
     throw new Error("Eure Beziehung ist noch nicht tief genug (mindestens " + PARTNER_THRESHOLD + "/100 Fortschritt nötig, aktuell " + (match.relationshipProgress || 0) + ").");
   }
   state.private.partnerName = match.name;
+  state.private.partnerId = match.id;
   state.private.relationshipStatus = "dating";
   state.private.relationship = Math.round(match.relationshipProgress * 0.7);
   state.private.happiness = Math.min(100, (state.private.happiness || 0) + 10);
@@ -292,7 +294,9 @@ export function breakUp(state) {
   if (state.private.relationshipStatus !== "dating") throw new Error("Du bist nicht in einer Beziehung.");
   if (!state.private.partnerName) throw new Error("Du hast keinen Partner.");
   const exName = state.private.partnerName;
+  const exPartnerId = state.private.partnerId;
   state.private.partnerName = null;
+  state.private.partnerId = null;
   state.private.relationshipStatus = "single";
   state.private.relationship = 0;
   state.private.happiness = Math.max(0, (state.private.happiness || 0) - 15);
@@ -315,6 +319,7 @@ export function breakUp(state) {
     gameTime: state.gameTime, category: "personal", priority: "high",
     dedupKey: "breakup_mail:" + state.gameTime,
   });
+  if (exPartnerId) onPartnershipEnded(state, exPartnerId);
   return { ok: true, exName };
 }
 
