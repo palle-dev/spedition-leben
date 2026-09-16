@@ -139,23 +139,201 @@ export const COMPANY_STAGES = [
 ];
 
 // --- Zielvorlagen für persönliche Lebensziele ---
+// type: "purchase" (Privatmittel-Ziel) | "stat" (Statistik-Ziel) | "custom" (Eigene Evaluator-Funktion)
+// evaluate(state) → { current, target, completed, nextAction, deadlineMin, blockedReason, progressDetail }
+// focus: Array von Schwerpunkt-IDs, für die dieses Ziel vorgeschlagen wird
+// linkPath: Route zur passenden Spielansicht
+// criterion: Exaktes Erfuellungskriterium (fuer UI-Anzeige)
+// rewardDesc: Beschreibung der vorgesehenen Belohnung
 export const GOAL_TEMPLATES = [
+  // --- Bestehende Ziele (mit focus/linkPath erweitert) ---
   { id: "g_sportscar", title: "Sportwagen ansparen", desc: "Einen Sportwagen kaufen (180.000 €)", category: "besitz",
-    type: "purchase", targetCents: 18000000, nextAction: "Privatmittel ansparen" },
+    type: "purchase", targetCents: 18000000, nextAction: "Privatmittel ansparen",
+    focus: ["work_life"], linkPath: "/zuhause", criterion: "180.000 € Privatkonto-Guthaben", rewardDesc: "Sportwagen-Kauf freigeschaltet" },
   { id: "g_home", title: "Eigenheim kaufen", desc: "Ein Haus mit Garten erwerben (350.000 €)", category: "besitz",
-    type: "purchase", targetCents: 35000000, nextAction: "Eigenkapital aufbauen" },
+    type: "purchase", targetCents: 35000000, nextAction: "Eigenkapital aufbauen",
+    focus: ["work_life"], linkPath: "/zuhause", criterion: "350.000 € Privatkonto-Guthaben", rewardDesc: "Eigenheim-Kauf freigeschaltet" },
   { id: "g_boat", title: "Motorboot ansparen", desc: "Ein Motorboot kaufen (90.000 €)", category: "besitz",
-    type: "purchase", targetCents: 9000000, nextAction: "Privatmittel ansparen" },
+    type: "purchase", targetCents: 9000000, nextAction: "Privatmittel ansparen",
+    focus: ["work_life"], linkPath: "/zuhause", criterion: "90.000 € Privatkonto-Guthaben", rewardDesc: "Motorboot-Kauf freigeschaltet" },
   { id: "g_promises_5", title: "Fünf Zusagen einhalten", desc: "5 zugesagte Termine einhalten", category: "privatleben",
-    type: "stat", statKey: "promisesKept", target: 5, nextAction: "Termine vereinbaren und einhalten" },
-  { id: "g_balance_week", title: "Eine Woche gute Balance", desc: "7 Tage mit Zufriedenheit ≥70 und Belastung ≤40", category: "privatleben",
-    type: "stat", statKey: "consecutiveBalanceDays", target: 7, nextAction: "Auf Erholung und Zufriedenheit achten" },
+    type: "stat", statKey: "promisesKept", target: 5, nextAction: "Termine vereinbaren und einhalten",
+    focus: ["work_life"], linkPath: "/zuhause", criterion: "5 zugesagte und eingehaltene Termine", rewardDesc: "Profil-Titel „Darauf ist Verlass“" },
+  { id: "g_balance_week", title: "Sieben Tage in Balance", desc: "7 aufeinanderfolgende Tage mit Zufriedenheit ≥70 und Belastung ≤40", category: "privatleben",
+    type: "stat", statKey: "consecutiveBalanceDays", target: 7, nextAction: "Auf Erholung und Zufriedenheit achten",
+    focus: ["work_life"], linkPath: "/zuhause", criterion: "7 aufeinanderfolgende Balance-Tage (Zufriedenheit ≥70, Belastung ≤40). Ein Tag ausserhalb der Balance bricht die Serie.", rewardDesc: "Konzert-Gutschein (100 €)" },
   { id: "g_fleet_10", title: "Zehn Lkw aufbauen", desc: "10 eigene Lkw gleichzeitig", category: "unternehmen",
-    type: "stat", statKey: "vehicleCount", target: 10, nextAction: "Lkw kaufen und Aufträge annehmen" },
+    type: "stat", statKey: "vehicleCount", target: 10, nextAction: "Lkw kaufen und Aufträge annehmen",
+    focus: ["autonomous_team", "controlled_growth"], linkPath: "/fuhrpark", criterion: "10 eigene (nicht geleaste) Lkw gleichzeitig im Bestand", rewardDesc: "Erfolg „Eigene Flotte“ (300 XP)" },
   { id: "g_deliveries_50", title: "50 Lieferungen", desc: "50 Aufträge erfolgreich liefern", category: "unternehmen",
-    type: "stat", statKey: "totalDeliveries", target: 50, nextAction: "Aufträge annehmen und pünktlich liefern" },
+    type: "stat", statKey: "totalDeliveries", target: 50, nextAction: "Aufträge annehmen und pünktlich liefern",
+    focus: ["profitable"], linkPath: "/auftraege", criterion: "50 tatsächlich gelieferte Aufträge (kumulierter Zähler)", rewardDesc: "Erfolg „Die Räder drehen sich“ (400XP)" },
   { id: "g_revenue_100k", title: "100.000 € Umsatz", desc: "100.000 € kumulierte Transportvergütungen", category: "unternehmen",
-    type: "stat", statKey: "totalRevenueCents", target: 10000000, nextAction: "Aufträge annehmen und liefern" },
+    type: "stat", statKey: "totalRevenueCents", target: 10000000, nextAction: "Aufträge annehmen und liefern",
+    focus: ["profitable"], linkPath: "/finanzen", criterion: "100.000 € kumulierte Transportvergütungen (nur Vergütung, vor Kosten)", rewardDesc: "Erfolg „Sechsstellig“ (250XP)" },
   { id: "g_company_1m", title: "Eine Million Unternehmenswert", desc: "1 Mio. € Unternehmensvermögenswert", category: "unternehmen",
-    type: "stat", statKey: "companyValue", target: 100000000, nextAction: "Gewinne reinvestieren" },
+    type: "stat", statKey: "companyValue", target: 100000000, nextAction: "Gewinne reinvestieren",
+    focus: ["profitable", "controlled_growth"], linkPath: "/finanzen", criterion: "1 Mio. € Unternehmensvermögenswert (Firmenkonto + Fahrzeugbuchwerte − Kredite − offene Kosten). Kreditaufnahme allein erfuellt dieses Ziel nicht.", rewardDesc: "Erfolg „Die erste Million“ (500XP)" },
+
+  // --- Neue Zielvorlagen (Geführter Einstieg & Entwicklung) ---
+
+  // A) Die ersten fuenf Lieferungen
+  { id: "g_first_five", title: "Die ersten fünf Lieferungen", desc: "Fünf erfolgreich abgeschlossene Transporte", category: "unternehmen",
+    type: "custom", focus: ["profitable", "reliable"], linkPath: "/auftraege",
+    criterion: "5 tatsächlich gelieferte Aufträge (dauerhafter Zähler stats.totalDeliveries). Abgebrochene oder gescheiterte Transporte zaehlen nicht.",
+    rewardDesc: "Erfolg „Erste Lieferung“ + „Wort gehalten“ (insg. 300XP)",
+    evaluate: (s) => {
+      const current = Math.min(s.stats?.totalDeliveries || 0, 5);
+      return { current, target: 5, completed: current >= 5, nextAction: "Aufträge annehmen und pünktlich liefern", deadlineMin: null, blockedReason: null, progressDetail: null };
+    }
+  },
+
+  // B) Verlaesslich unterwegs
+  { id: "g_reliable_ten", title: "Verlässlich unterwegs", desc: "Zehn aufeinanderfolgende angenommene Transporte pünktlich abschließen", category: "zuverlaessigkeit",
+    type: "custom", focus: ["reliable", "profitable"], linkPath: "/auftraege",
+    criterion: "10 aufeinanderfolgende pünktliche Lieferungen. Ein gescheiterter oder verspäteter Transport unterbricht die Serie. Nicht angenommene Marktangebote haben keinen Einfluss.",
+    rewardDesc: "Erfolg „Verlässlich“ (250XP)",
+    evaluate: (s) => {
+      const current = Math.min(s.stats?.consecutiveTimely || 0, 10);
+      return { current, target: 10, completed: current >= 10, nextAction: "Aufträge pünktlich liefern — keine verspäteten oder gescheiterten Transporte", deadlineMin: null, blockedReason: null, progressDetail: null };
+    }
+  },
+
+  // C) Ein Kunde bleibt
+  { id: "g_stammkunde", title: "Ein Kunde bleibt", desc: "Einen Kunden zum Stammkunden entwickeln", category: "zuverlaessigkeit",
+    type: "custom", focus: ["reliable"], linkPath: "/kunden",
+    criterion: "Ein Kunde mit ≥5 abgeschlossenen Transporten UND Vertrauen ≥60 (Stammkunden-Status). Die Zaehlung beginnt ab Spielbeginn.",
+    rewardDesc: "Rahmenvertrag-Option freigeschaltet",
+    evaluate: (s) => {
+      const relations = Object.values(s.customerRelations?.relations || {});
+      const stammkunden = relations.filter(r => r.completedTransports >= 5 && r.trust >= 60);
+      if (stammkunden.length >= 1) {
+        return { current: 1, target: 1, completed: true, nextAction: "Ziel erreicht", deadlineMin: null, blockedReason: null, progressDetail: stammkunden.length + " Stammkunde(n) erreicht" };
+      }
+      const closest = relations
+        .filter(r => r.completedTransports < 5 || r.trust < 60)
+        .map(r => ({ r, score: Math.min(r.completedTransports / 5, r.trust / 60) }))
+        .sort((a, b) => b.score - a.score)[0];
+      if (closest) {
+        return {
+          current: Math.round(closest.score * 5), target: 5, completed: false,
+          nextAction: "Aufträge für denselben Kunden pünktlich liefern",
+          deadlineMin: null, blockedReason: null,
+          progressDetail: closest.r.completedTransports + "/5 Transporte, Vertrauen " + Math.round(closest.r.trust) + "/60"
+        };
+      }
+      return { current: 0, target: 1, completed: false, nextAction: "Aufträge annehmen und liefern", deadlineMin: null, blockedReason: null, progressDetail: null };
+    }
+  },
+
+  // D) Zusagen einhalten
+  { id: "g_contract_fulfillment", title: "Zusagen einhalten", desc: "Einen Rahmenvertrag mit ≥90% pünktlicher Erfüllung abschließen", category: "zuverlaessigkeit",
+    type: "custom", focus: ["reliable"], linkPath: "/kunden",
+    criterion: "Einen Rahmenvertrag vollständig abwickeln (Status „completed“) UND mindestens 90% der vereinbarten Transporte pünktlich erfüllen. Die exakte Anzahl ergibt sich aus transportsPerDay × 7 Tage.",
+    rewardDesc: "Vertrauensbonus beim Kunden",
+    evaluate: (s) => {
+      const contracts = (s.contracts?.contracts || []).filter(c => c.status === "completed");
+      let fulfilled = 0;
+      let bestActive = null;
+      for (const c of contracts) {
+        const total = c.transportsPerDay * 7;
+        if (total > 0 && c.timelyCount / total >= 0.9) fulfilled++;
+      }
+      // Aktiven Vertrag fuer Fortschrittsanzeige suchen
+      const active = (s.contracts?.contracts || []).find(c => c.status === "active");
+      if (active) {
+        const total = active.transportsPerDay * 7;
+        bestActive = { total, timely: active.timelyCount, delivered: active.deliveredCount, required: Math.ceil(total * 0.9) };
+      }
+      if (fulfilled >= 1) {
+        return { current: 1, target: 1, completed: true, nextAction: "Ziel erreicht", deadlineMin: null, blockedReason: null, progressDetail: fulfilled + " Vertrag/Verträge erfüllt" };
+      }
+      // Blockiert, wenn kein Stammkunde → kein Vertrag moeglich
+      const hasStammkunde = Object.values(s.customerRelations?.relations || {}).some(r => r.completedTransports >= 5 && r.trust >= 60);
+      const blockedReason = !hasStammkunde ? "Benötigt zuerst einen Stammkunden (Ziel „Ein Kunde bleibt“)" : null;
+      return {
+        current: bestActive ? bestActive.timely : 0, target: bestActive ? bestActive.required : 1, completed: false,
+        nextAction: bestActive ? bestActive.timely + "/" + bestActive.required + " pünktliche Lieferungen" : "Rahmenvertrag mit einem Stammkunden abschließen",
+        deadlineMin: active ? active.endMin : null, blockedReason,
+        progressDetail: bestActive ? bestActive.delivered + "/" + bestActive.total + " Transporten geliefert, " + bestActive.timely + " pünktlich" : null
+      };
+    }
+  },
+
+  // E) Verantwortung übertragen
+  { id: "g_auto_delegation", title: "Verantwortung übertragen", desc: "An zwei aufeinanderfolgenden Tagen mindestens je drei Mitarbeiterentscheidungen selbstständig ausführen lassen", category: "unternehmen",
+    type: "custom", focus: ["autonomous_team"], linkPath: "/fuehrung",
+    criterion: "Innerhalb von 2 aufeinanderfolgenden Spieltagen jeweils ≥3 zulässige Mitarbeiterentscheidungen selbstständig ausführen lassen (auto), ohne dass am jeweiligen Tagesende eine notwendige Freigabe überfällig ist.",
+    rewardDesc: "Erfolg „Eigenständiges Team“ (Meilenstein)",
+    evaluate: (s) => {
+      const days = (s.stats?.autoDecisionDays || []).slice().sort((a, b) => a.day - b.day);
+      let maxConsecutive = 0, current = 0, prevDay = -999;
+      for (const d of days) {
+        const ok = d.count >= 3 && !d.hadOverdue;
+        if (ok && d.day === prevDay + 1) current++;
+        else if (ok) current = 1;
+        else current = 0;
+        maxConsecutive = Math.max(maxConsecutive, current);
+        prevDay = d.day;
+      }
+      const hasDispatcher = (s.employees || []).some(e => e.employmentStatus === "employed" && (e.role === "dispatcher" || e.role === "dispatcher_senior"));
+      const blockedReason = !hasDispatcher ? "Benötigt einen eingestellten Disponenten mit autonomem Modus" : null;
+      // Letzte 2 Tage fuer Detail-Anzeige
+      const recent = days.slice(-2);
+      const detail = recent.map(d => "Tag " + d.day + ": " + d.count + " Entscheidungen" + (d.hadOverdue ? " (überfällige Freigabe!)" : "")).join(", ");
+      return {
+        current: Math.min(maxConsecutive, 2), target: 2, completed: maxConsecutive >= 2,
+        nextAction: hasDispatcher ? "Disponent im autonomen Modus arbeiten lassen — Freigaben rechtzeitig erteilen" : "Disponent einstellen und auf „autonom“ setzen",
+        deadlineMin: null, blockedReason, progressDetail: detail || null
+      };
+    }
+  },
+
+  // F) Mit Ueberblick wachsen
+  { id: "g_branch_growth", title: "Mit Überblick wachsen", desc: "Eine weitere Filiale eröffnen und operativ in Betrieb nehmen", category: "unternehmen",
+    type: "custom", focus: ["controlled_growth"], linkPath: "/filialen",
+    criterion: "Eine zweite aktive Filiale eröffnen und ihre operative Arbeitsfähigkeit herstellen: ≥1 eigener Lkw an der Filiale, ≥1 Fahrer an der Filiale, ≥1 abgeschlossene Lieferung über diese Filiale.",
+    rewardDesc: "Meilenstein „Mehrere Standorte“",
+    evaluate: (s) => {
+      const branches = (s.branches || []).filter(b => b.status === "active");
+      let opCount = 0;
+      for (const b of branches) {
+        const hasVehicle = (s.vehicles || []).some(v => v.branchId === b.id && v.status !== "sold" && v.status !== "archived");
+        const hasDriver = (s.drivers || []).some(d => d.branchId === b.id && d.employmentStatus === "employed");
+        const hasDelivery = (b.stats?.deliveries || 0) >= 1;
+        if (hasVehicle && hasDriver && hasDelivery) opCount++;
+      }
+      const day = Math.floor((s.gameTime || 0) / 1440) + 1;
+      const blockedReason = day < 5 ? "Filialeröffnung ab Tag 5 möglich (aktuell Tag " + day + ")" : null;
+      return {
+        current: Math.min(opCount, 2), target: 2, completed: opCount >= 2,
+        nextAction: opCount < 1 ? "Erste Filiale operativ machen (Lkw + Fahrer + Lieferung)" : "Zweite Filiale eröffnen und ausstatten",
+        deadlineMin: null, blockedReason, progressDetail: opCount + "/2 operative Filialen"
+      };
+    }
+  },
+
+  // G) Sieben Tage in Balance — bereits als g_balance_week vorhanden (stat-Typ).
+  // Wird ueber den Focus work_life vorgeschlagen. Keine zweite abweichende Berechnung.
+
+  // H) Zeit fuer ein eigenes Vorhaben
+  { id: "g_story_complete", title: "Zeit für ein eigenes Vorhaben", desc: "Eine persönliche Geschichte oder ein gemeinsames Vorhaben abschließen", category: "privatleben",
+    type: "custom", focus: ["work_life"], linkPath: "/zuhause",
+    criterion: "Eine vorhandene private Geschichte oder ein gemeinsames Vorhaben abschließen. Unterschiedliche gültige Ausgänge erfüllen das Ziel; eine bestimmte Beziehungsentscheidung ist nicht vorgeschrieben. Abgebrochene oder abgelaufene Geschichten zaehlen nicht.",
+    rewardDesc: "Chronik-Eintrag und Profil-Dekoration",
+    evaluate: (s) => {
+      const completed = (s.private?.stories?.runs || []).filter(r =>
+        r.status === "completed" && r.completionType !== "cancelled" && r.completionType !== "expired"
+      );
+      const active = (s.private?.stories?.runs || []).filter(r => r.status === "offered" || r.status === "active");
+      if (completed.length >= 1) {
+        return { current: 1, target: 1, completed: true, nextAction: "Ziel erreicht", deadlineMin: null, blockedReason: null, progressDetail: completed.length + " Geschichte(n) abgeschlossen" };
+      }
+      return {
+        current: 0, target: 1, completed: false,
+        nextAction: active.length > 0 ? "Aktive Geschichte fortsetzen — Entscheidungen treffen und Termine einhalten" : "Auf das nächste Geschichtenangebot warten (erscheint regelmäßig)",
+        deadlineMin: active[0]?.nextDeadlineMin || null, blockedReason: null, progressDetail: active.length > 0 ? active.length + " aktive Geschichte(n)" : null
+      };
+    }
+  },
 ];

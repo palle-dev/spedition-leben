@@ -49,11 +49,26 @@ export function getGoalProgress(state, goal) {
     const cash = state.private?.accountCents || 0;
     const current = Math.min(cash, tpl.targetCents);
     const remaining = Math.max(0, tpl.targetCents - cash);
-    return { current, target: tpl.targetCents, remaining, completed: cash >= tpl.targetCents, nextAction: tpl.nextAction };
+    return { current, target: tpl.targetCents, remaining, completed: cash >= tpl.targetCents, nextAction: tpl.nextAction,
+      deadlineMin: null, blockedReason: null, progressDetail: null,
+      linkPath: tpl.linkPath || null, criterion: tpl.criterion || null, rewardDesc: tpl.rewardDesc || null };
   }
   if (tpl.type === "stat") {
     const current = getStatValue(state, tpl.statKey);
-    return { current, target: tpl.target, completed: current >= tpl.target, nextAction: tpl.nextAction };
+    return { current, target: tpl.target, completed: current >= tpl.target, nextAction: tpl.nextAction,
+      deadlineMin: null, blockedReason: null, progressDetail: null,
+      linkPath: tpl.linkPath || null, criterion: tpl.criterion || null, rewardDesc: tpl.rewardDesc || null };
+  }
+  if (tpl.type === "custom" && typeof tpl.evaluate === "function") {
+    const r = tpl.evaluate(state);
+    return {
+      current: r.current, target: r.target, completed: r.completed,
+      nextAction: r.nextAction, remaining: r.target > r.current ? r.target - r.current : 0,
+      deadlineMin: r.deadlineMin || null, blockedReason: r.blockedReason || null,
+      progressDetail: r.progressDetail || null,
+      linkPath: tpl.linkPath || null, criterion: tpl.criterion || null,
+      rewardDesc: tpl.rewardDesc || null,
+    };
   }
   return { current: 0, target: 1, completed: false, nextAction: "" };
 }

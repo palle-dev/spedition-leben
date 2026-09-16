@@ -24,6 +24,7 @@ import { migrateTraining } from "./trainingEngine.ts";
 import { migrateDangerousGoods } from "./dangerousGoodsEngine.ts";
 import { getVehicleBookValue, MONTH_MIN } from "./accountingEngine.ts";
 import { VEHICLE_REFERENCE_PRICE } from "./gameRules.ts";
+import { migrateDevelopment, checkDevelopmentMilestones } from "./developmentEngine.ts";
 
 // --- Vermögensberechnungen ---
 
@@ -85,11 +86,26 @@ export function getGoalProgress(state, goal) {
     const cash = state.private?.accountCents || 0;
     const current = Math.min(cash, tpl.targetCents);
     const remaining = Math.max(0, tpl.targetCents - cash);
-    return { current, target: tpl.targetCents, remaining, completed: cash >= tpl.targetCents, nextAction: tpl.nextAction };
+    return { current, target: tpl.targetCents, remaining, completed: cash >= tpl.targetCents, nextAction: tpl.nextAction,
+      deadlineMin: null, blockedReason: null, progressDetail: null,
+      linkPath: tpl.linkPath || null, criterion: tpl.criterion || null, rewardDesc: tpl.rewardDesc || null };
   }
   if (tpl.type === "stat") {
     const current = getStatValue(state, tpl.statKey);
-    return { current, target: tpl.target, completed: current >= tpl.target, nextAction: tpl.nextAction };
+    return { current, target: tpl.target, completed: current >= tpl.target, nextAction: tpl.nextAction,
+      deadlineMin: null, blockedReason: null, progressDetail: null,
+      linkPath: tpl.linkPath || null, criterion: tpl.criterion || null, rewardDesc: tpl.rewardDesc || null };
+  }
+  if (tpl.type === "custom" && typeof tpl.evaluate === "function") {
+    const r = tpl.evaluate(state);
+    return {
+      current: r.current, target: r.target, completed: r.completed,
+      nextAction: r.nextAction, remaining: r.target > r.current ? r.target - r.current : 0,
+      deadlineMin: r.deadlineMin || null, blockedReason: r.blockedReason || null,
+      progressDetail: r.progressDetail || null,
+      linkPath: tpl.linkPath || null, criterion: tpl.criterion || null,
+      rewardDesc: tpl.rewardDesc || null,
+    };
   }
   return { current: 0, target: 1, completed: false, nextAction: "" };
 }
@@ -118,6 +134,8 @@ export function checkAchievements(state, min) {
       newlyUnlocked.push({ id: def.id, title: def.title, xp: def.xp, category: def.category });
     }
   }
+  // Entwicklungsmeilensteine pruefen (idempotent, 4 Checks)
+  checkDevelopmentMilestones(state, min);
   return newlyUnlocked;
 }
 
@@ -284,6 +302,9 @@ export function migrateState(state) {
   // ---------- Gefahrgut-Migration (Auftrag 32) ----------
   migrateDangerousGoods(state);
 
+  // ---------- Entwicklungs-Migration (Schwerpunkt, Onboarding, Meilensteine) ----------
+  migrateDevelopment(state);
+
   // ---------- Tagesabschluss-Migration ----------
   if (state.lastDailyAccountingMin === undefined) state.lastDailyAccountingMin = 0;
 
@@ -309,7 +330,6 @@ export function cleanupOldData(state) {
   const TOUR_CUTOFF = 7 * 1440;
 
   if (state.orders) {
-    const before = state.orders.length;
     state.orders = state.orders.filter(o => {
       if (o.status === "offered" || o.status === "angenommen" || o.status === "unterwegs") return true;
       const refMin = o.deliveredAtMin || o.failedAtMin || o.cancelledAtMin;
