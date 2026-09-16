@@ -169,6 +169,10 @@ import {
 import { handleDelegationCommand } from "./delegationCommands.ts";
 import { migrateStories, processStoryDeadlines, processStoryAppointments, processDailyStories, getStoryEventTimes } from "./storyEngine.ts";
 import { handleStoryCommand } from "./storyCommands.ts";
+import {
+  setDevelopmentFocus as doSetFocus, startOnboarding, pauseOnboarding,
+  resumeOnboarding, dismissOnboarding, markOnboardingReviewed, recordAutoDecisionDay,
+} from "./developmentEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -338,6 +342,7 @@ function doDailyAccounting(state, midnight) {
     state.stats.consecutiveBalanceDays = 0;
   }
   state.stats.lastBalanceDay = day;
+  recordAutoDecisionDay(state, midnight);
   state.lastDailyAccountingMin = midnight;
   // Auftrag 30: Zufriedenheitsregeln, Erholung und Kündigungsrisiken
   processDailySatisfaction(state, midnight);
