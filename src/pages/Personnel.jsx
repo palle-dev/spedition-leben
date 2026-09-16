@@ -14,8 +14,10 @@ import TeamClimate from "@/components/personnel/TeamClimate";
 import TeamTab from "@/components/personnel/TeamTab";
 import SatisfactionDetail from "@/components/personnel/SatisfactionDetail";
 import DevelopmentSection from "@/components/personnel/DevelopmentSection";
+import PersonTrainingSection from "@/components/personnel/PersonTrainingSection";
+import PersonAbsenceSection from "@/components/personnel/PersonAbsenceSection";
 import PageHint from "@/components/help/PageHint";
-import { UserPlus, Users, MapPin, Clock, Truck, Headset, Sparkles, Wrench, Calculator, Settings, Building2, Check, X, AlertCircle, Briefcase, LogOut, RotateCcw, HeartHandshake, GraduationCap, Search } from "lucide-react";
+import { UserPlus, Users, MapPin, Clock, Truck, Headset, Sparkles, Wrench, Calculator, Settings, Building2, Check, X, AlertCircle, Briefcase, LogOut, RotateCcw, HeartHandshake, GraduationCap, Search, Calendar } from "lucide-react";
 
 const ROLE_ICON = {
   driver: Truck, dispatcher: Headset, dispatcher_senior: Headset,
@@ -220,17 +222,12 @@ export default function Personnel() {
         onClose={() => setManagePerson(null)}
         title="Mitarbeiter verwalten"
         kicker={managePerson?.name}
-        maxWidth="max-w-md"
+        maxWidth="max-w-lg"
       >
         {managePerson && (
           <PersonnelDetail
             personId={managePerson.id}
             kind={managePerson.kind}
-            onSetupDispatcher={() => {
-              const emp = employees.find(e => e.id === managePerson.id);
-              setManagePerson(null);
-              if (emp) setSetupEmp(emp);
-            }}
             onTerminate={() => {
               setTerminatePerson({ id: managePerson.id, kind: managePerson.kind, name: managePerson.name });
               setManagePerson(null);
@@ -326,8 +323,9 @@ function FormerCard({ person, roleLabel: rl }) {
   );
 }
 
-function PersonnelDetail({ personId, kind, onSetupDispatcher, onTerminate }) {
+function PersonnelDetail({ personId, kind, onTerminate }) {
   const { state } = useGame();
+  const [showDispatcherSetup, setShowDispatcherSetup] = useState(false);
   const person = kind === "driver"
     ? (state.drivers || []).find(d => d.id === personId)
     : (state.employees || []).find(e => e.id === personId);
@@ -385,26 +383,6 @@ function PersonnelDetail({ personId, kind, onSetupDispatcher, onTerminate }) {
         </div>
       )}
 
-      {/* Aktionen */}
-      {!former && (
-        <div className="space-y-2 pt-2">
-          {isDispatcher && !noticed && (
-            <button
-              onClick={onSetupDispatcher}
-              className="w-full flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-sm font-medium border border-white/10 text-foreground hover:border-lime/30 hover:text-lime transition"
-            >
-              <Settings className="w-4 h-4" /> Einrichtung ändern
-            </button>
-          )}
-          <button
-            onClick={onTerminate}
-            className="w-full flex items-center justify-center gap-2 rounded-lg py-2.5 bg-coral/80 text-ink text-sm font-semibold hover:brightness-110 transition active:scale-[0.98]"
-          >
-            {noticed ? <><AlertCircle className="w-4 h-4" /> Austritt ansehen</> : <><LogOut className="w-4 h-4" /> Arbeitsverhältnis beenden</>}
-          </button>
-        </div>
-      )}
-
       {former && (
         <div className="text-xs text-muted-foreground text-center py-2">
           Diese Person hat das Unternehmen verlassen.
@@ -412,18 +390,96 @@ function PersonnelDetail({ personId, kind, onSetupDispatcher, onTerminate }) {
         </div>
       )}
 
-      {/* Zufriedenheits-Detail (Auftrag 30) */}
+      {/* === Zentrale Sektionen für aktive Mitarbeiter === */}
       {!former && (
-        <div className="pt-3 border-t border-white/10">
-          <SatisfactionDetail
-            personId={personId}
-            personName={person.name}
-            kind={kind}
-            onSetupDispatcher={onSetupDispatcher}
-            onTerminate={onTerminate}
-          />
-        </div>
+        <>
+          {/* Zufriedenheit & Gehalt */}
+          <Section title="Zufriedenheit & Gehalt" icon={HeartHandshake}>
+            <SatisfactionDetail
+              personId={personId}
+              personName={person.name}
+              kind={kind}
+              onSetupDispatcher={() => setShowDispatcherSetup(true)}
+              onTerminate={onTerminate}
+            />
+          </Section>
+
+          {/* Weiterbildung & Qualifikationen */}
+          <Section title="Weiterbildung" icon={GraduationCap}>
+            <PersonTrainingSection personId={personId} kind={kind} role={person.role} />
+          </Section>
+
+          {/* Abwesenheit & Urlaub */}
+          <Section title="Abwesenheit" icon={Calendar}>
+            <PersonAbsenceSection personId={personId} personName={person.name} kind={kind} />
+          </Section>
+
+          {/* Disponent-Einrichtung (nur Disponenten) */}
+          {isDispatcher && !noticed && (
+            <Section title="Disponent-Einrichtung" icon={Settings}>
+              {showDispatcherSetup ? (
+                <DispatcherSetupInline employee={person} onDone={() => setShowDispatcherSetup(false)} />
+              ) : (
+                <DispatcherSetupSummary employee={person} onEdit={() => setShowDispatcherSetup(true)} />
+              )}
+            </Section>
+          )}
+
+          {/* Kündigung */}
+          <div className="pt-2">
+            <button
+              onClick={onTerminate}
+              className="w-full flex items-center justify-center gap-2 rounded-lg py-2.5 bg-coral/80 text-ink text-sm font-semibold hover:brightness-110 transition active:scale-[0.98]"
+            >
+              {noticed ? <><AlertCircle className="w-4 h-4" /> Austritt ansehen</> : <><LogOut className="w-4 h-4" /> Arbeitsverhältnis beenden</>}
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
+}
+
+function Section({ title, icon: Icon, children }) {
+  return (
+    <div className="pt-3 border-t border-white/10">
+      <h3 className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-3 flex items-center gap-1.5">
+        <Icon className="w-3 h-3" /> {title}
+      </h3>
+      {children}
+    </div>
+  );
+}
+
+function DispatcherSetupSummary({ employee, onEdit }) {
+  const { state } = useGame();
+  const wm = workModeLabel(employee.workMode);
+  const branch = employee.assignedBranchId
+    ? (state.branches || []).find(b => b.id === employee.assignedBranchId)
+    : null;
+
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="p-2 rounded-lg bg-surface-2/30 border border-white/5">
+          <div className="text-[10px] text-muted-foreground">Arbeitsweise</div>
+          <div className="text-foreground/80 mt-0.5">{wm.label}</div>
+        </div>
+        <div className="p-2 rounded-lg bg-surface-2/30 border border-white/5">
+          <div className="text-[10px] text-muted-foreground">Zuständig</div>
+          <div className="text-foreground/80 mt-0.5">{branch ? branch.name : "Firmenpool"}</div>
+        </div>
+      </div>
+      <button
+        onClick={onEdit}
+        className="w-full flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-sm font-medium border border-white/10 text-foreground hover:border-lime/30 hover:text-lime transition"
+      >
+        <Settings className="w-4 h-4" /> Einrichtung ändern
+      </button>
+    </div>
+  );
+}
+
+function DispatcherSetupInline({ employee, onDone }) {
+  return <DispatcherSetup employee={employee} onClose={onDone} />;
 }
