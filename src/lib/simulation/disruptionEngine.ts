@@ -785,7 +785,6 @@ function executeOption(state, d, optionId, params, m, log) {
     }
 
     case "rental_truck": {
-      if (!tour) throw new Error("Tour nicht gefunden.");
       const provider = SERVICE_PROVIDERS.find(p => p.type === "rental_truck");
       if (!provider) throw new Error("Kein Mietanbieter verfuegbar.");
       const blocks = 2;
@@ -794,20 +793,24 @@ function executeOption(state, d, optionId, params, m, log) {
       state.company.accountCents -= cost;
       state.bookings.push({ min: m, cause: "Mietfahrzeug: " + provider.name, amountCents: -cost, account: "company", refId: "disruption_rental:" + d.id });
       const rentalVehicle = {
-        id: uid(state, "v_rent"), branchId: tour.branchId || "b1",
+        id: uid(state, "v_rent"), branchId: (tour ? tour.branchId : (vehicle ? vehicle.branchId : "b1")) || "b1",
         type: "Miet-Lkw", capacityTons: 12, consumptionPer100km: 30,
         bookValueCents: 0, condition: 90,
-        locationCity: vehicle ? vehicle.locationCity : tour.startCity,
+        locationCity: vehicle ? vehicle.locationCity : (tour ? tour.startCity : provider.homeCity),
         status: "free", tripId: null, maintenanceUntil: null,
         ownership_type: "rental", odometerKm: 0, acquiredAtMin: m,
         rentalReturnMin: m + blocks * BLOCK_DURATION_MIN,
       };
       state.vehicles.push(rentalVehicle);
-      tour.vehicleId = rentalVehicle.id;
-      tour.disruptionId = null;
+      if (tour) {
+        tour.vehicleId = rentalVehicle.id;
+        tour.disruptionId = null;
+      }
       d.status = "completed";
       d.completedAtMin = m;
-      d.completionSummary = "Mietfahrzeug " + vehicleLabel(rentalVehicle) + " fuer " + (cost / 100).toFixed(2) + " EUR gebucht. Tour wird fortgesetzt.";
+      d.completionSummary = tour
+        ? "Mietfahrzeug " + vehicleLabel(rentalVehicle) + " fuer " + (cost / 100).toFixed(2) + " EUR gebucht. Tour wird fortgesetzt."
+        : "Mietfahrzeug " + vehicleLabel(rentalVehicle) + " fuer " + (cost / 100).toFixed(2) + " EUR gebucht. Bitte neuen Transport manuell starten.";
       d.actualCostCents = cost;
       d.appliedCostsCents = cost;
       d.history.push({ type: "resolved", atMin: m, option: optionId, costCents: cost });
