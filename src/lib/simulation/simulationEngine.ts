@@ -179,6 +179,13 @@ import { migrateSegmentFields, getOrderSegments, getOrderCharacteristics, getPri
 import { migrateBusinessFocus, setBusinessFocus as doSetBusinessFocus, setBranchBusinessFocus as doSetBranchBusinessFocus, getBusinessFocus, getEffectiveFocusForBranch, getMarketWeightsForBranch, orderMatchesFocus, getFocusPriority, BUSINESS_FOCI } from "./businessFocusEngine.ts";
 import { migrateSegmentStats, recordSegmentDelivery, recordTankCleaning, recordEmptyTrip, getSegmentStats } from "./segmentStatsEngine.ts";
 import { migrateMarketDynamics, processMarketDynamicsDayChange, getMarketOverview } from "./marketDynamicsEngine.ts";
+import {
+  migrateDevelopmentGoals, processMentoringEvents, processOverduePromises,
+  checkGoalFulfillment, fulfillPromiseByAction, getDevelopmentProfile,
+  getDevelopmentOverview, createDevelopmentGoal, removeDevelopmentGoal,
+  assignMentor, removeMentoring, getConversationCooldown, setConversationCooldown,
+  createPromise, getOpenPromises, getSuggestedCourses, getAvailableMentors,
+} from "./developmentGoalsEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -346,6 +353,8 @@ function doDailyAccounting(state, midnight) {
   processDailyRecovery(state, midnight);
   processTerminationWarnings(state, midnight);
   processDailyRelationship(state, midnight);
+  // Entwicklungsziele: Überfällige Zusagen markieren
+  processOverduePromises(state, midnight);
   return log;
 }
 
@@ -663,6 +672,8 @@ function processEventsAt(state, m, log) {
   // Auftrag 31: Aus- und Weiterbildung – Kursblöcke, Ausbildungen, Ablauf
   processCourseEvents(state, m, log);
   processApprenticeshipEvents(state, m, log);
+  // Entwicklungsziele: Mentoring-Lerntermine verarbeiten
+  processMentoringEvents(state, m, log);
   // Auftrag 32: Gefahrgut – Tankreinigung, Ausrüstung, Spielprüfung
   processTankCleaning(state, m, log);
   for (const _le of log) {
@@ -788,7 +799,7 @@ function planTrip(state, order, vehicle, driver) {
 // ---------- Befehle ----------
 export function applyCommand(state, command, params) {
   _clearPlanCache(); migrateState(state);
-  [migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories, migrateSegmentFields, migrateBusinessFocus, migrateSegmentStats, migrateMarketDynamics].forEach(fn => fn(state));
+  [migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories, migrateSegmentFields, migrateBusinessFocus, migrateSegmentStats, migrateMarketDynamics, migrateDevelopmentGoals].forEach(fn => fn(state));
   if (state.bookings && state.bookings.length > 200) state.bookings = state.bookings.slice(-200);
   // Historie begrenzen: abgeschlossene Touren, Aufträge und Termine älter als 30 Tage
   // entfernen. Hält den Zustand kompakt und beschleunigt Laden/Speichern bei langen Spielen.
@@ -2226,6 +2237,8 @@ export function applyCommand(state, command, params) {
     case "bookCourse": {
       ensureNotBlocked(state);
       const r = bookCourse(state, p.personId, p.courseId, { confirmPromotion: p.confirmPromotion || false });
+      // Entwicklungsziele: Zusage "Weiterbildung buchen" erfüllen
+      fulfillPromiseByAction(state, p.personId, "book_course", { courseId: p.courseId });
       result = r;
       break;
     }

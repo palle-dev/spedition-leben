@@ -19,6 +19,7 @@ import { getDriverTravelEventTimes } from "./branchEngine.ts";
 import { getPregnancyEventTimes } from "./relationshipEngine.ts";
 import { getDateEventTimes } from "./datingEngine.ts";
 import { getStoryEventTimes } from "./storyEngine.ts";
+import { getMentoringEventTimes } from "./developmentGoalsEngine.ts";
 
 export function earliestEventAfter(state, t, maxMin) {
   let best = null;
@@ -145,5 +146,7 @@ export function earliestEventAfter(state, t, maxMin) {
   for (const tm of getDriverTravelEventTimes(state, t, maxMin)) cand(tm);
   for (const tm of [...getPregnancyEventTimes(state, t, maxMin), ...getDateEventTimes(state, t, maxMin)]) cand(tm);
   for (const tm of getStoryEventTimes(state, t, maxMin)) cand(tm);
+  // Mentoring-Lerntermine (Entwicklungsziele)
+  for (const tm of getMentoringEventTimes(state, t, maxMin)) cand(tm);
   return best;
 }
