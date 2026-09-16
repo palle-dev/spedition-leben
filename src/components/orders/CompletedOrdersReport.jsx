@@ -38,38 +38,57 @@ export default function CompletedOrdersReport({ state }) {
   const [filterOpen, setFilterOpen] = useState(true);
   const [sort, setSort] = useState({ key: "deliveredAt", dir: "desc" });
   const [detail, setDetail] = useState(null);
+  const [visibleCount, setVisibleCount] = useState(50);
 
   const drivers = state.drivers || [];
   const vehicles = state.vehicles || [];
   const trips = state.trips || [];
   const now = state.gameTime || 0;
 
-  // Basis: erledigte Aufträge mit verknüpftem Trip
+  // Lookup-Maps für O(1)-Verknüpfungen (einmalig pro State-Änderung gebaut)
+  const tripByOrder = useMemo(() => {
+    const m = new Map();
+    for (const t of trips) m.set(t.orderId, t);
+    return m;
+  }, [trips]);
+  const driverById = useMemo(() => {
+    const m = new Map();
+    for (const d of drivers) m.set(d.id, d);
+    return m;
+  }, [drivers]);
+  const vehicleById = useMemo(() => {
+    const m = new Map();
+    for (const v of vehicles) m.set(v.id, v);
+    return m;
+  }, [vehicles]);
+
+  // Basis: erledigte Aufträge mit verknüpftem Trip (O(n) dank Lookup-Maps)
   const base = useMemo(() => {
     const periodMin = fPeriod === "all" ? Infinity : parseInt(fPeriod, 10) * 1440;
     const cutoff = now - periodMin;
-    return (state.orders || [])
-      .filter(o => DONE_STATUSES.includes(o.status))
-      .map(o => {
-        const trip = trips.find(t => t.orderId === o.id);
-        const driver = trip ? drivers.find(d => d.id === trip.driverId) : null;
-        const vehicle = trip ? vehicles.find(v => v.id === trip.vehicleId) : null;
-        const refMin = o.deliveredAtMin || o.failedAtMin || o.cancelledAtMin || o.acceptedAtMin || o.deliveryDeadlineMin || 0;
-        const onTime = o.status === "geliefert" && o.deliveredAtMin != null ? (o.deliveredAtMin <= o.deliveryDeadlineMin) : null;
-        const contribution = trip ? (trip.paymentCents || o.paidCents || o.paymentCents) - (trip.fuelCents || 0) - (trip.tollCents || 0) : null;
-        return {
-          ...o,
-          _trip: trip || null,
-          _driver: driver || null,
-          _vehicle: vehicle || null,
-          _refMin: refMin,
-          _onTime: onTime,
-          _contribution: contribution,
-          _km: trip?.totalKm || getDistance(o.fromCity, o.toCity) || 0,
-        };
-      })
-      .filter(o => o._refMin >= cutoff);
-  }, [state.orders, trips, drivers, vehicles, now, fPeriod]);
+    const out = [];
+    for (const o of (state.orders || [])) {
+      if (!DONE_STATUSES.includes(o.status)) continue;
+      const refMin = o.deliveredAtMin || o.failedAtMin || o.cancelledAtMin || o.acceptedAtMin || o.deliveryDeadlineMin || 0;
+      if (refMin < cutoff) continue;
+      const trip = tripByOrder.get(o.id) || null;
+      const driver = trip ? driverById.get(trip.driverId) || null : null;
+      const vehicle = trip ? vehicleById.get(trip.vehicleId) || null : null;
+      const onTime = o.status === "geliefert" && o.deliveredAtMin != null ? (o.deliveredAtMin <= o.deliveryDeadlineMin) : null;
+      const contribution = trip ? (trip.paymentCents || o.paidCents || o.paymentCents) - (trip.fuelCents || 0) - (trip.tollCents || 0) : null;
+      out.push({
+        ...o,
+        _trip: trip,
+        _driver: driver,
+        _vehicle: vehicle,
+        _refMin: refMin,
+        _onTime: onTime,
+        _contribution: contribution,
+        _km: trip?.totalKm || getDistance(o.fromCity, o.toCity) || 0,
+      });
+    }
+    return out;
+  }, [state.orders, tripByOrder, driverById, vehicleById, now, fPeriod]);
 
   // Gefiltert
   const filtered = useMemo(() => {
@@ -115,27 +134,27 @@ export default function CompletedOrdersReport({ state }) {
     return list;
   }, [filtered, sort]);
 
-  // KPIs
-  const kpis = useMemo(() => {
-    const total = filtered.length;
-    const delivered = filtered.filter(o => o.status === "geliefert").length;
-    const failed = filtered.filter(o => o.status === "failed").length;
-    const cancelled = filtered.filter(o => o.status === "storniert").length;
-    const expired = filtered.filter(o => o.status === "expired").length;
-    const onTimeDelivered = filtered.filter(o => o._onTime === true).length;
-    const onTimeRate = delivered > 0 ? Math.round((onTimeDelivered / delivered) * 100) : 0;
-    const revenue = filtered.reduce((s, o) => s + (o.paidCents ?? 0), 0);
-    const costs = filtered.reduce((s, o) => s + (o._trip ? (o._trip.fuelCents || 0) + (o._trip.tollCents || 0) : 0), 0);
-    const contribution = filtered.reduce((s, o) => s + (o._contribution ?? 0), 0);
-    const avgOrder = delivered > 0 ? Math.round(revenue / delivered) : 0;
-    return { total, delivered, failed, cancelled, expired, onTimeRate, revenue, costs, contribution, avgOrder };
-  }, [filtered]);
-
-  // Status-Verteilung
-  const dist = useMemo(() => {
+  // KPIs & Status-Verteilung in einem Durchlauf
+  const { kpis, dist } = useMemo(() => {
+    let delivered = 0, failed = 0, cancelled = 0, expired = 0, onTimeDelivered = 0;
+    let revenue = 0, contribution = 0;
     const counts = { geliefert: 0, storniert: 0, expired: 0, failed: 0 };
-    for (const o of filtered) counts[o.status] = (counts[o.status] || 0) + 1;
-    return counts;
+    for (const o of filtered) {
+      counts[o.status] = (counts[o.status] || 0) + 1;
+      if (o.status === "geliefert") delivered++;
+      else if (o.status === "failed") failed++;
+      else if (o.status === "storniert") cancelled++;
+      else if (o.status === "expired") expired++;
+      if (o._onTime === true) onTimeDelivered++;
+      revenue += o.paidCents ?? 0;
+      contribution += o._contribution ?? 0;
+    }
+    const onTimeRate = delivered > 0 ? Math.round((onTimeDelivered / delivered) * 100) : 0;
+    const avgOrder = delivered > 0 ? Math.round(revenue / delivered) : 0;
+    return {
+      kpis: { total: filtered.length, delivered, failed, cancelled, expired, onTimeRate, revenue, contribution, avgOrder },
+      dist: counts,
+    };
   }, [filtered]);
 
   const activeFilterCount = [fStatus, fType, fDg, fFrom, fTo].filter(v => v !== "" && v !== "all").length + (fPeriod !== "30" ? 1 : 0);
@@ -292,7 +311,7 @@ export default function CompletedOrdersReport({ state }) {
                 </tr>
               </thead>
               <tbody>
-                {sorted.map(o => {
+                {sorted.slice(0, visibleCount).map(o => {
                   const M = STATUS_META[o.status];
                   const StatusIcon = M.icon;
                   return (
@@ -354,6 +373,16 @@ export default function CompletedOrdersReport({ state }) {
               </tfoot>
             </table>
           </div>
+          {sorted.length > visibleCount && (
+            <div className="px-3 py-3 text-center border-t border-white/5">
+              <button
+                onClick={() => setVisibleCount(c => c + 100)}
+                className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-xs text-foreground hover:bg-white/10 hover:border-lime/30 transition"
+              >
+                Weitere {Math.min(100, sorted.length - visibleCount)} von {sorted.length - visibleCount} anzeigen
+              </button>
+            </div>
+          )}
         </div>
       )}
 
