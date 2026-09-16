@@ -48,15 +48,11 @@ export function processEmployees(state, m, log) {
     if (emp.attendance !== "present") continue;
     if (emp.role === "dispatcher" || emp.role === "dispatcher_senior") {
       if (!isDispatcherOnShift(emp, m)) continue;
-      // Während großer Zeitvorläufe (≥ 2h): Reduzierte Planungsfrequenz
-      // (alle 2 Stunden statt alle 60 Minuten). planSingleVehicle bei
-      // Tour-Ende übernimmt die inkrementelle Disposition — es wird bei
-      // jedem delivery_completed/emptytrip_completed automatisch aufgerufen.
-      // Die 2-Stunden-Intervalle fangen neue Marktaufträge zuverlässig auf,
-      // während die suggestTours-Aufrufe halbiert werden (12/Tag statt 24/Tag).
-      if (state._largeAdvance) {
-        if (emp.lastDecisionMin && m - emp.lastDecisionMin < 120) continue;
-      }
+      // Keine _largeAdvance-abhängige Planungsfrequenz mehr: ein 2h-Skip
+      // hätte neue Marktaufträge in großen Vorläufen bis zu 2h liegen lassen,
+      // während 24×60 sie innerhalb 1h aufnimmt — unterschiedliche Ergebnisse.
+      // Die kontextsensitive Skip-Cache in processDispatcher verhindert
+      // redundante suggestTours-Aufrufe, wenn sich die Lage nicht geändert hat.
       processDispatcher(state, emp, m, log);
     } else if (inServiceHours && (emp.role === "accountant" || emp.role === "accountant_senior")) {
       processAccountant(state, emp, m, log);

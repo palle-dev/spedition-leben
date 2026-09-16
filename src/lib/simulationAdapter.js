@@ -80,17 +80,13 @@ export async function executeCommand(state, command, params) {
 
   let slim = slimState(state);
 
-  // Pre-Dispatch für große Zeitvorläufe (≥ 1 Tag): Alle freien Fahrzeuge
-  // einmalig verplanen, bevor der Vorlauf startet. Während des Vorlaufs
-  // übernimmt planSingleVehicle (bei Tour-Ende) die inkrementelle Disposition,
-  // processDispatcher läuft nur noch alle 6h. Reduziert suggestTours-Aufrufe
-  // bei 72 Fahrzeugen von ~24/Tag auf ~4/Tag + inkrementelle Einzelaufrufe.
-  if (command === "advanceTime" && (params || {}).minutes >= 1440) {
-    try {
-      const dr = applyCommand(slim, "dispatchAllNow", {});
-      slim = dr.state;
-    } catch (e) { /* Spieler blockiert oder keine freien Fahrzeuge — trotzdem vorlaufen */ }
-  }
+  // Hinweis: Ein früherer Pre-Dispatch (dispatchAllNow vor advanceTime ≥ 1440)
+  // wurde entfernt. Er veränderte den Zustand VOR dem Vorlauf und damit die
+  // fachlichen Ergebnisse: 1×1440 hätte eine Vordisposition erhalten, die
+  // 24×60 nicht erhält — unterschiedliche Touren, unterschiedlicher Umsatz.
+  // Die inkrementelle Disposition (planSingleVehicle bei Tour-Ende) und die
+  // kontextsensitive Skip-Cache in processDispatcher übernehmen die Planung
+  // während des Vorlaufs ohne Ergebnisveränderung.
 
   try {
     const r = applyCommand(slim, command, paramsWithTime);

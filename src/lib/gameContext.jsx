@@ -213,7 +213,16 @@ export function GameProvider({ children }) {
   // Der Tagesvorlauf läuft im Worker, während der Spieler weiter navigieren
   // und Menüs nutzen kann. send() wird blockiert, bis der Vorlauf fertig ist.
   const startBackgroundAdvance = useCallback(async (minutes) => {
-    if (!stateRef.current || backgroundAdvanceRef.current || sendInFlightRef.current) return;
+    // Auf laufende Synchronisation und Befehle warten, bevor der Hintergrundvorlauf
+    // startet. Ohne diese Warteschleife würde ein parallel laufender syncAutomation-
+    // Tick denselben (veralteten) Zustand an den Worker senden; beide Antworten
+    // würden nacheinander stateRef überschreiben — Zeit doppelt verarbeitet,
+    // syncAutomation-Ergebnis verloren. (sendInFlightRef allein reicht nicht,
+    // da syncAutomation sendInFlightRef nicht setzt.)
+    while (syncInFlightRef.current || sendInFlightRef.current) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    if (!stateRef.current || backgroundAdvanceRef.current) return;
     backgroundAdvanceRef.current = true;
     setBackgroundAdvance({ active: true, progress: null, result: null });
     try {

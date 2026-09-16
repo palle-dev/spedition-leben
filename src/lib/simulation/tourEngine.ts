@@ -1055,8 +1055,11 @@ export function suggestTours(state, opts) {
     const sameCitySorted = [...sameCityDrivers].sort((a, b) => (a.workMinutesSinceRest || 0) - (b.workMinutesSinceRest || 0));
     const crossCitySorted = [...crossCityDrivers].sort((a, b) => (a.workMinutesSinceRest || 0) - (b.workMinutesSinceRest || 0));
     const candidateDrivers = [...sameCitySorted, ...crossCitySorted];
-    // CPU-Schutz: höchstens 4 Fahrer pro Fahrzeug probieren (2 im Fast-Mode).
-    const maxDrivers = fastMode ? 2 : 4;
+    // CPU-Schutz: höchstens 4 Fahrer pro Fahrzeug probieren.
+    // Konstanter Wert (unabhängig von fastMode), damit die gewählte
+    // Zeitsteuerung (1×1440 vs 24×60 vs 96×15) die fachlichen Ergebnisse
+    // der Tourensuche nicht verändert.
+    const maxDrivers = 4;
     if (candidateDrivers.length > maxDrivers) candidateDrivers.length = maxDrivers;
     if (candidateDrivers.length === 0) continue;
 
@@ -1101,7 +1104,8 @@ export function suggestTours(state, opts) {
     // abgelehnt werden und die machbaren Advance-Aufträge verdrängen.
     // CPU-Schutz: die Doppel-Tour-Suche ist O(n²). Bei vielen Aufträgen
     // wird die Liste begrenzt, damit die kombinatorische Explosion vermieden wird.
-    const orderLimit = fastMode ? 6 : 12;
+    // Konstanter Wert (unabhängig von fastMode) — siehe maxDrivers-Kommentar.
+    const orderLimit = 12;
     if (allOrders.length > orderLimit) {
       const vehicleCity = vehicleFutureCity;
       const scored = allOrders.map(o => {
