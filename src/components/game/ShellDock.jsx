@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import { dayOf, clockOf } from "@/lib/gameData";
-import { Building2, Package, Map, Truck, Users, Wallet, Home as HomeIcon, BookOpen, Clock, MoreHorizontal, Trophy, Mail as MailIcon, LineChart, Network, Calendar, Loader2, BarChart3, Gauge, UserCircle, Shield, Briefcase } from "lucide-react";
+import { Building2, Package, Map, Truck, Users, Wallet, BookOpen, Clock, MoreHorizontal, Trophy, Network, Calendar, Loader2, BarChart3, Gauge, UserCircle, Shield, Briefcase } from "lucide-react";
 import AdvanceProgressModal from "@/components/game/AdvanceProgressModal";
 import DiagPanel from "@/components/game/DiagPanel";
 
@@ -10,7 +10,6 @@ const PRIMARY_NAV = [
   { to: "/", label: "Büro", icon: Building2 },
   { to: "/auftraege", label: "Aufträge", icon: Package },
   { to: "/disposition", label: "Dispo", icon: Map },
-  { to: "/zuhause", label: "Zuhause", icon: HomeIcon }
 ];
 const QUICK_NAV = [
   { to: "/fuhrpark", label: "Fuhrpark", icon: Truck },
@@ -24,8 +23,6 @@ const MORE_NAV = [
   { to: "/filialen", label: "Filialen", icon: Network },
   { to: "/auslastung", label: "Auslastung", icon: BarChart3 },
   { to: "/effizienz", label: "Effizienz", icon: Gauge },
-  { to: "/investment", label: "Investment", icon: LineChart },
-  { to: "/postfach", label: "Postfach", icon: MailIcon },
   { to: "/erfolge", label: "Erfolge", icon: Trophy },
   { to: "/journal", label: "Journal", icon: BookOpen }
 ];
