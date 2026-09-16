@@ -480,8 +480,8 @@ export function confirmTour(state, params) {
   const plan = buildTourPlan(state, { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin });
   if (plan.error) throw new Error(plan.error);
 
-  const vehicle = state.vehicles.find(v => v.id === vehicleId);
-  const driver = state.drivers.find(d => d.id === driverId);
+  const vehicle = _vehicleById(state, vehicleId);
+  const driver = _driverById(state, driverId);
 
   // 2. Prüfe Ressourcen-Verfügbarkeit erneut
   // Für 24/7-Vorausplanung: Erlaube auch on_trip, wenn die neue Tour
@@ -963,6 +963,11 @@ export function suggestTours(state, opts) {
   const { vehicleIds, earliestStart, horizonMin, desiredEndCity, latestReturnMin, mode, acceptNew } = opts;
   const suggestions = [];
 
+  // Lookup-Maps für O(1) Zugriff in buildTourPlan
+  state._vehicleMap = new Map(state.vehicles.map(v => [v.id, v]));
+  state._driverMap = new Map(state.drivers.map(d => [d.id, d]));
+  state._orderMap = new Map(state.orders.map(o => [o.id, o]));
+
   const startMin = earliestStart || state.gameTime;
   const maxMin = startMin + (horizonMin || 48 * 60);
   const usedDriverIds = new Set();
@@ -1145,6 +1150,11 @@ export function suggestTours(state, opts) {
       });
     }
   }
+
+  // Lookup-Maps abbauen
+  state._vehicleMap = null;
+  state._driverMap = null;
+  state._orderMap = null;
 
   return { suggestions };
 }
