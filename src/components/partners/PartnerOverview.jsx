@@ -32,7 +32,7 @@ export default function PartnerOverview({ onClose }) {
             {activeTransports.map(t => {
               const order = (state.orders || []).find(o => o.id === t.orderId);
               return (
-                <div key={t.id} className="rounded-lg border border-white/10 bg-white/5 p-3">
+                <div key={t.id} className="rounded-lg border border-white/10 glass p-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{t.partnerName}</p>
@@ -71,7 +71,7 @@ export default function PartnerOverview({ onClose }) {
             const stats = p.stats;
             const hasActive = p.activeTransports.length > 0;
             return (
-              <div key={p.id} className="rounded-lg border border-white/10 bg-white/5 p-3">
+              <div key={p.id} className="rounded-lg border border-white/10 glass p-3">
                 <div className="flex items-start justify-between gap-2 mb-1.5">
                   <p className="text-sm font-medium">{p.name}</p>
                   {hasActive && <span className="text-xs text-lime shrink-0">{p.activeTransports.length} aktiv</span>}

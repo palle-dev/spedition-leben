@@ -9,7 +9,7 @@ export default function PlanningTimeline({ rows, horizonStart, horizonEnd, selec
   const dayWidthPct = 100 / totalDays;
 
   return (
-    <div className="rounded-lg border border-white/10 bg-surface/50 overflow-hidden">
+    <div className="rounded-lg border border-white/10 glass overflow-hidden">
       {/* Zeitstempel */}
       <div className="px-4 py-2.5 border-b border-white/10 bg-white/3 text-[11px] text-muted-foreground flex items-center justify-between">
         <span>Bezugszeitpunkt: Tag {dayOfLocal(horizonStart)}</span>
