@@ -180,7 +180,7 @@ export default function ShellDock() {
           <button
             onClick={advanceHour}
             disabled={disabled}
-            className="flex items-center gap-1.5 rounded-lg px-2.5 lg:px-3 py-2 text-xs border border-white/10 bg-white/5 text-muted-foreground hover:text-foreground disabled:opacity-40 transition min-h-[44px]"
+            className="flex items-center gap-1.5 rounded-lg px-2.5 lg:px-3 py-2 text-xs border border-white/10 bg-white/5 text-muted-foreground hover:text-foreground disabled:opacity-40 min-h-[44px]"
             title="1 Stunde weiter"
             aria-label="1 Stunde weiter"
           >
@@ -189,7 +189,7 @@ export default function ShellDock() {
           <button
             onClick={advanceDay}
             disabled={disabled}
-            className="flex items-center gap-1.5 rounded-lg px-2.5 lg:px-3 py-2 text-xs border border-white/10 bg-white/5 text-muted-foreground hover:text-foreground disabled:opacity-40 transition min-h-[44px]"
+            className="flex items-center gap-1.5 rounded-lg px-2.5 lg:px-3 py-2 text-xs border border-white/10 bg-white/5 text-muted-foreground hover:text-foreground disabled:opacity-40 min-h-[44px]"
             title="1 Tag weiter"
             aria-label="1 Tag weiter"
           >

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from "react";
+import React, { createContext, useContext, useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from "react";
 import { saveCurrent, loadCurrent, saveAutosave, loadAutosave, getAllAutosaveMetas, listManualSlots, saveManualSlot, loadManualSlot, deleteManualSlot, deleteAutosave, exportSave, importSave, getSyncMeta, setSyncMeta, clearSyncMeta, hasUnassignedSaves, claimUnassignedSaves } from "@/lib/persistence";
 import { acquireLock, refreshLock, releaseLock, LOCK_REFRESH } from "@/lib/tabLock";
 import { eventToToast } from "@/lib/eventNotifications";
@@ -125,9 +125,11 @@ export function GameProvider({ children }) {
   }, [motionEnabled]);
 
   // Transitionen während State-Updates deaktivieren — verhindert das
-  // gleichzeitige Feiern dutzender CSS-Transitionen (color, opacity, etc.)
+  // gleichzeitige Feuern dutzender CSS-Transitionen (color, opacity, etc.)
   // nach Zeitvorläufen, was als visuelles Flackern wahrgenommen wird.
-  useEffect(() => {
+  // useLayoutEffect feuert VOR dem Paint (useEffect feuert danach),
+  // sodass die Transitionen rechtzeitig deaktiviert sind.
+  useLayoutEffect(() => {
     if (!state) return;
     document.body.classList.add("no-transition");
     let raf2;
