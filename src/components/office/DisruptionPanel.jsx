@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
 import { AlertTriangle, Wrench, Clock, UserX, ChevronRight, CheckCircle2, Loader2, Zap } from "lucide-react";
 import DisruptionDialog from "@/components/office/DisruptionDialog";
@@ -16,23 +16,19 @@ const STATUS_LABEL = {
 };
 
 // Kompaktes Panel für die Büroübersicht: zeigt aktive Störungen an.
+// Liest Störungen direkt aus dem State — kein send-Aufruf nötig, der
+// bei jedem gameTime-Wechsel zusätzliche Re-Renders auslösen würde.
 export default function DisruptionPanel() {
-  const { state, send } = useGame();
-  const [disruptions, setDisruptions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { state } = useGame();
   const [selectedId, setSelectedId] = useState(null);
 
-  async function loadDisruptions() {
-    try {
-      const r = await send("getDisruptions", {});
-      if (r?.disruptions) setDisruptions(r.disruptions);
-    } catch (e) { /* still loaded */ }
-    finally { setLoading(false); }
-  }
+  const disruptions = useMemo(
+    () => (state.disruptions?.items || [])
+      .filter(d => d.status !== "completed")
+      .sort((a, b) => a.createdAtMin - b.createdAtMin),
+    [state.disruptions]
+  );
 
-  useEffect(() => { loadDisruptions(); }, [state.gameTime, state.disruptions]);
-
-  if (loading) return null;
   if (!disruptions || disruptions.length === 0) return null;
 
   return (
@@ -83,7 +79,7 @@ export default function DisruptionPanel() {
       </div>
 
       {selectedId && (
-        <DisruptionDialog disruptionId={selectedId} onClose={() => { setSelectedId(null); loadDisruptions(); }} />
+        <DisruptionDialog disruptionId={selectedId} onClose={() => setSelectedId(null)} />
       )}
     </div>
   );
