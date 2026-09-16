@@ -3,7 +3,8 @@ import { useGame } from "@/lib/gameContext";
 import { loadRouteGeometries, buildPlanRouteGeoJSON } from "@/lib/geoData";
 import DispatchMap from "@/components/dispatch/DispatchMap";
 import DispatchWorkspace from "@/components/dispatch/DispatchWorkspace";
-import { Truck, Home, Route as RouteIcon, TrafficCone, Sparkles } from "lucide-react";
+import { Truck, Home, Route as RouteIcon, TrafficCone, Sparkles, Network } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useHeaderSlot } from "@/lib/headerSlot";
 import DispatchToolbar from "@/components/dispatch/DispatchToolbar";
 import RouteDetailOverlay from "@/components/dispatch/RouteDetailOverlay";
@@ -187,6 +188,9 @@ export default function Dispatch() {
               <MapActionButton onClick={() => setShowTraffic(v => !v)} title="Verkehrslage" highlight={showTraffic}><TrafficCone className="w-4 h-4" /></MapActionButton>
               <MapActionButton onClick={() => setFocusAction({ type: "fleet" })} title="Flotte zeigen"><Truck className="w-4 h-4" /></MapActionButton>
               <MapActionButton onClick={() => setFocusAction({ type: "hq" })} title="Hauptsitz"><Home className="w-4 h-4" /></MapActionButton>
+              <Link to="/netzwerk" title="Strategische Netzkarte" className="w-10 h-10 rounded-xl grid place-items-center transition backdrop-blur-xl border shadow-lg shadow-black/40 active:scale-95 bg-surface/80 text-foreground/80 border-white/15 hover:border-lime/30 hover:text-foreground hover:bg-surface">
+                <Network className="w-4 h-4" />
+              </Link>
               {selectedTripId && (
                 <MapActionButton onClick={() => setFocusAction({ type: "trip", tripId: selectedTripId })} title="Route zeigen" highlight><RouteIcon className="w-4 h-4" /></MapActionButton>
               )}

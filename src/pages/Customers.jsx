@@ -1,8 +1,9 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import CustomerList from "@/components/customers/CustomerList";
 import CustomerDetail from "@/components/customers/CustomerDetail";
-import { Users, Star, FileText } from "lucide-react";
+import { Users, Star, FileText, Network } from "lucide-react";
 
 export default function Customers() {
   const { state, send } = useGame();
@@ -54,6 +55,14 @@ export default function Customers() {
                 <span className="font-medium tabular-nums">{activeContracts}</span>
                 <span className="text-muted-foreground">Verträge</span>
               </div>
+              <Link
+                to="/netzwerk"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-muted-foreground hover:text-foreground hover:border-lime/30 hover:bg-lime/5 transition"
+                title="Kundenbeziehungen auf der Netzkarte analysieren"
+              >
+                <Network className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Netzkarte</span>
+              </Link>
             </div>
           )}
         </div>

@@ -9,7 +9,8 @@ import OpenBranchDialog from "@/components/branches/OpenBranchDialog";
 import MoveResourceDialog from "@/components/branches/MoveResourceDialog";
 import AssignEmployeeDialog from "@/components/branches/AssignEmployeeDialog";
 import BranchDecisionsPanel from "@/components/branches/BranchDecisionsPanel";
-import { Building2, Plus, Truck, Users, MapPin, ArrowRight, LayoutGrid, List, Briefcase } from "lucide-react";
+import { Building2, Plus, Truck, Users, MapPin, ArrowRight, LayoutGrid, List, Briefcase, Network } from "lucide-react";
+import { Link } from "react-router-dom";
 import PageHint from "@/components/help/PageHint";
 
 export default function Branches() {
@@ -61,12 +62,21 @@ export default function Branches() {
             {activeBranches.length} aktive Standort{activeBranches.length !== 1 ? "e" : ""} · {formatEuro(totalDailyCost)}/Tag · {totalDeliveries} Lieferungen gesamt
           </p>
         </div>
-        <button
-          onClick={() => setShowOpen(true)}
-          className="flex items-center gap-2 rounded-lg px-4 py-2.5 bg-lime text-ink font-semibold text-sm hover:brightness-110 transition active:scale-[0.98]"
-        >
-          <Plus className="w-4 h-4" /> Filiale eröffnen
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/netzwerk"
+            className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm border border-white/10 bg-white/5 text-muted-foreground hover:text-foreground hover:border-lime/30 hover:bg-lime/5 transition"
+            title="Standorte auf der strategischen Netzkarte analysieren"
+          >
+            <Network className="w-4 h-4" /> <span className="hidden sm:inline">Netzkarte</span>
+          </Link>
+          <button
+            onClick={() => setShowOpen(true)}
+            className="flex items-center gap-2 rounded-lg px-4 py-2.5 bg-lime text-ink font-semibold text-sm hover:brightness-110 transition active:scale-[0.98]"
+          >
+            <Plus className="w-4 h-4" /> Filiale eröffnen
+          </button>
+        </div>
       </div>
 
       {/* Filialleiter-Entscheidungen */}
