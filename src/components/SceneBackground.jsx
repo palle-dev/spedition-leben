@@ -14,7 +14,7 @@ const SCENES = {
     shade: "shade-home",
   },
   orders: {
-    url: "https://media.base44.com/images/public/6aa52ebc01a939da57f8b78f/b573fb6c7_generated_image.png",
+    url: "https://media.base44.com/images/public/6aa52ebc01a939da57f8b78f/f73abcc74_generated_image.png",
     shade: "shade-office",
   },
   fleet: {
