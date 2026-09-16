@@ -199,6 +199,29 @@ export function GameProvider({ children }) {
     return s;
   }, []);
 
+  const processNewEvents = useCallback((newState) => {
+    const events = newState.events || [];
+    if (isInitialLoadRef.current) {
+      for (const ev of events) { seenEventIdsRef.current.add(ev.id); if (ev.seq > lastEventSeqRef.current) lastEventSeqRef.current = ev.seq; }
+      isInitialLoadRef.current = false;
+    } else {
+      // Events sind sortiert (seq aufsteigend) — vom Ende iterieren bis
+      // der letzte verarbeitete seq erreicht ist. O(k) statt O(n).
+      const newToasts = [];
+      for (let i = events.length - 1; i >= 0; i--) {
+        const ev = events[i];
+        if (ev.seq <= lastEventSeqRef.current) break;
+        if (seenEventIdsRef.current.has(ev.id)) { if (ev.seq > lastEventSeqRef.current) lastEventSeqRef.current = ev.seq; continue; }
+        const t = eventToToast(ev);
+        if (t) newToasts.unshift(t);
+        seenEventIdsRef.current.add(ev.id);
+        if (ev.seq > lastEventSeqRef.current) lastEventSeqRef.current = ev.seq;
+      }
+      if (newToasts.length > 0) setToasts(prev => [...prev, ...newToasts].slice(-20));
+    }
+    setUnseenCount(getUnseenEventCount(newState));
+  }, []);
+
   // Cloud-Upload eines vollständigen, konsistenten Speicherpunkts.
   // Verwendet die Queue — nur ein Upload gleichzeitig, verspätete Antworten
   // werden verworfen. localBaseRevision wird nur nach Bestätigung aktualisiert.
@@ -384,29 +407,6 @@ export function GameProvider({ children }) {
       return { ok: false, error: e.message };
     }
   }, [ensurePartyId, saveNow, processNewEvents, showToast]);
-
-  const processNewEvents = useCallback((newState) => {
-    const events = newState.events || [];
-    if (isInitialLoadRef.current) {
-      for (const ev of events) { seenEventIdsRef.current.add(ev.id); if (ev.seq > lastEventSeqRef.current) lastEventSeqRef.current = ev.seq; }
-      isInitialLoadRef.current = false;
-    } else {
-      // Events sind sortiert (seq aufsteigend) — vom Ende iterieren bis
-      // der letzte verarbeitete seq erreicht ist. O(k) statt O(n).
-      const newToasts = [];
-      for (let i = events.length - 1; i >= 0; i--) {
-        const ev = events[i];
-        if (ev.seq <= lastEventSeqRef.current) break;
-        if (seenEventIdsRef.current.has(ev.id)) { if (ev.seq > lastEventSeqRef.current) lastEventSeqRef.current = ev.seq; continue; }
-        const t = eventToToast(ev);
-        if (t) newToasts.unshift(t);
-        seenEventIdsRef.current.add(ev.id);
-        if (ev.seq > lastEventSeqRef.current) lastEventSeqRef.current = ev.seq;
-      }
-      if (newToasts.length > 0) setToasts(prev => [...prev, ...newToasts].slice(-20));
-    }
-    setUnseenCount(getUnseenEventCount(newState));
-  }, []);
 
   const processResult = useCallback(async (newState, result, command) => {
     // Lieferungen werden nur gebucht (in der Engine) und als Toast angezeigt —
