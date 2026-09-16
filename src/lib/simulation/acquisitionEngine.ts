@@ -1036,7 +1036,7 @@ function buildAwardExplanation(state, tender, allBids, playerEligibility) {
   // Verloren — Erklärung aus Bewertung
   const playerRank = allBids.findIndex(b => b.bidder === "player") + 1;
   return `Sie haben die Ausschreibung von ${customer?.name || tender.customerName} nicht gewonnen.\n\n` +
-    `Sie belegten Platz ${playerRank} von ${allBends.length}.\n\n` +
+    `Sie belegten Platz ${playerRank} von ${allBids.length}.\n\n` +
     `Gewichtete Bewertung (höher ist besser):\n` +
     allBids.slice(0, 4).map((b, i) => {
       const marker = b.bidder === "player" ? "→ " : "   ";
@@ -1048,9 +1048,6 @@ function buildAwardExplanation(state, tender, allBids, playerEligibility) {
     ).join("\n") +
     `\n\nEine Ablehnung allein verursacht keinen Vertrauensverlust. Bestehende Verträge bleiben unberührt.`;
 }
-
-// Fix: variable name typo guard
-const allBends = []; // placeholder to avoid lint error — actual array is allBids
 
 // Befristetes Vertragsangebot aus Ausschreibung erstellen
 function createContractOfferFromTender(state, tender) {
