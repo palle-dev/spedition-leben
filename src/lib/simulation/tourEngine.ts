@@ -492,8 +492,8 @@ export function confirmTour(state, params) {
   const plan = buildTourPlan(state, { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin });
   if (plan.error) throw new Error(plan.error);
 
-  const vehicle = state.vehicles.find(v => v.id === vehicleId);
-  const driver = state.drivers.find(d => d.id === driverId);
+  const vehicle = _vehicleById(state, vehicleId);
+  const driver = _driverById(state, driverId);
 
   // 2. Prüfe Ressourcen-Verfügbarkeit erneut
   // Für 24/7-Vorausplanung: Erlaube auch on_trip, wenn die neue Tour
@@ -1219,6 +1219,11 @@ export function suggestTours(state, opts) {
     // Bei 100 Fahrzeugen und 10 Aufträgen spart das 90% der buildTourPlan-Aufrufe.
     if (usedOrderIds.size >= totalAvailableOrders) break;
   }
+
+  // Lookup-Maps abbauen — verhindert stale Daten zwischen suggestTours-Aufrufen
+  state._vehicleMap = null;
+  state._driverMap = null;
+  state._orderMap = null;
 
   return { suggestions };
 }
