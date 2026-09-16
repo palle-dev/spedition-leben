@@ -1,26 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
-import { formatEuro, formatGameTime } from "@/lib/gameData";
-import { COURSE_CATALOG, getCourseById, qualTypeLabel, qualStatusLabel, enrollmentStatusLabel, apprenticeshipStatusLabel } from "@/lib/trainingData";
+import { formatGameTime } from "@/lib/gameData";
+import { qualTypeLabel, qualStatusLabel } from "@/lib/trainingData";
+import { getTrainingOverview } from "@/lib/trainingOverviewData";
 import Portrait from "@/components/ui/Portrait";
-import { BookOpen, GraduationCap, AlertCircle, Clock, Users, CheckCircle, Calendar } from "lucide-react";
+import { BookOpen, GraduationCap, AlertCircle, Clock, Users, CheckCircle } from "lucide-react";
 
 // Übersicht-Tab: zeigt aktive Teilnehmer, nächste Abschlüsse,
 // ablaufende Qualifikationen und offene Übernahmen.
+// Berechnet die Daten direkt aus dem State — kein Worker-Roundtrip,
+// der hängen bleiben kann.
 export default function TrainingOverviewTab() {
-  const { state, send } = useGame();
-  const [overview, setOverview] = useState(null);
-
-  async function loadOverview() {
-    try {
-      const r = await send("getTrainingOverview");
-      setOverview(r);
-    } catch (e) { setOverview(null); }
-  }
-
-  useEffect(() => { loadOverview(); }, [state.gameTime]);
-
-  if (!overview) return <div className="text-sm text-muted-foreground text-center py-4">Lade Übersicht…</div>;
+  const { state } = useGame();
+  const overview = useMemo(() => getTrainingOverview(state), [state]);
 
   const now = state.gameTime;
 
