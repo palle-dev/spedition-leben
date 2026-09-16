@@ -31,10 +31,10 @@ export default function MailModal({ open, onClose }) {
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <motion.div className="absolute inset-0 bg-black/50 backdrop-blur-sm" {...backdrop} onClick={onClose} />
           <motion.div
-            className="absolute left-1/2 top-1/2 w-[94vw] max-w-[1400px] h-[88vh] -translate-x-1/2 -translate-y-1/2 glass rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col"
+            className="relative w-[94vw] max-w-[1400px] h-[88vh] glass rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col"
             {...modalPop}
             role="dialog"
             aria-modal="true"
