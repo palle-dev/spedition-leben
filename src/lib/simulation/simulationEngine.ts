@@ -133,6 +133,7 @@ import {
   DG_PROFILES, TANK_TRUCK, TANK_TRUCK_LEASING, TANK_CLEANING_PROVIDERS,
   DG_EQUIP_EXTERNAL_COST_CENTS, DG_EQUIP_INTERNAL_MATERIAL_CENTS,
   DG_INSPECTION_EXTERNAL_COST_CENTS, TANK_CLEANING_COST_CENTS,
+  DG_HANDLING_FEE_TANK_CENTS, DG_HANDLING_FEE_VERSANDSTUECK_CENTS,
   handleDgCommand,
 } from "./dangerousGoodsEngine.ts";
 import {
@@ -173,6 +174,10 @@ import {
   setDevelopmentFocus as doSetFocus, startOnboarding, pauseOnboarding,
   resumeOnboarding, dismissOnboarding, markOnboardingReviewed, recordAutoDecisionDay,
 } from "./developmentEngine.ts";
+import { handleMailCommand } from "./mailCommands.ts";
+import { migrateSegmentFields, getOrderSegments, getOrderCharacteristics, getPrimarySegment } from "./segmentEngine.ts";
+import { migrateBusinessFocus, setBusinessFocus as doSetBusinessFocus, setBranchBusinessFocus as doSetBranchBusinessFocus, getBusinessFocus, getEffectiveFocusForBranch, getMarketWeightsForBranch, orderMatchesFocus, getFocusPriority, BUSINESS_FOCI } from "./businessFocusEngine.ts";
+import { migrateSegmentStats, recordSegmentDelivery, recordTankCleaning, recordEmptyTrip, getSegmentStats } from "./segmentStatsEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -236,16 +241,6 @@ function ensureNotBlocked(state) {
   if (isPlayerBlocked(state)) {
     throw new Error("Du bist derzeit mit einer privaten Aktivität beschäftigt. Operative Aktionen sind bis " + formatGameTime(nextBlockEnd(state)) + " gesperrt.");
   }
-}
-
-function checkMilestones(state, min) {
-  const set = (id, cond) => {
-    const m = state.milestones.find(x => x.id === id);
-    if (m && !m.achieved && cond) { m.achieved = true; m.achievedAtMin = min; }
-  };
-  set("m1", state.stats.totalDeliveries >= 1);
-  set("m2", state.stats.timelyDeliveries >= 10);
-  set("m3", state.vehicles.length >= 4);
 }
 
 // ---------- Initialzustand ----------
@@ -401,6 +396,7 @@ function completeTrip(state, trip, m, log) {
 
   if (trip.type === "empty") {
     onTripCompleted(state, trip, m, log);
+    recordEmptyTrip(state, trip);
     log.push({ type: "emptytrip_completed", trip: trip.id, vehicle: vehicle.id, driver: driver.id, atCity: finalCity });
     planSingleVehicle(state, vehicle, m, log);
     return;
@@ -441,6 +437,13 @@ function completeTrip(state, trip, m, log) {
   });
   onTripCompleted(state, trip, m, log);
   generateDriverDeliveryReport(state, driver, trip, order, m);
+  // Segment-Statistik: Lieferung erfassen
+  let _dgHandlingCents = 0;
+  if (order.isDangerousGoods) {
+    const _dgProfile = getDgProfile(order.dgProfileId);
+    if (_dgProfile) _dgHandlingCents = _dgProfile.transportType === "tank" ? DG_HANDLING_FEE_TANK_CENTS : DG_HANDLING_FEE_VERSANDSTUECK_CENTS;
+  }
+  recordSegmentDelivery(state, order, trip, onTime, payment, trip.fuelCents || 0, trip.tollCents || 0, 0, _dgHandlingCents);
   // Auftrag 32: DG-Lieferung statistisch erfassen
   if (order.isDangerousGoods) {
     recordDgDelivery(state, order, onTime, m);
@@ -650,6 +653,9 @@ function processEventsAt(state, m, log) {
   processApprenticeshipEvents(state, m, log);
   // Auftrag 32: Gefahrgut – Tankreinigung, Ausrüstung, Spielprüfung
   processTankCleaning(state, m, log);
+  for (const _le of log) {
+    if (_le.type === "tank_cleaning_completed" && _le.atMin === m) recordTankCleaning(state, TANK_CLEANING_COST_CENTS);
+  }
   processEquipmentJobs(state, m, log);
   processInspectionJobs(state, m, log);
   // 4b. Monatswechsel (Abschreibung, Periodenabschluss)
@@ -763,27 +769,10 @@ function planTrip(state, order, vehicle, driver) {
   return { phases: result.phases, totalKm, totalDuration: result.endMin - state.gameTime, endMin: result.endMin };
 }
 
-// ---------- Task-Parameter Extraktion ----------
-function extractTaskParams(body, state, conv) {
-  const params = {};
-  const orderMatch = body.match(/o_\d+/i);
-  if (orderMatch) params.orderId = orderMatch[0];
-  const tourMatch = body.match(/tour_\d+/i);
-  if (tourMatch) params.tourId = tourMatch[0];
-  const vehicleMatch = body.match(/v\d+/i);
-  if (vehicleMatch) params.vehicleId = vehicleMatch[0];
-  if (conv?.linkedRef) {
-    if (conv.linkedRef.type === "order") params.orderId = conv.linkedRef.id;
-    if (conv.linkedRef.type === "tour") params.tourId = conv.linkedRef.id;
-    if (conv.linkedRef.type === "vehicle") params.vehicleId = conv.linkedRef.id;
-  }
-  return params;
-}
-
 // ---------- Befehle ----------
 export function applyCommand(state, command, params) {
   _clearPlanCache(); migrateState(state);
-  [migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories].forEach(fn => fn(state));
+  [migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories, migrateSegmentFields, migrateBusinessFocus, migrateSegmentStats].forEach(fn => fn(state));
   if (state.bookings && state.bookings.length > 200) state.bookings = state.bookings.slice(-200);
   // Historie begrenzen: abgeschlossene Touren, Aufträge und Termine älter als 30 Tage
   // entfernen. Hält den Zustand kompakt und beschleunigt Laden/Speichern bei langen Spielen.
@@ -1838,134 +1827,6 @@ export function applyCommand(state, command, params) {
       break;
     }
 
-    // ---------- Postfach ----------
-
-    case "sendMail": {
-      const { conversationId, toId, subject, body, intentType } = p;
-      if (!body || !body.trim()) throw new Error("Nachrichtentext darf nicht leer sein.");
-      if (body.length > 10000) throw new Error("Nachricht darf maximal 10.000 Zeichen haben.");
-
-      let conv = null;
-      if (conversationId) {
-        conv = (state.mail?.conversations || []).find(c => c.id === conversationId);
-        if (!conv) throw new Error("Gespraech nicht gefunden.");
-      }
-
-      let recipientId = toId;
-      if (conv && !recipientId) {
-        recipientId = conv.participantIds.find(id => id !== "player");
-      }
-      if (!recipientId) throw new Error("Empfaenger erforderlich.");
-
-      const recipient = getPersonInfo(state, recipientId);
-      if (!recipient) throw new Error("Empfaenger nicht gefunden.");
-
-      // Intent erkennen
-      let intent = null;
-      if (intentType) {
-        intent = getIntentByType(intentType, recipient.roleKey);
-      } else {
-        intent = detectIntent(body, { recipientRoleKey: recipient.roleKey });
-      }
-
-      // Bei operativer Freigabe: Sperre pruefen
-      if (intent && intent.requiresDecision) {
-        ensureNotBlocked(state);
-      }
-
-      // Nachricht senden
-      const msg = deliverMessage(state, {
-        fromId: "player",
-        toId: recipientId,
-        subject: subject || (conv ? "Re: " + conv.subject : "Neue Nachricht"),
-        body,
-        gameTime: state.gameTime,
-        category: conv?.category || "operations",
-        priority: "normal",
-        conversationId: conv?.id,
-        intent,
-        status: "delivered",
-      });
-
-      // Staff-Task erstellen
-      if (intent && intent.createsTask) {
-        createStaffTask(state, {
-          employeeId: recipientId,
-          conversationId: msg.conversationId,
-          messageId: msg.id,
-          type: intent.type,
-          params: { body, conversationId: msg.conversationId, ...extractTaskParams(body, state, conv) },
-          earliestProcessMin: state.gameTime + 15,
-        });
-      } else if (!intent && !recipient.isFormer) {
-        createStaffTask(state, {
-          employeeId: recipientId,
-          conversationId: msg.conversationId,
-          messageId: msg.id,
-          type: "no_intent",
-          params: { body },
-          earliestProcessMin: state.gameTime + 15,
-        });
-      }
-
-      result = { ok: true, messageId: msg.id, conversationId: msg.conversationId, intent };
-      break;
-    }
-
-    case "saveDraft": {
-      const draft = saveDraft(state, p);
-      result = { ok: true, draftId: draft.id };
-      break;
-    }
-
-    case "deleteDraft": {
-      deleteDraft(state, p.draftId);
-      result = { ok: true };
-      break;
-    }
-
-    case "markMessageRead": {
-      markMessageRead(state, p.messageId, p.read !== false);
-      result = { ok: true };
-      break;
-    }
-
-    case "markConversationRead": {
-      markConversationRead(state, p.conversationId);
-      result = { ok: true };
-      break;
-    }
-
-    case "starMessage": {
-      starMessage(state, p.messageId, p.starred !== false);
-      result = { ok: true };
-      break;
-    }
-
-    case "archiveMessage": {
-      archiveMessage(state, p.messageId, p.archived !== false);
-      result = { ok: true };
-      break;
-    }
-
-    case "deleteConversation": {
-      deleteConversation(state, p.conversationId);
-      result = { ok: true };
-      break;
-    }
-
-    case "clearAllConversations": {
-      clearAllConversations(state);
-      result = { ok: true };
-      break;
-    }
-
-    case "exportCorrespondence": {
-      const data = exportCorrespondence(state);
-      result = { ok: true, export: data };
-      break;
-    }
-
     // ---------- Finanzierung (Auftrag 17) ----------
 
     case "takeLoan": {
@@ -2481,6 +2342,28 @@ export function applyCommand(state, command, params) {
       break;
     }
 
+    case "setBusinessFocus": {
+      const r = doSetBusinessFocus(state, p.focusId);
+      result = r;
+      break;
+    }
+
+    case "setBranchBusinessFocus": {
+      const r = doSetBranchBusinessFocus(state, p.branchId, p.focusId);
+      result = r;
+      break;
+    }
+
+    case "getBusinessFocus": {
+      result = { ok: true, ...getBusinessFocus(state) };
+      break;
+    }
+
+    case "getSegmentStats": {
+      result = { ok: true, ...getSegmentStats(state) };
+      break;
+    }
+
     case "startOnboarding": {
       const r = startOnboarding(state);
       result = r;
@@ -2523,6 +2406,7 @@ export function applyCommand(state, command, params) {
       const delegationResult = handleDelegationCommand(state, command, p);
       if (delegationResult !== null) { result = delegationResult; break; }
       const storyResult = handleStoryCommand(state, command, p); if (storyResult !== null) { result = storyResult; break; }
+      const mailResult = handleMailCommand(state, command, p); if (mailResult !== null) { result = mailResult; break; }
       throw new Error("Unbekannter Befehl: " + command);
     }
   }

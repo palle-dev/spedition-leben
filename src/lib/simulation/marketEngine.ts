@@ -19,6 +19,7 @@ import {
   DG_PROFILES, makeDgOffer, computeDgFleetN,
 } from "./dangerousGoodsEngine.ts";
 import { pushEvent } from "./eventLog.ts";
+import { getMarketWeightsForBranch, migrateBusinessFocus } from "./businessFocusEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 
@@ -332,13 +333,41 @@ function makeMarketOffer(state, m) {
   const anchors = computeAnchorCities(state);
   const customer = pickCustomer(state, anchors, rng);
   const fromCity = pickDepot(customer, rng);
-  const toCity = pickDestination(state, customer, fromCity, anchors, rng);
+
+  // Business-Focus: Gewichte für Angebotstyp-Verteilung
+  migrateBusinessFocus(state);
+  const weights = getMarketWeightsForBranch(state, "b1");
+  const wRegional = weights.regional || 0.35;
+  const wExpress = weights.express || 0.20;
+  const wStandard = weights.standard || 0.35;
+  // dangerousGoods wird separat über DG-Welle generiert
+
+  // Angebotstyp gewichtet nach Fokus
+  const typeRoll = rng();
+  let offerType;
+  if (typeRoll < wExpress) {
+    offerType = "express";
+  } else if (typeRoll < wExpress + wStandard * 0.35) {
+    offerType = "advance";
+  } else {
+    offerType = "normal";
+  }
+
+  // Bei Regional-Fokus: bevorzugt kurze Distanzen (≤150 km)
+  let toCity;
+  if (wRegional > 0.45 && rng() < wRegional) {
+    const nearby = CITIES.filter(c => c !== fromCity && getDistance(fromCity, c) <= 150);
+    if (nearby.length > 0) {
+      toCity = nearby[Math.floor(rng() * nearby.length)];
+    } else {
+      toCity = pickDestination(state, customer, fromCity, anchors, rng);
+    }
+  } else {
+    toCity = pickDestination(state, customer, fromCity, anchors, rng);
+  }
+
   const cargo = customer.cargoTypes[Math.floor(rng() * customer.cargoTypes.length)];
   const tons = 4 + Math.floor(rng() * 9); // 4–12 t
-
-  // Angebotsart: 60 % normal, 25 % Vorlauf, 15 % Express
-  const typeRoll = rng();
-  const offerType = typeRoll < 0.60 ? "normal" : typeRoll < 0.85 ? "advance" : "express";
 
   const km = getDistance(fromCity, toCity);
   const relFactor = relationFactor(state, fromCity, toCity);
