@@ -2,7 +2,6 @@ import React, { useMemo, useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatGameTime, formatEuro } from "@/lib/gameData";
 import { Briefcase, TrendingDown, FileText, Lightbulb, Calculator, Package, Sparkles, Truck, AlertTriangle, Layers, GraduationCap } from "lucide-react";
-import AssistantConfig from "./AssistantConfig";
 
 // Übersicht aller automatisierten Aufgaben des Assistenten der Geschäftsführung.
 export default function AssistantLog() {
@@ -33,7 +32,6 @@ export default function AssistantLog() {
   if (counts.all === 0) {
     return (
       <div className="space-y-5">
-        <AssistantConfig />
         <div className="glass border border-white/10 rounded-xl p-8 text-center">
           <div className="grid place-items-center w-12 h-12 rounded-2xl bg-white/5 mx-auto mb-3">
             <Briefcase className="w-6 h-6 text-muted-foreground/30" />
@@ -63,9 +61,6 @@ export default function AssistantLog() {
 
   return (
     <div className="space-y-5">
-      {/* Konfiguration */}
-      <AssistantConfig />
-
       {/* Zusammenfassungs-Karten */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <SummaryCard icon={Package} label="Auto-angenommen" value={counts.order_accepted} sub="Aufträge" color="text-lime" bg="bg-lime/10" />

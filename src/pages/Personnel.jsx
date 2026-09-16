@@ -16,6 +16,7 @@ import SatisfactionDetail from "@/components/personnel/SatisfactionDetail";
 import DevelopmentSection from "@/components/personnel/DevelopmentSection";
 import PersonTrainingSection from "@/components/personnel/PersonTrainingSection";
 import PersonAbsenceSection from "@/components/personnel/PersonAbsenceSection";
+import AssistantConfig from "@/components/journal/AssistantConfig";
 import PageHint from "@/components/help/PageHint";
 import { UserPlus, Users, MapPin, Clock, Truck, Headset, Sparkles, Wrench, Calculator, Settings, Building2, Check, X, AlertCircle, Briefcase, LogOut, RotateCcw, HeartHandshake, GraduationCap, Search, Calendar } from "lucide-react";
 
@@ -422,6 +423,13 @@ function PersonnelDetail({ personId, kind, onTerminate }) {
               ) : (
                 <DispatcherSetupSummary employee={person} onEdit={() => setShowDispatcherSetup(true)} />
               )}
+            </Section>
+          )}
+
+          {/* Assistenten-Konfiguration (nur Assistenten) */}
+          {kind === "employee" && person.role === "assistant" && (
+            <Section title="Assistent der Geschäftsführung" icon={Briefcase}>
+              <AssistantConfig />
             </Section>
           )}
 
