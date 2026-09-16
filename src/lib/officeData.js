@@ -371,6 +371,49 @@ function findPerson(state, personId) {
     (state.employees || []).find(e => e.id === personId);
 }
 
+// ---------- Stillstandgründe (Automatik) ----------
+// Gruppiert freie Fahrzeuge nach idleReason und liefert eine
+// kompakte, priorisierte Übersicht für die Büro-Zentralansicht.
+export function getIdleReasonSummary(state) {
+  const freeVehicles = (state.vehicles || []).filter(v =>
+    v.status === "free" && v.idleReason
+  );
+  if (freeVehicles.length === 0) return [];
+
+  // Gruppieren nach Grund
+  const groups = {};
+  for (const v of freeVehicles) {
+    const key = v.idleReason;
+    if (!groups[key]) groups[key] = { reason: key, vehicles: [], count: 0 };
+    groups[key].vehicles.push(vehicleDisplayName(v));
+    groups[key].count++;
+  }
+
+  // Priorisierung: kritische Gründe zuerst
+  const priorityRank = (reason) => {
+    if (reason.includes("Wartung erforderlich")) return 0;
+    if (reason.includes("Gefahrgut-Befugnis")) return 1;
+    if (reason.includes("Freigabe ausstehend")) return 2;
+    if (reason.includes("Keine Fahrer")) return 3;
+    if (reason.includes("Alle Fahrer ruhen")) return 4;
+    if (reason.includes("Kein freier Fahrer")) return 5;
+    if (reason.includes("Bestätigung fehlgeschlagen")) return 6;
+    if (reason.includes("nicht profitab")) return 7;
+    if (reason.includes("autonomer Modus")) return 8;
+    if (reason.includes("Keine") && reason.includes("Aufträge")) return 9;
+    return 10;
+  };
+
+  return Object.values(groups)
+    .sort((a, b) => priorityRank(a.reason) - priorityRank(b.reason))
+    .map(g => ({
+      reason: g.reason,
+      count: g.count,
+      vehicles: g.vehicles.slice(0, 4),
+      more: Math.max(0, g.vehicles.length - 4),
+    }));
+}
+
 // ---------- Mitarbeiteraktivität ----------
 export function getTeamActivity(state, limit = 20) {
   const events = (state.events || []).slice().reverse();

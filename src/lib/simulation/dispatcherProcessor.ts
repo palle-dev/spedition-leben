@@ -240,6 +240,9 @@ export function processDispatcher(state, emp, m, log) {
   const usedOrderIds = new Set();
   let planned = 0;
   const capacity = Math.max(emp.capacity || 6, poolVehicles.length);
+  // Pro-Fahrzeug: konkreter Grund, warum die Tour nicht bestätigt wurde.
+  // Wird für präzise Stillstandsgründe in der UI ausgewertet.
+  const vehicleFailReasons = new Map();
 
   for (const sug of result.suggestions) {
     if (planned >= capacity) break;
@@ -251,10 +254,19 @@ export function processDispatcher(state, emp, m, log) {
       if (!o || (o.status !== "offered" && o.status !== "angenommen")) return false;
       return true;
     });
-    if (!allAvailable) continue;
+    if (!allAvailable) {
+      vehicleFailReasons.set(sug.vehicleId, "Aufträge zwischenzeitlich nicht mehr verfügbar");
+      continue;
+    }
     const newOrderIds = sug.plan.acceptedOrderIds || [];
-    if (newOrderIds.length > 0 && sug.plan.totalContributionCents <= 0) continue;
-    if (sug.orderIds.some(oid => state.orders.find(x => x.id === oid)?.isDangerousGoods) && !hasDgDispatch(state, emp.id)) continue;
+    if (newOrderIds.length > 0 && sug.plan.totalContributionCents <= 0) {
+      vehicleFailReasons.set(sug.vehicleId, "Tour nicht profitabel (" + ((sug.plan.totalContributionCents || 0) / 100).toFixed(0) + " € Beitrag)");
+      continue;
+    }
+    if (sug.orderIds.some(oid => state.orders.find(x => x.id === oid)?.isDangerousGoods) && !hasDgDispatch(state, emp.id)) {
+      vehicleFailReasons.set(sug.vehicleId, "Gefahrgut-Befugnis fehlt beim Disponenten");
+      continue;
+    }
 
     // Budget-Prüfung: Kraftstoff + Maut für diese Tour
     const tourFuelCents = sug.plan.fuelCents || 0;
@@ -262,6 +274,7 @@ export function processDispatcher(state, emp, m, log) {
     const tourCostCents = tourFuelCents + tourTollCents;
     const authCheck = checkSpendAuthority(state, emp.id, tourCostCents, { branchId: emp.assignedBranchId || emp.branchId });
     if (!authCheck.allowed) {
+      vehicleFailReasons.set(sug.vehicleId, "Freigabe ausstehend: " + authCheck.reason);
       // Freigabe anfordern wenn Kosten über Befugnis
       if (authCheck.violatedRule === "maxSpendPerAction" || authCheck.violatedRule === "dailyBudget") {
         createApprovalRequest(state, {
@@ -355,6 +368,7 @@ export function processDispatcher(state, emp, m, log) {
       onTourConfirmed(state, tour, emp.id, m);
       log.push({ type: "dispatcher_planned", employee: emp.id, orders: sug.orderIds, vehicle: sug.vehicleId, atMin: m, contributionCents: sug.plan.totalContributionCents });
     } catch (e) {
+      vehicleFailReasons.set(sug.vehicleId, "Tour-Bestätigung fehlgeschlagen: " + e.message);
       log.push({ type: "dispatcher_plan_failed", employee: emp.id, orders: sug.orderIds, error: e.message, atMin: m });
     }
   }
@@ -368,6 +382,8 @@ export function processDispatcher(state, emp, m, log) {
     let reason = "Kein geeigneter Auftrag gefunden";
     if (v.condition < 20) {
       reason = "Zustand unter 20 – Wartung erforderlich";
+    } else if (vehicleFailReasons.has(v.id)) {
+      reason = vehicleFailReasons.get(v.id);
     } else if (suggestedVehicleIds.has(v.id)) {
       reason = "Tour-Bestätigung fehlgeschlagen";
     } else {
@@ -389,7 +405,10 @@ export function processDispatcher(state, emp, m, log) {
       } else if (!hasUnplannedAccepted && !hasOfferedOrders) {
         reason = acceptNew ? "Keine (profitablen) Aufträge verfügbar" : "Keine angenommenen Aufträge – autonomer Modus oder manuelle Annahme nötig";
       } else {
-        reason = "Kein profitabler Auftrag gefunden";
+        const consideredOrders = (state.orders || []).filter(o =>
+          (o.status === "offered" && o.acceptDeadlineMin > m) || o.status === "angenommen"
+        ).length;
+        reason = "Kein profitabler Auftrag gefunden (" + consideredOrders + " geprüft)";
       }
     }
     v.idleReason = reason;

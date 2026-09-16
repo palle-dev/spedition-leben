@@ -11,6 +11,7 @@ import OfficeBranches from "@/components/office/OfficeBranches";
 import OfficeCustomerRelations from "@/components/office/OfficeCustomerRelations";
 import OfficeApprovalQueue from "@/components/office/OfficeApprovalQueue";
 import UtilizationControl from "@/components/office/UtilizationControl";
+import IdleReasonsList from "@/components/office/IdleReasonsList";
 
 // Büro – zentrale Führungsansicht für die gesamte Firma.
 // Kompakte Kopfzeile, Kennzahlen, Flottenlage, Entscheidungen,
@@ -38,6 +39,9 @@ export default function Office() {
           <DecisionsPanel state={state} />
         </div>
       </div>
+
+      {/* Stillstandgründe: Warum die Automatik nicht disponiert hat */}
+      <IdleReasonsList state={state} />
 
       {/* Auslastungs-Steuerung (flottenweit) */}
       <UtilizationControl state={state} />
