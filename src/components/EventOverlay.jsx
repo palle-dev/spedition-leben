@@ -150,10 +150,11 @@ function InvitationContent({ data }) {
 }
 
 function Vital({ label, value, invert }) {
-  const color = invert ? (value >= 80 ? "text-red-300" : value >= 50 ? "text-amber-300" : "text-lime") : (value >= 60 ? "text-lime" : value >= 30 ? "text-amber-300" : "text-red-300");
+  const rounded = Math.round(value || 0);
+  const color = invert ? (rounded >= 80 ? "text-red-300" : rounded >= 50 ? "text-amber-300" : "text-lime") : (rounded >= 60 ? "text-lime" : rounded >= 30 ? "text-amber-300" : "text-red-300");
   return (
     <div className="text-center">
-      <div className={`text-lg font-medium tabular-nums ${color}`}>{value}</div>
+      <div className={`text-lg font-medium tabular-nums ${color}`}>{rounded}</div>
       <div className="text-[10px] text-muted-foreground mt-0.5">{label}</div>
     </div>
   );
