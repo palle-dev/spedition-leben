@@ -4,7 +4,7 @@ import { loadRouteGeometries, buildPlanRouteGeoJSON } from "@/lib/geoData";
 import DispatchMap from "@/components/dispatch/DispatchMap";
 import DispatchWorkspace from "@/components/dispatch/DispatchWorkspace";
 import PlanningBoard from "@/components/planning/PlanningBoard";
-import { Truck, Home, Route as RouteIcon, TrafficCone, Sparkles, Network } from "lucide-react";
+import { Truck, Home, Route as RouteIcon, TrafficCone, Network } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useHeaderSlot } from "@/lib/headerSlot";
 import DispatchToolbar from "@/components/dispatch/DispatchToolbar";
@@ -152,10 +152,8 @@ export default function Dispatch() {
       <DispatchToolbar
         runningCount={runningCount}
         acceptedCount={acceptedCount}
-        onPlan={handlePlanClick}
         onZuzuweisen={handleZuzuweisenClick}
         onTouren={() => { setActiveTab("touren"); setSelectedTripId(null); if (window.innerWidth < 1024) setMobileView("list"); }}
-        onOptimize={() => setOptimizeOpen(true)}
         search={search}
         setSearch={setSearch}
         searchOpen={searchOpen}
@@ -163,9 +161,9 @@ export default function Dispatch() {
         mobileView={mobileView}
         setMobileView={setMobileView}
         showPlanning={showPlanning}
-        onTogglePlanning={() => { setShowPlanning(s => !s); if (!showPlanning) setShowPartners(false); }}
+        onTogglePlanning={() => { setShowPlanning(s => !s); setShowPartners(false); }}
         showPartners={showPartners}
-        onTogglePartners={() => { setShowPartners(s => !s); if (!showPartners) setShowPlanning(false); }}
+        onTogglePartners={() => { setShowPartners(s => !s); setShowPlanning(false); }}
         partnerTransportCount={((state?.partners?.transports || []).filter(t => t.status === "booked" || t.status === "in_progress").length)}
       />
     );

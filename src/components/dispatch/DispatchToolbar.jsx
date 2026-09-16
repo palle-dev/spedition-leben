@@ -1,11 +1,11 @@
 import React from "react";
-import { Plus, Truck, Package, Search, X, Map, List, Sparkles, CalendarDays, Building2 } from "lucide-react";
+import { Truck, Package, Search, X, Map, List, CalendarDays, Building2 } from "lucide-react";
 import MarketPriorityControl from "./MarketPriorityControl";
 
 // Kompakte Werkzeugleiste für den globalen Header (nur auf /disposition sichtbar).
 // Alle Steuerelemente der Disposition in einer Zeile — kein separater Toolbar-Row.
 export default function DispatchToolbar({
-  runningCount, acceptedCount, onPlan, onZuzuweisen, onTouren, onOptimize,
+  runningCount, acceptedCount, onZuzuweisen, onTouren,
   search, setSearch, searchOpen, setSearchOpen,
   mobileView, setMobileView,
   showPlanning, onTogglePlanning, showPartners, onTogglePartners, partnerTransportCount,
@@ -20,7 +20,7 @@ export default function DispatchToolbar({
           className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition ${
             showPlanning ? "bg-lime text-ink" : "text-muted-foreground hover:text-foreground"
           }`}
-          title="Wochenplanung öffnen"
+          title={showPlanning ? "Zurück zur Disposition" : "Wochenplanung öffnen"}
         >
           <CalendarDays className="w-3 h-3" />
           <span className="hidden lg:inline">Planung</span>
@@ -30,7 +30,7 @@ export default function DispatchToolbar({
           className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition relative ${
             showPartners ? "bg-lime text-ink" : "text-muted-foreground hover:text-foreground"
           }`}
-          title="Partner-Speditionen"
+          title={showPartners ? "Zurück zur Disposition" : "Partner-Speditionen"}
         >
           <Building2 className="w-3 h-3" />
           <span className="hidden lg:inline">Partner</span>
@@ -41,15 +41,6 @@ export default function DispatchToolbar({
           )}
         </button>
       </div>
-
-      <button
-        onClick={onPlan}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-lime text-ink text-xs font-semibold hover:brightness-110 transition active:scale-95 shrink-0"
-      >
-        <Plus className="w-3.5 h-3.5" />
-        <span className="hidden xl:inline">Auftrag planen</span>
-        <span className="xl:hidden">Auftrag</span>
-      </button>
 
       <div className="flex items-center gap-1 shrink-0">
         <button
@@ -96,17 +87,6 @@ export default function DispatchToolbar({
           title="Suchen"
         >
           <Search className="w-3.5 h-3.5" />
-        </button>
-      )}
-
-      {onOptimize && (
-        <button
-          onClick={onOptimize}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-lime/10 border border-lime/30 text-lime text-xs font-semibold hover:border-lime/50 transition active:scale-95 shrink-0"
-          title="Intelligente Routen-Optimierung"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span className="hidden xl:inline">Optimieren</span>
         </button>
       )}
 
