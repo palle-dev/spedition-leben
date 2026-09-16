@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, CheckCircle2, XCircle, ArrowRight, Clock } from "lucide-react";
+import { AlertTriangle, CheckCircle2, XCircle, ArrowRight, Clock, Settings } from "lucide-react";
 import { useGame } from "@/lib/gameContext";
 import { getUrgencyColor, getViolatedRuleLabel, formatCents } from "@/lib/delegationData";
 
@@ -38,10 +38,16 @@ export default function OfficeApprovalQueue({ state }) {
           <AlertTriangle className="w-4 h-4 text-amber-300/80" /> Ausstehende Freigaben
           <span className="text-xs text-muted-foreground tabular-nums">({pending.length})</span>
         </h3>
-        <button onClick={() => navigate("/fuehrung")}
-          className="text-xs text-lime/70 hover:text-lime transition flex items-center gap-1">
-          Führung <ArrowRight className="w-3 h-3" />
-        </button>
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate("/fuehrung")}
+            className="text-xs text-muted-foreground hover:text-foreground transition flex items-center gap-1">
+            <Settings className="w-3 h-3" /> Limits konfigurieren
+          </button>
+          <button onClick={() => navigate("/fuehrung")}
+            className="text-xs text-lime/70 hover:text-lime transition flex items-center gap-1">
+            Führung <ArrowRight className="w-3 h-3" />
+          </button>
+        </div>
       </div>
 
       <div className="space-y-2.5">

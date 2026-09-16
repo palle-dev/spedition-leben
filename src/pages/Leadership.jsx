@@ -7,7 +7,7 @@ import {
 } from "@/lib/delegationData";
 import {
   Shield, CheckCircle2, XCircle, Clock, TrendingUp, Wallet,
-  Users, AlertTriangle, ChevronDown, ChevronUp, Building2, Settings,
+  Users, AlertTriangle, ChevronDown, ChevronUp, Building2, Settings, ArrowRight,
 } from "lucide-react";
 
 // Führung & Delegation — zentrale Steuerung der Mitarbeiter-Automatik.
@@ -257,6 +257,13 @@ export default function Leadership() {
       {/* Tab: Freigaben */}
       {tab === "approvals" && (
         <div className="space-y-4">
+          <div className="glass border border-white/10 rounded-xl p-3 flex items-center gap-2 text-xs">
+            <Settings className="w-3.5 h-3.5 text-lime/70 shrink-0" />
+            <span className="text-muted-foreground">Freigabe-Limits anpassen unter</span>
+            <button onClick={() => setTab("rules")} className="text-lime hover:text-lime/80 transition flex items-center gap-1">
+              Führungsregeln <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
           {summary.pending.length === 0 ? (
             <div className="glass border border-white/10 rounded-xl p-8 text-center">
               <CheckCircle2 className="w-8 h-8 text-lime/50 mx-auto mb-3" />
