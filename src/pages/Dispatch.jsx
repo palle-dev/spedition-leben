@@ -203,7 +203,7 @@ export default function Dispatch() {
       ) : (
       <div className="flex-1 min-h-0 flex flex-col relative">
         {/* Arbeitsbereich — volle Breite */}
-        <div className={`min-h-0 flex flex-col ${mobileView === "map" ? "hidden" : "flex-1"} lg:flex lg:flex-1 lg:min-w-0 border-t lg:border-t-0 border-white/10 bg-surface/90 backdrop-blur-2xl`}>
+        <div className={`min-h-0 flex flex-col ${mobileView === "map" ? "hidden" : "flex-1"} lg:flex lg:flex-1 lg:min-w-0 border-t lg:border-t-0 border-white/10`}>
           <div className="w-full max-w-[1600px] mx-auto flex-1 min-h-0 flex flex-col px-4 sm:px-6 lg:px-12">
           <DispatchWorkspace
             activeTab={activeTab}
