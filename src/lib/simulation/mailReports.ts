@@ -285,65 +285,13 @@ export function generateEmployeeIntroduction(state, emp, m) {
 // ---------- Event-Hooks ----------
 
 export function onOrderAccepted(state, order, acceptedById, m) {
-  if (!acceptedById || acceptedById === "player") return; // Spieler-Aktion: keine Mail
-  const empInfo = getPersonInfo(state, acceptedById);
-  if (!empInfo.isEmployee) return;
-
-  const lines = [];
-  lines.push("Ich habe den Auftrag " + order.id + " von " + order.customer + " angenommen.");
-  lines.push("");
-  lines.push("Route: " + order.fromCity + " -> " + order.toCity);
-  lines.push("Ladung: " + order.cargo + ", " + order.tons + " t");
-  lines.push("Verguetung: " + formatEuro(order.paymentCents));
-  lines.push("Lieferfrist: " + formatGameTime(order.deliveryDeadlineMin));
-  lines.push("");
-  lines.push("Ich werde nun eine passende Tour einplanen.");
-
-  deliverMessage(state, {
-    fromId: acceptedById, toId: "player",
-    subject: order.id + " angenommen: " + order.fromCity + " -> " + order.toCity,
-    body: lines.join("\n"),
-    gameTime: m, category: "dispatch", priority: "normal",
-    sourceEvent: "order_accepted_by_dispatcher",
-    dedupKey: "order_accepted:" + order.id + ":" + acceptedById,
-    linkedRefs: [{ type: "order", id: order.id }],
-  });
+  // Deaktiviert: Tour-Annahme-Benachrichtigungen werden nicht mehr als Mail versendet.
+  return;
 }
 
 export function onTourConfirmed(state, tour, confirmedById, m) {
-  if (!confirmedById || confirmedById === "player") return;
-  const empInfo = getPersonInfo(state, confirmedById);
-  if (!empInfo.isEmployee) return;
-
-  const vehicle = state.vehicles.find(v => v.id === tour.vehicleId);
-  const driver = state.drivers.find(d => d.id === tour.driverId);
-  const orders = (tour.orderIds || []).map(oid => state.orders.find(o => o.id === oid)).filter(Boolean);
-  const primaryOrder = orders[0];
-
-  const lines = [];
-  lines.push("Ich habe " + (orders.length === 1 ? "den Auftrag" : "die Auftraege") + " verbindlich eingeplant.");
-  lines.push("");
-  if (vehicle) lines.push("Fahrzeug: " + vehicleLabel(vehicle));
-  if (driver) lines.push("Fahrer: " + driver.name);
-  lines.push("Start: " + formatGameTime(tour.startMin || m));
-  if (tour.endMin) lines.push("Geplante Lieferung: " + formatGameTime(tour.endMin));
-  lines.push("");
-  if (primaryOrder) {
-    lines.push("Auftrag " + primaryOrder.id + ": " + primaryOrder.customer);
-    lines.push("Verguetung: " + formatEuro(primaryOrder.paymentCents));
-  }
-  lines.push("");
-  lines.push("Verwendete Befugnis: " + workModeText(empInfo.roleKey === "dispatcher_senior" ? "autonomous" : "dispatch_accepted"));
-
-  deliverMessage(state, {
-    fromId: confirmedById, toId: "player",
-    subject: "Tour eingeplant: " + (primaryOrder ? primaryOrder.customer : "Auftrag"),
-    body: lines.join("\n"),
-    gameTime: m, category: "dispatch", priority: "normal",
-    sourceEvent: "tour_confirmed_by_dispatcher",
-    dedupKey: "tour_confirmed:" + tour.id + ":" + confirmedById,
-    linkedRefs: [{ type: "tour", id: tour.id }, ...(primaryOrder ? [{ type: "order", id: primaryOrder.id }] : [])],
-  });
+  // Deaktiviert: Tour-Planungs-Benachrichtigungen werden nicht mehr als Mail versendet.
+  return;
 }
 
 export function onEmployeeHired(state, emp, m) {
