@@ -43,9 +43,6 @@ export default function ShellHeader() {
       {/* Marke */}
       <button onClick={() => navigate("/")} className="flex items-center gap-2.5 shrink-0" aria-label="FRACHTFIEBER – zum Büro">
         <FernwerkSignet size={26} />
-        <div className="hidden sm:block leading-none">
-          <div className="text-[10px] tracking-[0.04em] text-muted-foreground">{state.company.name}</div>
-        </div>
       </button>
 
       {/* Welt-Umschaltung */}
