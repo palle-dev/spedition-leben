@@ -889,6 +889,7 @@ export function applyCommand(state, command, params) {
       const o = state.orders.find(x => x.id === p.orderId);
       if (!o) throw new Error("Auftrag nicht gefunden.");
       if (o.status !== "angenommen") throw new Error("Auftrag muss zuerst angenommen werden.");
+      if (o.reservedByTourId) throw new Error("Auftrag ist bereits für eine Tour reserviert: " + o.reservedByTourId);
       if (state.trips.some(t => t.orderId === o.id && t.status === "in_progress")) throw new Error("Für diesen Auftrag läuft bereits eine Fahrt.");
       const v = state.vehicles.find(x => x.id === p.vehicleId);
       if (!v) throw new Error("Fahrzeug nicht gefunden.");

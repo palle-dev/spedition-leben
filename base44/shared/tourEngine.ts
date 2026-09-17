@@ -1058,6 +1058,7 @@ export function suggestTours(state, opts) {
       o.deliveryDeadlineMin > startMin &&
       o.tons <= vehicle.capacityTons &&
       !usedOrderIds.has(o.id) &&
+      !o.reservedByTourId &&
       !(state.tours || []).some(t => t.status === "active" && (t.deployments || []).some(d => d.orderId === o.id && d.status !== "cancelled"))
     );
 
@@ -1069,6 +1070,7 @@ export function suggestTours(state, opts) {
       o.deliveryDeadlineMin > startMin &&
       o.tons <= vehicle.capacityTons &&
       !usedOrderIds.has(o.id) &&
+      !o.reservedByTourId &&
       !(state.tours || []).some(t => t.status === "active" && (t.deployments || []).some(d => d.orderId === o.id && d.status !== "cancelled"))
     ) : [];
 

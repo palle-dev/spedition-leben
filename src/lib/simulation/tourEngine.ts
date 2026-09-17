@@ -1067,6 +1067,7 @@ export function suggestTours(state, opts) {
     (o.status === "angenommen" || (acceptNew && o.status === "offered")) &&
     o.deliveryDeadlineMin > startMin - 240 &&
     !activeTourOrderIds.has(o.id) &&
+    !o.reservedByTourId &&
     (!restrictSet || restrictSet.has(o.id))
   ).length;
 
@@ -1146,6 +1147,7 @@ export function suggestTours(state, opts) {
       checkBodyTypeCompatibility(o, vehicle).ok &&
       !usedOrderIds.has(o.id) &&
       !activeTourOrderIds.has(o.id) &&
+      !o.reservedByTourId &&
       (!restrictSet || restrictSet.has(o.id))
     ).sort((a, b) => a.deliveryDeadlineMin - b.deliveryDeadlineMin);
 
@@ -1159,6 +1161,7 @@ export function suggestTours(state, opts) {
       checkBodyTypeCompatibility(o, vehicle).ok &&
       !usedOrderIds.has(o.id) &&
       !activeTourOrderIds.has(o.id) &&
+      !o.reservedByTourId &&
       (!restrictSet || restrictSet.has(o.id))
     ) : [];
 
