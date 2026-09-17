@@ -1,5 +1,4 @@
 import React from "react";
-import { Image } from "@/components/ui/image";
 
 const LOGO_URL = "https://media.base44.com/images/public/6aa52ebc01a939da57f8b78f/63a723323_logo-dunkler-hintergrund.png";
 
@@ -9,13 +8,12 @@ const LOGO_URL = "https://media.base44.com/images/public/6aa52ebc01a939da57f8b78
 // nur Monogramm und Schrift erscheinen auf jedem Untergrund.
 export default function FernwerkSignet({ size = 32, className = "", color, strokeWidth }) {
   return (
-    <div className={`flex items-center ${className}`} style={{ height: size }}>
-      <Image
-        src={LOGO_URL}
-        alt="FRACHTFIEBER"
-        fittingType="fit"
-        className="h-full w-auto mix-blend-lighten"
-      />
-    </div>
+    <img
+      src={LOGO_URL}
+      alt="FRACHTFIEBER"
+      height={size}
+      style={{ height: size, width: "auto", mixBlendMode: "lighten" }}
+      className={className}
+    />
   );
 }
