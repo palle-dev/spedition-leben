@@ -377,6 +377,21 @@ export function terminateContractEarly(state, contractId) {
   contract.status = "terminated";
   contract.earlyTerminatedAtMin = state.gameTime;
 
+  // Paket 4: Noch nicht disponierte Vertragsaufträge (angenommen) stornieren.
+  // Bereits unterwegs/gelieferte Aufträge bleiben bestehen (siehe Nachricht).
+  for (const oid of contract.orderIds || []) {
+    const o = state.orders.find(x => x.id === oid);
+    if (!o) continue;
+    if (o.status === "angenommen") {
+      o.status = "storniert";
+      o.deliveredAtMin = state.gameTime;
+      o.history = o.history || [];
+      o.history.push({ type: "contract_terminated_cancelled", min: state.gameTime, reason: "Vertrag vorzeitig beendet" });
+      if (o.reservedByTourId) o.reservedByTourId = null;
+      contract.cancelledCount = (contract.cancelledCount || 0) + 1;
+    }
+  }
+
   // Einmalige Vertrauensminderung
   const r = getCustomerRelation(state, contract.customerId);
   if (r) {

@@ -193,18 +193,29 @@ export function cancelMaintenanceOrder(state, { orderId }) {
   const order = (state.workshop?.maintenanceOrders || []).find(o => o.id === orderId);
   if (!order) throw new Error("Wartungsauftrag nicht gefunden.");
   if (["completed", "cancelled"].includes(order.status)) throw new Error("Auftrag bereits abgeschlossen oder storniert.");
-  if (order.materialConsumed) throw new Error("Begonnene Wartung kann nicht storniert werden. Unterbrechung erforderlich.");
+  // Paket 4: Unterbrochene Aufträge (Mechaniker abwesend) dürfen auch nach
+  // Materialverbrauch storniert werden — sonst bleibt das Fahrzeug dauerhaft
+  // im Wartungsstatus blockiert, wenn der Mechaniker z.B. im Urlaub ist.
+  if (order.materialConsumed && order.status !== "interrupted") {
+    throw new Error("Begonnene Wartung kann nicht storniert werden. Unterbrechung erforderlich.");
+  }
 
   // Slot freigeben
   if (order.slotId) {
     const slot = (state.workshop?.slots || []).find(s => s.id === order.slotId);
     if (slot) { slot.status = "free"; slot.currentOrderId = null; }
   }
+  // Fahrzeug freigeben, falls es in Wartung war (unterbrochener Auftrag)
+  const v = (state.vehicles || []).find(x => x.id === order.vehicleId);
+  if (v && v.status === "maintenance") {
+    v.status = "free";
+    v.maintenanceUntil = null;
+  }
   order.status = "cancelled";
   order.cancelledAtMin = state.gameTime;
   order.working = false;
   order.workSessionStart = null;
-  order.history.push({ type: "cancelled", atMin: state.gameTime });
+  order.history.push({ type: "cancelled", atMin: state.gameTime, reason: order.materialConsumed ? "Unterbrochene Wartung abgebrochen" : "Storniert" });
   return { ok: true };
 }
 

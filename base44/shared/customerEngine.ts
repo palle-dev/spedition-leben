@@ -374,6 +374,21 @@ export function terminateContractEarly(state, contractId) {
   contract.status = "terminated";
   contract.earlyTerminatedAtMin = state.gameTime;
 
+  // Paket 4: Noch nicht disponierte Vertragsaufträge (angenommen) stornieren.
+  // Bereits unterwegs/gelieferte Aufträge bleiben bestehen (siehe Nachricht).
+  for (const oid of contract.orderIds || []) {
+    const o = state.orders.find(x => x.id === oid);
+    if (!o) continue;
+    if (o.status === "angenommen") {
+      o.status = "storniert";
+      o.deliveredAtMin = state.gameTime;
+      o.history = o.history || [];
+      o.history.push({ type: "contract_terminated_cancelled", min: state.gameTime, reason: "Vertrag vorzeitig beendet" });
+      if (o.reservedByTourId) o.reservedByTourId = null;
+      contract.cancelledCount = (contract.cancelledCount || 0) + 1;
+    }
+  }
+
   // Einmalige Vertrauensminderung
   const r = getCustomerRelation(state, contract.customerId);
   if (r) {
@@ -509,6 +524,22 @@ export function evaluateContracts(state, m, log) {
     // Nur nach Ablauf der Leistungszeit auswerten
     if (m < contract.endMin) continue;
     if (contract.evaluatedAtMin !== null) continue;
+
+    // Paket 4: Vertragsaufträge, die nie disponiert wurden (still 'angenommen'),
+    // nach Ablauf der Lieferfrist als 'expired' markieren. Ohne dies würden
+    // sie den Vertragsabschluss blockieren, da 'angenommen' kein Endzustand ist.
+    for (const oid of contract.orderIds) {
+      const o = state.orders.find(x => x.id === oid);
+      if (!o) continue;
+      if (o.status === "angenommen" && o.deliveryDeadlineMin < m) {
+        o.status = "expired";
+        o.deliveredAtMin = m;
+        o.history = o.history || [];
+        o.history.push({ type: "contract_expired", min: m, reason: "Nicht disponiert vor Vertragsende" });
+        contract.failedCount = (contract.failedCount || 0) + 1;
+        log.push({ type: "contract_order_expired", contract: contract.id, order: oid, atMin: m });
+      }
+    }
 
     // Prüfen, ob alle zugehörigen Aufträge einen Endzustand erreicht haben
     const doneStatuses = new Set(["geliefert", "failed", "storniert", "expired"]);
