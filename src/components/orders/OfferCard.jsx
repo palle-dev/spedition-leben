@@ -1,8 +1,8 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { formatEuro, formatGameTime } from "@/lib/gameData";
+import { formatEuro, formatGameTime, getCargoCategory, VEHICLE_BODY_TYPES } from "@/lib/gameData";
 import { getOfferTypeLabel, getOfferTypeStyle, formatPaymentTerms } from "@/lib/marketData";
-import { MapPin, ArrowRight, Clock, Package, Zap, CalendarClock, Check, Route as RouteIcon, Search, Flame, Droplet, Building2 } from "lucide-react";
+import { MapPin, ArrowRight, Clock, Package, Zap, CalendarClock, Check, Route as RouteIcon, Search, Flame, Droplet, Building2, Truck } from "lucide-react";
 
 // Angebot-Karte für die Frachtbörse.
 // Zeigt Kundendaten, Route, Fracht, Preis, Fristen und Aktionen.
@@ -68,6 +68,26 @@ export default function OfferCard({ offer, onAccept, busy, branchName, branchCit
             ADR {offer.dgClass} · {offer.dgTransportType === "tank" ? "Tank" : "Versandstück"}
           </span>
         )}
+        {(() => {
+          const cat = getCargoCategory(offer);
+          if (cat.requiredBodyType) {
+            const body = VEHICLE_BODY_TYPES[cat.requiredBodyType];
+            return (
+              <span className="text-[10px] px-1.5 py-0.5 rounded border bg-violet-500/10 text-violet-300 border-violet-400/20 inline-flex items-center gap-1">
+                <Truck className="w-2.5 h-2.5" /> Erfordert: {body.label}
+              </span>
+            );
+          }
+          if (cat.bonusBodyType) {
+            const body = VEHICLE_BODY_TYPES[cat.bonusBodyType];
+            return (
+              <span className="text-[10px] px-1.5 py-0.5 rounded border bg-sky-500/10 text-sky-300 border-sky-400/20 inline-flex items-center gap-1">
+                <Truck className="w-2.5 h-2.5" /> Bonus: {body.label}
+              </span>
+            );
+          }
+          return null;
+        })()}
       </div>
 
       <div className="flex items-center gap-3 text-[11px] text-muted-foreground">

@@ -113,6 +113,25 @@ export function getVehicleBodyType(vehicle) {
   if (vehicle.bodyType && VEHICLE_BODY_TYPES[vehicle.bodyType]) return VEHICLE_BODY_TYPES[vehicle.bodyType];
   return VEHICLE_BODY_TYPES.planen;
 }
+
+// ---------- Cargo-Kategorien (Spiegel von gameRules.ts) ----------
+// Bestimmt, welcher Aufbau für einen Auftrag erforderlich (strikt) oder
+// bevorzugt (Bonus) ist.
+export const CARGO_CATEGORIES = {
+  standard: { id: "standard", label: "Standardfracht", requiredBodyType: null, bonusBodyType: null, bonusFactor: 1.0, priceFactor: 1.0 },
+  kuehl: { id: "kuehl", label: "Kühlfracht", requiredBodyType: "kuehl", bonusBodyType: "kuehl", bonusFactor: 1.0, priceFactor: 1.20 },
+  lebensmittel: { id: "lebensmittel", label: "Lebensmittel", requiredBodyType: null, bonusBodyType: "kuehl", bonusFactor: 1.15, priceFactor: 1.05 },
+  fluessig: { id: "fluessig", label: "Flüssigtransport", requiredBodyType: "tank", bonusBodyType: "tank", bonusFactor: 1.0, priceFactor: 1.15 },
+  getraenke: { id: "getraenke", label: "Getränke", requiredBodyType: null, bonusBodyType: "tank", bonusFactor: 1.10, priceFactor: 1.05 },
+  schuettgut: { id: "schuettgut", label: "Schüttgut", requiredBodyType: "kipper", bonusBodyType: "kipper", bonusFactor: 1.0, priceFactor: 1.10 },
+  baustoffe: { id: "baustoffe", label: "Baustoffe", requiredBodyType: null, bonusBodyType: "kipper", bonusFactor: 1.12, priceFactor: 1.05 },
+};
+
+export function getCargoCategory(order) {
+  if (!order) return CARGO_CATEGORIES.standard;
+  if (order.cargoCategory && CARGO_CATEGORIES[order.cargoCategory]) return CARGO_CATEGORIES[order.cargoCategory];
+  return CARGO_CATEGORIES.standard;
+}
 export const HIRE_FEE_EUR = 500;
 export const DRIVER_COST_PER_DAY_EUR = 100;
 export const BRANCH_COST_PER_DAY_EUR = 100;

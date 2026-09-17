@@ -14,6 +14,7 @@ import {
   computeMarketValue, computeDealerOffer,
   VEHICLE_CATALOG, VEHICLE_CATALOG_LIST, getVehicleProfile,
   VEHICLE_BODY_TYPES, getVehicleBodyType, getVehicleEffectiveMaintenanceCost,
+  checkBodyTypeCompatibility,
 } from "./gameRules.ts";
 import { buildTourPlan, confirmTour as doConfirmTour, cancelTour as doCancelTour, processTours, onTripCompleted, findReturnLoads, suggestTours, futureLocation, futureDriverLocation, _clearPlanCache } from "./tourEngine.ts";
 import {
@@ -935,6 +936,8 @@ export function applyCommand(state, command, params) {
       if (isLeasingOverdueBlocked(state, v.id)) throw new Error("Leasingrückstand: Neue Touren mit diesem Fahrzeug sind gesperrt.");
       if (v.locationCity !== d.locationCity) throw new Error("Fahrer und Lkw befinden sich an unterschiedlichen Orten.");
       if (o.tons > v.capacityTons) throw new Error("Überladung: " + o.tons + " t überschreiten Kapazität von " + v.capacityTons + " t.");
+      const bodyCheck = checkBodyTypeCompatibility(o, v);
+      if (!bodyCheck.ok) throw new Error(bodyCheck.error);
       const plan = planTrip(state, o, v, d);
       // DG-Validierung (Auftrag 32)
       if (o.isDangerousGoods) {
