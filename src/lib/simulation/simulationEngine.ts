@@ -466,7 +466,6 @@ function completeTrip(state, trip, m, log) {
     dedupKey: "delivery_completed:" + trip.id,
   });
   onTripCompleted(state, trip, m, log);
-  generateDriverDeliveryReport(state, driver, trip, order, m);
   // Segment-Statistik: Lieferung erfassen
   let _dgHandlingCents = 0;
   if (order.isDangerousGoods) {

@@ -1,6 +1,4 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
-import { Network } from "lucide-react";
 import { useGame } from "@/lib/gameContext";
 import OfficeHeader from "@/components/office/OfficeHeader";
 import OfficeKPIs from "@/components/office/OfficeKPIs";
@@ -41,13 +39,6 @@ export default function Office() {
         <div className="flex-1 min-w-0">
           <OfficeHeader state={state} period={period} setPeriod={setPeriod} />
         </div>
-        <Link
-          to="/netzwerk"
-          className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs border border-white/10 bg-white/5 text-muted-foreground hover:text-foreground hover:border-lime/30 hover:bg-lime/5 transition shrink-0"
-          title="Strategische Netzkarte öffnen"
-        >
-          <Network className="w-4 h-4" /> <span className="hidden sm:inline">Netzkarte</span>
-        </Link>
       </div>
 
       {/* Tagesübersicht: Natürliche Aussagen aus Spieldaten */}

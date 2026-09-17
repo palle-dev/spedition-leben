@@ -440,7 +440,6 @@ function completeTrip(state, trip, m, log) {
     dedupKey: "delivery_completed:" + trip.id,
   });
   onTripCompleted(state, trip, m, log);
-  generateDriverDeliveryReport(state, driver, trip, order, m);
   // Auftrag 32: DG-Lieferung statistisch erfassen
   if (order.isDangerousGoods) {
     recordDgDelivery(state, order, onTime, m);
