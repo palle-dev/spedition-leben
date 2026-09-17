@@ -25,7 +25,7 @@ export default function TenderDetail({ tenderId, onBack }) {
         const defaultPrice = Math.round(
           (r.tender.tons * 600 + 210 * Math.max(1, Math.round(
             Math.sqrt((r.tender.fromCity !== r.tender.toCity ? 100 : 0) + (r.tender.tons * 10))
-          )) + 12500)
+          )) + 12500) / 100
         );
         setBidPrice(String(defaultPrice));
       }
@@ -54,7 +54,7 @@ export default function TenderDetail({ tenderId, onBack }) {
     let cancelled = false;
     (async () => {
       try {
-        const r = await send("calculateBid", { tenderId, pricePerTransportCents: price });
+        const r = await send("calculateBid", { tenderId, pricePerTransportCents: price * 100 });
         if (!cancelled) setCalculation(r.calculation);
       } catch (e) { /* toast */ }
     })();
@@ -66,7 +66,7 @@ export default function TenderDetail({ tenderId, onBack }) {
     if (isNaN(price) || price <= 0) return;
     setSubmitting(true);
     try {
-      await send("submitBid", { tenderId, pricePerTransportCents: price });
+      await send("submitBid", { tenderId, pricePerTransportCents: price * 100 });
       await loadDetail();
     } catch (e) { /* toast */ }
     finally { setSubmitting(false); }
@@ -239,8 +239,8 @@ export default function TenderDetail({ tenderId, onBack }) {
                 value={bidPrice}
                 onChange={(e) => setBidPrice(e.target.value)}
                 className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm tabular-nums focus:outline-none focus:border-lime/30"
-                placeholder="z.B. 45000"
-                step="100"
+                placeholder="z.B. 450"
+                step="50"
               />
               <span className="text-xs text-muted-foreground">€</span>
             </div>
