@@ -9,7 +9,6 @@ export default function DispatchToolbar({
   search, setSearch, searchOpen, setSearchOpen,
   mobileView, setMobileView,
   showPlanning, onTogglePlanning, showPartners, onTogglePartners, partnerTransportCount,
-  showMap, onToggleMap,
 }) {
   const isMapVisible = mobileView === "map";
   return (
@@ -92,17 +91,6 @@ export default function DispatchToolbar({
       )}
 
       <div className="hidden sm:block"><MarketPriorityControl /></div>
-
-      <button
-        onClick={onToggleMap}
-        className={`hidden lg:flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-[11px] font-medium transition shrink-0 ${
-          showMap ? "bg-lime/10 border-lime/30 text-lime hover:border-lime/50" : "bg-white/5 border-white/10 text-muted-foreground hover:text-foreground hover:border-white/20"
-        }`}
-        title={showMap ? "Karte ausblenden" : "Karte einblenden"}
-      >
-        <Map className="w-3.5 h-3.5" />
-        <span className="hidden xl:inline">Karte</span>
-      </button>
 
       <div className="lg:hidden flex gap-1 bg-ink/60 border border-white/10 rounded-full p-0.5 shrink-0">
         <button

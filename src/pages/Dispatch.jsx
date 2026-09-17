@@ -4,7 +4,7 @@ import { loadRouteGeometries, buildPlanRouteGeoJSON } from "@/lib/geoData";
 import DispatchMap from "@/components/dispatch/DispatchMap";
 import DispatchWorkspace from "@/components/dispatch/DispatchWorkspace";
 import PlanningBoard from "@/components/planning/PlanningBoard";
-import { Truck, Home, Route as RouteIcon, TrafficCone, Network, X } from "lucide-react";
+import { Truck, Home, Route as RouteIcon, TrafficCone, Network } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useHeaderSlot } from "@/lib/headerSlot";
 import DispatchToolbar from "@/components/dispatch/DispatchToolbar";
@@ -27,31 +27,13 @@ export default function Dispatch() {
   const [focusAction, setFocusAction] = useState(null);
   const [planRoute, setPlanRoute] = useState(null);
   const [search, setSearch] = useState("");
-  const [mobileView, setMobileView] = useState("list");
+  const [mobileView, setMobileView] = useState("map");
   const [searchOpen, setSearchOpen] = useState(false);
   const [showTraffic, setShowTraffic] = useState(true);
   const [overlayTripId, setOverlayTripId] = useState(null);
   const [optimizeOpen, setOptimizeOpen] = useState(false);
   const [showPlanning, setShowPlanning] = useState(false);
   const [showPartners, setShowPartners] = useState(false);
-  const [showMap, setShowMap] = useState(false);
-  const [mapWidth, setMapWidth] = useState(520);
-  const [isResizing, setIsResizing] = useState(false);
-
-  useEffect(() => {
-    if (!isResizing) return;
-    function onMouseMove(e) {
-      const newWidth = Math.min(900, Math.max(320, window.innerWidth - e.clientX));
-      setMapWidth(newWidth);
-    }
-    function onMouseUp() { setIsResizing(false); }
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
-    return () => {
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
-    };
-  }, [isResizing]);
 
   // Routengeometrien laden (einmalig)
   useEffect(() => {
@@ -183,12 +165,10 @@ export default function Dispatch() {
         showPartners={showPartners}
         onTogglePartners={() => { setShowPartners(s => !s); setShowPlanning(false); }}
         partnerTransportCount={((state?.partners?.transports || []).filter(t => t.status === "booked" || t.status === "in_progress").length)}
-        showMap={showMap}
-        onToggleMap={() => setShowMap(s => !s)}
       />
     );
     return () => setSlot(null);
-  }, [runningCount, acceptedCount, search, searchOpen, mobileView, state, setSlot, showPlanning, showPartners, showMap]);
+  }, [runningCount, acceptedCount, search, searchOpen, mobileView, state, setSlot, showPlanning, showPartners]);
 
   return (
     <div className="h-full flex flex-col min-h-0 overflow-hidden">
@@ -201,34 +181,9 @@ export default function Dispatch() {
           <PartnerOverview />
         </div>
       ) : (
-      <div className="flex-1 min-h-0 flex flex-col relative">
-        {/* Arbeitsbereich — volle Breite */}
-        <div className={`min-h-0 flex flex-col ${mobileView === "map" ? "hidden" : "flex-1"} lg:flex lg:flex-1 lg:min-w-0 border-t lg:border-t-0 border-white/10`}>
-          <div className="w-full max-w-[1600px] mx-auto flex-1 min-h-0 flex flex-col px-4 sm:px-6 lg:px-12">
-          <DispatchWorkspace
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            selectedTripId={selectedTripId}
-            onSelectTrip={handleSelectTrip}
-            planningOrderId={planningOrderId}
-            onPlanOrder={handlePlanOrder}
-            onPlanChange={handlePlanChange}
-            onStarted={handleStarted}
-            selectedVehicleId={selectedVehicleId}
-            onSelectVehicle={handleSelectVehicle}
-            onShowOnMap={(tripId) => { setFocusAction({ type: "trip", tripId }); setShowMap(true); if (window.innerWidth < 1024) setMobileView("map"); }}
-            onShowVehicle={(vehicleId) => { setFocusAction({ type: "vehicle", vehicleId }); setShowMap(true); if (window.innerWidth < 1024) setMobileView("map"); }}
-            onPlanRoute={(geojson) => setPlanRoute(geojson)}
-            search={search}
-            onResetSearch={() => setSearch("")}
-            routeData={routeData}
-          />
-          </div>
-        </div>
-
-        {/* Karte — schwebendes Overlay-Panel (Desktop) / Vollbild (Mobile) */}
-        {(showMap || mobileView === "map") && (
-        <div className={`min-h-0 min-w-0 relative ${mobileView === "map" ? "flex-1" : "hidden"} lg:absolute lg:top-0 lg:right-0 lg:bottom-0 lg:flex lg:flex-col lg:z-30 lg:shadow-[-20px_0_60px_-12px_rgba(0,0,0,0.7)] lg:border-l lg:border-white/10`} style={{ width: mapWidth }}>
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
+        {/* Karte */}
+        <div className={`min-h-0 min-w-0 relative ${mobileView === "list" ? "hidden" : "flex-1"} lg:block lg:flex-1`}>
           <DispatchMap
             routeData={routeData}
             selectedTripId={selectedTripId}
@@ -240,22 +195,6 @@ export default function Dispatch() {
             focusAction={focusAction}
             onFocusDone={() => setFocusAction(null)}
           />
-          {/* Schließen-Button (Desktop) */}
-          <button
-            onClick={() => setShowMap(false)}
-            className="hidden lg:flex absolute top-3 left-3 w-9 h-9 rounded-xl items-center justify-center transition backdrop-blur-xl border shadow-lg shadow-black/40 active:scale-95 bg-surface/90 text-foreground/80 border-white/15 hover:border-lime/30 hover:text-foreground z-20"
-            title="Karte schließen"
-          >
-            <X className="w-4 h-4" />
-          </button>
-          {/* Größenänderung-Griff (Desktop) */}
-          <div
-            onMouseDown={() => setIsResizing(true)}
-            className="hidden lg:block absolute top-0 left-0 bottom-0 w-1.5 cursor-ew-resize z-20 hover:bg-lime/20 transition group"
-            title="Breite ändern"
-          >
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-12 rounded-full bg-white/15 group-hover:bg-lime/40 transition" />
-          </div>
           {/* Karten-Aktionen */}
           {routeData && (
             <div className="absolute top-3 right-3 flex flex-col gap-1.5 z-10">
@@ -281,7 +220,28 @@ export default function Dispatch() {
             />
           )}
         </div>
-        )}
+
+        {/* Arbeitsbereich — eigenes Panel mit Höhenwirkung */}
+        <div className={`min-h-0 flex flex-col ${mobileView === "map" ? "hidden" : "flex-1"} lg:flex lg:flex-none lg:w-[460px] xl:w-[500px] 2xl:w-[560px] lg:shrink-0 border-t lg:border-t-0 lg:border-l border-white/10 bg-surface/90 backdrop-blur-2xl lg:shadow-[-12px_0_40px_-8px_rgba(0,0,0,0.6)] lg:relative lg:z-20`}>
+          <DispatchWorkspace
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            selectedTripId={selectedTripId}
+            onSelectTrip={handleSelectTrip}
+            planningOrderId={planningOrderId}
+            onPlanOrder={handlePlanOrder}
+            onPlanChange={handlePlanChange}
+            onStarted={handleStarted}
+            selectedVehicleId={selectedVehicleId}
+            onSelectVehicle={handleSelectVehicle}
+            onShowOnMap={(tripId) => { setFocusAction({ type: "trip", tripId }); if (window.innerWidth < 1024) setMobileView("map"); }}
+            onShowVehicle={(vehicleId) => { setFocusAction({ type: "vehicle", vehicleId }); if (window.innerWidth < 1024) setMobileView("map"); }}
+            onPlanRoute={(geojson) => setPlanRoute(geojson)}
+            search={search}
+            onResetSearch={() => setSearch("")}
+            routeData={routeData}
+          />
+        </div>
       </div>
       )}
       <AutoOptimizePanel open={optimizeOpen} onClose={() => setOptimizeOpen(false)} />

@@ -68,7 +68,7 @@ export default function DispatchMap({
     }
 
     map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
-    map.addControl(new maplibregl.NavigationControl({ visualizePitch: false, showCompass: false }), "bottom-right");
+    map.addControl(new maplibregl.NavigationControl({ visualizePitch: false, showCompass: false }), "top-left");
 
     const styleTimer = setTimeout(() => { if (!mounted) return; setMapError(true); }, 8000);
 
