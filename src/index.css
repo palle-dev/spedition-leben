@@ -108,9 +108,23 @@
   * {
     @apply border-border/10 outline-ring/50;
   }
+  html {
+    color-scheme: dark;
+  }
   body {
     @apply bg-ink text-foreground font-body antialiased;
     font-variant-numeric: tabular-nums;
+  }
+  /* Native Select-Dropdowns: dunkler Hintergrund + helle Schrift erzwingen,
+     damit die Options-Listen nicht weiß-auf-weiß erscheinen (Browser-Default). */
+  select, select option {
+    background-color: hsl(var(--surface-2));
+    color: hsl(var(--foreground));
+  }
+  select option:checked,
+  select option:hover {
+    background-color: hsl(var(--lime) / 0.15);
+    color: hsl(var(--lime));
   }
   ::selection {
     background: hsl(var(--lime) / 0.25);
