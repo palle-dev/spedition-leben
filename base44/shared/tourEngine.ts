@@ -15,6 +15,7 @@ import {
   getDgProfile, getEffectiveLoadMin, getEffectiveUnloadMin,
   validateDgTransport, isTankClean, chargeDgHandlingFee,
 } from "./dangerousGoodsEngine.ts";
+import { addBooking } from "./accountingEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 
@@ -506,7 +507,21 @@ export function confirmTour(state, params) {
     throw new Error("Fahrzeugzustand zu schlecht für einen Einsatz (unter 20). Wartung erforderlich.");
   }
 
-  // 3. Nimm alle noch nicht angenommenen Aufträge an
+  // 3. Reservierungsprüfung: Kein Auftrag darf bereits von einer anderen
+  //    aktiven Tour reserviert sein (Paket 1: verhindert Doppelbuchung).
+  for (const orderId of orderIds) {
+    const o = state.orders.find(x => x.id === orderId);
+    if (!o) continue;
+    if (o.reservedByTourId) {
+      const otherTour = (state.tours || []).find(t => t.id === o.reservedByTourId);
+      if (otherTour && otherTour.status === "active" && !otherTour.pauseReason) {
+        throw new Error("Auftrag " + o.customer + " ist bereits von einer anderen Tour reserviert.");
+      }
+      o.reservedByTourId = null; // Verwaiste Reservierung aufräumen
+    }
+  }
+
+  // 3a. Nimm alle noch nicht angenommenen Aufträge an
   for (const orderId of plan.acceptedOrderIds) {
     const o = state.orders.find(x => x.id === orderId);
     if (!o) throw new Error("Auftrag nicht gefunden: " + orderId);
@@ -574,6 +589,12 @@ export function confirmTour(state, params) {
   };
   state.tours = state.tours || [];
   state.tours.push(tour);
+
+  // 4a. Aufträge für diese Tour reservieren (Paket 1)
+  for (const orderId of orderIds) {
+    const o = state.orders.find(x => x.id === orderId);
+    if (o) o.reservedByTourId = tourId;
+  }
 
   // 5. Starte den ersten Einsatz – sofort oder geplant für die Zukunft
   const firstDep = tour.deployments[0];
@@ -660,18 +681,14 @@ function startDeployment(state, tour, dep, depIndex) {
     if (order) {
       order.status = "unterwegs";
       order.startedAtMin = state.gameTime;
+      order.reservedByTourId = null; // Reservierung aufheben, Auftrag ist unterwegs
     }
   }
 
   return { tripId };
 }
 
-// Hilfsfunktion: Buchung hinzufügen (lokal in tourEngine, identisch mit simulationEngine)
-function addBooking(state, min, cause, amountCents, account, refId) {
-  state.bookings.push({ min, cause, amountCents, account, refId });
-  if (account === "company") state.company.accountCents += amountCents;
-  else if (account === "private") state.private.accountCents += amountCents;
-}
+// addBooking wird aus accountingEngine.ts importiert (Paket 2: zentrale Buchungsroutine).
 
 // ---------- Tour-Auflösung ----------
 
@@ -696,14 +713,12 @@ export function cancelTour(state, tourId) {
   tour.status = "cancelled";
   tour.pauseReason = "Vom Spieler aufgelöst";
 
-  // Aufträge bleiben angenommen (nicht storniert)
+  // Reservierungen für geplante (nicht gestartete) Aufträge freigeben (Paket 1)
   for (const dep of tour.deployments) {
     if (dep.orderId && dep.status === "planned") {
       const order = state.orders.find(o => o.id === dep.orderId);
-      if (order && order.status === "unterwegs") {
-        // Sollte nicht passieren, da kein aktiver Einsatz
-      } else if (order && order.status === "angenommen") {
-        // Bleibt angenommen – erscheint als unzugewiesen
+      if (order && order.reservedByTourId === tourId) {
+        order.reservedByTourId = null;
       }
     }
   }
@@ -762,6 +777,7 @@ export function processTours(state, m, log) {
         if (dep.orderId && dep.status === "planned") {
           const order = state.orders.find(o => o.id === dep.orderId);
           if (order && order.status === "unterwegs") order.status = "angenommen";
+          if (order && order.reservedByTourId === tour.id) order.reservedByTourId = null;
         }
         dep.status = "cancelled";
         dep.cancelReason = "tour_cancelled_stale";

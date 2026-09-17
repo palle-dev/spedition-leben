@@ -340,6 +340,8 @@ import { earliestEventAfter } from "./eventScheduler.ts";
 import { reportProgress } from "./progressHook.js";
 
 function completeTrip(state, trip, m, log) {
+  // Idempotenz: Bereits abgeschlossene Trips nicht erneut vergüten (Paket 2).
+  if (trip.status === "completed") return;
   trip.status = "completed";
   trip.endMin = m;
   const vehicle = state.vehicles.find(v => v.id === trip.vehicleId);

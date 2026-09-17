@@ -318,8 +318,8 @@ function doDailyAccounting(state, midnight) {
 // ---------- Zeitverarbeitung ----------
 import { earliestEventAfter } from "./eventScheduler.ts";
 import { reportProgress } from "./progressHook.js";
-
 function completeTrip(state, trip, m, log) {
+  if (trip.status === "completed") return; // Idempotenz (Paket 2)
   trip.status = "completed";
   trip.endMin = m;
   const vehicle = state.vehicles.find(v => v.id === trip.vehicleId);
