@@ -239,8 +239,8 @@ export function getReplacementHints(state) {
       });
     }
 
-    // 2. Niedrige Auslastung
-    if (ops && ops.kmPerDay < 50 && ops.deliveryCount < 3) {
+    // 2. Niedrige Auslastung — nur bei Fahrzeugen, die bereits im Einsatz waren
+    if (ops && ops.totalKm > 0 && ops.kmPerDay < 50 && ops.deliveryCount < 3) {
       reasons.push({
         type: "low_utilization",
         label: "Niedrige Auslastung",
