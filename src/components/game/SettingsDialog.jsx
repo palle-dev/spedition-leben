@@ -1,6 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { X, Settings, Check } from "lucide-react";
+import { X, Settings, Check, Mail, Heart } from "lucide-react";
 import { useGame } from "@/lib/gameContext";
 import { DIFFICULTY_PROFILES } from "@/lib/simulation/difficultyProfiles";
 import { HELP_OPTIONS } from "@/lib/simulation/helpSettings";
@@ -84,6 +84,28 @@ export default function SettingsDialog({ open, onClose }) {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Ersteller & Credits */}
+        <div className="px-5 pb-5 pt-1 border-t border-white/10 space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">Erstellt von</span>
+            <span className="font-medium text-foreground">Werner Pallentin</span>
+          </div>
+          <a href="mailto:werner@pallentin.me" className="flex items-center justify-between text-xs group">
+            <span className="text-muted-foreground">Kontakt</span>
+            <span className="flex items-center gap-1.5 text-muted-foreground group-hover:text-lime transition">
+              <Mail className="w-3 h-3" />
+              werner@pallentin.me
+            </span>
+          </a>
+          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 pt-1">
+            <Heart className="w-3 h-3 text-lime/50" />
+            <span>Entwickelt mit Unterstützung von KI</span>
+          </div>
+          <p className="text-[10px] text-muted-foreground/50 text-center pt-1">
+            © {new Date().getFullYear()} Werner Pallentin · Alle Rechte vorbehalten
+          </p>
         </div>
       </div>
     </div>,
