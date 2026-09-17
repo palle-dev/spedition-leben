@@ -671,8 +671,7 @@ function processEventsAt(state, m, log) {
     processTempStaffBilling(state, m, log);
   }
   // Auftrag 27: Werkstatt-Verarbeitung und Automatik
-  processWorkshop(state, m, log);
-  evaluateWorkshopAutomation(state, m, log);
+  processWorkshop(state, m, log); evaluateWorkshopAutomation(state, m, log); checkKmMaintenanceDue(state, m, log);
   // Stoerungsmanagement: Auto-Auflösung, Abschluss laufender Maßnahmen
   processDisruptions(state, m, log); processPartnerTransports(state, m, log); processExpansionCompletion(state, m, log);
   // Gebrauchtfahrzeugmarkt: Angebote generieren/ablaufen lassen (alle 3 Tage)
