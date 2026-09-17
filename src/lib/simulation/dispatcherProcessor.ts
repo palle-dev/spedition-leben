@@ -378,7 +378,12 @@ export function processDispatcher(state, emp, m, log) {
   for (const v of poolVehicles) {
     if (usedVehicleIds.has(v.id)) { v.idleReason = null; continue; }
     if (v.status === "on_trip") { v.idleReason = "Unterwegs"; continue; }
-    if (v.status === "maintenance") { v.idleReason = "Wartung bis " + formatGameTime(v.maintenanceUntil); continue; }
+    if (v.status === "maintenance") {
+      v.idleReason = v.maintenanceUntil
+        ? "Wartung bis " + formatGameTime(v.maintenanceUntil)
+        : "In Wartung (Dienstzeiten)";
+      continue;
+    }
     let reason = "Kein geeigneter Auftrag gefunden";
     if (v.condition < 20) {
       reason = "Zustand unter 20 – Wartung erforderlich";
