@@ -60,7 +60,7 @@ export default function OutreachPanel({ customerId }) {
           <Handshake className="w-4 h-4 text-muted-foreground" />
           <span className="font-medium">Gezielte Kundenansprache</span>
         </div>
-        {feasibility.missingRequirements.length > 0 && (
+        {(feasibility.missingRequirements?.length ?? 0) > 0 && (
           <ul className="space-y-1 text-xs text-muted-foreground">
             {feasibility.missingRequirements.map((r, i) => (
               <li key={i} className="flex items-start gap-1.5">
