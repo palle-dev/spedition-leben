@@ -27,13 +27,14 @@ export default function Dispatch() {
   const [focusAction, setFocusAction] = useState(null);
   const [planRoute, setPlanRoute] = useState(null);
   const [search, setSearch] = useState("");
-  const [mobileView, setMobileView] = useState("map");
+  const [mobileView, setMobileView] = useState("list");
   const [searchOpen, setSearchOpen] = useState(false);
   const [showTraffic, setShowTraffic] = useState(true);
   const [overlayTripId, setOverlayTripId] = useState(null);
   const [optimizeOpen, setOptimizeOpen] = useState(false);
   const [showPlanning, setShowPlanning] = useState(false);
   const [showPartners, setShowPartners] = useState(false);
+  const [showMap, setShowMap] = useState(false);
 
   // Routengeometrien laden (einmalig)
   useEffect(() => {
@@ -165,10 +166,12 @@ export default function Dispatch() {
         showPartners={showPartners}
         onTogglePartners={() => { setShowPartners(s => !s); setShowPlanning(false); }}
         partnerTransportCount={((state?.partners?.transports || []).filter(t => t.status === "booked" || t.status === "in_progress").length)}
+        showMap={showMap}
+        onToggleMap={() => setShowMap(s => !s)}
       />
     );
     return () => setSlot(null);
-  }, [runningCount, acceptedCount, search, searchOpen, mobileView, state, setSlot, showPlanning, showPartners]);
+  }, [runningCount, acceptedCount, search, searchOpen, mobileView, state, setSlot, showPlanning, showPartners, showMap]);
 
   return (
     <div className="h-full flex flex-col min-h-0 overflow-hidden">
@@ -182,8 +185,31 @@ export default function Dispatch() {
         </div>
       ) : (
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
-        {/* Karte */}
-        <div className={`min-h-0 min-w-0 relative ${mobileView === "list" ? "hidden" : "flex-1"} lg:block lg:flex-1`}>
+        {/* Arbeitsbereich — Hauptbereich */}
+        <div className={`min-h-0 flex flex-col ${mobileView === "map" ? "hidden" : "flex-1"} lg:flex lg:flex-1 lg:min-w-0 border-t lg:border-t-0 border-white/10 bg-surface/90 backdrop-blur-2xl lg:relative lg:z-20`}>
+          <DispatchWorkspace
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            selectedTripId={selectedTripId}
+            onSelectTrip={handleSelectTrip}
+            planningOrderId={planningOrderId}
+            onPlanOrder={handlePlanOrder}
+            onPlanChange={handlePlanChange}
+            onStarted={handleStarted}
+            selectedVehicleId={selectedVehicleId}
+            onSelectVehicle={handleSelectVehicle}
+            onShowOnMap={(tripId) => { setFocusAction({ type: "trip", tripId }); if (window.innerWidth < 1024) setMobileView("map"); }}
+            onShowVehicle={(vehicleId) => { setFocusAction({ type: "vehicle", vehicleId }); if (window.innerWidth < 1024) setMobileView("map"); }}
+            onPlanRoute={(geojson) => setPlanRoute(geojson)}
+            search={search}
+            onResetSearch={() => setSearch("")}
+            routeData={routeData}
+          />
+        </div>
+
+        {/* Karte — optionaler Zusatzbereich (links, schmal) */}
+        {(showMap || mobileView === "map") && (
+        <div className={`min-h-0 min-w-0 relative ${mobileView === "list" ? "hidden" : "flex-1"} lg:flex lg:flex-none lg:w-[420px] xl:w-[480px] lg:shrink-0 lg:border-l border-white/10`}>
           <DispatchMap
             routeData={routeData}
             selectedTripId={selectedTripId}
@@ -220,28 +246,7 @@ export default function Dispatch() {
             />
           )}
         </div>
-
-        {/* Arbeitsbereich — eigenes Panel mit Höhenwirkung */}
-        <div className={`min-h-0 flex flex-col ${mobileView === "map" ? "hidden" : "flex-1"} lg:flex lg:flex-none lg:w-[460px] xl:w-[500px] 2xl:w-[560px] lg:shrink-0 border-t lg:border-t-0 lg:border-l border-white/10 bg-surface/90 backdrop-blur-2xl lg:shadow-[-12px_0_40px_-8px_rgba(0,0,0,0.6)] lg:relative lg:z-20`}>
-          <DispatchWorkspace
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            selectedTripId={selectedTripId}
-            onSelectTrip={handleSelectTrip}
-            planningOrderId={planningOrderId}
-            onPlanOrder={handlePlanOrder}
-            onPlanChange={handlePlanChange}
-            onStarted={handleStarted}
-            selectedVehicleId={selectedVehicleId}
-            onSelectVehicle={handleSelectVehicle}
-            onShowOnMap={(tripId) => { setFocusAction({ type: "trip", tripId }); if (window.innerWidth < 1024) setMobileView("map"); }}
-            onShowVehicle={(vehicleId) => { setFocusAction({ type: "vehicle", vehicleId }); if (window.innerWidth < 1024) setMobileView("map"); }}
-            onPlanRoute={(geojson) => setPlanRoute(geojson)}
-            search={search}
-            onResetSearch={() => setSearch("")}
-            routeData={routeData}
-          />
-        </div>
+        )}
       </div>
       )}
       <AutoOptimizePanel open={optimizeOpen} onClose={() => setOptimizeOpen(false)} />
