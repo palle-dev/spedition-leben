@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro, transportStatusLabel, transportStatusColor, getAllPartnersWithStats, getTransportForOrder } from "@/lib/partnerData";
-import { Building2, Truck, Clock, X, TrendingUp, Wallet } from "lucide-react";
+import { Building2, Truck, Clock, X, TrendingUp, Wallet, ArrowRight, MapPin } from "lucide-react";
+import PartnerOfferDialog from "@/components/partners/PartnerOfferDialog";
 
 // Übersicht aller Partner-Speditionen mit Statistiken und aktiven Transporten.
 // Wird als Drawer-Sektion oder eigenständige Ansicht verwendet.
@@ -9,6 +10,15 @@ export default function PartnerOverview({ onClose }) {
   const { state, send } = useGame();
   const partners = getAllPartnersWithStats(state);
   const activeTransports = (state?.partners?.transports || []).filter(t => t.status === "booked" || t.status === "in_progress");
+  const [partnerOrder, setPartnerOrder] = useState(null);
+
+  // Aufträge, die für eine Fremdvergabe in Frage kommen:
+  // Status "angenommen", noch nicht extern vergeben, kein aktiver Trip
+  const dispatchableOrders = (state.orders || []).filter(o =>
+    o.status === "angenommen" &&
+    !o.externalTransportId &&
+    !(state.trips || []).some(t => t.orderId === o.id && t.status === "in_progress")
+  );
 
   const handleCancel = async (transportId) => {
     if (!confirm("Partner-Transport stornieren? Stornogebühren können anfallen.")) return;
@@ -21,6 +31,38 @@ export default function PartnerOverview({ onClose }) {
 
   return (
     <div className="space-y-4">
+      {/* Vergebbare Aufträge */}
+      {dispatchableOrders.length > 0 && (
+        <section>
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-2">
+            <ArrowRight className="w-3.5 h-3.5" />
+            Zur Fremdvergabe ({dispatchableOrders.length})
+          </h3>
+          <p className="text-xs text-muted-foreground/70 mb-2">
+            Wähle einen Auftrag zur externen Vergabe an einen Partner. Der Partner übernimmt Transport und Lieferung.
+          </p>
+          <div className="space-y-2">
+            {dispatchableOrders.map(o => (
+              <div key={o.id} className="rounded-lg border border-white/10 glass p-3 flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{o.customer}</p>
+                  <p className="text-xs text-muted-foreground truncate flex items-center gap-1.5">
+                    <MapPin className="w-3 h-3" />
+                    {o.fromCity} → {o.toCity} · {o.tons} t · {formatEuro(o.paymentCents)}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setPartnerOrder(o)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-lime/10 border border-lime/30 text-lime text-xs font-medium hover:bg-lime/20 transition-colors shrink-0"
+                >
+                  <Truck className="w-3.5 h-3.5" /> Fremdvergabe
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Aktive Transporte */}
       {activeTransports.length > 0 && (
         <section>
@@ -104,6 +146,8 @@ export default function PartnerOverview({ onClose }) {
           })}
         </div>
       </section>
+
+      {partnerOrder && <PartnerOfferDialog order={partnerOrder} onClose={() => setPartnerOrder(null)} />}
     </div>
   );
 }
