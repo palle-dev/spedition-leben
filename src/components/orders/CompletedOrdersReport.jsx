@@ -72,7 +72,18 @@ export default function CompletedOrdersReport({ state }) {
       const refMin = o.deliveredAtMin || o.failedAtMin || o.cancelledAtMin || o.acceptedAtMin || o.deliveryDeadlineMin || 0;
       if (refMin < cutoff) continue;
       const trip = tripByOrder.get(o.id) || null;
-      const driver = trip ? driverById.get(trip.driverId) || null : null;
+      // Fahrer vorrangig aus Lieferhistorie auflösen (verlässlicher als Trip,
+      // da Trip bei Auto-Neuplanung oder Cleanup überschrieben werden kann).
+      let driver = null;
+      if (o.history) {
+        const delivered = [...o.history].reverse().find(h => h.type === "delivered");
+        if (delivered && delivered.actor) {
+          driver = driverById.get(delivered.actor) || null;
+        }
+      }
+      if (!driver && trip) {
+        driver = driverById.get(trip.driverId) || null;
+      }
       const vehicle = trip ? vehicleById.get(trip.vehicleId) || null : null;
       const onTime = o.status === "geliefert" && o.deliveredAtMin != null ? (o.deliveredAtMin <= o.deliveryDeadlineMin) : null;
       const contribution = trip ? (trip.paymentCents || o.paidCents || o.paymentCents) - (trip.fuelCents || 0) - (trip.tollCents || 0) : null;

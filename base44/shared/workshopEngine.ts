@@ -358,6 +358,8 @@ export function processWorkshop(state, m, log) {
       if (!serviceHrs) continue;
       // Mechaniker verfügbar?
       let mech = order.mechanicId ? (state.employees || []).find(e => e.id === order.mechanicId) : null;
+      // Prüfe, ob der zugeordnete Mechaniker noch aktiv beschäftigt ist
+      if (mech && !isActivelyEmployed(mech)) { order.mechanicId = null; mech = null; }
       if (mech && !isPersonAvailable(state, mech.id, m)) {
         // Vertretung suchen
         const replacement = findAvailableMechanic(state, order.branchId, m);
@@ -367,11 +369,23 @@ export function processWorkshop(state, m, log) {
           order.history.push({ type: "mechanic_changed", atMin: m, from: oldId, to: replacement.id, reason: "Vertretung bei Abwesenheit" });
           mech = replacement;
         } else {
-          order.blockReason = "Kein verfügbarer Mechaniker";
+          order.blockReason = "Mechaniker abwesend – keine Vertretung verfügbar";
           continue;
         }
       }
-      if (!mech || !isPersonAvailable(state, mech.id, m)) continue;
+      // Kein Mechaniker zugewiesen – verfügbaren Mechaniker am Standort suchen
+      if (!mech) {
+        const replacement = findAvailableMechanic(state, order.branchId, m);
+        if (replacement) {
+          order.mechanicId = replacement.id;
+          order.history.push({ type: "mechanic_assigned", atMin: m, from: null, to: replacement.id, reason: "Wiederaufnahme nach Pause" });
+          mech = replacement;
+        } else {
+          order.blockReason = "Kein verfügbarer Mechaniker am Standort";
+          continue;
+        }
+      }
+      if (!isPersonAvailable(state, mech.id, m)) continue;
       // Slot noch belegt?
       const slot = (state.workshop?.slots || []).find(s => s.id === order.slotId);
       if (!slot || slot.status !== "occupied" || slot.currentOrderId !== order.id) continue;
