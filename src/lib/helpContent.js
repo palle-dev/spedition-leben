@@ -1,4 +1,4 @@
-// Zentrale Hilfe-Inhalte für FERNWERK.
+// Zentrale Hilfe-Inhalte für FRACHTFIEBER.
 // Organisiert nach Spielbereichen – genutzt vom HelpPanel und HintBadge.
 // Icons müssen in HelpPanel.jsx (ICONS-Map) registriert sein.
 
@@ -10,32 +10,40 @@ export const HELP_TOPICS = [
     color: 'lime',
     sections: [
       {
-        heading: 'Was ist FERNWERK?',
-        body: 'Du übernimmst eine kleine Hamburger Spedition und führst sie zum Erfolg – während du gleichzeitig dein Privatleben meisterst. Beide Welten beeinflussen sich gegenseitig: Ein vernachlässigtes Privatleben schwächt deine Leistungsfähigkeit als Geschäftsführer, und eine schlecht geführte Firma belastet deine Gesundheit und Beziehungen.',
+        heading: 'Was ist FRACHTFIEBER?',
+        body: 'Du übernimmst eine kleine Hamburger Spedition und führst sie zum Erfolg – während du gleichzeitig dein Privatleben meisterst. Beide Welten beeinflussen sich gegenseitig: Ein vernachlässigtes Privatleben schwächt deine Leistungsfähigkeit als Geschäftsführer (höhere Wartungskosten, schlechtere Entscheidungen), und eine schlecht geführte Firma belastet deine Gesundheit und Beziehungen. Kleine Firma. Große Pläne.',
       },
       {
         heading: 'Die Spielwelt',
-        body: 'Du startest mit einer Filiale in Hamburg, drei eigenen Lkw und drei Fahrern. Im Verlauf kannst du weitere Filialen in anderen Städten eröffnen, die Flotte vergrößern (Kauf oder Leasing), Personal einstellen und schulen sowie Privates aufbauen. Alles läuft in einer fortlaufenden Spielzeit – es gibt keine Runden, nur einen kontinuierlichen Kalender.',
+        body: 'Das Spiel deckt ganz Deutschland mit 30 Städten ab – von Hamburg und Bremen im Norden bis München und Freiburg im Süden, von Köln und Saarbrücken im Westen bis Berlin und Dresden im Osten. Du startest mit einer Filiale in Hamburg, drei eigenen Lkw und drei Fahrern. Im Verlauf kannst du weitere Filialen eröffnen, die Flotte vergrößern (Kauf, Leasing oder Gebrauchtmarkt), Personal einstellen und schulen sowie Privates aufbauen. Alles läuft in einer fortlaufenden Spielzeit – es gibt keine Runden, nur einen kontinuierlichen Kalender.',
+      },
+      {
+        heading: 'Schwierigkeit & Hilfssystem',
+        body: 'Beim Spielstart wählst du ein Schwierigkeitsprofil (z. B. Einsteiger, Normal, Experte). Es bestimmt Startkapital, Marktbedingungen und Kosten. Zusätzlich aktivierst du optionale Einstiegshilfen: automatische Wartungsplanung, Vorschlags-Automatik für Touren, Kreditwarnungen u. a. Diese Hilfen lassen sich später in den Einstellungen (Zahnrad-Symbol oben rechts) jederzeit an- oder abschalten. Wähle „Mit Begleitung" für einen geführten Einstieg in 5 Schritten oder „Frei spielen" zum selbstständigen Entdecken.',
+      },
+      {
+        heading: 'Szenarien',
+        body: 'Neben dem freien Spiel gibt es Szenarien – vordefinierte Herausforderungen mit eigenen Zielen, Startbedingungen und einem festen Zeitrahmen. Szenarien nutzen separate Speicher-Slots und überschreiben keine regulären Spielstände. Operative Eingriffe in Szenarien werden gezählt und im Büro transparent angezeigt. Ein aktives Szenario zeigt seinen Fortschritt direkt auf der Büro-Seite.',
       },
       {
         heading: 'Zeitsteuerung',
-        body: 'Die Zeit läuft nicht von allein. Über die Steuerung unten rechts treibst du sie voran: „1 Std" springt eine Stunde, „Nächstes Ereignis" läuft bis zur nächsten fälligen Aktion (Fahrtende, Marktwelle, Einladung). „1 Tag" schreibt einen ganzen Tag fort – im Hintergrund werden Touren, Tagesabrechnungen und Ereignisse automatisch abgearbeitet. Ein dezenter Indikator im Dock zeigt laufende Hintergrundberechnungen an.',
+        body: 'Die Zeit läuft nicht von allein. Über die Steuerung unten rechts treibst du sie voran: „1 Std" springt eine Stunde, „Nächstes Ereignis" läuft bis zur nächsten fälligen Aktion (Fahrtende, Marktwelle, Einladung). „1 Tag" schreibt einen ganzen Tag fort – im Hintergrund werden Touren, Tagesabrechnungen und Ereignisse automatisch abgearbeitet, die UI bleibt dabei nutzbar. Ein dezenter Indikator im Dock zeigt laufende Hintergrundberechnungen an.',
       },
       {
         heading: 'Die zwei Konten',
-        body: 'Das Firmenkonto (oben links, grün) bezahlt Lkw, Fahrer, Kraftstoff, Maut, Standorte und Wartung. Das Privatkonto (oben, korallenfarben) bezahlt deinen Lebensunterhalt, Anschaffungen und Investments. Über das Geschäftsführergehalt (Finanzen) stellst du ein, wie viel täglich vom Firmen- ins Privatkonto fließt. Zu wenig → privater Existenzdruck; zu viel → Firmenliquidität sinkt.',
+        body: 'Das Firmenkonto (oben, grün) bezahlt Lkw, Fahrer, Kraftstoff, Maut, Standorte und Wartung. Das Privatkonto (oben, korallenfarben) bezahlt deinen Lebensunterhalt, Anschaffungen und Investments. Über das Geschäftsführergehalt (Finanzen) stellst du ein, wie viel täglich vom Firmen- ins Privatkonto fließt. Zu wenig → privater Existenzdruck; zu viel → Firmenliquidität sinkt.',
       },
       {
         heading: 'Der Spielrhythmus',
         body: 'Aufträge annehmen → disponieren → Zeit fortsetzen → Lieferung erfolgt → Vergütung landet auf dem Firmenkonto → Tagesabrechnung (Mitternacht) zieht Löhne, Standortkosten und Gehalt ab. Zwischendurch: Privatleben-Entscheidungen (Einladungen, Hobbys, Anschaffungen) beachten und auf Zufriedenheit der Mitarbeiter achten.',
       },
       {
-        heading: 'Speichern & Spielstände',
-        body: 'Über das Festplatten-Symbol oben rechts verwaltest du manuelle Spielstände und Autosaves. Du kannst mehrere Slots anlegen, exportieren (JSON) und importieren. Der Spielstand wird zusätzlich in der Datenbank gesichert, wenn du „Speichern" drückst (erscheint nur, wenn ungespeicherte Änderungen vorliegen).',
+        heading: 'Speichern, Spielstände & Cloud-Sync',
+        body: 'Über das Festplatten-Symbol oben rechts verwaltest du manuelle Spielstände und Autosaves. Du kannst mehrere Slots anlegen, exportieren (JSON) und importieren. Der Spielstand wird zusätzlich in der Datenbank gesichert, wenn du „Speichern" drückst (erscheint nur, wenn ungespeicherte Änderungen vorliegen). Die Cloud-Synchronisation sichert explizite Speicherpunkte – keine stündlichen Ticks. Der Sync-Status (synchronisiert, offline, Konflikt) wird oben rechts transparent angezeigt.',
       },
       {
         heading: 'Bewegung & Animationen',
-        body: 'Über das Funken-Symbol oben rechts schaltest du Animationen ein oder aus. Im reduzierten Modus laufen Übergänge und Effekte schneller oder gar nicht – nützlich auf langsameren Geräten oder wenn du dich auf Zahlen konzentrieren willst.',
+        body: 'Über das Funken-Symbol oben rechts schaltest du Animationen ein oder aus. Im reduzierten Modus laufen Übergänge und Effekte schneller oder gar nicht – nützlich auf langsameren Geräten oder wenn du dich auf Zahlen konzentrieren willst. Alle Animationen respektieren zudem die System-Einstellung „Bewegung reduzieren".',
       },
     ],
   },
@@ -47,11 +55,19 @@ export const HELP_TOPICS = [
     sections: [
       {
         heading: 'Frachtbörse',
-        body: 'Auf der Seite „Aufträge" siehst du im Tab „Frachtbörse" alle aktuellen Marktangebote mit Start, Ziel, Fracht, Vergütung, Annahme- und Lieferfrist. Neue Angebote erscheinen stündlich in Wellen – die nächste Marktwelle wird oben als Uhrzeit angezeigt. Der Zielbestand an offenen Angeboten richtet sich nach deiner planbaren Flotte.',
+        body: 'Auf der Seite „Aufträge" siehst du im Tab „Frachtbörse" alle aktuellen Marktangebote mit Start, Ziel, Fracht, Vergütung, Annahme- und Lieferfrist. Neue Angebote erscheinen stündlich in Wellen – die nächste Marktwelle wird oben als Uhrzeit angezeigt. Der Zielbestand an offenen Angeboten richtet sich nach deiner planbaren Flotte. Die Preise folgen der Formel: Grundpreis + Kilometerpreis + Tonnenpreis, modifiziert durch Kundenbeziehung und Marktlage.',
       },
       {
         heading: 'Angebotstypen',
-        body: 'Standard-Fracht ist die Regel. Express-Aufträge haben kürzere Fristen aber höhere Vergütung. Vorlauf-Aufträge (Advance) sind Vorab-Dispositionen mit längerer Vorlaufzeit. Gefahrgut-Frachten (ADR) erfordern speziell qualifizierte Fahrer und Disponenten, bringen aber mehr Geld.',
+        body: 'Standard-Fracht ist die Regel. Express-Aufträge haben kürzere Fristen aber höhere Vergütung (×1,25). Vorlauf-Aufträge (Advance) sind Vorab-Dispositionen mit längerer Vorlaufzeit. Gefahrgut-Frachten (ADR) erfordern speziell qualifizierte Fahrer und Disponenten sowie ausgerüstete Lkw, bringen aber mehr Geld.',
+      },
+      {
+        heading: 'Frachtarten & Aufbau-Kategorien',
+        body: 'Jede Fracht gehört einer Cargo-Kategorie zu, die bestimmt, welcher Lkw-Aufbau erforderlich oder bevorzugt ist: Kühlfracht erfordert einen Kühlwagen, Flüssigtransporte einen Tankwagen, Schüttgut einen Kipper. Standardfracht, Lebensmittel, Getränke und Baustoffe sind Beispielsweise mit jedem Lkw transportierbar, aber der passende Spezial-Lkw erhält einen Preis-Aufschlag (Bonus). Die benötigte Aufbau-Kategorie wird auf jeder Angebotskarte als Badge angezeigt.',
+      },
+      {
+        heading: 'Kunden & Versanddepots',
+        body: 'Aufträge stammen von stabilen fiktiven Unternehmen mit eigenen Versanddepots. Ein Kundendepot muss am Abholort existieren – kein Kunde versendet aus jeder Stadt. Jeder Kunde hat bevorzugte Relationen und Frachtarten. Mit der Zeit kannst du Stammkunden gewinnen und Rahmenverträge abschließen (siehe „Kunden").',
       },
       {
         heading: 'Annahme & Stornierung',
@@ -62,6 +78,10 @@ export const HELP_TOPICS = [
         body: 'In der Frachtbörse kannst du mehrere Angebote gleichzeitig auswählen (Checkbox auf der Karte) und mit „Annehmen & verplanen" in einem Schritt annehmen und sofort disponieren. Das System versucht, freie Fahrzeuge automatisch zuzuordnen. Nicht verplanbare Aufträge bleiben angenommen und müssen manuell disponiert werden.',
       },
       {
+        heading: 'Fremdvergabe an Partner',
+        body: 'Aufträge, die du nicht selbst fahren kannst oder willst, kannst du an externe Speditionspartner vergeben. Öffne das Partner-Angebot (Icon auf der Angebotskarte oder im Dispositions-Tab „Partner"). Du erhältst Angebote verschiedener Partner mit Preis, Dauer und Deckungsbeitrag. Buchst du einen Partner, übernimmt dieser den Transport – du behältst die Marge. Aktive Partner-Transporte lassen sich jederzeit einsehen und stornieren.',
+      },
+      {
         heading: 'Filter & Suche',
         body: 'Über den „Filter"-Button (mit Zähler-Badge) klappst du eine Filterleiste auf: Startort, Frachtart, Ausführbarkeit (vom System als passend/schwer ausführbar bewertet), Gefahrgut und Filiale. Suche und Sortierung (Lieferfrist, Annahmefrist, Vergütung) helfen bei großen Listen.',
       },
@@ -70,8 +90,8 @@ export const HELP_TOPICS = [
         body: 'Jedem Angebot wird automatisch die nächstgelegene aktive Filiale als zuständig zugeordnet. Mit dem Filial-Filter grenzt du die Börse auf eine bestimmte Filiale ein.',
       },
       {
-        heading: 'Eigene Aufträge',
-        body: 'Im Tab „Eigene Aufträge" siehst du angenommene und laufende Aufträge mit Status, geplanter Ankunft und Lieferfrist. Abgeschlossene und verfallene Aufträge erscheinen darunter. Angenommene, noch nicht disponierte Aufträge kannst du von hier aus direkt planen oder stornieren.',
+        heading: 'Eigene & fertige Aufträge',
+        body: 'Im Tab „Eigene Aufträge" siehst du angenommene und laufende Aufträge mit Status, geplanter Ankunft und Lieferfrist. Abgeschlossene und verfallene Aufträge erscheinen im Tab „Fertige Aufträge". Angenommene, noch nicht disponierte Aufträge kannst du von hier aus direkt planen, an Partner vergeben oder stornieren.',
       },
       {
         heading: 'Offene Aufträge löschen',
@@ -87,31 +107,43 @@ export const HELP_TOPICS = [
     sections: [
       {
         heading: 'Touren planen',
-        body: 'Auf der Seite „Disposition" planst du, welcher Lkw welchen Auftrag fährt. Wähle einen angenommenen Auftrag, einen freien Lkw und einen freien Fahrer. Das System prüft automatisch: Kapazität, Zustand, gemeinsamer Standort, Einsatzgrenze (Arbeitszeit), Gefahrgut-Qualifikation und Kontostand.',
+        body: 'Auf der Seite „Disposition" planst du, welcher Lkw welchen Auftrag fährt. Wähle einen angenommenen Auftrag, einen freien Lkw und einen freien Fahrer. Das System prüft automatisch: Kapazität, Zustand, gemeinsamer Standort, Aufbau-Kompatibilität, Fahrer-Arbeitszeit, Gefahrgut-Qualifikation und Kontostand.',
+      },
+      {
+        heading: 'Aufbau-Kompatibilität',
+        body: 'Manche Frachtarten erfordern einen bestimmten Lkw-Aufbau: Kühlfracht braucht einen Kühlwagen, Flüssigtransporte einen Tankwagen, Schüttgut einen Kipper. Das System blockiert unpassende Kombinationen und zeigt den Grund an. In der Auftrags-Liste kannst du nach dem Aufbau eines bestimmten Fahrzeugs filtern – nur passende Frachten werden angezeigt.',
       },
       {
         heading: 'Fahrer & Lkw müssen matchen',
-        body: 'Fahrer und Lkw müssen am selben Standort sein. Ist der Fahrer in einer anderen Stadt, muss er erst dorthin (Leerfahrt). Das System schlägt nur gültige Kombinationen vor und sortiert Fahrer nach verbleibender Arbeitszeit, um Überlastung bei standortübergreifenden Anfragen zu vermeiden.',
+        body: 'Fahrer und Lkw müssen am selben Standort sein. Ist der Fahrer in einer anderen Stadt, muss er erst dorthin (Leerfahrt/Reise). Das System schlägt nur gültige Kombinationen vor und sortiert Fahrer nach verbleibender Arbeitszeit, um Überlastung bei standortübergreifenden Anfragen zu vermeiden.',
       },
       {
-        heading: 'Touren-Phasen',
-        body: 'Eine Tour durchläuft Phasen: Beladung, Fahrt zum Ziel, Entladung und ggf. Rückfahrt. Jede Phase kostet Zeit. Die Fahrer-Arbeitszeit (Lenkzeit) ist gesetzlich begrenzt – das System warnt, wenn eine Tour die Tagesgrenze überschreitet. Rückfracht (ein Folgeauftrag vom Ziel zurück) erhöht die Auslastung.',
+        heading: 'Touren-Phasen & Fahrerzeit',
+        body: 'Eine Tour durchläuft Phasen: Beladung, Fahrt zum Ziel, Entladung und ggf. Rückfahrt. Jede Phase kostet Zeit. Das einheitliche Fahrerzeitmodell begrenzt Arbeitszeit (480 min zwischen Ruhezeiten) und Lenkzeit (270 min seit qualifizierter Fahrpause). Eine kurze Fahrpause (45 min) setzt die Lenkzeit zurück. Das System warnt, wenn eine Tour die Grenzen überschreitet. Rückfracht (ein Folgeauftrag vom Ziel zurück) erhöht die Auslastung.',
+      },
+      {
+        heading: 'Wochenplanung (FERNWERK)',
+        body: 'Die Disposition unterstützt eine visuelle Wochenplanung: Du kannst Touren im Voraus planen, verschieben und neu zuordnen. Die Planungs-Ansicht zeigt alle Ressourcen (Fahrzeuge, Fahrer) auf einer Zeitachse. So siehst du Engpässe und Leerzeiten und kannst die Flotte optimal auslasten.',
       },
       {
         heading: 'Karte & Routen',
-        body: 'Die Dispositions-Karte zeigt alle aktiven Touren, Fahrzeugstandorte und Filialen. Du siehst Live-Positionen, geplante Routen und Ankunftszeiten. Klicke auf eine Tour für Details zu Phasen, Fahrer und Ladung.',
+        body: 'Die Dispositions-Karte zeigt alle aktiven Touren, Fahrzeugstandorte und Filialen in ganz Deutschland. Du siehst Live-Positionen, geplante Routen und Ankunftszeiten. Klicke auf eine Tour für Details zu Phasen, Fahrer und Ladung.',
       },
       {
         heading: 'Auto-Optimierung',
-        body: 'Mit „Auto-Optimieren" lässt du das System automatisch die bestmögliche Zuordnung von Aufträgen, Fahrzeugen und Fahrern berechnen. Es berücksichtigt Auslastung, Fristen und Kosten. Das Ergebnis kannst du vor dem Start prüfen und anpassen.',
+        body: 'Mit „Auto-Optimieren" lässt du das System automatisch die bestmögliche Zuordnung von Aufträgen, Fahrzeugen und Fahrern berechnen. Es berücksichtigt Auslastung, Fristen, Aufbau-Kompatibilität und Kosten. Das Ergebnis kannst du vor dem Start prüfen und anpassen.',
       },
       {
         heading: 'Disponent einstellen',
         body: 'Ein Disponent (Personal) kann Touren automatisch planen. Im Modus „Vorschläge" erstellt er Vorschläge, die du bestätigst. Im „autonomen Modus" übernimmt er alles selbst – inklusive Auftragsannahme. Seine Kapazität (Anzahl Lkw) lässt sich durch Schulung erhöhen. Ein Disponent mit Gefahrgut-Dispositions-Schulung darf auch ADR-Aufträge disponieren.',
       },
       {
+        heading: 'Störungsmanagement',
+        body: 'Während einer Tour können Störungen auftreten (Stau, Wetter, Fahrzeugausfall). Aktive Störungen werden automatisch modal angezeigt und im Büro unter „Störungen" sichtbar. Du kannst auf Störungen reagieren – z. B. warten, umleiten oder abbrechen. Das System protokolliert alle Störungen und ihre Auswirkungen.',
+      },
+      {
         heading: 'Gefahrgut',
-        body: 'Gefahrgut-Frachten (ADR) erfordern beim Fahrer die ADR-Qualifikation und beim (autonomen) Disponenten die Gefahrgut-Dispositions-Schulung. Ohne diese kann der Auftrag nicht angenommen oder disponiert werden. Gefahrgut-Touren sind besser bezahlt, bergen aber höhere Anforderungen.',
+        body: 'Gefahrgut-Frachten (ADR) erfordern beim Fahrer die ADR-Qualifikation, beim Lkw die Gefahrgut-Ausstattung und beim (autonomen) Disponenten die Gefahrgut-Dispositions-Schulung. Ohne diese kann der Auftrag nicht angenommen oder disponiert werden. Gefahrgut-Touren sind besser bezahlt, bergen aber höhere Anforderungen.',
       },
     ],
   },
@@ -122,24 +154,36 @@ export const HELP_TOPICS = [
     color: 'cyan',
     sections: [
       {
-        heading: 'Flotte',
-        body: 'Im Tab „Flotte" siehst du alle einsatzfähigen Lkw mit Standort, Zustand, Status (frei, unterwegs, Wartung) und Besitzform (eigen/geleast). Jeder Lkw hat 12 t Kapazität und verbraucht ca. 28 L/100 km. Der Buchwert eigener Lkw sinkt mit Alter und Kilometerstand, der Marktwert richtet sich nach Zustand und Alter.',
+        heading: 'Fahrzeugtypen',
+        body: 'Es gibt drei Größenklassen: Der Regional-Lkw (8 t, 18.000 €, 22 L/100 km) ist wendig und sparsam, ideal für regionale Verteilerverkehre. Der Standard-Lkw (12 t, 30.000 €, 28 L/100 km) ist der universelle Allrounder. Der schwere Fernverkehrs-Lkw (24 t, 55.000 €, 35 L/100 km) trägt viel, verbraucht aber auch mehr. Wähle je nach Auftrag, Strecke und Budget.',
+      },
+      {
+        heading: 'Spezialisierte Aufbauten',
+        body: 'Jeder Lkw lässt sich mit einem von vier Aufbauten kombinieren: Planen (Standard, universell), Kühlwagen (+15 % Preis, +20 % Wartung, +2 L/100 km – für Kühlfracht), Tankwagen (+20 % Preis, +15 % Wartung, +1 L/100 km – für Flüssigtransporte) und Kipper/Silo (+10 % Preis, +10 % Wartung, +1 L/100 km – für Schüttgut). Beim Kauf oder Leasing wählst du Größe und Aufbau frei. Der Aufbau bestimmt, welche Frachtarten der Lkw transportieren kann (strikt) oder für die er einen Bonus erhält.',
       },
       {
         heading: 'Lkw kaufen & leasen',
-        body: 'Über „Kaufen (30.000 €)" erwirbst du einen neuen eigenen Lkw an der gewählten Filiale. „Leasen (1.500 €)" stellt einen Leasing-Lkw bereit – die monatlichen Leasingraten laufen über die Finanzierung. Vor dem Kauf müssen betriebliche Pflichtkosten beglichen sein. Bei mehreren Filialen wählst du den Zielstandort über die Filial-Auswahl.',
+        body: 'Über „Kaufen" erwirbst du einen neuen eigenen Lkw an der gewählten Filiale – du wählst Größe (Regional/Standard/Schwer) und Aufbau (Planen/Kühl/Tank/Kipper). „Leasen" stellt einen Leasing-Lkw bereit – die monatlichen Leasingraten laufen über die Finanzierung. Vor dem Kauf müssen betriebliche Pflichtkosten beglichen sein. Bei mehreren Filialen wählst du den Zielstandort über die Filial-Auswahl.',
+      },
+      {
+        heading: 'Gebrauchtmarkt',
+        body: 'Im Tab „Gebrauchtmarkt" findest du gebrauchte Lkw mit realistischen Preisen, Kilometerständen und Zustandswerten. Der Kauf ist günstiger als ein Neuwagen, aber ältere Fahrzeuge brauchen eher Wartung. Prüfe Zustand und Kilometerstand vor dem Kauf – ein schlechter Zustand bedeutet höhere Pannenrisiken und niedrigeren Marktwert.',
       },
       {
         heading: 'Verkaufen & Verkaufsangebot',
-        body: 'Eigene Lkw kannst du verkaufen (Verkaufen-Button auf der Karte) oder zum Verkauf markieren. Markierte Fahrzeuge erhalten ein Händler-Angebot, das eine gewisse Zeit gültig ist – nimmst du an, wird der Erlös auf das Firmenkonto gebucht. Leasing-Fahrzeuge lassen sich nicht verkaufen, ihr Vertrag ist in den Finanzen einsehbar.',
+        body: 'Eigene Lkw kannst du verkaufen (Verkaufen-Button auf der Karte) oder zum Verkauf markieren. Markierte Fahrzeuge erhalten ein Händler-Angebot, das eine gewisse Zeit gültig ist – nimmst du an, wird der Erlös auf das Firmenkonto gebucht. Der Marktwert richtet sich nach Alter, Kilometerstand und Zustand. Leasing-Fahrzeuge lassen sich nicht verkaufen, ihr Vertrag ist in den Finanzen einsehbar.',
       },
       {
         heading: 'Wartung & Werkstatt',
-        body: 'Jeder Lkw hat einen Zustand (0–100). Bei niedrigem Zustand steigt das Pannenrisiko. „Schnellwartung" auf der Karte kostet Geld und Zeit – der Lkw ist währenddessen nicht verfügbar. Im Tab „Werkstatt" planst du Werkstatt-Aufträge detailliert. Ein eigener Mechaniker senkt die Teilekosten und die Dauer; die materialeffiziente Wartung (Schulung) spart zusätzlich 10 % Teilekosten.',
+        body: 'Jeder Lkw hat einen Zustand (0–100). Die Wartung ist kilometerbasiert: alle 15.000 km wird eine Wartung fällig. Eine Fortschrittsanzeige auf jeder Fahrzeugkarte zeigt, wann die nächste Wartung ansteht. „Schnellwartung" kostet Geld und Zeit – der Lkw ist währenddessen nicht verfügbar. Im Tab „Werkstatt" planst du Werkstatt-Aufträge detailliert. Ein eigener Mechaniker senkt die Teilekosten und die Dauer; die materialeffiziente Wartung (Schulung) spart zusätzlich 10 % Teilekosten.',
       },
       {
         heading: 'Gefahrgut-Ausstattung',
         body: 'Im Tab „Gefahrgut" rüstest du Lkw für ADR-Transporte nach (ADR-Kit, Beschilderung, Trennwand etc.). Nur ausgerüstete Lkw dürfen Gefahrgut-Frachten laden. Die Umrüstung kostet Geld und bindet das Fahrzeug kurzzeitig.',
+      },
+      {
+        heading: 'Fuhrpark-Analyse',
+        body: 'Im Tab „Analyse" siehst du Betriebskosten und Ersatz-Empfehlungen pro Fahrzeug: Lieferungen, Ausgaben, Rentabilität, Leerfahrten-Quote und Tageskilometer. Das System warnt bei niedriger Auslastung (nur wenn das Fahrzeug tatsächlich gefahren ist), bei hohem Alter, schlechtem Zustand oder ablaufendem Leasing-Vertrag. Nutze diese Daten, um zu entscheiden, ob sich ein Fahrzeug noch lohnt oder ersetzt werden sollte.',
       },
       {
         heading: 'Belastung & Wartungskosten',
@@ -155,11 +199,11 @@ export const HELP_TOPICS = [
     sections: [
       {
         heading: 'Rollen',
-        body: 'Fahrer bringen Lkw auf Tour. Disponenten planen Touren (manuell oder autonom). Mechaniker warten Lkw und senken Wartungskosten. Buchhalter erledigen die Finanzbuchführung. Reinigungskräfte halten die Flotte sauber. Der Assistent der Geschäftsführung übernimmt Management-Aufgaben. Filialleiter treffen autonome Entscheidungen für ihre Filiale.',
+        body: 'Fahrer bringen Lkw auf Tour. Disponenten planen Touren (manuell oder autonom). Mechaniker warten Lkw und senken Wartungskosten. Buchhalter erledigen die Finanzbuchführung. Reinigungskräfte halten die Flotte sauber. Der Assistent der Geschäftsführung übernimmt Management-Aufgaben. Filialleiter treffen autonome Entscheidungen für ihre Filiale. Alle Rollen sind von Beginn an einstellbar – keine künstliche Freischaltung.',
       },
       {
         heading: 'Bewerbermarkt & Einstellung',
-        body: 'Im Tab „Bewerber" durchsuchst du den Bewerbermarkt, filterst nach Rolle, Standort und Verfügbarkeit und stellst ein. Jede Einstellung kostet eine einmalige Einstellungsgebühr; danach läuft der Tageslohn. Achte darauf, dass Mechaniker einen Werkstatt-Slot an deiner Filiale brauchen – ohne Werkstatt können sie nicht arbeiten.',
+        body: 'Im Tab „Bewerber" durchsuchst du den Bewerbermarkt, filterst nach Rolle, Standort und Verfügbarkeit und stellst ein. Jede Einstellung kostet eine einmalige Einstellungsgebühr; danach läuft der Tageslohn. Achte darauf, dass Mechaniker einen Werkstatt-Slot an deiner Filiale brauchen – ohne Werkstatt können sie nicht arbeiten. Bei mehreren Filialen wählst du den Zielstandort.',
       },
       {
         heading: 'Stellen ausschreiben',
@@ -167,11 +211,11 @@ export const HELP_TOPICS = [
       },
       {
         heading: 'Team & Verwaltung',
-        body: 'Im Tab „Team" siehst du alle Mitarbeiter mit Status, Zufriedenheit, Anwesenheit, Standort, Kosten und aktuellen Einsätzen. Du kannst Mitarbeiter kündigen, versetzen oder befördern. Bei mehreren Filialen filterst du nach Standort.',
+        body: 'Im Tab „Team" siehst du alle Mitarbeiter mit Status, Zufriedenheit, Anwesenheit, Standort, Kosten und aktuellen Einsätzen. Du kannst Mitarbeiter kündigen, versetzen oder befördern. Bei mehreren Filialen filterst du nach Standort. Klicke auf eine Person für Detail-Aktionen: Schulung, Abwesenheit, Versetzung, Kündigung.',
       },
       {
         heading: 'Schulung & Beförderung',
-        body: 'Mitarbeiter können Kurse buchen: ADR (Gefahrgut), Eco-Drive (Kraftstoffersparnis), erweiterte Disposition, materialeffiziente Wartung u. a. Kurse kosten Gebühren und Zeit – der Mitarbeiter ist währenddessen abwesend. Beförderungskurse erhöhen die Rolle und das Gehalt. Der Assistent kann Schulungen automatisch buchen (Budget konfigurierbar).',
+        body: 'Mitarbeiter können Kurse buchen: ADR (Gefahrgut), Eco-Drive (Kraftstoffersparnis), erweiterte Disposition, materialeffiziente Wartung, Gefahrgut-Disposition u. a. Kurse kosten Gebühren und Zeit – der Mitarbeiter ist währenddessen abwesend. Beförderungskurse erhöhen die Rolle und das Gehalt (z. B. Disponent → Erfahrener Disponent). Der Assistent kann Schulungen automatisch buchen (Budget konfigurierbar).',
       },
       {
         heading: 'Qualifikationen',
@@ -183,11 +227,15 @@ export const HELP_TOPICS = [
       },
       {
         heading: 'Abwesenheit & Urlaub',
-        body: 'Im Tab „Abwesenheit" planst du Urlaub und siehst Krankheitsfälle. Urlaub gibt Erholung (senkt Belastung, steigt Zufriedenheit), der Mitarbeiter ist aber nicht verfügbar. Krankheit reduziert die Verfügbarkeit und entsteht häufig bei Überlastung.',
+        body: 'Im Tab „Abwesenheit" planst du Urlaub und siehst Krankheitsfälle. Urlaub gibt Erholung (senkt Belastung, steigert Zufriedenheit), der Mitarbeiter ist aber nicht verfügbar. Krankheit reduziert die Verfügbarkeit und entsteht häufig bei Überlastung.',
       },
       {
         heading: 'Zufriedenheit & Betriebsklima',
         body: 'Überlastete oder unterbezahlte Mitarbeiter werden unzufrieden und kündigen evtl. oder werden krank. Achte auf das Betriebsklima (Team-Klima-Anzeige), auf faire Auslastung und auf Gehaltsgerechtigkeit. Zufriedene Mitarbeiter bleiben länger und leisten mehr.',
+      },
+      {
+        heading: 'Disponenten-Setup',
+        body: 'Für jeden Disponenten konfigurierst du den Modus (Vorschläge oder autonom), die betreuten Lkw und die Schicht. Disponenten arbeiten in Schichten (Früh, Tag, Spät, Nacht) für 24/7-Betrieb. Die Kapazität (Anzahl Lkw pro Disponent) lässt sich durch Schulung erhöhen.',
       },
     ],
   },
@@ -199,11 +247,19 @@ export const HELP_TOPICS = [
     sections: [
       {
         heading: 'Übersicht',
-        body: 'Die Finanz-Seite öffnet mit der „Übersicht". Du siehst Firmenkonto, Privatkonto, Einnahmen/Ausgaben der Periode, offene Posten und wichtige Kennzahlen. Der Zeitverlauf-Filter im Chart-Header lässt dich zwischen verschiedenen Perioden (Woche, Monat, Quartal) wechseln.',
+        body: 'Die Finanz-Seite öffnet mit der „Übersicht". Du siehst Firmenkonto, Privatkonto, Einnahmen/Ausgaben der Periode, offene Posten und wichtige Kennzahlen. Die doppelte Buchführung folgt einem Kontenplan nach SKR mit Abschreibung und Periodenabschluss.',
+      },
+      {
+        heading: 'Liquiditätsvorschau',
+        body: 'Im Tab „Liquiditätsvorschau" siehst du eine Prognose der kommenden Ein- und Auszahlungen über die nächsten Tage und Wochen. Geplante Tourerlöse, Leasingraten, Kreditraten, Löhne und Standortkosten werden berücksichtigt. So erkennst du Engpässe frühzeitig und kannst rechtzeitig Kredite aufnehmen oder Aufträge annehmen. Bei prognostizierten Engpässen erscheint eine Warnung im Büro.',
+      },
+      {
+        heading: 'Zeitverlauf',
+        body: 'Im Tab „Zeitverlauf" zeigt ein Chart die Entwicklung von Umsatz, Kosten und Gewinn über verschiedene Perioden (Woche, Monat, Quartal). Vergleiche Phasen und erkenne Trends.',
       },
       {
         heading: 'Einnahmen & Ausgaben',
-        body: 'Einnahmen: Liefervergütungen. Ausgaben: Kraftstoff, Maut, Fahrerlöhne, Standortkosten, Wartung, Schulungen, Leasingraten. Die Tagesabrechnung (Mitternacht) zieht Fixkosten ab: Löhne, Standortkosten, Geschäftsführergehalt, Leasingraten.',
+        body: 'Einnahmen: Liefervergütungen. Ausgaben: Kraftstoff, Maut, Fahrerlöhne, Standortkosten, Wartung, Schulungen, Leasingraten, Kreditzinsen. Die Tagesabrechnung (Mitternacht) zieht Fixkosten ab: Löhne, Standortkosten, Geschäftsführergehalt, Leasingraten, Kreditraten.',
       },
       {
         heading: 'Geschäftsführergehalt',
@@ -211,19 +267,19 @@ export const HELP_TOPICS = [
       },
       {
         heading: 'Buchhaltung & offene Posten',
-        body: 'Ein Buchhalter erledigt die Finanzbuchführung. Ohne Buchhalter häufen sich offene Posten, die manuell bearbeitet werden müssen. Ein Senior-Buchhalter schafft mehr Kapazität. Im Tab „Offene Posten" siehst du fällige Rechnungen und kannst sie freigeben. Der Assistent kann Buchhaltungsaufgaben vorbereiten.',
+        body: 'Ein Buchhalter erledigt die Finanzbuchführung. Ohne Buchhalter häufen sich offene Posten, die manuell bearbeitet werden müssen. Ein Senior-Buchhalter schafft mehr Kapazität. Im Tab „Offene Posten" siehst du fällige Rechnungen und kannst sie freigeben. Der Assistent kann Buchhaltungsaufgaben vorbereiten. Im Tab „Buchhaltung" verwaltest du dein Buchhaltungsteam.',
       },
       {
-        heading: 'Journal & Berichte',
-        body: 'Im Tab „Journal" siehst du alle Buchungssätze im zeitlichen Verlauf. „Berichte" bietet aggregierte Auswertungen nach Kategorien, Filialen und Perioden – ideal, um Schwachstellen zu erkennen.',
+        heading: 'Journal & Auswertungen',
+        body: 'Im Tab „Journal" siehst du alle Buchungssätze im zeitlichen Verlauf. „Auswertungen" bietet aggregierte Auswertungen nach Kategorien, Filialen und Perioden – ideal, um Schwachstellen zu erkennen.',
       },
       {
         heading: 'Anlagenverzeichnis',
-        body: 'Das Anlagenverzeichnis listet alle Firmenfahrzeuge mit Buchwert, Abschreibung und Marktwert. Hier behältst du den Vermögenswert der Flotte im Blick.',
+        body: 'Das Anlagenverzeichnis (Tab „Anlagen") listet alle Firmenfahrzeuge mit Buchwert, Abschreibung und Marktwert. Hier behältst du den Vermögenswert der Flotte im Blick.',
       },
       {
         heading: 'Kredite & Finanzierung',
-        body: 'Bei Liquiditätsengpässen kannst du Kredite aufnehmen (Finanzierung). Kredite haben Zinsen und Laufzeiten; die Rate wird täglich abgebucht. Ein Kredit-Kalkulator zeigt dir vorab die Belastung. Leasing verteilt Lkw-Kosten über die Zeit (Leasingraten). Achte auf Zinsen und Laufzeiten – zu viele Kredite können die Firma in die Verlustzone drücken.',
+        body: 'Bei Liquiditätsengpässen kannst du Kredite aufnehmen (Tab „Finanzierung"). Kredite haben Zinsen und Laufzeiten; die Rate wird täglich abgebucht. Ein Kredit-Kalkulator zeigt dir vorab die Belastung. Leasing verteilt Lkw-Kosten über die Zeit (Leasingraten). Achte auf Zinsen und Laufzeiten – zu viele Kredite können die Firma in die Verlustzone drücken. Bei schweren Rückständen drohen Mahngebühren und Kreditkündigung.',
       },
     ],
   },
@@ -258,8 +314,156 @@ export const HELP_TOPICS = [
         body: 'Das Beziehungs-Panel zeigt den Stand deiner Beziehung. Je nach Spielverlauf kannst du neue Kontakte knüpfen (Dating) oder eine bestehende Beziehung pflegen. Eine stabile Beziehung senkt die Belastung und hebt die Zufriedenheit.',
       },
       {
+        heading: 'Story & Chronik',
+        body: 'Private Geschichten und Ereignisse werden in einer Chronik festgehalten – einer Langzeit-Erinnerung an wichtige Meilensteine in deinem Leben. Personenbasierte Zuordnung von Ereignissen sorgt dafür, dass Beziehungen und Entwicklungen über die Zeit nachvollziehbar bleiben.',
+      },
+      {
         heading: 'Ziele & Belohnungen',
-        body: 'Private Ziele (z. B. „erstes eigenes Auto", „stabile Beziehung") geben dir Meilensteine. Erreichst du sie, winken Belohnungen – oft Zufriedenheits- oder Beziehungsboni. Achte auf die Ziel-Anzeige auf der Zuhause-Seite.',
+        body: 'Private Ziele („Entwicklungsziele" genannt) geben dir persönliche Wachstums-Meilensteine. Erreichst du sie, winken Belohnungen – oft Zufriedenheits- oder Beziehungsboni. Achte auf die Ziel-Anzeige auf der Zuhause-Seite.',
+      },
+    ],
+  },
+  {
+    id: 'customers',
+    title: 'Kunden & Verträge',
+    icon: 'UserCircle',
+    color: 'lime',
+    sections: [
+      {
+        heading: 'Kundenübersicht',
+        body: 'Auf der Seite „Kunden" verwaltest du Dauerkundenbeziehungen, Vertrauen und Rahmenverträge. Die Liste zeigt alle Kunden mit Branchenzugehörigkeit, Vertrauenslevel, Versanddepots und bevorzugten Relationen. Stammkunden sind besonders wertvoll – sie bieten stabilere Aufträge und bessere Konditionen.',
+      },
+      {
+        heading: 'Kundendetail',
+        body: 'Klickst du einen Kunden an, siehst du sein Profil: Depot-Standorte, bevorzugte Frachtarten, bisherige Lieferungen, Vertrauensentwicklung und ggf. einen aktiven Rahmenvertrag. Du kannst gezielte Akquise betreiben (Kundenansprache), um das Vertrauen zu erhöhen und Stammkunde zu werden.',
+      },
+      {
+        heading: 'Ausschreibungen & Verhandlungen',
+        body: 'Über den Reiter „Ausschreibungen" siehst du offene Ausschreibungen, laufende Bewertungen und Verhandlungen aus der gezielten Kundenansprache. Eine Ausschreibung kann zu einem Rahmenvertrag führen, wenn du die beste Bewertung erhältst. Verhandlungen erlauben dir, Konditionen (Preis, Laufzeit, Volumen) zu verhandeln.',
+      },
+      {
+        heading: 'Rahmenverträge',
+        body: 'Ein Rahmenvertrag mit einem Kunden sichert dir wiederkehrende Aufträge zu festgelegten Konditionen. Du verpflichtest dich zu einer bestimmten Verfügbarkeit oder Lieferqualität, erhältst dafür planbare Einnahmen und bevorzugte Behandlung. Aktive Verträge werden auf der Kundenseite und im Büro angezeigt.',
+      },
+      {
+        heading: 'Akquise',
+        body: 'Die gezielte Kundenansprache (Akquise) erhöht das Vertrauen und die Wahrscheinlichkeit für Stammkunden-Status und Ausschreibungen. Über das Akquise-Panel startest du Maßnahmen (Besuch, Anruf, Angebot). Jede Aktion kostet Zeit und Geld, verbessert aber die Beziehung langfristig.',
+      },
+      {
+        heading: 'Netzkarte-Integration',
+        body: 'Kundenbeziehungen lassen sich auch auf der Netzkarte analysieren – dort siehst du, wo deine Kunden sitzen, welche Relationen sie bedienen und wo neue Standorte sinnvoll wären.',
+      },
+    ],
+  },
+  {
+    id: 'branches',
+    title: 'Filialen',
+    icon: 'Building2',
+    color: 'cyan',
+    sections: [
+      {
+        heading: 'Mehrere Standorte',
+        body: 'Unter „Filialen" verwaltest du alle deine Standorte. Jede Filiale hat eigene Kosten (Miete, Personal), Ressourcen (Lkw, Fahrer, Werkstatt-Slots) und einen Markt-Bezirk. Du startest mit Hamburg und kannst weitere Filialen in 30 Städten eröffnen. Jede Filiale erweitert deinen Markt-Bezirk und deine Kapazität.',
+      },
+      {
+        heading: 'Filiale eröffnen',
+        body: 'Über „Filiale eröffnen" wählst du eine Stadt und investierst in einen neuen Standort. Die Eröffnung kostet 50.000 € und erfordert ein Mindestspielalter und ausreichend Kapital (Firmenkonto ≥ 2× Gebühr). Danach laufen Standortkosten täglich. Die Filial-Karte zeigt alle Standorte mit Auslastung und Status.',
+      },
+      {
+        heading: 'Ressourcen versetzen',
+        body: 'Du kannst Lkw und Mitarbeiter zwischen Filialen versetzen. Das hilft, Engpässe an einem Standort auszugleichen oder neue Filialen zu besetzen. Die Versetzung kostet je nach Entfernung Zeit (Leerfahrt für Lkw, Reise für Fahrer) und Geld (Fahrer-Reisekosten 0,15 €/km).',
+      },
+      {
+        heading: 'Standortausbau',
+        body: 'Jede Filiale kann ausgebaut werden – z. B. um zusätzliche Werkstatt-Slots, Lagerfläche oder Bürokapazität. Der Ausbau kostet Geld und Zeit, erhöht aber die Kapazität des Standorts. Nutze den Ausbau, wenn eine Filiale an ihre Grenzen stößt.',
+      },
+      {
+        heading: 'Filialplanung & Karte',
+        body: 'Die Filial-Karte zeigt alle Standorte mit Auslastung und Status. In der Planungs-Ansicht siehst du, wo sich Aufträge und Ressourcen ballen, und kannst strategisch neue Filialen oder Versetzungen planen. Die Netzkarte bietet dazu eine detaillierte Standortanalyse.',
+      },
+      {
+        heading: 'Filialleiter & Entscheidungen',
+        body: 'Ab einer zweiten Filiale kannst du Filialleiter einstellen. Sie treffen autonome Entscheidungen für ihre Filiale (Einstellungen, Wartung, Disposition), die du als Geschäftsführer im Entscheidungs-Panel freigeben oder ablehnen kannst. So skaliert das Unternehmen, ohne dass du jeden Standort einzeln steuerst.',
+      },
+    ],
+  },
+  {
+    id: 'network',
+    title: 'Netzkarte',
+    icon: 'Network',
+    color: 'cyan',
+    sections: [
+      {
+        heading: 'Strategische Netzkarte',
+        body: 'Die Netzkarte ist deine strategische Planungsansicht über ganz Deutschland. Sie zeigt Filialen, Kunden, aktive Aufträge, laufende Touren und Fahrzeugpositionen auf einer interaktiven Karte. Ebenen lassen sich einzeln ein- und ausblenden (Filialen, Kunden, Aufträge, Touren, Fahrzeuge).',
+      },
+      {
+        heading: 'Relationen',
+        body: 'Im Tab „Relationen" siehst du, welche Strecken (von–nach) am häufigsten gefahren werden und wo sich Aufträge ballen. Das hilft dir, zu erkennen, wo eine neue Filiale sinnvoll wäre oder welche Relationen unterversorgt sind.',
+      },
+      {
+        heading: 'Rückladungen',
+        body: 'Im Tab „Rückladungen" suchst du nach Folgeaufträgen (Rückfracht) für ein Fahrzeug oder eine Tour. Rückfracht erhöht die Auslastung und vermeidet Leerfahrten. Du kannst nach Fahrzeug, Zielort oder Tour filtern und passende Rückladungen direkt planen.',
+      },
+      {
+        heading: 'Standortanalyse',
+        body: 'Im Tab „Standort" analysierst du eine bestimmte Stadt: Wie viele Aufträge gehen von dort aus? Welche Kunden haben dort Depots? Wie ist die Marktlage? Das hilft bei der Entscheidung, ob sich eine neue Filiale lohnt.',
+      },
+      {
+        heading: 'Standortvergleich',
+        body: 'Im Tab „Vergleich" vergleichst du bis zu drei Städte nebeneinander: Auftragsvolumen, Entfernungen, bestehende Kundenbeziehungen und Filial-Status. Du kannst direkt eine neue Filiale eröffnen, wenn ein Standort vielversprechend aussieht.',
+      },
+      {
+        heading: 'Filter & Ebenen',
+        body: 'Über die Ebenen-Steuerung blendest du Karten-Elemente ein und aus. Filter grenzen die Ansicht auf bestimmte Filialen, Fahrzeuge, Kunden oder Auftrags-Status ein. Klicke auf ein Element in der Karte, um Details zu sehen oder zur entsprechenden Detail-Ansicht zu wechseln.',
+      },
+    ],
+  },
+  {
+    id: 'leadership',
+    title: 'Führung & Delegation',
+    icon: 'Shield',
+    color: 'violet',
+    sections: [
+      {
+        heading: 'Mitarbeiterbefugnisse',
+        body: 'Auf der Seite „Führung" legst du fest, welche Handlungen deine Mitarbeiter selbstständig durchführen dürfen und welche deine Freigabe erfordern. Über Voreinstellungen (z. B. „Strikt", „Ausgewogen", „Autonom") setzt du schnell ein Basis-Niveau, das du dann individuell anpassen kannst.',
+      },
+      {
+        heading: 'Unternehmensweite Regeln',
+        body: 'Du definierst: maximale Ausgabe pro Aktion, tägliches Gesamtbudget, Mindestliquidität (Kontopuffer), Freigabe-Modus (bei Freigabe anhalten oder weiterlaufen), automatische Auftragsannahme und automatische Disposition. Diese Regeln gelten unternehmensweit, sofern keine Filial-Überschreibung vorliegt.',
+      },
+      {
+        heading: 'Filial-Überschreibungen',
+        body: 'Bei mehreren Filialen kannst du für jede Filiale eigene Regeln festlegen – z. B. ein höheres Budget für eine gut laufende Filiale oder strengere Limits für eine neue. Filial-Überschreibungen lassen sich jederzeit entfernen, um zur Unternehmensregel zurückzukehren.',
+      },
+      {
+        heading: 'Freigaben',
+        body: 'Im Tab „Freigaben" siehst du alle ausstehenden Freigabe-Anfragen deiner Mitarbeiter (z. B. eine teure Wartung, eine Einstellung, eine Vertragsänderung). Jede Anfrage zeigt Dringlichkeit, Begründung, Kosten und ggf. Alternativen. Du kannst freigeben oder ablehnen. Im Modus „Weiterlaufen" sammeln sich Freigaben, ohne den Spielverlauf zu blockieren.',
+      },
+      {
+        heading: 'Aktivität & Statistik',
+        body: 'Im Tab „Aktivität" siehst du, wie viele Aktionen selbstständig erledigt wurden, wie viele Freigaben anstehen, wie viel delegiert ausgegeben wurde und wie viele Aktionen blockiert wurden. Das Entscheidungs-Log protokolliert die letzten Entscheidungen deiner Mitarbeiter mit Begründung und Kosten.',
+      },
+    ],
+  },
+  {
+    id: 'business',
+    title: 'Geschäftsmodelle',
+    icon: 'Briefcase',
+    color: 'lime',
+    sections: [
+      {
+        heading: 'Betriebliche Spezialisierung',
+        body: 'Auf der Seite „Geschäftsmodelle" wählst du deinen betrieblichen Fokus – eine Spezialisierung, die Auftragsmix, Preise und Kosten beeinflusst. Je nach Fokus erscheinen bestimmte Auftragsarten häufiger oder seltener, und manche Boni werden aktiv. Die Wahl ist nicht endgültig, aber ein Wechsel kostet Zeit und Anpassung.',
+      },
+      {
+        heading: 'Marktlage',
+        body: 'Die Marktübersicht zeigt die aktuelle Marktlage: regionale Nachfrage, Saisonalität und aktuelle Ereignisse, die den Markt beeinflussen. Nutze diese Informationen, um zu erkennen, welche Frachtarten gerade gefragt sind und wo sich Engpässe oder Überangebote abzeichnen.',
+      },
+      {
+        heading: 'Segment-Statistiken',
+        body: 'Die Segment-Statistiken zeigen, wie sich dein Unternehmen in verschiedenen Segmenten (z. B. Regionalverkehr, Fernverkehr, Express, Gefahrgut, Kühltransporte) entwickelt: Umsatz, Auslastung, Rentabilität pro Segment. So erkennst du, welche Segmente profitabel sind und wo du nachsteuern musst.',
       },
     ],
   },
@@ -287,7 +491,7 @@ export const HELP_TOPICS = [
       },
       {
         heading: 'Filialleiter',
-        body: 'Ab einer zweiten Filiale kannst du Filialleiter einstellen. Sie treffen autonome Entscheidungen für ihre Filiale (Einstellungen, Wartung, Disposition), die du als Geschäftsführer im Entscheidungs-Panel freigeben oder ablehnen kannst. So skaliert das Unternehmen, ohne dass du jeden Standort einzeln steuerst.',
+        body: 'Ab einer zweiten Filiale kannst du Filialleiter einstellen. Sie treffen autonome Entscheidungen für ihre Filiale (Einstellungen, Wartung, Disposition), die du als Geschäftsführer im Führung-Panel freigeben oder ablehnen kannst. So skaliert das Unternehmen, ohne dass du jeden Standort einzeln steuerst.',
       },
       {
         heading: 'Automations-Tick',
@@ -320,34 +524,6 @@ export const HELP_TOPICS = [
       {
         heading: 'Risiko & Rendite',
         body: 'Aktien haben höhere Renditechance, aber Kursrisiko. Sparbuch ist sicher, aber Inflation kann den realen Wert mindern. Mische je nach Risikobereitschaft – und behalte immer genug Liquidität auf dem Privatkonto für den Lebensunterhalt.',
-      },
-    ],
-  },
-  {
-    id: 'branches',
-    title: 'Filialen',
-    icon: 'Building2',
-    color: 'cyan',
-    sections: [
-      {
-        heading: 'Mehrere Standorte',
-        body: 'Unter „Filialen" verwaltest du alle deine Standorte. Jede Filiale hat eigene Kosten (Miete, Personal), Ressourcen (Lkw, Fahrer, Werkstatt-Slots) und einen Markt-Bezirk. Du startest mit Hamburg und kannst weitere Filialen in anderen Städten eröffnen.',
-      },
-      {
-        heading: 'Filiale eröffnen',
-        body: 'Über „Filiale eröffnen" wählst du eine Stadt und investierst in einen neuen Standort. Die Eröffnung kostet Geld und Zeit; danach laufen Standortkosten täglich. Jede Filiale erweitert deinen Markt-Bezirk und deine Kapazität.',
-      },
-      {
-        heading: 'Ressourcen versetzen',
-        body: 'Du kannst Lkw und Mitarbeiter zwischen Filialen versetzen. Das hilft, Engpässe an einem Standort auszugleichen oder neue Filialen zu besetzen. Die Versetzung kostet je nach Entfernung Zeit (Leerfahrt/Reise).',
-      },
-      {
-        heading: 'Filialplanung & Karte',
-        body: 'Die Filial-Karte zeigt alle Standorte mit Auslastung und Status. In der Planungs-Ansicht siehst du, wo sich Aufträge und Ressourcen ballen, und kannst strategisch neue Filialen oder Versetzungen planen.',
-      },
-      {
-        heading: 'Filialleiter',
-        body: 'Ab einer zweiten Filiale kannst du Filialleiter einstellen. Sie treffen autonome Entscheidungen für ihre Filiale, die du als Geschäftsführer freigeben oder ablehnen kannst. So skaliert das Unternehmen, ohne dass du jeden Standort einzeln steuerst.',
       },
     ],
   },
@@ -385,6 +561,10 @@ export const HELP_TOPICS = [
         heading: 'Ziele & XP',
         body: 'Der Fortschrittsbalken zeigt deine Erfahrung (XP). Je nach Spielhandlung steigt XP und schaltet neue Erfolge frei. Ziele geben dir Orientierung im Spielverlauf – sie sind nicht zwingend, aber hilfreich, um das Unternehmen strategisch aufzubauen.',
       },
+      {
+        heading: 'Entwicklungsziele',
+        body: 'Persönliche Entwicklungsziele (z. B. „erstes eigenes Auto", „stabile Beziehung", „erste Filiale") geben dir persönliche Wachstums-Meilensteine. Sie werden im Büro und auf der Zuhause-Seite angezeigt und belohnen dich bei Erreichung.',
+      },
     ],
   },
   {
@@ -413,19 +593,19 @@ export const HELP_TOPICS = [
 export const PAGE_HINTS = {
   office: {
     title: 'Büro',
-    text: 'Deine zentrale Führungsansicht. Hier siehst du Kennzahlen, Flottenlage, anstehende Entscheidungen und Trends. Alles Weitere erreichst du über die Navigation unten.',
+    text: 'Deine zentrale Führungsansicht. Hier siehst du Kennzahlen, Flottenlage, anstehende Entscheidungen, Störungen, Kundenbeziehungen und Trends. Alles Weitere erreichst du über die Navigation unten.',
   },
   orders: {
     title: 'Aufträge',
-    text: 'Hier siehst du Marktangebote und angenommene Aufträge. Nimm profitable Angebote an und disponiere sie dann unter „Disposition". Achte auf die Lieferfrist.',
+    text: 'Hier siehst du Marktangebote und angenommene Aufträge. Nimm profitable Angebote an und disponiere sie dann unter „Disposition". Achte auf die benötigte Aufbau-Kategorie (Badge auf der Karte) und die Lieferfrist.',
   },
   dispatch: {
     title: 'Disposition',
-    text: 'Plane, welcher Lkw welchen Auftrag fährt. Wähle Auftrag, Lkw und Fahrer – das System prüft automatisch, ob die Kombination gültig ist. Bestätige die Tour, um sie zu starten.',
+    text: 'Plane, welcher Lkw welchen Auftrag fährt. Wähle Auftrag, Lkw und Fahrer – das System prüft automatisch Aufbau-Kompatibilität, Kapazität und Fahrerzeit. Bestätige die Tour, um sie zu starten.',
   },
   fleet: {
     title: 'Fuhrpark',
-    text: 'Verwalte deine Lkw. Wartung hält sie einsatzbereit, Kauf/Verkauf passt die Flottengröße an. Ein niedriger Zustand erhöht das Pannenrisiko.',
+    text: 'Verwalte deine Lkw – drei Größenklassen, vier Aufbauten, Kauf, Leasing oder Gebrauchtmarkt. Wartung ist kilometerbasiert (alle 15.000 km). Ein niedriger Zustand erhöht das Pannenrisiko.',
   },
   personnel: {
     title: 'Personal',
@@ -433,19 +613,35 @@ export const PAGE_HINTS = {
   },
   finances: {
     title: 'Finanzen',
-    text: 'Einnahmen, Ausgaben, Buchhaltung, Kredite. Hier stellst du auch dein Geschäftsführergehalt ein – die tägliche Übertragung vom Firmen- ins Privatkonto.',
+    text: 'Doppelte Buchführung, Liquiditätsvorschau, Kredite und Leasing. Hier stellst du auch dein Geschäftsführergehalt ein – die tägliche Übertragung vom Firmen- ins Privatkonto.',
   },
   home: {
     title: 'Zuhause',
     text: 'Dein Privatleben. Einladungen und Hobbys beeinflussen Beziehung, Gesundheit und Belastung. Vernachlässige es nicht – es wirkt sich auf deine Geschäftsführung aus.',
   },
-  investment: {
-    title: 'Investment',
-    text: 'Lege Privatkapital an. Aktien bieten Renditechance mit Risiko, das Sparbuch Sicherheit mit niedriger Verzinsung.',
+  customers: {
+    title: 'Kunden',
+    text: 'Dauerkundenbeziehungen, Vertrauen und Rahmenverträge. Nutze Akquise, um Stammkunden zu gewinnen. Ausschreibungen bieten die Chance auf langfristige Verträge.',
   },
   branches: {
     title: 'Filialen',
-    text: 'Verwalte mehrere Standorte. Jede Filiale hat eigene Kosten und Ressourcen. Filialleiter können autonom entscheiden – du gibst frei.',
+    text: 'Verwalte mehrere Standorte in ganz Deutschland. Jede Filiale hat eigene Kosten und Ressourcen. Filialleiter können autonom entscheiden – du gibst frei.',
+  },
+  network: {
+    title: 'Netzkarte',
+    text: 'Strategische Planungsansicht: Relationen, Rückladungen, Standortanalyse und Vergleich. Nutze sie, um Leerfahrten zu vermeiden und neue Filialen zu planen.',
+  },
+  leadership: {
+    title: 'Führung',
+    text: 'Mitarbeiterbefugnisse festlegen – was selbstständig erlaubt ist und was Freigabe erfordert. Voreinstellungen und Filial-Überschreibungen für feinsteuerung.',
+  },
+  business: {
+    title: 'Geschäftsmodelle',
+    text: 'Betriebliche Spezialisierung, Marktlage und Segment-Ergebnisse. Wähle deinen Fokus, um den Auftragsmix zu beeinflussen.',
+  },
+  investment: {
+    title: 'Investment',
+    text: 'Lege Privatkapital an. Aktien bieten Renditechance mit Risiko, das Sparbuch Sicherheit mit niedriger Verzinsung.',
   },
   journal: {
     title: 'Journal',

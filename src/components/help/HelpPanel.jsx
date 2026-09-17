@@ -3,9 +3,9 @@ import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
 import { X, Search, ChevronDown } from "lucide-react";
 import { HELP_TOPICS, PAGE_HINTS } from "@/lib/helpContent";
-import { Compass, Package, Map, Truck, Users, Wallet, Home, Sparkles, LineChart, Building2, Mail, Trophy, BarChart3 } from "lucide-react";
+import { Compass, Package, Map, Truck, Users, Wallet, Home, Sparkles, LineChart, Building2, Mail, Trophy, BarChart3, UserCircle, Shield, Briefcase, Network } from "lucide-react";
 
-const ICONS = { Compass, Package, Map, Truck, Users, Wallet, Home, Sparkles, LineChart, Building2, Mail, Trophy, BarChart3 };
+const ICONS = { Compass, Package, Map, Truck, Users, Wallet, Home, Sparkles, LineChart, Building2, Mail, Trophy, BarChart3, UserCircle, Shield, Briefcase, Network };
 
 const COLOR_MAP = {
   lime:   { text: "text-lime",     bg: "bg-lime/10",     border: "border-lime/20" },
@@ -23,8 +23,12 @@ const ROUTE_TOPIC = {
   "/personal": "personnel",
   "/finanzen": "finances",
   "/zuhause": "private",
-  "/investment": "investment",
+  "/kunden": "customers",
   "/filialen": "branches",
+  "/netzwerk": "network",
+  "/fuehrung": "leadership",
+  "/geschaeftsmodelle": "business",
+  "/investment": "investment",
   "/journal": "automation",
   "/postfach": "mail",
   "/erfolge": "achievements",
@@ -72,7 +76,7 @@ export default function HelpPanel({ open, onClose }) {
             </div>
             <div>
               <div className="text-sm font-semibold text-foreground">Hilfe & Erklärungen</div>
-              <div className="text-[11px] text-muted-foreground/70">FERNWERK Spielführer</div>
+              <div className="text-[11px] text-muted-foreground/70">FRACHTFIEBER Spielführer</div>
             </div>
           </div>
           <button onClick={onClose} className="w-9 h-9 grid place-items-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition shrink-0" aria-label="Hilfe schließen">
