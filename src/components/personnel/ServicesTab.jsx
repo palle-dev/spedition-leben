@@ -186,7 +186,7 @@ function ContractCard({ contract, state, onCancel, onSelect }) {
   return (
     <div className="glass border border-white/10 rounded-xl p-3">
       <div className="flex items-start gap-3">
-        <div className="w-9 h-9 rounded-lg bg-surface-2 flex items-center justify-center shrink-0">
+        <div className="w-9 h-9 rounded-lg glass border border-white/10 flex items-center justify-center shrink-0">
           <Icon className="w-4 h-4 text-muted-foreground" />
         </div>
         <div className="flex-1 min-w-0">
@@ -225,7 +225,7 @@ function ContractDetails({ contract, state }) {
   const cost = contract.costCents || contract.totalCostCents || 0;
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-3 p-3 rounded-lg bg-surface-2/50 border border-white/5">
+      <div className="flex items-center gap-3 p-3 rounded-lg glass border border-white/10">
         <Icon className="w-5 h-5 text-muted-foreground" />
         <div>
           <div className="text-sm font-medium">{contract.providerName}</div>
@@ -255,7 +255,7 @@ function ContractDetails({ contract, state }) {
 
 function DetailRow({ label, value }) {
   return (
-    <div className="p-2 rounded-lg bg-surface-2/30 border border-white/5">
+    <div className="p-2 rounded-lg glass border border-white/10">
       <div className="text-[10px] text-muted-foreground">{label}</div>
       <div className="text-sm font-medium">{value}</div>
     </div>
@@ -303,7 +303,7 @@ function CleaningBooking({ state, send, showToast, onClose }) {
         </select>
       </div>
       {branch && (
-        <div className="p-3 rounded-lg bg-surface-2/50 border border-white/5 text-xs space-y-1">
+        <div className="p-3 rounded-lg glass border border-white/10 text-xs space-y-1">
           <div className="flex justify-between"><span className="text-muted-foreground">Aktuelle Sauberkeit</span><span className="tabular-nums">{branch.cleanliness ?? 85}/100</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Tagesbedarf</span><span className="tabular-nums">{need} Einheit(en)</span></div>
         </div>
@@ -316,7 +316,7 @@ function CleaningBooking({ state, send, showToast, onClose }) {
         <input type="checkbox" checked={recurring} onChange={e => setRecurring(e.target.checked)} className="accent-lime" />
         Wiederkehrend (alle 7 Tage)
       </label>
-      <div className="p-3 rounded-lg bg-surface-2/50 border border-white/5 text-xs space-y-1">
+      <div className="p-3 rounded-lg glass border border-white/10 text-xs space-y-1">
         <div className="flex justify-between"><span className="text-muted-foreground">Erster Termin</span><span>{formatGameTime(startMin)}</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">Kosten</span><span className="tabular-nums font-medium">{formatEuro(cost)}</span></div>
       </div>
@@ -351,7 +351,7 @@ function MaintenanceBooking({ state, send, showToast, onClose }) {
           {freeVehicles.map(v => <option key={v.id} value={v.id}>{vehicleDisplayName(v)} · {v.locationCity} · Zustand {v.condition}</option>)}
         </select>
       </div>
-      <div className="p-3 rounded-lg bg-surface-2/50 border border-white/5 text-xs space-y-1">
+      <div className="p-3 rounded-lg glass border border-white/10 text-xs space-y-1">
         <div className="flex justify-between"><span className="text-muted-foreground">Dauer</span><span>8 Spielstunden</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">Kosten</span><span className="tabular-nums font-medium">{formatEuro(150000)}</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">Ziel</span><span>Zustand 100</span></div>
@@ -402,7 +402,7 @@ function TowingBooking({ state, send, showToast, onClose }) {
         </select>
       </div>
       {dist > 0 && (
-        <div className="p-3 rounded-lg bg-surface-2/50 border border-white/5 text-xs space-y-1">
+        <div className="p-3 rounded-lg glass border border-white/10 text-xs space-y-1">
           <div className="flex justify-between"><span className="text-muted-foreground">Distanz</span><span className="tabular-nums">{dist} km</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Anfahrt</span><span>{TOWING_APPROACH_MIN} min</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Transport</span><span>{transportMin} min</span></div>
@@ -455,7 +455,7 @@ function TempStaffBooking({ type, state, send, showToast, onClose }) {
         <label className="text-[11px] text-muted-foreground">Einsatzblöcke (24h)</label>
         <input type="number" min={2} max={30} value={blocks} onChange={e => setBlocks(Math.max(2, parseInt(e.target.value) || 2))} className="mt-1.5 w-full px-3 py-2.5 rounded-lg bg-surface-2 border border-white/10 text-foreground text-sm focus:border-lime/50 outline-none" />
       </div>
-      <div className="p-3 rounded-lg bg-surface-2/50 border border-white/5 text-xs space-y-1">
+      <div className="p-3 rounded-lg glass border border-white/10 text-xs space-y-1">
         <div className="flex justify-between"><span className="text-muted-foreground">Bereitstellung</span><span className="tabular-nums">{formatEuro(provision)}</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">Pro Block (24h)</span><span className="tabular-nums">{formatEuro(blockRate)}</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">Mindestblöcke</span><span>2</span></div>
@@ -486,7 +486,7 @@ function AccountingBooking({ state, send, showToast, onClose }) {
 
   return (
     <div className="space-y-4">
-      <div className="p-3 rounded-lg bg-surface-2/50 border border-white/5 text-xs space-y-1">
+      <div className="p-3 rounded-lg glass border border-white/10 text-xs space-y-1">
         <div className="flex justify-between"><span className="text-muted-foreground">Erster Termin</span><span>{formatGameTime(startMin)}</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">Dienstzeit</span><span>08:00–16:00</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">Kapazität</span><span>40 Prüfpunkte</span></div>
@@ -532,7 +532,7 @@ function RentalBooking({ state, send, showToast, onClose }) {
         <label className="text-[11px] text-muted-foreground">Blöcke (24h)</label>
         <input type="number" min={2} max={30} value={blocks} onChange={e => setBlocks(Math.max(2, parseInt(e.target.value) || 2))} className="mt-1.5 w-full px-3 py-2.5 rounded-lg bg-surface-2 border border-white/10 text-foreground text-sm focus:border-lime/50 outline-none" />
       </div>
-      <div className="p-3 rounded-lg bg-surface-2/50 border border-white/5 text-xs space-y-1">
+      <div className="p-3 rounded-lg glass border border-white/10 text-xs space-y-1">
         <div className="flex justify-between"><span className="text-muted-foreground">Übergabe</span><span className="tabular-nums">{formatEuro(15000)}</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">Pro Block (24h)</span><span className="tabular-nums">{formatEuro(12000)}</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">Mindestblöcke</span><span>2</span></div>

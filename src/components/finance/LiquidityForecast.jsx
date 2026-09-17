@@ -219,7 +219,7 @@ export default function LiquidityForecast() {
       )}
 
       {/* Kurve */}
-      <div className="rounded-lg border border-white/10 bg-white/3 p-3">
+      <div className="rounded-lg border border-white/10 glass p-3">
         <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
           <Eye className="w-3.5 h-3.5" />
           Kontoverlauf (Prognose)
@@ -232,7 +232,7 @@ export default function LiquidityForecast() {
       </div>
 
       {/* Tabelle */}
-      <div className="rounded-lg border border-white/10 bg-white/3 p-3">
+      <div className="rounded-lg border border-white/10 glass p-3">
         <div className="text-xs font-medium text-muted-foreground mb-2">
           Tagesübersicht — Tag anklicken für Details
         </div>
@@ -246,7 +246,7 @@ export default function LiquidityForecast() {
 
       {/* Zahlungsregeln */}
       {showRules && (
-        <div className="rounded-lg border border-white/10 bg-white/5 p-4 space-y-2">
+        <div className="rounded-lg border border-white/10 glass p-4 space-y-2">
           <div className="text-sm font-medium flex items-center gap-2">
             <Info className="w-4 h-4 text-lime" />
             Zugrundeliegende Zahlungsregeln
@@ -275,7 +275,7 @@ function KpiCard({ label, value, sub, highlight }) {
     : highlight === "pos" ? "text-lime"
     : "text-foreground";
   return (
-    <div className="rounded-lg border border-white/10 bg-white/3 p-3">
+    <div className="rounded-lg border border-white/10 glass p-3">
       <div className="text-[11px] text-muted-foreground">{label}</div>
       <div className={`text-lg font-semibold tabular-nums mt-1 ${colorClass}`}>{value}</div>
       <div className="text-[10px] text-muted-foreground mt-0.5">{sub}</div>
