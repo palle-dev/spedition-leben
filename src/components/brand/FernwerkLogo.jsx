@@ -19,7 +19,7 @@ export default function FernwerkLogo({
         src={LOGO_URL}
         alt="FRACHTFIEBER"
         height={size}
-        style={{ height: size, width: "auto", mixBlendMode: "lighten" }}
+        style={{ height: size, width: "auto" }}
       />
       {showTagline && (
         <div className={`text-[10px] tracking-[0.02em] mt-1 ${taglineClassName || "text-muted-foreground"}`}>

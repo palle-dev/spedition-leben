@@ -8,7 +8,7 @@ export default function AuthLayout({ icon: Icon, title, subtitle, footer, childr
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-5">
-            <FernwerkLogo size={44} showWord={false} />
+            <FernwerkLogo size={56} showWord={false} />
           </div>
           <p className="text-[11px] tracking-[0.04em] text-muted-foreground mt-3">Dein Unternehmen. Dein Leben. Dein Weg.</p>
         </div>
