@@ -90,7 +90,7 @@ export default function ServicesTab({ state, send, showToast }) {
               <button
                 key={s.type}
                 onClick={() => setBookingType(s.type)}
-                className="flex flex-col items-center gap-1.5 rounded-xl p-3 border border-white/10 hover:border-lime/30 hover:bg-lime/5 text-muted-foreground hover:text-lime transition"
+                className="glass flex flex-col items-center gap-1.5 rounded-xl p-3 border border-white/10 hover:border-lime/30 hover:bg-lime/5 text-muted-foreground hover:text-lime transition"
               >
                 <Icon className="w-5 h-5" />
                 <span className="text-[10px] font-medium text-center">{s.label}</span>
