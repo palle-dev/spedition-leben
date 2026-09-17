@@ -35,6 +35,23 @@ export default function Dispatch() {
   const [showPlanning, setShowPlanning] = useState(false);
   const [showPartners, setShowPartners] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  const [mapWidth, setMapWidth] = useState(520);
+  const [isResizing, setIsResizing] = useState(false);
+
+  useEffect(() => {
+    if (!isResizing) return;
+    function onMouseMove(e) {
+      const newWidth = Math.min(900, Math.max(320, window.innerWidth - e.clientX));
+      setMapWidth(newWidth);
+    }
+    function onMouseUp() { setIsResizing(false); }
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [isResizing]);
 
   // Routengeometrien laden (einmalig)
   useEffect(() => {
@@ -209,7 +226,7 @@ export default function Dispatch() {
 
         {/* Karte — schwebendes Overlay-Panel (Desktop) / Vollbild (Mobile) */}
         {(showMap || mobileView === "map") && (
-        <div className={`min-h-0 min-w-0 relative ${mobileView === "map" ? "flex-1" : "hidden"} lg:absolute lg:top-0 lg:right-0 lg:bottom-0 lg:w-[440px] xl:w-[520px] lg:flex lg:flex-col lg:z-30 lg:shadow-[-20px_0_60px_-12px_rgba(0,0,0,0.7)] lg:border-l lg:border-white/10`}>
+        <div className={`min-h-0 min-w-0 relative ${mobileView === "map" ? "flex-1" : "hidden"} lg:absolute lg:top-0 lg:right-0 lg:bottom-0 lg:flex lg:flex-col lg:z-30 lg:shadow-[-20px_0_60px_-12px_rgba(0,0,0,0.7)] lg:border-l lg:border-white/10`} style={{ width: mapWidth }}>
           <DispatchMap
             routeData={routeData}
             selectedTripId={selectedTripId}
@@ -229,6 +246,14 @@ export default function Dispatch() {
           >
             <X className="w-4 h-4" />
           </button>
+          {/* Größenänderung-Griff (Desktop) */}
+          <div
+            onMouseDown={() => setIsResizing(true)}
+            className="hidden lg:block absolute top-0 left-0 bottom-0 w-1.5 cursor-ew-resize z-20 hover:bg-lime/20 transition group"
+            title="Breite ändern"
+          >
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-12 rounded-full bg-white/15 group-hover:bg-lime/40 transition" />
+          </div>
           {/* Karten-Aktionen */}
           {routeData && (
             <div className="absolute top-3 right-3 flex flex-col gap-1.5 z-10">
