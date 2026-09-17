@@ -27,24 +27,24 @@ import { checkSpendAuthority } from "./delegationEngine.ts";
 
 // ---------- Zentrale Konfiguration ----------
 // Wahrscheinlichkeiten und Auswirkungen — kalibriert für ausgewogenen Betrieb.
-// Technische Defekte: ~3% Basis pro Tourstart, erhöht durch schlechten Zustand.
-// Ladeverzögerungen: ~4% pro Be-/Entladevorgang.
+// Technische Defekte: ~1% Basis pro Tourstart, erhöht durch schlechten Zustand.
+// Ladeverzögerungen: ~1,5% pro Be-/Entladevorgang.
 // Personalausfälle werden aus dem vorhandenen Abwesenheitssystem abgeleitet
 // (keine zusätzliche Zufalls-Krankheit).
 export const DISRUPTION_CONFIG = {
   technicalDefect: {
-    baseRate: 0.03,              // 3% Basischance pro Tourstart
-    conditionRiskFactor: 0.004,  // +0.4% pro Zustandspunkt unter 100
+    baseRate: 0.01,              // 1% Basischance pro Tourstart
+    conditionRiskFactor: 0.002,  // +0.2% pro Zustandspunkt unter 100
     minConditionForDefect: 20,   // Unter 20 ist Fahrzeug ohnehin gesperrt
     repairDurationMin: 240,      // 4h Notfallreparatur
     repairCostCents: 30000,      // 300 € Notfallreparatur
-    maxDefectsPerDay: 2,         // Max. neue Defekte pro Spieltag (Kappen)
+    maxDefectsPerDay: 1,         // Max. 1 neuer Defekt pro Spieltag (Kappen)
   },
   loadingDelay: {
-    baseRate: 0.04,              // 4% pro Be-/Entladevorgang
+    baseRate: 0.015,             // 1,5% pro Be-/Entladevorgang
     minDelayMin: 30,             // Mindestverzögerung 30 Min
     maxDelayMin: 120,            // Maximalverzögerung 2h
-    maxDelaysPerDay: 3,          // Max. neue Verzögerungen pro Spieltag
+    maxDelaysPerDay: 2,          // Max. 2 neue Verzögerungen pro Spieltag
   },
   // Auto-Auflösung durch Mitarbeiter: nur für kostenlose Optionen
   autoResolve: {
