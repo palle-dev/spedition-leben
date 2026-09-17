@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { saveCurrent, loadCurrent, saveAutosave, loadAutosave, getAllAutosaveMetas, listManualSlots, saveManualSlot, loadManualSlot, deleteManualSlot, deleteAutosave, exportSave, importSave, getSyncMeta, setSyncMeta, clearSyncMeta, hasUnassignedSaves, claimUnassignedSaves } from "@/lib/persistence";
+import { saveCurrent, loadCurrent, saveAutosave, loadAutosave, getAllAutosaveMetas, listManualSlots, saveManualSlot, loadManualSlot, deleteManualSlot, deleteAutosave, exportSave, importSave, getSyncMeta, setSyncMeta as persistSyncMeta, clearSyncMeta, hasUnassignedSaves, claimUnassignedSaves } from "@/lib/persistence";
 import { acquireLock, refreshLock, releaseLock, LOCK_REFRESH } from "@/lib/tabLock";
 import { eventToToast } from "@/lib/eventNotifications";
 import { getUnseenEventCount } from "@/lib/eventLogClient";
@@ -189,7 +189,12 @@ export function GameProvider({ children }) {
     const updated = typeof updater === "function" ? updater(current) : { ...current, ...updater };
     syncMetaRef.current = updated;
     setSyncMeta(updated);
-
+    // Sync-Meta in IndexedDB persistieren — überlebt Seitenneuladungen.
+    // Ohne dies geht die cloudId verloren und es wird jedes Mal ein neuer
+    // Cloud-Datensatz angelegt statt der bestehende aktualisiert.
+    if (userIdRef.current) {
+      persistSyncMeta(userIdRef.current, updated).catch(() => {});
+    }
     return updated;
   }, []);
 
@@ -315,6 +320,7 @@ export function GameProvider({ children }) {
       );
       syncMetaRef.current = newMeta;
       setSyncMeta(newMeta);
+      if (userIdRef.current) persistSyncMeta(userIdRef.current, newMeta).catch(() => {});
 
       stateRef.current = loaded; setState(loaded);
       setShowStart(false);
@@ -357,7 +363,7 @@ export function GameProvider({ children }) {
     const newMeta = makeSyncMeta(newPartyId, null, 0, "idle", null, null);
     syncMetaRef.current = newMeta;
     setSyncMeta(newMeta);
-    if (userIdRef.current) setSyncMeta(userIdRef.current, newMeta).catch(() => {});
+    if (userIdRef.current) persistSyncMeta(userIdRef.current, newMeta).catch(() => {});
     saveNow(localState);
     await uploadToCloud(localState, "Konflikt-Kopie (lokal)", "conflict_backup");
     return { ok: true };
@@ -402,6 +408,7 @@ export function GameProvider({ children }) {
       const newMeta = makeSyncMeta(loaded.meta?.partyId, meta.cloudId, res.revision, "synced", Date.now(), null);
       syncMetaRef.current = newMeta;
       setSyncMeta(newMeta);
+      if (userIdRef.current) persistSyncMeta(userIdRef.current, newMeta).catch(() => {});
 
       stateRef.current = loaded; setState(loaded);
       saveNow(loaded);
@@ -771,6 +778,7 @@ export function GameProvider({ children }) {
       const newMeta = makeSyncMeta(newState.meta.partyId, null, 0, "idle", null, null);
       syncMetaRef.current = newMeta;
       setSyncMeta(newMeta);
+      if (userIdRef.current) persistSyncMeta(userIdRef.current, newMeta).catch(() => {});
       stateRef.current = newState; setState(newState);
       setShowStart(false);
       saveNow(newState);
@@ -801,6 +809,7 @@ export function GameProvider({ children }) {
       const newMeta = makeSyncMeta(newState.meta.partyId, null, 0, "idle", null, null);
       syncMetaRef.current = newMeta;
       setSyncMeta(newMeta);
+      if (userIdRef.current) persistSyncMeta(userIdRef.current, newMeta).catch(() => {});
       stateRef.current = newState; setState(newState);
       setShowStart(false);
       saveNow(newState);
@@ -862,6 +871,7 @@ export function GameProvider({ children }) {
       const newMeta = makeSyncMeta(imported.meta.partyId, null, 0, "idle", null, null);
       syncMetaRef.current = newMeta;
       setSyncMeta(newMeta);
+      if (userIdRef.current) persistSyncMeta(userIdRef.current, newMeta).catch(() => {});
       stateRef.current = imported; setState(imported);
       setShowStart(false);
       saveNow(imported);
@@ -875,13 +885,18 @@ export function GameProvider({ children }) {
     if (!stateRef.current) return { ok: false, error: "Kein Spielstand" };
     try {
       await saveManualSlot(userIdRef.current, name, stateRef.current);
-      // Manueller Speicherpunkt → sofort Cloud-Sync auslösen
-      if (navigator.onLine) {
-        uploadToCloud(stateRef.current, name, "manual");
+      // Manueller Speicherpunkt → zusätzlichen benannten Cloud-Snapshot anlegen.
+      // Der Haupt-Datensatz (Auto-Sync) bleibt unberührt und wird weiterhin
+      // über uploadToCloud aktualisiert.
+      if (navigator.onLine && userIdRef.current) {
+        try {
+          await createCloudSave(stateRef.current, stateRef.current.meta?.partyId, name, "manual");
+          refreshCloudSaves();
+        } catch (e) { /* lokaler Speicher erfolgreich — Cloud-Fehler nicht blockierend */ }
       }
       return { ok: true };
     } catch (e) { return { ok: false, error: e.message }; }
-  }, [uploadToCloud]);
+  }, [refreshCloudSaves]);
 
   const loadSlot = useCallback(async (name) => {
     try {
@@ -889,10 +904,19 @@ export function GameProvider({ children }) {
       const loaded = await loadManualSlot(userIdRef.current, name, isScenario);
       if (!loaded) return { ok: false, error: "Slot nicht gefunden" };
       ensurePartyId(loaded);
-      // Sync-Meta für geladenen Slot zurücksetzen (evtl. andere Partie)
-      const loadedMeta = makeSyncMeta(loaded.meta?.partyId, syncMetaRef.current?.cloudId, syncMetaRef.current?.localBaseRevision || 0, "idle", null, null);
+      // Sync-Meta für geladenen Slot: cloudId nur beibehalten wenn gleiche Partie.
+      // Bei anderer Partie cloudId zurücksetzen — sonst würde der Auto-Sync
+      // den Cloud-Datensatz der falschen Partie überschreiben.
+      const sameParty = loaded.meta?.partyId === syncMetaRef.current?.partyId;
+      const loadedMeta = makeSyncMeta(
+        loaded.meta?.partyId,
+        sameParty ? syncMetaRef.current?.cloudId : null,
+        sameParty ? (syncMetaRef.current?.localBaseRevision || 0) : 0,
+        "idle", null, null
+      );
       syncMetaRef.current = loadedMeta;
       setSyncMeta(loadedMeta);
+      if (userIdRef.current) persistSyncMeta(userIdRef.current, loadedMeta).catch(() => {});
       stateRef.current = loaded; setState(loaded);
       setShowStart(false);
       saveNow(loaded);
