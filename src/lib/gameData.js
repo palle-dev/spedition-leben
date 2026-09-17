@@ -132,6 +132,22 @@ export function getCargoCategory(order) {
   if (order.cargoCategory && CARGO_CATEGORIES[order.cargoCategory]) return CARGO_CATEGORIES[order.cargoCategory];
   return CARGO_CATEGORIES.standard;
 }
+
+// Prüft, ob ein Fahrzeug-Aufbau für einen Auftrag geeignet ist (clientseitig).
+// Spiegel von gameRules.ts checkBodyTypeCompatibility.
+export function checkBodyTypeCompatibility(order, vehicle) {
+  const cat = getCargoCategory(order);
+  if (!cat.requiredBodyType) return { ok: true };
+  const body = getVehicleBodyType(vehicle);
+  if (body.id !== cat.requiredBodyType) {
+    return {
+      ok: false,
+      error: "Frachtart '" + cat.label + "' erfordert Aufbau '" +
+        VEHICLE_BODY_TYPES[cat.requiredBodyType].label + "' — dieser Lkw hat '" + body.label + "'.",
+    };
+  }
+  return { ok: true };
+}
 export const HIRE_FEE_EUR = 500;
 export const DRIVER_COST_PER_DAY_EUR = 100;
 export const BRANCH_COST_PER_DAY_EUR = 100;

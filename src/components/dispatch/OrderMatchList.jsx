@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
-import { formatGameTime, formatEuro, getDistance, fuelEur, tollEur, driveMinutes, CITIES } from "@/lib/gameData";
+import { formatGameTime, formatEuro, getDistance, fuelEur, tollEur, driveMinutes, CITIES, checkBodyTypeCompatibility, getVehicleBodyType } from "@/lib/gameData";
 import { Package, Play, Route, ArrowRight, Truck, MapPin, Clock, TrendingUp, AlertTriangle, Filter, X, ChevronDown, Info, Building2 } from "lucide-react";
 import { getOrderObstacles, summarizeObstacles } from "@/lib/dispatchObstacles";
 import PartnerOfferDialog from "@/components/partners/PartnerOfferDialog";
@@ -14,6 +14,7 @@ export default function OrderMatchList({ orders, onPlanOrder, onTourPlan, search
   const [sortMode, setSortMode] = useState("best");
   const [onlyAvailable, setOnlyAvailable] = useState(false);
   const [cityFilter, setCityFilter] = useState("");
+  const [bodyFilterVehicleId, setBodyFilterVehicleId] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
 
   const gameTime = state.gameTime;
@@ -80,6 +81,10 @@ export default function OrderMatchList({ orders, onPlanOrder, onTourPlan, search
   }
   if (onlyAvailable) filtered = filtered.filter(s => s.candidates.length > 0);
   if (cityFilter) filtered = filtered.filter(s => s.order.fromCity === cityFilter || s.order.toCity === cityFilter);
+  if (bodyFilterVehicleId) {
+    const vehicle = state.vehicles.find(v => v.id === bodyFilterVehicleId);
+    if (vehicle) filtered = filtered.filter(s => checkBodyTypeCompatibility(s.order, vehicle).ok);
+  }
 
   const sorted = [...filtered].sort((a, b) => {
     switch (sortMode) {
@@ -96,7 +101,8 @@ export default function OrderMatchList({ orders, onPlanOrder, onTourPlan, search
     nearest: "Nächster Lkw", margin: "Marge/km",
   };
 
-  const activeFilterCount = (onlyAvailable ? 1 : 0) + (cityFilter ? 1 : 0);
+  const activeFilterCount = (onlyAvailable ? 1 : 0) + (cityFilter ? 1 : 0) + (bodyFilterVehicleId ? 1 : 0);
+  const bodyFilterVehicle = bodyFilterVehicleId ? state.vehicles.find(v => v.id === bodyFilterVehicleId) : null;
 
   return (
     <div className="space-y-3">
@@ -145,9 +151,26 @@ export default function OrderMatchList({ orders, onPlanOrder, onTourPlan, search
               <option value="">Alle Städte</option>
               {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
+            <select
+              value={bodyFilterVehicleId}
+              onChange={e => setBodyFilterVehicleId(e.target.value)}
+              className="px-2.5 py-1.5 rounded-lg bg-surface-2 border border-white/10 text-[11px] text-foreground focus:border-lime/50 outline-none max-w-[180px]"
+              title="Nur Aufträge zeigen, die zum Aufbau dieses Fahrzeugs passen"
+            >
+              <option value="">Alle Aufbauten</option>
+              {state.vehicles.filter(v => v.status !== "archived" && v.status !== "sold").map(v => {
+                const body = getVehicleBodyType(v);
+                return <option key={v.id} value={v.id}>{vehicleDisplayName(v)} · {body.label}</option>;
+              })}
+            </select>
+            {bodyFilterVehicle && (
+              <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] bg-lime/10 border border-lime/30 text-lime">
+                <Truck className="w-3 h-3" /> {getVehicleBodyType(bodyFilterVehicle).label}
+              </span>
+            )}
             {activeFilterCount > 0 && (
               <button
-                onClick={() => { setOnlyAvailable(false); setCityFilter(""); }}
+                onClick={() => { setOnlyAvailable(false); setCityFilter(""); setBodyFilterVehicleId(""); }}
                 className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] text-muted-foreground hover:text-foreground transition"
               >
                 <X className="w-3 h-3" /> Zurücksetzen
