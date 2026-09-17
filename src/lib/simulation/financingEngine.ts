@@ -217,7 +217,8 @@ export function checkFinancingAccess(state, options) {
 
   if (o.type === "leasing") {
     const offer = LEASING_OFFERS[o.offerId] || LEASING_OFFERS.standard_flex;
-    const immediateCashRequired = offer.specialPaymentCents;
+    const body = VEHICLE_BODY_TYPES[o.bodyType] || VEHICLE_BODY_TYPES.planen;
+    const immediateCashRequired = Math.round(offer.specialPaymentCents * body.priceMultiplier);
 
     // Harte Ausschlussgründe
     const severeArrears = getSevereLeasingArrears(state);

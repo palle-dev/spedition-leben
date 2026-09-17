@@ -1892,7 +1892,7 @@ export function applyCommand(state, command, params) {
     }
 
     case "previewFinancing": {
-      const r = checkFinancingAccess(state, { type: p.financingType, offerId: p.offerId, amountCents: p.amountCents, termMonths: p.termMonths, provisionCity: p.provisionCity, clearArrears: p.clearArrears });
+      const r = checkFinancingAccess(state, { type: p.financingType, offerId: p.offerId, amountCents: p.amountCents, termMonths: p.termMonths, provisionCity: p.provisionCity, clearArrears: p.clearArrears, bodyType: p.bodyType });
       result = r;
       break;
     }
@@ -1911,7 +1911,7 @@ export function applyCommand(state, command, params) {
 
     case "leaseTruck": {
       ensureNotBlocked(state);
-      const r = leaseTruck(state, { provisionCity: p.provisionCity, offerId: p.offerId, branchId: p.branchId });
+      const r = leaseTruck(state, { provisionCity: p.provisionCity, offerId: p.offerId, branchId: p.branchId, bodyType: p.bodyType });
       result = r;
       break;
     }
