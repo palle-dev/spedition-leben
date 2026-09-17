@@ -27,7 +27,7 @@ const MORE_NAV = [
   { to: "/erfolge", label: "Erfolge", icon: Trophy },
   { to: "/journal", label: "Journal", icon: BookOpen }
 ];
-const INLINE_NAV = [...PRIMARY_NAV, ...QUICK_NAV];
+
 
 // Untere Navigationsleiste und Zeitsteuerung – dauerhaft sichtbar.
 export default function ShellDock() {
@@ -117,7 +117,7 @@ export default function ShellDock() {
       <div className="flex items-center gap-2 lg:gap-4 px-3 lg:px-12 py-2.5">
         {/* Navigation – primär + schnell + Mehr-Aufklappmenü */}
         <nav className="flex items-center gap-1 flex-1 min-w-0" aria-label="Spielnavigation">
-          {INLINE_NAV.map((n) => {
+          {PRIMARY_NAV.map((n) => {
             const active = location.pathname === n.to;
             const Icon = n.icon;
             return (
@@ -128,6 +128,20 @@ export default function ShellDock() {
                 aria-current={active ? "page" : undefined}
               >
                 <Icon className="w-4 h-4" /> <span className="hidden sm:inline">{n.label}</span>
+              </Link>
+            );
+          })}
+          {QUICK_NAV.map((n) => {
+            const active = location.pathname === n.to;
+            const Icon = n.icon;
+            return (
+              <Link
+                key={n.to}
+                to={n.to}
+                className={`hidden lg:flex items-center gap-2 rounded-lg px-3 py-2 text-xs whitespace-nowrap transition shrink-0 ${active ? "bg-lime/10 text-lime" : "text-muted-foreground hover:text-foreground hover:bg-white/5"}`}
+                aria-current={active ? "page" : undefined}
+              >
+                <Icon className="w-4 h-4" /> <span>{n.label}</span>
               </Link>
             );
           })}
@@ -142,7 +156,23 @@ export default function ShellDock() {
               <MoreHorizontal className="w-4 h-4" /> <span className="hidden sm:inline">Mehr</span>
             </button>
             {moreOpen && (
-              <div className="absolute bottom-full mb-2 left-0 glass border border-white/15 rounded-xl p-1.5 shadow-2xl min-w-[180px]">
+              <div className="absolute bottom-full mb-2 left-0 glass border border-white/15 rounded-xl p-1.5 shadow-2xl min-w-[180px] max-h-[70vh] overflow-y-auto scrollbar-none">
+                <div className="lg:hidden">
+                  {QUICK_NAV.map(n => {
+                    const active = location.pathname === n.to;
+                    const Icon = n.icon;
+                    return (
+                      <Link
+                        key={n.to}
+                        to={n.to}
+                        onClick={() => setMoreOpen(false)}
+                        className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition ${active ? "bg-lime/10 text-lime" : "text-foreground hover:bg-white/5"}`}
+                      >
+                        <Icon className="w-4 h-4" /> {n.label}
+                      </Link>
+                    );
+                  })}
+                </div>
                 {MORE_NAV.map(n => {
                   const active = location.pathname === n.to;
                   const Icon = n.icon;
