@@ -30,7 +30,7 @@ export default function OutreachPanel({ customerId }) {
       setResult(r);
       // Status aktualisieren
       const s = await send("getOutreachStatus", { customerId });
-      setStatus(s);
+      setStatus(s.status);
     } catch (e) {
       // toast zeigt Fehler
     } finally {
