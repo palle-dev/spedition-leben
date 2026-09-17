@@ -119,7 +119,7 @@ export default function Fleet() {
               const dealerOffer = isOwned ? computeDealerOffer(v, state.gameTime) : 0;
               const hasValidOffer = v.saleOffer && v.saleOffer.validUntilMin >= state.gameTime;
               return (
-                <div key={v.id} className={`border rounded-xl p-4 hover:border-lime/20 transition bg-gradient-to-br from-surface/80 to-surface-2/70 ${v.markedForSale ? "border-amber-400/30" : "border-white/10"}`}>
+                <div key={v.id} className={`glass border rounded-xl p-4 hover:border-lime/20 transition ${v.markedForSale ? "border-amber-400/30" : "border-white/10"}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 font-medium">
                       <Truck className="w-4 h-4 text-lime/70" /> {vehicleDisplayName(v)}

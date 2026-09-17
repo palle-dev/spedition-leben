@@ -133,10 +133,10 @@
     background: linear-gradient(0deg, rgba(11, 16, 17, 0.92) 1%, rgba(11, 16, 17, 0.55) 40%, transparent 80%);
   }
   .glass {
-    background: linear-gradient(150deg, hsl(var(--surface) / 0.92), hsl(var(--ink) / 0.94));
+    background: linear-gradient(135deg, hsl(var(--surface) / 0.8), hsl(var(--surface-2) / 0.7));
   }
   .glass-coral {
-    background: linear-gradient(150deg, hsl(15 30% 20% / 0.92), hsl(190 21% 8% / 0.94));
+    background: linear-gradient(135deg, hsl(15 30% 20% / 0.8), hsl(190 21% 14% / 0.7));
   }
   .text-balance {
     text-wrap: balance;
