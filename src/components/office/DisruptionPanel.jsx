@@ -1,7 +1,10 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useGame } from "@/lib/gameContext";
 import { AlertTriangle, Wrench, Clock, UserX, ChevronRight, CheckCircle2, Loader2, Zap } from "lucide-react";
 import DisruptionDialog from "@/components/office/DisruptionDialog";
+
+// Merkt sich, welche Störungen bereits auto-geöffnet wurden (Session-Scope).
+const autoShownIds = new Set();
 
 const TYPE_CONFIG = {
   technical_defect: { icon: Wrench, label: "Technischer Defekt", color: "text-coral", bg: "bg-coral/10", border: "border-coral/20" },
@@ -28,6 +31,21 @@ export default function DisruptionPanel() {
       .sort((a, b) => a.createdAtMin - b.createdAtMin),
     [state.disruptions]
   );
+
+  // Auto-Öffnen: Neue Störungen mit offener Entscheidung direkt als Modal anzeigen.
+  const openIdsKey = disruptions
+    .filter(d => d.status === "decision_open")
+    .map(d => d.id)
+    .join(",");
+
+  useEffect(() => {
+    if (selectedId) return;
+    const next = disruptions.find(d => d.status === "decision_open" && !autoShownIds.has(d.id));
+    if (next) {
+      autoShownIds.add(next.id);
+      setSelectedId(next.id);
+    }
+  }, [openIdsKey, selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!disruptions || disruptions.length === 0) return null;
 
