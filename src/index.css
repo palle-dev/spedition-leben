@@ -132,33 +132,35 @@
   }
 }
 
-@layer utilities {
-  .shade-office {
-    background:
-      linear-gradient(90deg, rgba(7, 14, 15, 0.88), rgba(7, 14, 15, 0.42) 39%, rgba(7, 14, 15, 0.10) 62%, rgba(7, 14, 15, 0.38)),
-      linear-gradient(0deg, #0b1011 1%, rgba(11, 16, 17, 0.94) 14%, transparent 56%, rgba(9, 14, 15, 0.72));
-  }
-  .shade-home {
-    background:
-      linear-gradient(90deg, rgba(20, 13, 13, 0.86), rgba(13, 11, 11, 0.35) 45%, rgba(13, 11, 11, 0.15)),
-      linear-gradient(0deg, #100f10 1%, rgba(16, 15, 16, 0.90) 14%, transparent 59%, rgba(10, 10, 10, 0.62));
-  }
-  .shade-panel {
-    background: linear-gradient(0deg, rgba(11, 16, 17, 0.92) 1%, rgba(11, 16, 17, 0.55) 40%, transparent 80%);
-  }
-  .glass {
-    background: linear-gradient(135deg, hsl(var(--surface) / 0.55), hsl(var(--surface-2) / 0.45));
-    backdrop-filter: blur(14px) saturate(1.1);
-    -webkit-backdrop-filter: blur(14px) saturate(1.1);
-  }
-  .glass-coral {
-    background: linear-gradient(135deg, hsl(15 30% 20% / 0.55), hsl(190 21% 14% / 0.45));
-    backdrop-filter: blur(14px) saturate(1.1);
-    -webkit-backdrop-filter: blur(14px) saturate(1.1);
-  }
-  .text-balance {
-    text-wrap: balance;
-  }
+/* Custom-Utilities außerhalb @layer, damit sie im Produktions-Build
+   nicht von Tailwinds JIT-Purge entfernt werden. Die @layer-Wrapper
+   können dazu führen, dass backdrop-filter-Klassen in der veröffentlichten
+   Version fehlen — diese Klassen müssen immer im CSS enthalten sein. */
+.shade-office {
+  background:
+    linear-gradient(90deg, rgba(7, 14, 15, 0.88), rgba(7, 14, 15, 0.42) 39%, rgba(7, 14, 15, 0.10) 62%, rgba(7, 14, 15, 0.38)),
+    linear-gradient(0deg, #0b1011 1%, rgba(11, 16, 17, 0.94) 14%, transparent 56%, rgba(9, 14, 15, 0.72));
+}
+.shade-home {
+  background:
+    linear-gradient(90deg, rgba(20, 13, 13, 0.86), rgba(13, 11, 11, 0.35) 45%, rgba(13, 11, 11, 0.15)),
+    linear-gradient(0deg, #100f10 1%, rgba(16, 15, 16, 0.90) 14%, transparent 59%, rgba(10, 10, 10, 0.62));
+}
+.shade-panel {
+  background: linear-gradient(0deg, rgba(11, 16, 17, 0.92) 1%, rgba(11, 16, 17, 0.55) 40%, transparent 80%);
+}
+.glass {
+  background: linear-gradient(135deg, hsl(var(--surface) / 0.55), hsl(var(--surface-2) / 0.45));
+  backdrop-filter: blur(14px) saturate(1.1);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+}
+.glass-coral {
+  background: linear-gradient(135deg, hsl(15 30% 20% / 0.55), hsl(190 21% 14% / 0.45));
+  backdrop-filter: blur(14px) saturate(1.1);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+}
+.text-balance {
+  text-wrap: balance;
 }
 
 /* Bewegung reduzieren */
