@@ -29,6 +29,15 @@ function snapshot(state) {
   for (const e of (s.employees || [])) {
     delete e._lastPlanContext; delete e._lastPlanPlanned; delete e.lastPlanningResult;
   }
+  // Segment-Migrationsflags: werden bei unterschiedlicher Zeitvorlauf-Aufteilung
+  // zu unterschiedlichen Zeitpunkten gesetzt (vorhanden vs. undefined), sind aber
+  // fachlich irrelevant — nur isRegional/isExpress-Werte zählen, nicht die Flags.
+  for (const o of (s.orders || [])) {
+    delete o._segmentMigrated;
+    // isRegional/isExpress: undefined und false sind fachlich gleich (nicht regional/express)
+    if (!o.isRegional) o.isRegional = false;
+    if (!o.isExpress) o.isExpress = false;
+  }
   // Event-Sequenzen: nur fachliche Felder vergleichen, nicht seq/seen
   if (s.events) {
     s.events = s.events.map(e => ({
