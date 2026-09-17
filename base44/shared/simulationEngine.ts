@@ -26,7 +26,7 @@ import {
   addOpenItem, settleOpenItem, registerAsset, disposeAsset,
   calculateDepreciation, processMonthEnd, processAccountant,
   roleExpenseAccount, periodOf, periodStartMin, periodEndMin, MONTH_MIN,
-  migrateAccounting, getVehicleBookValue,
+  migrateAccounting, getVehicleBookValue, addBooking, CAUSE_ACCOUNT_MAP,
 } from "./accountingEngine.ts";
 import {
   initMail, migrateMail, deliverMessage, getPersonInfo, getAllContacts,
@@ -184,44 +184,7 @@ function nextRng(state) {
   return v;
 }
 // Ursachen-Zuordnung zu Buchungskonten für die Legacy-Schnittstelle.
-const CAUSE_ACCOUNT_MAP = {
-  "Kraftstoff": "5000", "Maut": "5010", "Vergütung": "4000",
-  "Fahrerlohn": "5100", "Standort": "5200", "Lohn": "5120",
-  "Private Entnahme": "2010", "Stornogebühr": "5700",
-  "Fahrzeugkauf": "1200", "Einstellung": "5140", "Wartung": "5300",
-  "Kraftstoff (Leerfahrt)": "5000", "Maut (Leerfahrt)": "5010",
-  "Offene Kosten bezahlt": "2120",
-  "Disposition": "5110", "Reinigung und Werkstatt": "5130", "Buchhaltung": "5120",
-  "Werkstattbau": "1200", "Wartungsteile": "5300",
-};
-
-function addBooking(state, min, cause, amountCents, account, refId) {
-  // Legacy-Array für Kompatibilität beibehalten
-  state.bookings.push({ min, cause, amountCents, account, refId });
-  if (state.bookings.length > 200) state.bookings = state.bookings.slice(-200);
-  if (account === "private") {
-    state.private.accountCents += amountCents;
-    return;
-  }
-  // Firmenbuchung: doppelte Buchführung über Journal
-  const isPositive = amountCents >= 0;
-  const abs = Math.abs(amountCents);
-  const causeKey = cause.split(":")[0].trim();
-  const matchAcct = CAUSE_ACCOUNT_MAP[causeKey] || (isPositive ? "4000" : "5700");
-  if (matchAcct === "2010") {
-    postJournal(state, { text: cause, type: "withdrawal", gameTime: min,
-      lines: [{ account: "2010", debit: abs }, { account: "1000", credit: abs }] });
-  } else if (matchAcct === "1200") {
-    postJournal(state, { text: cause, type: "vehicle_purchase", gameTime: min,
-      lines: [{ account: "1200", debit: abs }, { account: "1000", credit: abs }] });
-  } else if (isPositive) {
-    postJournal(state, { text: cause, type: "revenue", gameTime: min,
-      lines: [{ account: "1000", debit: abs }, { account: matchAcct, credit: abs }] });
-  } else {
-    postJournal(state, { text: cause, type: "expense", gameTime: min,
-      lines: [{ account: matchAcct, debit: abs }, { account: "1000", credit: abs }] });
-  }
-}
+// addBooking und CAUSE_ACCOUNT_MAP wurden nach accountingEngine.ts verschoben.
 function isPlayerBlocked(state) {
   return state.appointments.some(a => a.status === "active");
 }
