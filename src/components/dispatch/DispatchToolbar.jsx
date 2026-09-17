@@ -14,7 +14,7 @@ export default function DispatchToolbar({
   return (
     <div className="flex items-center gap-1 shrink-0">
       {/* Wochenplanung / Partner Umschalter */}
-      <div className="flex items-center gap-0.5 rounded-lg border border-white/10 p-0.5 shrink-0">
+      <div className="hidden sm:flex items-center gap-0.5 rounded-lg border border-white/10 p-0.5 shrink-0">
         <button
           onClick={onTogglePlanning}
           className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition ${
@@ -64,7 +64,7 @@ export default function DispatchToolbar({
       </div>
 
       {searchOpen ? (
-        <div className="relative shrink-0">
+        <div className="relative shrink-0 hidden sm:block">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <input
             autoFocus
@@ -83,14 +83,14 @@ export default function DispatchToolbar({
       ) : (
         <button
           onClick={() => setSearchOpen(true)}
-          className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-muted-foreground hover:text-foreground hover:border-white/20 transition shrink-0"
+          className="hidden sm:flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-muted-foreground hover:text-foreground hover:border-white/20 transition shrink-0"
           title="Suchen"
         >
           <Search className="w-3.5 h-3.5" />
         </button>
       )}
 
-      <MarketPriorityControl />
+      <div className="hidden sm:block"><MarketPriorityControl /></div>
 
       <div className="lg:hidden flex gap-1 bg-ink/60 border border-white/10 rounded-full p-0.5 shrink-0">
         <button

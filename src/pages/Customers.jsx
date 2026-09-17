@@ -41,7 +41,7 @@ export default function Customers() {
     <div className="min-h-full flex flex-col">
       {/* Header */}
       <div className="px-4 lg:px-12 py-4 border-b border-white/10">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="font-heading text-xl font-semibold flex items-center gap-2">
               <Users className="w-5 h-5 text-lime" /> Kunden
@@ -51,16 +51,16 @@ export default function Customers() {
             </p>
           </div>
           {!selectedId && (
-            <div className="flex items-center gap-3 text-xs">
+            <div className="flex items-center gap-2 sm:gap-3 text-xs">
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10">
                 <Star className="w-3.5 h-3.5 text-lime" />
                 <span className="font-medium tabular-nums">{stammkundenCount}</span>
-                <span className="text-muted-foreground">Stammkunden</span>
+                <span className="text-muted-foreground hidden sm:inline">Stammkunden</span>
               </div>
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10">
                 <FileText className="w-3.5 h-3.5 text-lime" />
                 <span className="font-medium tabular-nums">{activeContracts}</span>
-                <span className="text-muted-foreground">Verträge</span>
+                <span className="text-muted-foreground hidden sm:inline">Verträge</span>
               </div>
               <Link
                 to="/netzwerk"
