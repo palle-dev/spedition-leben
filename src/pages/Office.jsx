@@ -4,9 +4,7 @@ import { Network } from "lucide-react";
 import { useGame } from "@/lib/gameContext";
 import OfficeHeader from "@/components/office/OfficeHeader";
 import OfficeKPIs from "@/components/office/OfficeKPIs";
-import FleetSummary from "@/components/office/FleetSummary";
 import DailyOverview from "@/components/office/DailyOverview";
-import UnifiedTaskList from "@/components/office/UnifiedTaskList";
 import DailyCapacity from "@/components/office/DailyCapacity";
 import PersonalAndGoals from "@/components/office/PersonalAndGoals";
 import OfficeBottom from "@/components/office/OfficeBottom";
@@ -14,7 +12,6 @@ import PageHint from "@/components/help/PageHint";
 import OfficeTrends from "@/components/office/OfficeTrends";
 import OfficeBranches from "@/components/office/OfficeBranches";
 import OfficeCustomerRelations from "@/components/office/OfficeCustomerRelations";
-import UtilizationControl from "@/components/office/UtilizationControl";
 import IdleReasonsList from "@/components/office/IdleReasonsList";
 import DevelopmentPanel from "@/components/office/DevelopmentPanel";
 import ScenarioProgressPanel from "@/components/scenarios/ScenarioProgressPanel";
@@ -65,16 +62,6 @@ export default function Office() {
       {/* Kennzahlen */}
       <OfficeKPIs state={state} period={period} />
 
-      {/* Hauptbereich: Vereinheitlichte Aufgaben + Betriebsübersicht */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-1">
-          <UnifiedTaskList state={state} />
-        </div>
-        <div className="lg:col-span-2">
-          <FleetSummary state={state} />
-        </div>
-      </div>
-
       {/* Szenario-Fortschritt (nur bei aktivem Szenario) */}
       <ScenarioProgressPanel />
 
@@ -86,9 +73,6 @@ export default function Office() {
 
       {/* Stillstandgründe: Warum die Automatik nicht disponiert hat */}
       <IdleReasonsList state={state} />
-
-      {/* Auslastungs-Steuerung (flottenweit) */}
-      <UtilizationControl state={state} />
 
       {/* Entwicklung: Entwicklungsziel, Ziele, Meilensteine */}
       <DevelopmentPanel state={state} />
