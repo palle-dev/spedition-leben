@@ -10,7 +10,8 @@ import DgSection from "@/components/fleet/DgSection";
 import UsedVehicleMarket from "@/components/fleet/UsedVehicleMarket";
 import VehicleAnalysis from "@/components/fleet/VehicleAnalysis";
 import BranchSelector from "@/components/branches/BranchSelector";
-import { Wrench, Plus, Truck, MapPin, Gauge, FileText, TrendingUp, FileCheck, Settings, Flame, Store, BarChart3 } from "lucide-react";
+import MoveResourceDialog from "@/components/branches/MoveResourceDialog";
+import { Wrench, Plus, Truck, MapPin, Gauge, FileText, TrendingUp, FileCheck, Settings, Flame, Store, BarChart3, ArrowRightLeft } from "lucide-react";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
 import PageHint from "@/components/help/PageHint";
 
@@ -21,6 +22,7 @@ export default function Fleet() {
   const [buying, setBuying] = useState(false);
   const [leasing, setLeasing] = useState(false);
   const [sellVehicle, setSellVehicle] = useState(null);
+  const [moveVehicle, setMoveVehicle] = useState(null);
   const [tab, setTab] = useState("fleet");
   const [buyBranchId, setBuyBranchId] = useState(null);
   const activeBranches = (state.branches || []).filter(b => b.status === "active");
@@ -178,6 +180,14 @@ export default function Fleet() {
                       </button>
                     )}
                   </div>
+                  <button
+                    onClick={() => setMoveVehicle(v)}
+                    disabled={v.status !== "free" || activeBranches.length < 2}
+                    className="w-full mt-2 flex items-center justify-center gap-1.5 rounded-lg py-2 bg-white/5 border border-white/10 text-xs text-muted-foreground hover:text-foreground hover:border-lime/30 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    title={v.status !== "free" ? "Nur freie Fahrzeuge können verschoben werden" : activeBranches.length < 2 ? "Mindestens 2 aktive Filialen nötig" : "An anderen Standort verschieben"}
+                  >
+                    <ArrowRightLeft className="w-3.5 h-3.5" /> Standort wechseln
+                  </button>
                   {!canMaint && v.status === "free" && v.condition >= 100 && <div className="text-xs text-muted-foreground/50 mt-1.5 text-center">Zustand bereits 100</div>}
                 </div>
               );
@@ -185,6 +195,7 @@ export default function Fleet() {
           </div>
 
           {sellVehicle && <SellVehicleDialog vehicle={sellVehicle} onClose={() => setSellVehicle(null)} />}
+          {moveVehicle && <MoveResourceDialog resource={moveVehicle} resourceType="vehicle" onClose={() => setMoveVehicle(null)} />}
         </>
       )}
     </div>
