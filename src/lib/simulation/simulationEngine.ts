@@ -93,7 +93,7 @@ import {
   migrateWorkshop, buildWorkshopSlot, createMaintenanceOrder,
   cancelMaintenanceOrder, assignMechanic, processWorkshop,
   evaluateWorkshopAutomation, updateAutomationProfile, getWorkshopStatus,
-  getWorkshopEventTimes, WORKSHOP_SLOT_PRICE,
+  getWorkshopEventTimes, WORKSHOP_SLOT_PRICE, checkKmMaintenanceDue,
 } from "./workshopEngine.ts";
 import {
   migratePersonnelMarket, initStartApplicants, generatePersonnelWave,
