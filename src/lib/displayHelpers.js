@@ -135,7 +135,7 @@ export function getVehiclePosition(vehicle, state) {
       if (!fromC || !toC) return CITY_COORDS[vehicle.locationCity] || null;
       const dur = phase.endMin - phase.startMin;
       const progress = dur > 0 ? Math.min(1, Math.max(0, (state.gameTime - phase.startMin) / dur)) : 0;
-      return { x: fromC.x + (toC.x - fromC.x) * progress, y: fromC.y + (toC.y - fromC.y) * progress };
+      return [fromC[0] + (toC[0] - fromC[0]) * progress, fromC[1] + (toC[1] - fromC[1]) * progress];
     }
 
     // Pause/Ruhe: an der Position des letzten Fahr-Abschnitts bleiben
@@ -159,7 +159,7 @@ export function getVehiclePosition(vehicle, state) {
         const fromC = CITY_COORDS[stepFrom], toC = CITY_COORDS[stepTo];
         if (fromC && toC && totalDist > 0) {
           const frac = cumDist / totalDist;
-          return { x: fromC.x + (toC.x - fromC.x) * frac, y: fromC.y + (toC.y - fromC.y) * frac };
+          return [fromC[0] + (toC[0] - fromC[0]) * frac, fromC[1] + (toC[1] - fromC[1]) * frac];
         }
       }
       return CITY_COORDS[vehicle.locationCity] || null;
