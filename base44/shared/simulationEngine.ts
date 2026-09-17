@@ -92,7 +92,7 @@ import {
   migrateWorkshop, buildWorkshopSlot, createMaintenanceOrder,
   cancelMaintenanceOrder, assignMechanic, processWorkshop,
   evaluateWorkshopAutomation, updateAutomationProfile, getWorkshopStatus,
-  getWorkshopEventTimes, WORKSHOP_SLOT_PRICE,
+  getWorkshopEventTimes, WORKSHOP_SLOT_PRICE, checkKmMaintenanceDue,
 } from "./workshopEngine.ts";
 import {
   migratePersonnelMarket, initStartApplicants, generatePersonnelWave,
@@ -634,8 +634,7 @@ function processEventsAt(state, m, log) {
     processTempStaffBilling(state, m, log);
   }
   // Auftrag 27: Werkstatt-Verarbeitung und Automatik
-  processWorkshop(state, m, log);
-  evaluateWorkshopAutomation(state, m, log);
+  processWorkshop(state, m, log); evaluateWorkshopAutomation(state, m, log); checkKmMaintenanceDue(state, m, log);
   // Auftrag 29: Personalmarkt-Wellen und Ablauf
   if (isRegularWaveTime(m)) {
     generatePersonnelWave(state, m, log, false);

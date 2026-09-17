@@ -5,7 +5,7 @@
 import {
   dayOf, formatGameTime,
   SERVICE_START_MIN, SERVICE_END_MIN,
-  STRESS_MAINT_THRESHOLD, MAINT_STRESS_FACTOR,
+  STRESS_MAINT_THRESHOLD, MAINT_STRESS_FACTOR, MAINTENANCE_INTERVAL_KM,
 } from "./gameRules.ts";
 import { pushEvent } from "./eventLog.ts";
 import { deliverMessage } from "./mailEngine.ts";
@@ -81,6 +81,12 @@ export function migrateWorkshop(state) {
   for (const s of state.workshop.slots) {
     if (!s.status) s.status = "free";
     if (!s.currentOrderId) s.currentOrderId = null;
+  }
+  // Fahrzeuge: km-Wartungsintervall initialisieren
+  for (const v of (state.vehicles || [])) {
+    if (v.nextMaintenanceKm == null) {
+      v.nextMaintenanceKm = (v.odometerKm || 0) + MAINTENANCE_INTERVAL_KM;
+    }
   }
 }
 
@@ -266,7 +272,11 @@ function completeWork(state, order, m, log) {
 
   // Fahrzeug aktualisieren
   const v = (state.vehicles || []).find(x => x.id === order.vehicleId);
-  if (v) { v.condition = 100; v.status = "free"; v.maintenanceUntil = null; }
+  if (v) {
+    v.condition = 100; v.status = "free"; v.maintenanceUntil = null;
+    v.nextMaintenanceKm = (v.odometerKm || 0) + MAINTENANCE_INTERVAL_KM;
+    v.kmMaintenanceNotified = false;
+  }
 
   // Platz freigeben
   const slot = (state.workshop?.slots || []).find(s => s.id === order.slotId);
@@ -406,6 +416,68 @@ export function processWorkshop(state, m, log) {
     if (state.company.accountCents < cost) { order.status = "waiting"; order.blockReason = "Firmenkonto reicht für Teile nicht aus"; continue; }
     // Starten
     startWork(state, order, freeSlot, mech, cost, m, log);
+  }
+}
+
+// ---------- Kilometerbasierte Wartung ----------
+// Prüft alle Fahrzeuge, ob das Wartungsintervall (km) erreicht wurde.
+// Bei aktivierter Werkstatt-Automatik wird ein Wartungsauftrag automatisch
+// erstellt. Ohne Automatik (oder ohne Werkstatt am Standort) wird der
+// Spieler per Ereignis und Nachricht informiert.
+export function checkKmMaintenanceDue(state, m, log) {
+  const profile = state.workshop?.automationProfile;
+  for (const v of (state.vehicles || [])) {
+    if (v.status === "archived" || v.status === "sold") continue;
+    const ot = v.ownership_type || "owned";
+    if (ot !== "owned" && ot !== "leased") continue;
+    if (v.nextMaintenanceKm == null) {
+      v.nextMaintenanceKm = (v.odometerKm || 0) + MAINTENANCE_INTERVAL_KM;
+    }
+    if ((v.odometerKm || 0) < v.nextMaintenanceKm) continue;
+    if (v.kmMaintenanceNotified) continue;
+
+    // Bereits offener Wartungsauftrag?
+    const hasOpen = (state.workshop?.maintenanceOrders || []).some(o =>
+      o.vehicleId === v.id &&
+      ["planned", "waiting", "in_progress", "interrupted"].includes(o.status)
+    );
+    if (hasOpen) continue;
+
+    const branch = (state.branches || []).find(b => b.city === v.locationCity);
+    const hasWorkshop = branch ? (state.workshop?.slots || []).some(s => s.branchId === branch.id) : false;
+
+    if (profile?.enabled && hasWorkshop) {
+      try {
+        createMaintenanceOrder(state, {
+          vehicleId: v.id, branchId: branch.id, type: "standard", isAutomated: true,
+        });
+        v.kmMaintenanceNotified = true;
+        log.push({ type: "km_maintenance_auto", vehicle: v.id, atMin: m });
+        continue;
+      } catch (e) { /* Fall through to notification */ }
+    }
+
+    // Benachrichtigung an den Spieler
+    v.kmMaintenanceNotified = true;
+    pushEvent(state, {
+      type: "km_maintenance_due", gameTime: m, isSystem: true,
+      vehicleId: v.id,
+      details: {
+        vehicleId: v.id, vehicleLabel: vehicleLabel(v),
+        odometerKm: v.odometerKm, intervalKm: MAINTENANCE_INTERVAL_KM,
+        branchName: branch?.name || v.locationCity,
+        hasWorkshop,
+      },
+      dedupKey: "km_maintenance_due:" + v.id + ":" + v.nextMaintenanceKm,
+    });
+    deliverMessage(state, {
+      fromId: "system", toId: "player",
+      subject: "Wartung fällig: " + vehicleLabel(v),
+      body: `${vehicleLabel(v)} hat ${v.odometerKm.toLocaleString("de-DE")} km zurückgelegt und das Wartungsintervall (${MAINTENANCE_INTERVAL_KM.toLocaleString("de-DE")} km) erreicht.\n\n${hasWorkshop ? "Bitte in der Werkstatt am Standort " + (branch?.name || v.locationCity) + " einen Wartungsauftrag erstellen." : "Am aktuellen Standort gibt es keine Werkstatt — bitte an einen Standort mit Werkstatt überstellen oder extern warten lassen."}\n\nHinweis: Die Werkstatt-Automatik kann dies künftig automatisch übernehmen.`,
+      gameTime: m, category: "operations", priority: "high",
+      linkedRefs: { type: "vehicle", id: v.id },
+    });
+    log.push({ type: "km_maintenance_notified", vehicle: v.id, atMin: m });
   }
 }
 

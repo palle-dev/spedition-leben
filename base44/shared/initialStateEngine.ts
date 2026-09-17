@@ -4,7 +4,7 @@
 
 import {
   STANDARD_TRUCK, VEHICLE_PRICE, DRIVER_COST_PER_DAY, BRANCH_COST_PER_DAY,
-  PORTRAIT_IDS,
+  PORTRAIT_IDS, MAINTENANCE_INTERVAL_KM,
 } from "./gameRules.ts";
 import { ACHIEVEMENTS } from "./achievementCatalog.ts";
 import {
@@ -68,7 +68,7 @@ export function createInitialState(names) {
       id: "v" + i, branchId: "b1", type: STANDARD_TRUCK.type, capacityTons: 12,
       consumptionPer100km: 28, bookValueCents: STANDARD_TRUCK.bookValueCents,
       condition: 85, locationCity: "Hamburg", status: "free", tripId: null, maintenanceUntil: null,
-      ownership_type: "owned", odometerKm: 0, acquiredAtMin: 480, referencePriceCents: VEHICLE_PRICE,
+      ownership_type: "owned", odometerKm: 0, nextMaintenanceKm: MAINTENANCE_INTERVAL_KM, acquiredAtMin: 480, referencePriceCents: VEHICLE_PRICE,
       markedForSale: false, saleOffer: null,
     })),
     drivers: [

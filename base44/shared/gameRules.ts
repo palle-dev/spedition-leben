@@ -74,6 +74,7 @@ export const MAINTENANCE_DURATION = 480; // Minuten
 export const INVITATION_COST = 6000; // Cent
 export const STRESS_MAINT_THRESHOLD = 80;
 export const MAINT_STRESS_FACTOR = 1.25;
+export const MAINTENANCE_INTERVAL_KM = 15000; // alle 15.000 km wird eine Wartung fällig
 
 // ---------- Filialverwaltung ----------
 export const BRANCH_OPEN_FEE = 5000000; // 50.000 € Eröffnungsgebühr

@@ -137,6 +137,26 @@ export default function Fleet() {
                       ? `Geleast · km ${(v.odometerKm || 0).toLocaleString("de-DE")}`
                       : `Buchwert ${formatEuro(bookValue)} · Markt ${formatEuro(dealerOffer)}`} · {profile.capacityTons} t · {profile.consumptionPer100km} L/100km
                   </div>
+                  {(() => {
+                    const odo = v.odometerKm || 0;
+                    const next = v.nextMaintenanceKm || (odo + 15000);
+                    const due = odo >= next;
+                    const remaining = Math.max(0, next - odo);
+                    const pct = Math.min(100, Math.round((odo / next) * 100));
+                    return (
+                      <div className="mt-2">
+                        <div className="flex items-center justify-between text-[10px] mb-1">
+                          <span className={due ? "text-amber-300 font-medium flex items-center gap-1" : "text-muted-foreground"}>
+                            {due ? <><Wrench className="w-3 h-3" /> Wartung fällig</> : `Nächste Wartung bei ${next.toLocaleString("de-DE")} km`}
+                          </span>
+                          {!due && <span className="text-muted-foreground/60">{remaining.toLocaleString("de-DE")} km</span>}
+                        </div>
+                        <div className="h-1 rounded-full bg-white/5 overflow-hidden">
+                          <div className={`h-full rounded-full transition-all ${due ? "bg-amber-400" : pct > 80 ? "bg-amber-400/60" : "bg-lime/50"}`} style={{ width: `${due ? 100 : pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })()}
                   {trip && <div className="text-xs text-amber-300 mt-1">Unterwegs bis {formatGameTime(trip.endMin)}</div>}
                   {v.status === "maintenance" && <div className="text-xs text-sky-300 mt-1">Wartung bis {formatGameTime(v.maintenanceUntil)}</div>}
                   {hasValidOffer && <div className="text-xs text-lime mt-1">Angebot: {formatEuro(v.saleOffer.priceCents)} bis {formatGameTime(v.saleOffer.validUntilMin)}</div>}
