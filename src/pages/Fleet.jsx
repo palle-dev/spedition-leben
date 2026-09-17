@@ -5,6 +5,8 @@ import { formatEuro, formatGameTime, computeDealerOffer, getVehicleProfile } fro
 import { ownershipLabel, getVehicleBookValue } from "@/lib/financingData";
 import StatusBadge from "@/components/ui/StatusBadge";
 import SellVehicleDialog from "@/components/fleet/SellVehicleDialog";
+import BuyVehicleDialog from "@/components/fleet/BuyVehicleDialog";
+import LeaseVehicleDialog from "@/components/fleet/LeaseVehicleDialog";
 import WorkshopSection from "@/components/fleet/WorkshopSection";
 import DgSection from "@/components/fleet/DgSection";
 import UsedVehicleMarket from "@/components/fleet/UsedVehicleMarket";
@@ -23,6 +25,8 @@ export default function Fleet() {
   const [leasing, setLeasing] = useState(false);
   const [sellVehicle, setSellVehicle] = useState(null);
   const [moveVehicle, setMoveVehicle] = useState(null);
+  const [buyDialog, setBuyDialog] = useState(false);
+  const [leaseDialog, setLeaseDialog] = useState(false);
   const [tab, setTab] = useState("fleet");
   const [buyBranchId, setBuyBranchId] = useState(null);
   const activeBranches = (state.branches || []).filter(b => b.status === "active");
@@ -39,25 +43,13 @@ export default function Fleet() {
     catch (e) { showToast(e.message, "error"); }
     finally { setBusyId(null); }
   }
-  async function buy() {
-    setBuying(true);
-    try {
-      const branch = activeBranches.find(b => b.id === selectedBranchId) || activeBranches[0];
-      await send("buyVehicle", { branchId: selectedBranchId });
-      showToast(`Neuer Lkw in ${branch?.city || 'Hamburg'} übernommen.`, "success");
-    }
-    catch (e) { showToast(e.message, "error"); }
-    finally { setBuying(false); }
+  function buy() {
+    const branch = activeBranches.find(b => b.id === selectedBranchId) || activeBranches[0];
+    setBuyDialog({ branchId: selectedBranchId, branchCity: branch?.city || "Hamburg" });
   }
-  async function lease() {
-    setLeasing(true);
-    try {
-      const branch = activeBranches.find(b => b.id === selectedBranchId) || activeBranches[0];
-      await send("leaseTruck", { provisionCity: branch?.city || "Hamburg", branchId: selectedBranchId });
-      showToast(`Leasing-Lkw in ${branch?.city || 'Hamburg'} bereitgestellt.`, "success");
-    }
-    catch (e) { showToast(e.message, "error"); }
-    finally { setLeasing(false); }
+  function lease() {
+    const branch = activeBranches.find(b => b.id === selectedBranchId) || activeBranches[0];
+    setLeaseDialog({ branchId: selectedBranchId, branchCity: branch?.city || "Hamburg" });
   }
 
   return (

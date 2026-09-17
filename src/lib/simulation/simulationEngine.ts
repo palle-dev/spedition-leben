@@ -1,6 +1,5 @@
-// Simulations-Engine für "Spedition & Leben".
-// Reine Spielregeln und Zustandsänderungen – keine Auth, keine Speicherung.
-// Trennung: gameRules (statische Daten) · simulationEngine (Regeln/Zustand) · gameRepository (Speicherung via Backend-Funktion).
+// Simulations-Engine für "Spedition & Leben". Reine Spielregeln/Zustände – keine Auth/Speicherung.
+// Trennung: gameRules (statisch) · simulationEngine (Regeln/Zustand) · gameRepository (Speicherung).
 
 import {
   CITIES, getDistance, mulberry32, INVITATION_TEMPLATES,
@@ -1018,7 +1017,7 @@ export function applyCommand(state, command, params) {
       if (v.status !== "free") throw new Error("Wartung ist nur für freie Fahrzeuge möglich.");
       if (v.condition >= 100) throw new Error("Fahrzeug ist bereits in bestem Zustand.");
       const maintProfile = getVehicleProfile(v);
-      let cost = maintProfile.maintenanceCostCents;
+      let cost = getVehicleEffectiveMaintenanceCost(v);
       const maintDuration = maintProfile.maintenanceDurationMin;
       const stressed = state.private.stress >= STRESS_MAINT_THRESHOLD;
       if (stressed) cost = Math.round(cost * MAINT_STRESS_FACTOR);
@@ -1033,17 +1032,18 @@ export function applyCommand(state, command, params) {
       ensureNotBlocked(state);
       if (state.openCosts.some(o => o.account === "company")) throw new Error("Es gibt offene betriebliche Kosten. Bitte bezahle diese zuerst.");
       const profile = VEHICLE_CATALOG[p.vehicleType] || VEHICLE_CATALOG.standard;
-      const buyPrice = profile.priceCents;
+      const bodyType = VEHICLE_BODY_TYPES[p.bodyType] || VEHICLE_BODY_TYPES.planen;
+      const buyPrice = Math.round(profile.priceCents * bodyType.priceMultiplier);
       if (state.company.accountCents < buyPrice) throw new Error("Firmenkonto reicht für den Kauf (" + (buyPrice / 100).toFixed(0) + " €) nicht aus.");
       const buyBranch = p.branchId ? state.branches.find(b => b.id === p.branchId) : state.branches[0];
       if (!buyBranch || buyBranch.status !== "active") throw new Error("Keine aktive Filiale verfügbar.");
       { const _c=checkParkingCapacity(state,buyBranch.id,1); if(!_c.ok){ const _a=findBranchWithCapacity(state,buyBranch.city,1); throw new Error(_c.message+(_a?` Alternative: ${_a.name} (${_a.city}).`:"")+" Stellplatzausbau möglich."); } }
-      addBooking(state, state.gameTime, "Fahrzeugkauf: " + profile.label, -buyPrice, "company", "buy");
-      const v = { id: uid(state, "v"), branchId: buyBranch.id, type: profile.label, catalogId: profile.id,
-        capacityTons: profile.capacityTons, consumptionPer100km: profile.consumptionPer100km,
+      addBooking(state, state.gameTime, "Fahrzeugkauf: " + profile.label + " (" + bodyType.label + ")", -buyPrice, "company", "buy");
+      const v = { id: uid(state, "v"), branchId: buyBranch.id, type: profile.label, catalogId: profile.id, bodyType: bodyType.id,
+        capacityTons: profile.capacityTons, consumptionPer100km: profile.consumptionPer100km + bodyType.consumptionAdd,
         bookValueCents: buyPrice, condition: 85,
         locationCity: buyBranch.city, status: "free", tripId: null, maintenanceUntil: null,
-        ownership_type: "owned", odometerKm: 0, acquiredAtMin: state.gameTime, referencePriceCents: profile.referencePriceCents,
+        ownership_type: "owned", odometerKm: 0, acquiredAtMin: state.gameTime, referencePriceCents: Math.round(profile.referencePriceCents * bodyType.priceMultiplier),
         markedForSale: false, saleOffer: null, };
       state.vehicles.push(v);
       registerAsset(state, {
@@ -1052,11 +1052,9 @@ export function applyCommand(state, command, params) {
         acquisitionCostCents: buyPrice, acquiredAtMin: state.gameTime,
       });
       const newAchs = checkAchievements(state, state.gameTime);
-      result = { ok: true, vehicleId: v.id, vehicleType: profile.id, priceCents: buyPrice, newAchievements: newAchs };
+      result = { ok: true, vehicleId: v.id, vehicleType: profile.id, bodyType: bodyType.id, priceCents: buyPrice, newAchievements: newAchs };
       break;
     }
-
-    // ---------- Fahrzeugverkauf (Auftrag 21) ----------
 
     case "previewSale": {
       const v = state.vehicles.find(x => x.id === p.vehicleId);

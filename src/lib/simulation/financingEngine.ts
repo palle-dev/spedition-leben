@@ -3,7 +3,7 @@
 // Reine Logik – keine Auth, keine Speicherung. Wird von simulationEngine importiert.
 // Alle Zinssätze, Gebühren und Konditionen sind fiktive Spielwerte.
 
-import { formatGameTime } from "./gameRules.ts";
+import { formatGameTime, VEHICLE_BODY_TYPES, getVehicleBodyType } from "./gameRules.ts";
 import { postJournal, registerAsset, getVehicleBookValue, MONTH_MIN, getCashFlow } from "./accountingEngine.ts";
 import { deliverMessage } from "./mailEngine.ts";
 
@@ -577,26 +577,31 @@ export function getAllLeasingOffers() {
   ];
 }
 
-export function leaseTruck(state, { provisionCity, offerId, branchId } = {}) {
+export function leaseTruck(state, { provisionCity, offerId, branchId, bodyType } = {}) {
   const offer = getLeasingOffer(offerId);
   const access = checkFinancingAccess(state, { type: "leasing", offerId: offer.id, provisionCity });
   if (!access.allowed) throw new Error(access.blockingReasons.join(" "));
 
+  const body = VEHICLE_BODY_TYPES[bodyType] || VEHICLE_BODY_TYPES.planen;
+  const adjSpecial = Math.round(offer.specialPaymentCents * body.priceMultiplier);
+  const adjMonthly = Math.round(offer.monthlyRateCents * body.priceMultiplier);
+  const adjBuyout = Math.round(offer.buyoutPriceCents * body.priceMultiplier);
   if (!provisionCity) provisionCity = offer.returnLocationCity;
   const leaseBranch = branchId ? state.branches.find(b => b.id === branchId)
     : state.branches.find(b => b.city === provisionCity) || state.branches[0];
   if (!leaseBranch || leaseBranch.status !== "active") throw new Error("Keine aktive Filiale verfügbar.");
   const startMin = state.gameTime;
 
+  const baseRef = offer.referencePriceCents || (offer.catalogId === "regional" ? 1800000 : offer.catalogId === "heavy" ? 5500000 : 3000000);
   const vehicleId = uid(state, "v");
   const vehicle = {
     id: vehicleId, branchId: leaseBranch.id, type: offer.vehicleType,
-    catalogId: offer.catalogId || "standard",
-    capacityTons: offer.capacityTons, consumptionPer100km: offer.consumptionPer100km,
+    catalogId: offer.catalogId || "standard", bodyType: body.id,
+    capacityTons: offer.capacityTons, consumptionPer100km: offer.consumptionPer100km + body.consumptionAdd,
     bookValueCents: 0, condition: 100, locationCity: provisionCity,
     status: "free", tripId: null, maintenanceUntil: null,
     ownership_type: "leased", leasingContractId: null, odometerKm: 0,
-    acquiredAtMin: startMin, referencePriceCents: offer.referencePriceCents || (offer.catalogId === "regional" ? 1800000 : offer.catalogId === "heavy" ? 5500000 : 3000000),
+    acquiredAtMin: startMin, referencePriceCents: Math.round(baseRef * body.priceMultiplier),
     markedForSale: false, saleOffer: null,
   };
   state.vehicles.push(vehicle);
@@ -607,14 +612,14 @@ export function leaseTruck(state, { provisionCity, offerId, branchId } = {}) {
     id: contractId, vehicleId, vehicleType: offer.vehicleType,
     offerId: offer.id,
     startMin, endMin, termMonths: offer.termMonths,
-    specialPaymentCents: offer.specialPaymentCents, monthlyRateCents: offer.monthlyRateCents,
+    specialPaymentCents: adjSpecial, monthlyRateCents: adjMonthly,
     includedKm: offer.includedKm, mileageRatePerKmCents: offer.mileageRatePerKmCents,
-    buyoutPriceCents: offer.buyoutPriceCents,
+    buyoutPriceCents: adjBuyout,
     returnLocationCity: offer.returnLocationCity,
     minConditionAtReturn: offer.minConditionAtReturn,
     conditionPenaltyPerPointCents: offer.conditionPenaltyPerPointCents,
-    prepaidLeasingCents: offer.specialPaymentCents,
-    prepaidResolutionPerMonthCents: offer.specialPaymentCents > 0 ? Math.floor(offer.specialPaymentCents / offer.termMonths) : 0,
+    prepaidLeasingCents: adjSpecial,
+    prepaidResolutionPerMonthCents: adjSpecial > 0 ? Math.floor(adjSpecial / offer.termMonths) : 0,
     payments: [], startOdometerKm: 0, status: "active",
     nextRateDueMin: startMin + 30 * DAY_MIN, paidRates: 0,
     overdueRatesCents: 0, overdueSinceMin: null,
@@ -626,23 +631,23 @@ export function leaseTruck(state, { provisionCity, offerId, branchId } = {}) {
   state.leasingContracts.push(contract);
 
   // Sonderzahlung nur bei Variante B buchen (Variante A: 0 €)
-  if (offer.specialPaymentCents > 0) {
+  if (adjSpecial > 0) {
     postJournal(state, {
-      text: "Leasing-Sonderzahlung: " + offer.vehicleType,
+      text: "Leasing-Sonderzahlung: " + offer.vehicleType + " (" + body.label + ")",
       type: "leasing_provision", gameTime: state.gameTime, actor: "player", vehicleId,
-      lines: [{ account: "1300", debit: offer.specialPaymentCents }, { account: "1000", credit: offer.specialPaymentCents }],
+      lines: [{ account: "1300", debit: adjSpecial }, { account: "1000", credit: adjSpecial }],
     });
   }
 
   deliverMessage(state, {
     fromId: "system", toId: "player",
     subject: "Leasingvertrag abgeschlossen",
-    body: `Ein Leasingvertrag für einen ${offer.vehicleType} wurde abgeschlossen.\nVertragsnummer: ${contractId}\nVariante: ${offer.id === "standard_flex" ? "A (Flexibler Einstieg)" : "B (Niedrigere Rate)"}\nSonderzahlung: ${(offer.specialPaymentCents / 100).toFixed(2)} €\nMonatliche Rate: ${(offer.monthlyRateCents / 100).toFixed(2)} €\nLaufzeit: ${offer.termMonths} Monate\nInklusive Kilometer: ${offer.includedKm.toLocaleString("de-DE")} km\nKaufoption: ${(offer.buyoutPriceCents / 100).toFixed(2)} €\nRückgabeort: ${offer.returnLocationCity}\n\nDas Fahrzeug steht ab sofort in ${provisionCity} zur Verfügung.`,
+    body: `Ein Leasingvertrag für einen ${offer.vehicleType} (${body.label}) wurde abgeschlossen.\nVertragsnummer: ${contractId}\nVariante: ${offer.id === "standard_flex" ? "A (Flexibler Einstieg)" : "B (Niedrigere Rate)"}\nSonderzahlung: ${(adjSpecial / 100).toFixed(2)} €\nMonatliche Rate: ${(adjMonthly / 100).toFixed(2)} €\nLaufzeit: ${offer.termMonths} Monate\nInklusive Kilometer: ${offer.includedKm.toLocaleString("de-DE")} km\nKaufoption: ${(adjBuyout / 100).toFixed(2)} €\nRückgabeort: ${offer.returnLocationCity}\n\nDas Fahrzeug steht ab sofort in ${provisionCity} zur Verfügung.`,
     gameTime: state.gameTime, category: "financing", priority: "normal",
     linkedRefs: { type: "leasing", id: contractId }, dedupKey: `lease_signed:${contractId}`,
   });
 
-  return { ok: true, contractId, vehicleId, offerId: offer.id, specialPaymentCents: offer.specialPaymentCents, monthlyRateCents: offer.monthlyRateCents, endMin };
+  return { ok: true, contractId, vehicleId, offerId: offer.id, bodyType: body.id, specialPaymentCents: adjSpecial, monthlyRateCents: adjMonthly, endMin };
 }
 
 // ---------- Leasingrate ----------

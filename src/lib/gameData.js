@@ -97,6 +97,22 @@ export function getVehicleProfile(vehicle) {
   if (vehicle.type === "Schwerer Fernverkehrs-Lkw") return VEHICLE_CATALOG.heavy;
   return VEHICLE_CATALOG.standard;
 }
+
+// ---------- Fahrzeug-Aufbauten (Spiegel von gameRules.ts) ----------
+export const VEHICLE_BODY_TYPES = {
+  planen: { id: "planen", label: "Planen", priceMultiplier: 1.0, maintenanceMultiplier: 1.0, consumptionAdd: 0, description: "Standard-Sattelzug mit Plane. Universell für Standardfracht einsetzbar." },
+  kuehl: { id: "kuehl", label: "Kühlwagen", priceMultiplier: 1.15, maintenanceMultiplier: 1.20, consumptionAdd: 2, description: "Kühl- und Gefriertransporte. Höhere Wartungs- und Kraftstoffkosten durch Kühlaggregat." },
+  tank: { id: "tank", label: "Tankwagen", priceMultiplier: 1.20, maintenanceMultiplier: 1.15, consumptionAdd: 1, description: "Flüssig- und Schüttguttransporte. Spezielle Pumpe und Tankausstattung." },
+  kipper: { id: "kipper", label: "Kipper/Silo", priceMultiplier: 1.10, maintenanceMultiplier: 1.10, consumptionAdd: 1, description: "Schüttgut und Baustoffe. Hydraulische Kippeinrichtung für schnelles Entladen." },
+};
+export const VEHICLE_BODY_TYPE_LIST = [
+  VEHICLE_BODY_TYPES.planen, VEHICLE_BODY_TYPES.kuehl, VEHICLE_BODY_TYPES.tank, VEHICLE_BODY_TYPES.kipper,
+];
+export function getVehicleBodyType(vehicle) {
+  if (!vehicle) return VEHICLE_BODY_TYPES.planen;
+  if (vehicle.bodyType && VEHICLE_BODY_TYPES[vehicle.bodyType]) return VEHICLE_BODY_TYPES[vehicle.bodyType];
+  return VEHICLE_BODY_TYPES.planen;
+}
 export const HIRE_FEE_EUR = 500;
 export const DRIVER_COST_PER_DAY_EUR = 100;
 export const BRANCH_COST_PER_DAY_EUR = 100;

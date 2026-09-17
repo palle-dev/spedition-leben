@@ -2,7 +2,7 @@
 // Wandelt interne IDs in Anzeigenamen um, berechnet Fahrzeugpositionen
 // und ermittelt das nächste Spielereignis — alles aus vorhandenem Zustand.
 
-import { CITY_COORDS, clockOf, formatGameTime } from "./gameData";
+import { CITY_COORDS, clockOf, formatGameTime, getVehicleBodyType } from "./gameData";
 
 // Lkw-Anzeigename: "v1" → "Lkw 01", "v12" → "Lkw 12"
 export function vehicleDisplayName(v) {
@@ -10,6 +10,14 @@ export function vehicleDisplayName(v) {
   const n = parseInt(String(v.id).replace(/[^0-9]/g, ""), 10);
   if (isNaN(n)) return v.id;
   return "Lkw " + String(n).padStart(2, "0");
+}
+
+// Fahrzeug-Typ-Label inkl. Aufbau (z.B. "Standard-Lkw · Kühlwagen")
+export function vehicleTypeLabel(v) {
+  if (!v) return "—";
+  const body = getVehicleBodyType(v);
+  if (body.id !== "planen") return (v.type || "Lkw") + " · " + body.label;
+  return v.type || "Lkw";
 }
 
 // Fahrer-Anzeigename: bleibt der echte Name, da bereits persönlich.
