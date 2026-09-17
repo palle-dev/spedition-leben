@@ -117,13 +117,15 @@ export default async function (req) {
         state,
         revision: newRev,
         ...meta,
-        save_label: save_label || null,
-        save_type: save_type || "auto",
         cloud_saved_at: Date.now(),
         last_action_id: "save_" + Date.now(),
         last_result: { ok: true, command: "cloudSync_save" },
         automation_enabled: false,
       };
+      // save_label nur überschreiben wenn explizit angegeben —
+      // verhindert dass Auto-Sync den Namen eines manuellen Speicherpunkts löscht.
+      if (save_label) updateSet.save_label = save_label;
+      if (save_type) updateSet.save_type = save_type;
 
       // Atomares bedingtes Update: Filter prüft id + owner_id + revision.
       // updateMany führt die Prüfung und Schreibung in einer Operation aus —

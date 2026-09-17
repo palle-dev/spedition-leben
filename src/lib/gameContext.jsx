@@ -325,6 +325,9 @@ export function GameProvider({ children }) {
       stateRef.current = loaded; setState(loaded);
       setShowStart(false);
       saveNow(loaded);
+      // Cloud-Dirty-Flag zurücksetzen — der geladene Stand ist bereits
+      // mit der Cloud synchron, kein Auto-Upload nötig.
+      cloudDirtyRef.current = false;
       setAutomationEnabled(false);
       lastSyncGameTimeRef.current = loaded.gameTime || 0;
       lastSyncRealMsRef.current = Date.now();
@@ -372,24 +375,35 @@ export function GameProvider({ children }) {
   // Konflikt auflösen: mit lokaler Fassung fortsetzen (Cloud überschreiben)
   const resolveConflictKeepLocal = useCallback(async () => {
     if (!stateRef.current) return;
-    // Vor dem Überschreiben erneut Cloud-Revision prüfen
     const meta = syncMetaRef.current;
     if (!meta?.cloudId) return;
     try {
+      // Aktuelle Cloud-Revision laden, dann mit dieser Revision überschreiben.
+      // localBaseRevision ist nach einem Konflikt veraltet (niedriger als Cloud),
+      // daher muss die aktuelle Cloud-Revision als expected_revision verwendet werden.
       const res = await loadCloudSave(meta.cloudId);
       if (res.error) throw new Error(res.error);
-      if (res.revision !== meta.localBaseRevision) {
-        // Cloud hat sich erneut geändert — Konflikt bleibt bestehen
-        updateSyncMeta({ status: "conflict", localBaseRevision: res.revision, lastError: "Cloud-Stand hat sich erneut geändert" });
-        return { ok: false, error: "Cloud-Stand hat sich erneut geändert — bitte erneut prüfen" };
+      const r = await saveCloudSave(meta.cloudId, stateRef.current, res.revision, "Konflikt-Auflösung (lokal gewählt)", "manual");
+      if (r.error) {
+        if (r.conflict) {
+          updateSyncMeta({ status: "conflict", localBaseRevision: r.current_revision, lastError: "Cloud-Stand hat sich erneut geändert" });
+          return { ok: false, error: "Cloud-Stand hat sich erneut geändert — bitte erneut prüfen" };
+        }
+        throw new Error(r.error);
       }
+      updateSyncMeta({
+        cloudId: meta.cloudId,
+        localBaseRevision: r.revision,
+        status: "synced",
+        lastCloudSyncAt: Date.now(),
+        lastError: null,
+      });
+      return { ok: true };
     } catch (e) {
+      showToast(e.message, "error");
       return { ok: false, error: e.message };
     }
-    // Erneut mit aktueller Revision hochladen
-    const r = await uploadToCloud(stateRef.current, "Konflikt-Auflösung (lokal gewählt)", "manual");
-    return r;
-  }, [uploadToCloud, updateSyncMeta]);
+  }, [updateSyncMeta, showToast]);
 
   // Konflikt auflösen: mit Cloud-Fassung fortsetzen (lokal überschreiben)
   const resolveConflictKeepCloud = useCallback(async () => {
@@ -412,6 +426,7 @@ export function GameProvider({ children }) {
 
       stateRef.current = loaded; setState(loaded);
       saveNow(loaded);
+      cloudDirtyRef.current = false;
       processNewEvents(loaded);
       return { ok: true };
     } catch (e) {
@@ -885,18 +900,17 @@ export function GameProvider({ children }) {
     if (!stateRef.current) return { ok: false, error: "Kein Spielstand" };
     try {
       await saveManualSlot(userIdRef.current, name, stateRef.current);
-      // Manueller Speicherpunkt → zusätzlichen benannten Cloud-Snapshot anlegen.
-      // Der Haupt-Datensatz (Auto-Sync) bleibt unberührt und wird weiterhin
-      // über uploadToCloud aktualisiert.
+      // Manueller Speicherpunkt → Cloud-Sync mit Slot-Namen als Label.
+      // Aktualisiert den bestehenden Cloud-Datensatz (keine Duplikate).
       if (navigator.onLine && userIdRef.current) {
         try {
-          await createCloudSave(stateRef.current, stateRef.current.meta?.partyId, name, "manual");
+          await uploadToCloud(stateRef.current, name, "manual");
           refreshCloudSaves();
         } catch (e) { /* lokaler Speicher erfolgreich — Cloud-Fehler nicht blockierend */ }
       }
       return { ok: true };
     } catch (e) { return { ok: false, error: e.message }; }
-  }, [refreshCloudSaves]);
+  }, [uploadToCloud, refreshCloudSaves]);
 
   const loadSlot = useCallback(async (name) => {
     try {
