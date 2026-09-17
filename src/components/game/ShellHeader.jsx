@@ -41,10 +41,10 @@ export default function ShellHeader() {
   return (
     <header className="relative z-20 flex items-center gap-2 lg:gap-3 px-4 lg:px-6 h-14 lg:h-16 border-b border-white/10 bg-ink/95 shrink-0">
       {/* Marke */}
-      <button onClick={() => navigate("/")} className="flex items-center gap-2.5 shrink-0" aria-label="FERNWERK – zum Büro">
+      <button onClick={() => navigate("/")} className="flex items-center gap-2.5 shrink-0" aria-label="FRACHTFIEBER – zum Büro">
         <FernwerkSignet size={26} />
         <div className="hidden sm:block leading-none">
-          <div className="text-[13px] font-bold tracking-[0.08em] uppercase text-foreground">FERNWERK</div>
+          <div className="text-[13px] font-bold tracking-[0.08em] uppercase text-foreground">FRACHTFIEBER</div>
           <div className="text-[9px] tracking-[0.04em] text-muted-foreground mt-1">{state.company.name}</div>
         </div>
       </button>

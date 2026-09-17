@@ -21,11 +21,11 @@ export default function FernwerkLogo({
             className={`font-bold tracking-[0.08em] uppercase ${wordClassName}`}
             style={{ fontSize: Math.round(size * 0.46) }}
           >
-            FERNWERK
+            FRACHTFIEBER
           </div>
           {showTagline && (
             <div className={`text-[10px] tracking-[0.02em] mt-1 ${taglineClassName}`}>
-              Dein Unternehmen. Dein Leben. Dein Weg.
+              Kleine Firma. Große Pläne.
             </div>
           )}
         </div>

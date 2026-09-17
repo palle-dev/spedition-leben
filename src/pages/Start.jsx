@@ -88,9 +88,9 @@ export default function StartScreen() {
           <div className="flex justify-center mb-5">
             <FernwerkLogo size={48} showWord={false} />
           </div>
-          <h1 className="text-3xl font-bold tracking-[0.08em] uppercase text-foreground">FERNWERK</h1>
-          <p className="text-[11px] tracking-[0.04em] text-muted-foreground mt-2">Dein Unternehmen. Dein Leben. Dein Weg.</p>
-          <p className="text-muted-foreground mt-3 text-sm max-w-xs mx-auto">Die Wirtschaftssimulation über Transport, Unternehmertum und das Leben dahinter.</p>
+          <h1 className="text-3xl font-bold tracking-[0.08em] uppercase text-foreground">FRACHTFIEBER</h1>
+          <p className="text-[11px] tracking-[0.04em] text-muted-foreground mt-2">Kleine Firma. Große Pläne.</p>
+          <p className="text-muted-foreground mt-3 text-sm max-w-xs mx-auto">Baue deine Spedition auf, führe dein Team und finde deinen eigenen Weg zwischen Geschäft und Privatleben.</p>
         </div>
 
         {state && !showForm && (
