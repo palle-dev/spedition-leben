@@ -1592,6 +1592,12 @@ export function applyCommand(state, command, params) {
           stats.branches[bid].tours++;
         }
       }
+      // Neu generierte Aufträge (während advanceTo) mit Segment-Feldern
+      // migrieren. Ohne diesen Aufruf würden Aufträge, die während eines
+      // großen Zeitsprungs erzeugt wurden, erst beim nächsten applyCommand
+      // migriert — was bei unterschiedlicher Vorlauf-Stückelung zu
+      // abweichenden isRegional/isExpress-Werten führt.
+      migrateSegmentFields(state);
       const MAX_LOG = 200;
       const trimmedLog = log.length > MAX_LOG ? log.slice(-MAX_LOG) : log;
       const stoppedEvent = log.find(ev => ev.type === "advance_stopped");

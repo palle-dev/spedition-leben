@@ -32,9 +32,12 @@ export function migrateSegmentFields(state) {
 }
 
 // Berechnet Auftragsmerkmale aus vorhandenen Daten
+// Wichtig: Die Berechnung verwendet publishedAtMin (nicht acceptedAtMin) als Basis
+// für das Lieferfenster. Dadurch ist isExpress deterministisch — unabhängig davon,
+// ob der Auftrag bereits angenommen wurde oder wann die Migration läuft.
 export function getOrderCharacteristics(order): OrderCharacteristics {
   const distanceKm = getDistance(order.fromCity, order.toCity);
-  const deliveryWindowMin = (order.deliveryDeadlineMin || 0) - (order.acceptedAtMin || order.publishedAtMin || order.acceptDeadlineMin || 0);
+  const deliveryWindowMin = (order.deliveryDeadlineMin || 0) - (order.publishedAtMin || order.acceptDeadlineMin || 0);
   return {
     isRegional: distanceKm <= REGIONAL_DISTANCE_KM,
     isExpress: deliveryWindowMin > 0 && deliveryWindowMin <= EXPRESS_DEADLINE_MIN,
