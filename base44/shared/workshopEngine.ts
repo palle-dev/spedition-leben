@@ -39,6 +39,25 @@ function vehicleLabel(v) {
   return isNaN(n) ? v.id : "Lkw " + String(n).padStart(2, "0");
 }
 
+// Schätzt den Wartungsabschluss basierend auf verbleibenden Minuten und
+// Dienstzeiten. Wird bei Pause/Start gesetzt, damit die Fahrzeuganzeige
+// ein sinnvolles "Wartung bis" zeigt statt "Tag 1, 00:00".
+function estimateMaintenanceEnd(order, m) {
+  const remaining = Math.max(0, order.requiredMinutes - order.completedMinutes);
+  if (remaining <= 0) return m;
+  const dayStart = Math.floor(m / DAY_MIN) * DAY_MIN;
+  let serviceStart = dayStart + SERVICE_START_MIN;
+  if (serviceStart <= m) serviceStart += DAY_MIN;
+  const serviceLen = SERVICE_END_MIN - SERVICE_START_MIN;
+  let end = serviceStart;
+  let left = remaining;
+  while (left > 0) {
+    if (left <= serviceLen) { end += left; left = 0; }
+    else { end += serviceLen; left -= serviceLen; end = Math.floor(end / DAY_MIN) * DAY_MIN + DAY_MIN + SERVICE_START_MIN; }
+  }
+  return end;
+}
+
 // Findet einen verfügbaren Mechaniker an einem Standort.
 function findAvailableMechanic(state, branchId, m) {
   const branch = (state.branches || []).find(b => b.id === branchId);
@@ -230,7 +249,7 @@ function startWork(state, order, slot, mechanic, partsCost, m, log) {
 
   // Fahrzeug in Wartung setzen
   const v = (state.vehicles || []).find(x => x.id === order.vehicleId);
-  if (v) { v.status = "maintenance"; v.maintenanceUntil = null; }
+  if (v) { v.status = "maintenance"; v.maintenanceUntil = estimateMaintenanceEnd(order, m); }
 
   // Platz belegen
   slot.status = "occupied";
@@ -331,6 +350,8 @@ export function processWorkshop(state, m, log) {
       order.working = false;
       order.workSessionStart = null;
       order.history.push({ type: "paused", atMin: m, reason: "Dienstende" });
+      const v = (state.vehicles || []).find(x => x.id === order.vehicleId);
+      if (v) v.maintenanceUntil = estimateMaintenanceEnd(order, m);
       continue;
     }
     // Mechaniker abwesend
@@ -394,6 +415,8 @@ export function processWorkshop(state, m, log) {
       order.workSessionStart = m;
       order.blockReason = null;
       order.history.push({ type: "resumed", atMin: m, mechanicId: mech.id });
+      const v = (state.vehicles || []).find(x => x.id === order.vehicleId);
+      if (v) v.maintenanceUntil = estimateMaintenanceEnd(order, m);
     }
   }
 
