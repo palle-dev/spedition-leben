@@ -16,7 +16,7 @@ export default function OutreachPanel({ customerId }) {
       try {
         const s = await send("getOutreachStatus", { customerId });
         const f = await send("getOutreachFeasibility", { customerId });
-        if (!cancelled) { setStatus(s); setFeasibility(f); }
+        if (!cancelled) { setStatus(s.status); setFeasibility(f.feasibility); }
       } catch (e) { /* toast */ }
     })();
     return () => { cancelled = true; };
