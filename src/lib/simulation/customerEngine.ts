@@ -513,6 +513,22 @@ export function evaluateContracts(state, m, log) {
     if (m < contract.endMin) continue;
     if (contract.evaluatedAtMin !== null) continue;
 
+    // Paket 4: Vertragsaufträge, die nie disponiert wurden (still 'angenommen'),
+    // nach Ablauf der Lieferfrist als 'expired' markieren. Ohne dies würden
+    // sie den Vertragsabschluss blockieren, da 'angenommen' kein Endzustand ist.
+    for (const oid of contract.orderIds) {
+      const o = state.orders.find(x => x.id === oid);
+      if (!o) continue;
+      if (o.status === "angenommen" && o.deliveryDeadlineMin < m) {
+        o.status = "expired";
+        o.deliveredAtMin = m;
+        o.history = o.history || [];
+        o.history.push({ type: "contract_expired", min: m, reason: "Nicht disponiert vor Vertragsende" });
+        contract.failedCount = (contract.failedCount || 0) + 1;
+        log.push({ type: "contract_order_expired", contract: contract.id, order: oid, atMin: m });
+      }
+    }
+
     // Prüfen, ob alle zugehörigen Aufträge einen Endzustand erreicht haben
     const doneStatuses = new Set(["geliefert", "failed", "storniert", "expired"]);
     const allDone = contract.orderIds.every(oid => {
