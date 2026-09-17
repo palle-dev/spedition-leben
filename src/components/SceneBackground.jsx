@@ -79,7 +79,7 @@ export default function SceneBackground({ scene, motionEnabled }) {
   }
 
   return (
-    <div className="sticky top-0 z-0 h-[100dvh] overflow-hidden bg-ink self-start" aria-hidden="true">
+    <div className="fixed inset-0 z-0 overflow-hidden bg-ink" aria-hidden="true">
       {/* Szenen-Layer: nur besuchte Szenen werden gerendert, aktive eingeblendet */}
       {[...visited].map((s) => {
         const cfg = SCENES[s];

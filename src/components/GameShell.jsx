@@ -45,6 +45,7 @@ function GameShellContent() {
   return (
     <MotionConfig reducedMotion={motionEnabled ? "user" : "always"}>
       <div className="relative h-[100dvh] flex flex-col overflow-hidden">
+        <SceneBackground scene={scene} motionEnabled={motionEnabled} />
         <div className="relative z-10 flex flex-col h-full min-h-0">
           <ShellHeader />
           {connectionState === "reconnecting" && (
@@ -59,16 +60,13 @@ function GameShellContent() {
               Du bist mit einer privaten Aktivität beschäftigt. Operative Aktionen sind bis {formatGameTime(blocked.endMin)} gesperrt.
             </div>
           )}
-          <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden grid grid-cols-1">
-            <SceneBackground scene={scene} motionEnabled={motionEnabled} />
-            <div className="relative z-10 col-start-1 row-start-1">
-              {(state.onboarding?.active || state.tutorial?.active) && (
-                <div className="px-4 sm:px-6 lg:px-12 pt-4 max-w-[1600px] mx-auto">
-                  <Tutorial />
-                </div>
-              )}
-              <Outlet />
-            </div>
+          <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+            {(state.onboarding?.active || state.tutorial?.active) && (
+              <div className="px-4 sm:px-6 lg:px-12 pt-4 max-w-[1600px] mx-auto">
+                <Tutorial />
+              </div>
+            )}
+            <Outlet />
           </main>
           <ShellDock />
         </div>
