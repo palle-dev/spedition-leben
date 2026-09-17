@@ -2,6 +2,7 @@ import React from "react";
 import { useGame } from "@/lib/gameContext";
 import { getTrustLabel, getTrustColor, getRelationStatusLabel, formatEuro, formatDay } from "@/lib/customerData";
 import { Search, Star, FileText, TrendingUp, MapPin } from "lucide-react";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
 export default function CustomerList({ customers, onSelect }) {
   const [search, setSearch] = React.useState("");
@@ -41,26 +42,28 @@ export default function CustomerList({ customers, onSelect }) {
             className="w-full pl-9 pr-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-lime/40"
           />
         </div>
-        <select
-          value={filter}
-          onChange={e => setFilter(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm focus:outline-none focus:border-lime/40"
-        >
-          <option value="all">Alle Kunden</option>
-          <option value="stammkunde">Stammkunden</option>
-          <option value="contract">Mit Vertrag</option>
-          <option value="none">Ohne Vertrag</option>
-        </select>
-        <select
-          value={sortBy}
-          onChange={e => setSortBy(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm focus:outline-none focus:border-lime/40"
-        >
-          <option value="name">Name (A–Z)</option>
-          <option value="trust">Vertrauen</option>
-          <option value="revenue">Umsatz</option>
-          <option value="transports">Transporte</option>
-        </select>
+        <Select value={filter} onValueChange={setFilter}>
+          <SelectTrigger className="h-auto w-auto min-w-[130px] px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm focus:outline-none focus:border-lime/40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Alle Kunden</SelectItem>
+            <SelectItem value="stammkunde">Stammkunden</SelectItem>
+            <SelectItem value="contract">Mit Vertrag</SelectItem>
+            <SelectItem value="none">Ohne Vertrag</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={sortBy} onValueChange={setSortBy}>
+          <SelectTrigger className="h-auto w-auto min-w-[130px] px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm focus:outline-none focus:border-lime/40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="name">Name (A–Z)</SelectItem>
+            <SelectItem value="trust">Vertrauen</SelectItem>
+            <SelectItem value="revenue">Umsatz</SelectItem>
+            <SelectItem value="transports">Transporte</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Kundenliste */}
