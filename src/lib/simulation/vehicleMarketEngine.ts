@@ -49,17 +49,17 @@ function makeUsedOffer(state, m) {
   else catalogId = "heavy";
   const profile = VEHICLE_CATALOG[catalogId];
 
-  // Alter in Spielzeit (30–180 Tage = 1–6 Spielmonate)
-  const ageDays = 30 + Math.floor(rng() * 151);
+  // Alter in Spielzeit (90–365 Tage = 3–12 Spielmonate)
+  const ageDays = 90 + Math.floor(rng() * 276);
   const ageMin = ageDays * 1440;
   const acquiredAtMin = m - ageMin;
 
-  // Kilometerstand (20.000–300.000 km, korreliert mit Alter)
+  // Kilometerstand (50.000–500.000 km, korreliert mit Alter)
   const maxKm = Math.floor(ageDays * 1500); // ~1500 km/Tag max
-  const odometerKm = 20000 + Math.floor(rng() * Math.max(80000, maxKm));
+  const odometerKm = 50000 + Math.floor(rng() * Math.max(150000, maxKm));
 
-  // Zustand (40–85, gebraucht)
-  const condition = 40 + Math.floor(rng() * 46);
+  // Zustand (30–78, gebraucht — deutlich abgenutzt)
+  const condition = 30 + Math.floor(rng() * 49);
 
   // Konstruiere ein temporäres Fahrzeug-Objekt für die Marktwertberechnung
   const tempVehicle = {
