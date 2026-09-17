@@ -209,7 +209,6 @@ export default function Dispatch() {
               )}
             </div>
           )}
-          {routeData && <MapLegend showTraffic={showTraffic} />}
           {overlayTripId && state.trips.find(t => t.id === overlayTripId) && (
             <RouteDetailOverlay
               trip={state.trips.find(t => t.id === overlayTripId)}
