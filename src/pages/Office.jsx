@@ -74,9 +74,6 @@ export default function Office() {
       {/* Stillstandgründe: Warum die Automatik nicht disponiert hat */}
       <IdleReasonsList state={state} />
 
-      {/* Entwicklung: Entwicklungsziel, Ziele, Meilensteine */}
-      <DevelopmentPanel state={state} />
-
       {/* Kundenbeziehungen: aktive Rahmenverträge + Stammkunden */}
       <OfficeCustomerRelations state={state} />
 
@@ -88,6 +85,9 @@ export default function Office() {
 
       {/* Unterer Bereich: Finanzen, Personal, Wachstum, Privatleben */}
       <OfficeBottom state={state} />
+
+      {/* Entwicklung: Entwicklungsziel, Ziele, Meilensteine */}
+      <DevelopmentPanel state={state} />
     </div>
   );
 }
