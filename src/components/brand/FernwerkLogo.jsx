@@ -1,33 +1,32 @@
 import React from "react";
-import FernwerkSignet from "./FernwerkSignet";
+import { Image } from "@/components/ui/image";
 
-// FERNWERK Logo: Signet + Wortmarke, optional mit Markenzeile.
-// Signet und Wortmarke separat nutzbar (showWord=false für reines Signet).
+const LOGO_URL = "https://media.base44.com/images/public/6aa52ebc01a939da57f8b78f/63a723323_logo-dunkler-hintergrund.png";
+
+// FRACHTFIEBER-Logo: FF-Monogramm + Wortmarke als Bild.
+// showWord wird ignoriert, da das Bild die Wortmarke immer enthält.
 export default function FernwerkLogo({
   size = 32,
   showWord = true,
   showTagline = false,
   className = "",
-  signetColor = "hsl(var(--lime))",
-  wordClassName = "text-foreground",
-  taglineClassName = "text-muted-foreground"
+  signetColor,
+  wordClassName,
+  taglineClassName
 }) {
   return (
-    <div className={`flex items-center gap-2.5 ${className}`}>
-      <FernwerkSignet size={size} color={signetColor} />
-      {showWord && (
-        <div className="leading-none">
-          <div
-            className={`font-bold tracking-[0.08em] uppercase ${wordClassName}`}
-            style={{ fontSize: Math.round(size * 0.46) }}
-          >
-            FRACHTFIEBER
-          </div>
-          {showTagline && (
-            <div className={`text-[10px] tracking-[0.02em] mt-1 ${taglineClassName}`}>
-              Kleine Firma. Große Pläne.
-            </div>
-          )}
+    <div className={`flex flex-col items-center ${className}`}>
+      <div style={{ height: size }}>
+        <Image
+          src={LOGO_URL}
+          alt="FRACHTFIEBER"
+          fittingType="fit"
+          className="h-full w-auto mix-blend-lighten"
+        />
+      </div>
+      {showTagline && (
+        <div className={`text-[10px] tracking-[0.02em] mt-1 ${taglineClassName || "text-muted-foreground"}`}>
+          Kleine Firma. Große Pläne.
         </div>
       )}
     </div>

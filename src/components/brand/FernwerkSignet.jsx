@@ -1,33 +1,21 @@
 import React from "react";
+import { Image } from "@/components/ui/image";
 
-// FERNWERK-Signet: zwei abstrahierte Fahrspuren, die ein F bilden.
-// Skalierbar, einfarbig verwendbar, auch auf hellem Untergrund.
-// Spine + Oberholm als eine durchgehende Spur; Mittelholm als zweite.
-export default function FernwerkSignet({ size = 32, className = "", color = "hsl(var(--lime))", strokeWidth }) {
-  const sw = strokeWidth || Math.max(3.5, size * 0.14);
+const LOGO_URL = "https://media.base44.com/images/public/6aa52ebc01a939da57f8b78f/63a723323_logo-dunkler-hintergrund.png";
+
+// FRACHTFIEBER-Logo: FF-Monogramm + Wortmarke als Bild.
+// Die Höhe wird über die size-Prop gesteuert, die Breite skaliert proportional.
+// mix-blend-lighten macht den schwarzen Hintergrund transparent —
+// nur Monogramm und Schrift erscheinen auf jedem Untergrund.
+export default function FernwerkSignet({ size = 32, className = "", color, strokeWidth }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 32 32"
-      fill="none"
-      className={className}
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path
-        d="M9 27V5h13"
-        stroke={color}
-        strokeWidth={sw}
-        strokeLinecap="round"
-        strokeLinejoin="round"
+    <div className={`flex items-center ${className}`} style={{ height: size }}>
+      <Image
+        src={LOGO_URL}
+        alt="FRACHTFIEBER"
+        fittingType="fit"
+        className="h-full w-auto mix-blend-lighten"
       />
-      <path
-        d="M9 16h11"
-        stroke={color}
-        strokeWidth={sw}
-        strokeLinecap="round"
-      />
-    </svg>
+    </div>
   );
 }
