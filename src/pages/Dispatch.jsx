@@ -4,7 +4,7 @@ import { loadRouteGeometries, buildPlanRouteGeoJSON } from "@/lib/geoData";
 import DispatchMap from "@/components/dispatch/DispatchMap";
 import DispatchWorkspace from "@/components/dispatch/DispatchWorkspace";
 import PlanningBoard from "@/components/planning/PlanningBoard";
-import { Truck, Home, Route as RouteIcon, TrafficCone, Network } from "lucide-react";
+import { Truck, Home, Route as RouteIcon, TrafficCone, Network, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useHeaderSlot } from "@/lib/headerSlot";
 import DispatchToolbar from "@/components/dispatch/DispatchToolbar";
@@ -184,9 +184,9 @@ export default function Dispatch() {
           <PartnerOverview />
         </div>
       ) : (
-      <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
-        {/* Arbeitsbereich — Hauptbereich */}
-        <div className={`min-h-0 flex flex-col ${mobileView === "map" ? "hidden" : "flex-1"} lg:flex lg:flex-1 lg:min-w-0 border-t lg:border-t-0 border-white/10 bg-surface/90 backdrop-blur-2xl lg:relative lg:z-20`}>
+      <div className="flex-1 min-h-0 flex flex-col relative">
+        {/* Arbeitsbereich — volle Breite */}
+        <div className={`min-h-0 flex flex-col ${mobileView === "map" ? "hidden" : "flex-1"} lg:flex lg:flex-1 lg:min-w-0 border-t lg:border-t-0 border-white/10 bg-surface/90 backdrop-blur-2xl`}>
           <DispatchWorkspace
             activeTab={activeTab}
             setActiveTab={setActiveTab}
@@ -198,8 +198,8 @@ export default function Dispatch() {
             onStarted={handleStarted}
             selectedVehicleId={selectedVehicleId}
             onSelectVehicle={handleSelectVehicle}
-            onShowOnMap={(tripId) => { setFocusAction({ type: "trip", tripId }); if (window.innerWidth < 1024) setMobileView("map"); }}
-            onShowVehicle={(vehicleId) => { setFocusAction({ type: "vehicle", vehicleId }); if (window.innerWidth < 1024) setMobileView("map"); }}
+            onShowOnMap={(tripId) => { setFocusAction({ type: "trip", tripId }); setShowMap(true); if (window.innerWidth < 1024) setMobileView("map"); }}
+            onShowVehicle={(vehicleId) => { setFocusAction({ type: "vehicle", vehicleId }); setShowMap(true); if (window.innerWidth < 1024) setMobileView("map"); }}
             onPlanRoute={(geojson) => setPlanRoute(geojson)}
             search={search}
             onResetSearch={() => setSearch("")}
@@ -207,9 +207,9 @@ export default function Dispatch() {
           />
         </div>
 
-        {/* Karte — optionaler Zusatzbereich (links, schmal) */}
+        {/* Karte — schwebendes Overlay-Panel (Desktop) / Vollbild (Mobile) */}
         {(showMap || mobileView === "map") && (
-        <div className={`min-h-0 min-w-0 relative ${mobileView === "list" ? "hidden" : "flex-1"} lg:flex lg:flex-none lg:w-[420px] xl:w-[480px] lg:shrink-0 lg:border-l border-white/10`}>
+        <div className={`min-h-0 min-w-0 relative ${mobileView === "map" ? "flex-1" : "hidden"} lg:absolute lg:top-0 lg:right-0 lg:bottom-0 lg:w-[440px] xl:w-[520px] lg:flex lg:flex-col lg:z-30 lg:shadow-[-20px_0_60px_-12px_rgba(0,0,0,0.7)] lg:border-l lg:border-white/10`}>
           <DispatchMap
             routeData={routeData}
             selectedTripId={selectedTripId}
@@ -221,6 +221,14 @@ export default function Dispatch() {
             focusAction={focusAction}
             onFocusDone={() => setFocusAction(null)}
           />
+          {/* Schließen-Button (Desktop) */}
+          <button
+            onClick={() => setShowMap(false)}
+            className="hidden lg:flex absolute top-3 left-3 w-9 h-9 rounded-xl items-center justify-center transition backdrop-blur-xl border shadow-lg shadow-black/40 active:scale-95 bg-surface/90 text-foreground/80 border-white/15 hover:border-lime/30 hover:text-foreground z-20"
+            title="Karte schließen"
+          >
+            <X className="w-4 h-4" />
+          </button>
           {/* Karten-Aktionen */}
           {routeData && (
             <div className="absolute top-3 right-3 flex flex-col gap-1.5 z-10">
