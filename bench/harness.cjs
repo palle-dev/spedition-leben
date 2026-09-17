@@ -205,11 +205,11 @@ function runBenchmark() {
   // Konsistenztest (small scale)
   function snap(s) {
     return JSON.stringify({
-      gt: s.gameTime, cc: s.company?.cash, pc: s.private?.cash,
+      gt: s.gameTime, cc: s.company?.accountCents, pc: s.private?.accountCents,
       orders: (s.orders || []).map(o => o.id + ":" + o.status).sort(),
       trips: (s.trips || []).map(t => t.id + ":" + t.status).sort(),
       tours: (s.tours || []).map(t => t.id + ":" + t.status).sort(),
-      rng: s.rngState,
+      rng: s.rngSeed,
     });
   }
   const s1 = makeScaledState("small"); applyCommand(s1, "advanceTime", { minutes: 1440 });

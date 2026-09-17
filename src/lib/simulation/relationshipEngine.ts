@@ -1,3 +1,4 @@
+import { nextRandom } from "./randomEngine.ts";
 // Beziehungs-Engine für FERNWERK.
 // Verwaltet Beziehungsstatus (Dating → Verlobt → Verheiratet), Heirat,
 // Kinderplanung, Schwangerschaft, Geburt und jährliche Lebensereignisse.
@@ -204,14 +205,14 @@ export function processPregnancy(state, m, log) {
   const usedNames = new Set((state.private.children || []).map(c => c.name));
   const available = CHILD_NAMES.filter(n => !usedNames.has(n));
   const name = available.length > 0
-    ? available[Math.floor(Math.random() * available.length)]
+    ? available[Math.floor(nextRandom(state) * available.length)]
     : "Kind " + ((state.private.children || []).length + 1);
   state.idCounter = (state.idCounter || 100) + 1;
   const child = {
     id: "child_" + state.idCounter,
     name,
     birthMin: m,
-    gender: Math.random() < 0.5 ? "male" : "female",
+    gender: nextRandom(state) < 0.5 ? "male" : "female",
   };
   state.private.children.push(child);
   state.private.pregnancy = null;

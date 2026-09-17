@@ -21,7 +21,7 @@ export default function ReportsView({ state }) {
   }, [state]);
 
   const pStart = periodStartMin(period);
-  const pEnd = Math.min(periodEndMin(period), state.gameTime);
+  const pEnd = Math.min(periodEndMin(period) - 1, state.gameTime);
 
   const pnl = useMemo(() => report === "pnl" ? getPnL(state, pStart, pEnd) : null, [state, report, pStart, pEnd]);
   const bs = useMemo(() => report === "balance" ? getBalanceSheet(state, pEnd) : null, [state, report, pEnd]);
@@ -91,6 +91,16 @@ export default function ReportsView({ state }) {
         </button>
       </div>
 
+      {state.accounting?.historyIncompleteBeforeMin != null && pStart < state.accounting.historyIncompleteBeforeMin && (
+        <p role="status" className="rounded-lg border border-amber-400/30 p-3 text-sm text-amber-200">
+          Dieser ältere Spielstand enthält nicht mehr alle historischen Buchungen. Berichte für diesen Zeitraum sind unvollständig.
+        </p>
+      )}
+      {Math.abs((state.accounting?.accountBalances?.["1000"] || 0) - state.company.accountCents) > 0 && (
+        <p role="status" className="rounded-lg border border-amber-400/30 p-3 text-sm text-amber-200">
+          Firmenkonto und Buchhaltung weichen in diesem Spielstand voneinander ab. Historische Beträge wurden nicht automatisch verändert.
+        </p>
+      )}
       {report === "pnl" && pnl && <PnLReport pnl={pnl} period={period} />}
       {report === "balance" && bs && <BalanceReport bs={bs} period={period} />}
       {report === "cashflow" && cf && <CashFlowReport cf={cf} period={period} />}

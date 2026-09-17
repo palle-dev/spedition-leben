@@ -63,7 +63,7 @@ export default function GoalCard({ goal, state, onRemove }) {
                 {isMoney ? formatEuro(prog.current) : prog.current.toLocaleString("de-DE")} / {isMoney ? formatEuro(prog.target) : prog.target.toLocaleString("de-DE")}
               </span>
               {prog.remaining != null && prog.remaining > 0 && (
-                <span className="text-[10px] text-coral/70 tabular-nums">noch {formatEuro(prog.remaining)}</span>
+                <span className="text-[10px] text-coral/70 tabular-nums">noch {isMoney ? formatEuro(prog.remaining) : prog.remaining.toLocaleString("de-DE")}</span>
               )}
             </div>
           </div>

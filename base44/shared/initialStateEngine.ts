@@ -18,6 +18,8 @@ import {
   migratePersonnelMarket, initStartApplicants,
 } from "./personnelMarketEngine.ts";
 import { initInvestment } from "./investmentEngine.ts";
+import { applyProfileAtCreation, getProfileById, DEFAULT_PROFILE_ID } from "./difficultyProfiles.ts";
+import { applyHelpSettingsAtCreation } from "./helpSettings.ts";
 
 function uid(state, prefix) {
   state.idCounter = (state.idCounter || 100) + 1;
@@ -51,6 +53,7 @@ function initialOffers(state) {
 
 export function createInitialState(names) {
   const p = names || {};
+  const profile = getProfileById(p.difficultyProfileId || DEFAULT_PROFILE_ID);
   const state = {
     gameTime: 480, // Tag 1, 08:00
     rngSeed: 1234567,
@@ -59,7 +62,7 @@ export function createInitialState(names) {
     private: {
       playerName: p.playerName || "Spieler",
       partnerName: p.partnerName || "Mara",
-      accountCents: 750000,
+      accountCents: profile.privateCapitalCents,
       stress: 30, happiness: 60, relationship: 60,
       residence: "Wohnung in Hamburg"
     },
@@ -132,12 +135,16 @@ export function createInitialState(names) {
   // Markt-Engine initialisieren und auf Zielbestand auffüllen (Auftrag 19)
   migrateMarket(state);
   fillInitialMarket(state);
+  // Schwierigkeitsprofil und Hilfestellungen anwenden und im Spielstand speichern.
+  applyProfileAtCreation(state, profile.id);
+  applyHelpSettingsAtCreation(state, p.helpSettings);
   // Buchhaltung initialisieren und Eröffnungsbuchung erstellen.
-  // accountCents startet bei 0 – die Eröffnungsbuchung setzt es auf den Startwert.
+  // accountCents startet bei 0 – die Eröffnungsbuchung setzt es auf den
+  // profilabhängigen Startwert.
   initAccounting(state);
   const _assetCents = state.vehicles.reduce((s, v) => s + v.bookValueCents, 0);
   book(state, "opening", {
-    bankCents: 7500000,
+    bankCents: profile.startCapitalCents,
     assetCents: _assetCents,
     liabilityCents: 0,
   });

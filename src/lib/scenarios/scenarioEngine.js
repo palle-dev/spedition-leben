@@ -5,7 +5,7 @@
 
 import { createInitialState } from "@/lib/simulation/initialStateEngine";
 import { generateLoanSchedule, LOAN_INTEREST_RATE_MONTHLY } from "@/lib/simulation/financingEngine";
-import { postJournal } from "@/lib/simulation/accountingEngine";
+import { postJournal, initAccounting, registerAsset } from "@/lib/simulation/accountingEngine";
 import { migrateContracts, migrateCustomerRelations, CONTRACT_DISCOUNT, CONTRACT_DURATION_DAYS, CONTRACT_DELIVERY_BUFFER_HOURS } from "@/lib/simulation/customerEngine";
 import { getDistance, driveMinutes, LOAD_MIN, UNLOAD_MIN, PORTRAIT_IDS } from "@/lib/simulation/gameRules";
 import { computeOfferPrice } from "@/lib/simulation/marketEngine";
@@ -66,11 +66,27 @@ export function createScenarioState(scenarioId, names) {
   const setupFn = SCENARIO_SETUPS[scenario.id];
   if (setupFn) setupFn(state, names);
 
-  // Anfangswerte für Auswertung sichern
-  state.scenario.initialAccountCents = state.company.accountCents;
+  // Neue Partie: Eine vollständige Eröffnungsbilanz für die Szenario-Ausstattung
+  // ersetzt die noch ungespielte Basis-Eröffnung. Keine Migration alter Saves.
+  const bankCents = state.company.accountCents;
+  const owned = state.vehicles.filter(v => (v.ownership_type || "owned") === "owned");
+  const assetCents = owned.reduce((sum, v) => sum + v.bookValueCents, 0);
   const initialLoanTotal = (state.loans || [])
     .filter(l => l.status === "active")
     .reduce((s, l) => s + l.remainingPrincipalCents, 0);
+  initAccounting(state);
+  state.company.accountCents = 0;
+  postJournal(state, { text: "Szenario-Eröffnungsbilanz", type: "opening", lines: [
+    { account: "1000", debit: bankCents },
+    { account: "1200", debit: assetCents },
+    { account: "2200", credit: initialLoanTotal },
+    { account: "2000", credit: bankCents + assetCents - initialLoanTotal },
+  ] });
+  for (const v of owned) registerAsset(state, { vehicleId: v.id, account: "1200", name: "Lkw " + v.id,
+    acquisitionCostCents: v.bookValueCents, acquiredAtMin: state.gameTime });
+
+  // Anfangswerte für Auswertung sichern
+  state.scenario.initialAccountCents = state.company.accountCents;
   state.scenario.initialLoanPrincipalCents = initialLoanTotal;
 
   return { state };

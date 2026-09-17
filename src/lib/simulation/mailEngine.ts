@@ -39,7 +39,7 @@ export function initMail(state) {
   deliverMessage(state, {
     fromId: "system", toId: "player",
     subject: "Willkommen im Postfach",
-    body: `Dies ist Dein internes Geschaeftsfuehrungs-Postfach. Alle Mitarbeiter koennen Dich hier erreichen - Disponenten melden Auftraege, Fahrer melden Lieferungen, die Buchhaltung meldet faellige Posten.\n\nDu kannst jeder Person antworten oder selbst eine neue E-Mail schreiben. Bei Freitext erkennt das System Anliegen wie Rueckladung suchen oder Zahlung freigeben und leitet gepruefte Spielschritte ein.\n\nOrdner: Posteingang, Gesendet, Entwuerfe, Archiv, Markiert, Alle Nachrichten. Filter helfen, Berichte, Entscheidungen und Bereiche zu trennen.\n\nKeine Nachricht geht verloren - alles bleibt fuer die Lebensdauer dieses Spielstands abrufbar.`,
+    body: `Dies ist Dein internes Geschaeftsfuehrungs-Postfach. Alle Mitarbeiter koennen Dich hier erreichen - Disponenten melden Auftraege, Fahrer melden Lieferungen, die Buchhaltung meldet faellige Posten.\n\nDu kannst jeder Person antworten oder selbst eine neue E-Mail schreiben. Bei Freitext erkennt das System Anliegen wie Rueckladung suchen oder Zahlung freigeben und leitet gepruefte Spielschritte ein.\n\nOrdner: Posteingang, Gesendet, Entwuerfe, Archiv, Markiert, Alle Nachrichten. Filter helfen, Berichte, Entscheidungen und Bereiche zu trennen.\n\nUngelesene und markierte Nachrichten bleiben erhalten. Ältere gelesene Nachrichten werden regelmäßig aufgeräumt.`,
     gameTime: state.gameTime,
     category: "system", priority: "normal",
     sourceEvent: "system_intro",
@@ -62,14 +62,7 @@ export function migrateMail(state) {
   if (!state.mail.staffTasks) state.mail.staffTasks = [];
   if (!state.mail.nextMailId) state.mail.nextMailId = (state.mail.messages.length || 0) + 1;
 
-  // Performance: Nachrichten und erledigte Tasks begrenzen
-  if (state.mail.messages && state.mail.messages.length > 300) {
-    state.mail.messages = state.mail.messages.slice(-300);
-  }
-  if (state.mail.staffTasks && state.mail.staffTasks.length > 100) {
-    state.mail.staffTasks = state.mail.staffTasks.filter(t => t.status === "pending").slice(-50)
-      .concat(state.mail.staffTasks.filter(t => t.status !== "pending").slice(-50));
-  }
+  // Aufbewahrung und Referenzen werden zusammen am Tageswechsel gepflegt.
 
   if (!state.mail.migrationDone) {
     for (const emp of state.employees || []) {

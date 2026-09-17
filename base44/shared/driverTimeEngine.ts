@@ -43,6 +43,7 @@ export function buildWorkSteps(startCity, order) {
     const d = getDistance(startCity, order.fromCity);
     steps.push({ type: "empty_drive", fromCity: startCity, toCity: order.fromCity, distanceKm: d, durationMin: driveMinutes(d) });
   }
+  // Paket 3: earliestPickupMin als Wartemarke — Fahrzeug wartet bis Ladezeitraum öffnet
   steps.push({ type: "loading", fromCity: order.fromCity, toCity: order.fromCity, distanceKm: 0, durationMin: LOAD_MIN, waitUntilMin: order.earliestPickupMin || null });
   const d = getDistance(order.fromCity, order.toCity);
   steps.push({ type: "loaded_drive", fromCity: order.fromCity, toCity: order.toCity, distanceKm: d, durationMin: driveMinutes(d) });
@@ -76,6 +77,8 @@ export function buildPhases(workSteps, counters, earliestStart) {
     let remainingDist = step.distanceKm || 0;
     const isDriving = step.type === "empty_drive" || step.type === "loaded_drive";
 
+    // Paket 3: Warten bis Ladezeitraum öffnet (earliestPickupMin).
+    // Wartezeit zählt nicht als Arbeitszeit.
     if (step.waitUntilMin && t < step.waitUntilMin) {
       phases.push({ type: "wait", startMin: t, endMin: step.waitUntilMin, durationMin: step.waitUntilMin - t });
       t = step.waitUntilMin;
@@ -148,19 +151,16 @@ export function buildPhases(workSteps, counters, earliestStart) {
  * Zählt Arbeit/Lenkzeit ab der letzten vollständigen Ruhe im Trip.
  * Enthält der Trip keine Ruhe, wird ab Start gezählt.
  */
-export function computeFinalCounters(phases) {
-  let lastRestIndex = -1;
-  for (let i = phases.length - 1; i >= 0; i--) {
-    if (phases[i].type === "daily_rest") { lastRestIndex = i; break; }
-  }
-
-  let workMin = 0;
-  let driveMin = 0;
-  for (let i = lastRestIndex + 1; i < phases.length; i++) {
-    const p = phases[i];
-    if (p.type === "break" || p.type === "daily_rest" || p.type === "wait") continue;
-    workMin += p.durationMin;
-    if (p.type === "empty_drive" || p.type === "loaded_drive") driveMin += p.durationMin;
+export function computeFinalCounters(phases, initialCounters = { workMin: 0, driveMin: 0 }) {
+  let workMin = initialCounters.workMin || 0;
+  let driveMin = initialCounters.driveMin || 0;
+  for (const p of phases) {
+    if (p.type === "daily_rest") { workMin = 0; driveMin = 0; continue; }
+    if (p.type === "break") { driveMin = 0; continue; }
+    if (p.type === "wait") continue;
+    const duration = p.durationMin ?? (p.endMin - p.startMin);
+    workMin += duration;
+    if (p.type === "empty_drive" || p.type === "loaded_drive") driveMin += duration;
   }
   return { workMin, driveMin };
 }

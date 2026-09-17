@@ -34,6 +34,9 @@ export default async function (req) {
       if (action_id) {
         const existing = await S.filter({ owner_id: user.id, last_action_id: action_id }, "-created_date", 1);
         if (existing && existing.length) {
+          if (existing[0].last_command_hash !== hash({ command, params: params || {} })) {
+            return Response.json({ error: "Aktion mit dieser ID und anderem Inhalt bereits verarbeitet" }, { status: 409 });
+          }
           return Response.json({ state: existing[0].state, revision: existing[0].revision, stateId: existing[0].id, result: existing[0].last_result || { ok: true, command: "newGame" } });
         }
       }

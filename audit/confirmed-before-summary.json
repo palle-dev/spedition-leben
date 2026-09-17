@@ -1,0 +1,177 @@
+{
+  "tests": 21,
+  "passed": 2,
+  "failed": 19,
+  "pending": 0,
+  "suites": [
+    {
+      "file": "audit-regressions.test.ts",
+      "tests": [
+        {
+          "name": "Nachgewiesene Simulationseigenschaften ein Auftrag wird auch bei zwei importierten Fahrten nur einmal vergütet",
+          "status": "failed",
+          "durationMs": 41.19837800000005,
+          "failure": [
+            "AssertionError: expected 100000 to be 50000 // Object.is equality\n    at <Originalprojekt>/tests/audit-regressions.test.ts:54:44\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3257:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3876:64"
+          ]
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften eine geplante Tour startet einen inzwischen stornierten Auftrag nicht",
+          "status": "failed",
+          "durationMs": 9.795900999999958,
+          "failure": [
+            "AssertionError: expected [ { id: 't_164', …(16) } ] to have a length of +0 but got 1\n    at Proxy.<anonymous> (file://<Projekt>/node_modules/vitest/dist/chunks/index.m3L2HgmY.js:2137:20)\n    at Proxy.<anonymous> (file://<Projekt>/node_modules/vitest/dist/chunks/index.m3L2HgmY.js:1934:14)\n    at Proxy.methodWrapper (file://<Projekt>/node_modules/chai/index.js:1700:25)\n    at <Originalprojekt>/tests/audit-regressions.test.ts:62:21\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20"
+          ]
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften derselbe Auftrag kann nicht zweimal in einer Tour stehen",
+          "status": "failed",
+          "durationMs": 7.375456999999642,
+          "failure": [
+            "AssertionError: expected [Function] to throw an error\n    at Proxy.<anonymous> (file://<Projekt>/node_modules/vitest/dist/chunks/index.m3L2HgmY.js:2277:114)\n    at Proxy.<anonymous> (file://<Projekt>/node_modules/vitest/dist/chunks/index.m3L2HgmY.js:1934:14)\n    at Proxy.methodWrapper (file://<Projekt>/node_modules/chai/index.js:1700:25)\n    at <Originalprojekt>/tests/audit-regressions.test.ts:66:59\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20"
+          ]
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften Tourauflösung gibt auch bei laufender erster Fahrt alle zukünftigen Aufträge frei",
+          "status": "failed",
+          "durationMs": 5.231730999999854,
+          "failure": [
+            "AssertionError: expected 'tour_163' to be falsy\n    at <Originalprojekt>/tests/audit-regressions.test.ts:73:42\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3257:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3876:64"
+          ]
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften Krankheit verhindert den manuellen Start",
+          "status": "failed",
+          "durationMs": 4.411510000000362,
+          "failure": [
+            "AssertionError: expected [Function] to throw an error\n    at Proxy.<anonymous> (file://<Projekt>/node_modules/vitest/dist/chunks/index.m3L2HgmY.js:2277:114)\n    at Proxy.<anonymous> (file://<Projekt>/node_modules/vitest/dist/chunks/index.m3L2HgmY.js:1934:14)\n    at Proxy.methodWrapper (file://<Projekt>/node_modules/chai/index.js:1700:25)\n    at <Originalprojekt>/tests/audit-regressions.test.ts:77:105\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20"
+          ]
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften eine nach Planung eingetretene Krankheit verhindert den automatischen Start",
+          "status": "failed",
+          "durationMs": 4.945798000000195,
+          "failure": [
+            "AssertionError: expected [ { id: 't_164', …(16) } ] to have a length of +0 but got 1\n    at Proxy.<anonymous> (file://<Projekt>/node_modules/vitest/dist/chunks/index.m3L2HgmY.js:2137:20)\n    at Proxy.<anonymous> (file://<Projekt>/node_modules/vitest/dist/chunks/index.m3L2HgmY.js:1934:14)\n    at Proxy.methodWrapper (file://<Projekt>/node_modules/chai/index.js:1700:25)\n    at <Originalprojekt>/tests/audit-regressions.test.ts:83:21\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20"
+          ]
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften veraltete Planung versetzt keinen Fahrer an einen anderen Ort",
+          "status": "failed",
+          "durationMs": 7.219176999999945,
+          "failure": [
+            "AssertionError: expected [ { id: 't_164', …(16) } ] to have a length of +0 but got 1\n    at Proxy.<anonymous> (file://<Projekt>/node_modules/vitest/dist/chunks/index.m3L2HgmY.js:2137:20)\n    at Proxy.<anonymous> (file://<Projekt>/node_modules/vitest/dist/chunks/index.m3L2HgmY.js:1934:14)\n    at Proxy.methodWrapper (file://<Projekt>/node_modules/chai/index.js:1700:25)\n    at <Originalprojekt>/tests/audit-regressions.test.ts:88:21\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20"
+          ]
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften Fahrerzeit enthält vorherige Arbeit und setzt Lenkzeit an Pausen zurück",
+          "status": "failed",
+          "durationMs": 2.820278000000144,
+          "failure": [
+            "AssertionError: expected { workMin: 40, driveMin: 40 } to deeply equal { workMin: 340, driveMin: 30 }\n    at <Originalprojekt>/tests/audit-regressions.test.ts:94:53\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3257:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3876:64"
+          ]
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften ein zweiter Trip vergisst das vorherige Arbeitsbudget nicht",
+          "status": "failed",
+          "durationMs": 12.461826000000201,
+          "failure": [
+            "AssertionError: expected 225 to be 345 // Object.is equality\n    at <Originalprojekt>/tests/audit-regressions.test.ts:103:47\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3257:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3876:64"
+          ]
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften Vorschau und Engine verwenden für jedes Städtepaar dieselbe Entfernung",
+          "status": "passed",
+          "durationMs": 2.732528000000002,
+          "failure": []
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften Vorschau und Engine berücksichtigen dasselbe Ladefenster",
+          "status": "failed",
+          "durationMs": 11.800056999999924,
+          "failure": [
+            "AssertionError: expected { phases: [ { …(8) }, …(2) ], …(3) } to deeply equal { phases: [ { …(4) }, …(3) ], …(3) }\n    at <Originalprojekt>/tests/audit-regressions.test.ts:111:54\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3257:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3876:64"
+          ]
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften neue Marktangebote haben geordnete Abhol- und Lieferfenster",
+          "status": "failed",
+          "durationMs": 53.731828999999834,
+          "failure": [
+            "AssertionError: expected [ { id: 'o_197', …(35) }, …(1) ] to deeply equal []\n    at <Originalprojekt>/tests/audit-regressions.test.ts:116:102\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3257:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3876:64"
+          ]
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften Vertragsfristen lassen eine Lieferung nach Beginn des Ladefensters zu",
+          "status": "failed",
+          "durationMs": 3.7436390000002575,
+          "failure": [
+            "AssertionError: expected 2635 to be less than or equal to 2155\n    at <Originalprojekt>/tests/audit-regressions.test.ts:124:51\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3257:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3876:64"
+          ]
+        },
+        {
+          "name": "Buchhaltung Werkstattkauf stimmt zwischen Firmenkonto, Journal und Anlagen überein",
+          "status": "failed",
+          "durationMs": 4.18130599999995,
+          "failure": [
+            "AssertionError: expected 7500000 to be 7000000 // Object.is equality\n    at <Originalprojekt>/tests/audit-regressions.test.ts:131:42\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3257:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3876:64"
+          ]
+        },
+        {
+          "name": "Buchhaltung Filialpaket bucht enthaltenen Lkw und übrige Eröffnungskosten",
+          "status": "failed",
+          "durationMs": 4.649298999999701,
+          "failure": [
+            "AssertionError: expected 17500000 to be 12500000 // Object.is equality\n    at <Originalprojekt>/tests/audit-regressions.test.ts:138:42\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3257:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3876:64"
+          ]
+        },
+        {
+          "name": "Buchhaltung Private Entnahme senkt das Eigenkapital und die Bilanz bleibt ausgeglichen",
+          "status": "failed",
+          "durationMs": 4.931419000000005,
+          "failure": [
+            "AssertionError: expected false to be true // Object.is equality\n    at <Originalprojekt>/tests/audit-regressions.test.ts:145:47\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3257:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3876:64"
+          ]
+        },
+        {
+          "name": "Buchhaltung Erlösschmälerungen vermindern den Umsatz",
+          "status": "failed",
+          "durationMs": 5.805973999999878,
+          "failure": [
+            "AssertionError: expected 11000 to be 9000 // Object.is equality\n    at <Originalprojekt>/tests/audit-regressions.test.ts:152:44\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3257:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3876:64"
+          ]
+        },
+        {
+          "name": "Buchhaltung Periodenberichte bleiben nach Ablauf der Journal-Aufbewahrungsfrist korrekt",
+          "status": "failed",
+          "durationMs": 5.152807999999823,
+          "failure": [
+            "AssertionError: expected +0 to be 12345 // Object.is equality\n    at <Originalprojekt>/tests/audit-regressions.test.ts:160:40\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3257:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3876:64"
+          ]
+        },
+        {
+          "name": "Buchhaltung ungültige Centbeträge werden vor jeder Zustandsänderung abgewiesen",
+          "status": "failed",
+          "durationMs": 3.0992849999997816,
+          "failure": [
+            "AssertionError: expected [Function] to throw an error\n    at Proxy.<anonymous> (file://<Projekt>/node_modules/vitest/dist/chunks/index.m3L2HgmY.js:2277:114)\n    at Proxy.<anonymous> (file://<Projekt>/node_modules/vitest/dist/chunks/index.m3L2HgmY.js:1934:14)\n    at Proxy.methodWrapper (file://<Projekt>/node_modules/chai/index.js:1700:25)\n    at <Originalprojekt>/tests/audit-regressions.test.ts:166:132\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20"
+          ]
+        },
+        {
+          "name": "Werkstatt und tatsächlicher Adapter-Pfad Werkstatt zeigt das Ende der laufenden Schicht korrekt an",
+          "status": "failed",
+          "durationMs": 4.564852999999857,
+          "failure": [
+            "AssertionError: expected 2400 to be 960 // Object.is equality\n    at <Originalprojekt>/tests/audit-regressions.test.ts:178:44\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3257:10)\n    at file://<Projekt>/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3876:64"
+          ]
+        },
+        {
+          "name": "Werkstatt und tatsächlicher Adapter-Pfad Tages- und Stunden-Vorlauf bereinigen auch im Adapter dieselben Daten",
+          "status": "passed",
+          "durationMs": 48.45436900000004,
+          "failure": []
+        }
+      ]
+    }
+  ]
+}

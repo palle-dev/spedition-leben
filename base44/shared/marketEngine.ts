@@ -1,3 +1,5 @@
+import { recordOrderOutcome } from "./customerEngine.ts";
+import { bookExpense } from "./accountingEngine.ts";
 // Markt-Engine für FERNWERK – Auftrag 19.
 // Stündlicher, mitwachsender Auftragsmarkt mit flottenabhängigem Zielbestand,
 // räumlicher Verteilung, neuer Preisformel und diversen Angebotsarten.
@@ -13,11 +15,16 @@ import {
   NORMAL_BUFFER_HOURS, EXPRESS_BUFFER_HOURS, PAYMENT_TERMS_DAYS,
   LOAD_MIN, UNLOAD_MIN, WORK_BUDGET_MIN, DRIVE_BUDGET_MIN, BREAK_MIN, REST_MIN,
   SERVICE_START_MIN,
+  pickCargoCategory, checkBodyTypeCompatibility,
 } from "./gameRules.ts";
 import { earliestAvailable } from "./tourEngine.ts";
 import {
   DG_PROFILES, makeDgOffer, computeDgFleetN,
 } from "./dangerousGoodsEngine.ts";
+import { pushEvent } from "./eventLog.ts";
+import { getMarketWeightsForBranch, migrateBusinessFocus } from "./businessFocusEngine.ts";
+import { getRegionOfCity, getDemandFactor, getPriceFactor, migrateMarketDynamics } from "./marketDynamicsEngine.ts";
+import { getEffectiveParams, applyBufferHoursFactor } from "./difficultyProfiles.ts";
 
 // ---------- Hilfsfunktionen ----------
 
@@ -158,7 +165,11 @@ function pickCustomer(state, anchors, rng) {
     for (const depot of c.depots) {
       if (anchors[depot]) bonus += anchors[depot];
     }
-    return 8 + Math.min(bonus, 6);
+    // Markt-Dynamik: Nachfragefaktor der Depot-Region als Gewichtsmultiplikator.
+    // Verschiebt die Verteilung, ohne die Gesamtzahl der Angebote zu erhöhen.
+    const region = getRegionOfCity(c.depots[0]);
+    const demandFactor = getDemandFactor(state, region, "standard");
+    return (8 + Math.min(bonus, 6)) * demandFactor;
   });
   return weightedPick(CUSTOMER_PROFILES, weights, rng);
 }
@@ -199,6 +210,14 @@ function computeTimeWindows(state, m, offerType, fromCity, toCity, km, rng) {
   const driveMin = driveMinutes(km);
   const opMin = LOAD_MIN + driveMin + UNLOAD_MIN;
 
+  // Schwierigkeitsprofil: Zeitpuffer-Faktor. Wirkt ausschließlich auf den
+  // zusätzlichen Spielraum (buffer), NICHT auf Transportdauer, Ruhepausen
+  // oder Anfahrt. Ein kürzerer Puffer drückt einen Auftrag nie unter seine
+  // grundsätzlich notwendige Transportdauer.
+  const dParams = getEffectiveParams(state);
+  const [expressBufLo, expressBufHi] = applyBufferHoursFactor(EXPRESS_BUFFER_HOURS, dParams);
+  const [normalBufLo, normalBufHi] = applyBufferHoursFactor(NORMAL_BUFFER_HOURS, dParams);
+
   // Anfahrtsweg vom nächsten Flottenstandort zur Abholung.
   // Bei weit entfernten Abholorten (z. B. München bei Flotte in Hamburg)
   // benötigen die Zeitfenster mehr Vorlaufzeit für die Leerfahrt.
@@ -217,9 +236,10 @@ function computeTimeWindows(state, m, offerType, fromCity, toCity, km, rng) {
     const acceptHours = EXPRESS_ACCEPT_HOURS[0] + rng() * (EXPRESS_ACCEPT_HOURS[1] - EXPRESS_ACCEPT_HOURS[0]);
     const acceptDeadline = m + Math.round(acceptHours * 60) + approachMin;
     const earliestPickup = m + 30;
-    const latestLoadStart = acceptDeadline;
-    const bufferMin = Math.round((EXPRESS_BUFFER_HOURS[0] + rng() * (EXPRESS_BUFFER_HOURS[1] - EXPRESS_BUFFER_HOURS[0])) * 60);
+    let latestLoadStart = acceptDeadline;
+    const bufferMin = Math.max(0, Math.round((expressBufLo + rng() * (expressBufHi - expressBufLo)) * 60));
     const deliveryDeadline = Math.max(earliestPickup, m + approachMin) + opMin + restTime + bufferMin;
+    latestLoadStart = Math.max(earliestPickup, deliveryDeadline - opMin);
     return { acceptDeadline, earliestPickup, latestLoadStart, deliveryDeadline, paymentTermsDays: 0 };
   }
 
@@ -228,9 +248,10 @@ function computeTimeWindows(state, m, offerType, fromCity, toCity, km, rng) {
     const acceptDeadline = m + Math.round(acceptHours * 60) + approachMin;
     const nextDay = Math.floor(m / 1440) * 1440 + 1440;
     const earliestPickup = nextDay + 480 + Math.floor(rng() * 240); // 08:00–12:00
-    const latestLoadStart = acceptDeadline;
-    const bufferMin = Math.round((NORMAL_BUFFER_HOURS[0] + rng() * (NORMAL_BUFFER_HOURS[1] - NORMAL_BUFFER_HOURS[0])) * 60);
+    let latestLoadStart = acceptDeadline;
+    const bufferMin = Math.max(0, Math.round((normalBufLo + rng() * (normalBufHi - normalBufLo)) * 60));
     const deliveryDeadline = Math.max(earliestPickup, m + approachMin) + opMin + restTime + bufferMin;
+    latestLoadStart = Math.max(earliestPickup, deliveryDeadline - opMin);
     return { acceptDeadline, earliestPickup, latestLoadStart, deliveryDeadline, paymentTermsDays: 3 };
   }
 
@@ -238,8 +259,8 @@ function computeTimeWindows(state, m, offerType, fromCity, toCity, km, rng) {
   const acceptHours = NORMAL_ACCEPT_HOURS[0] + rng() * (NORMAL_ACCEPT_HOURS[1] - NORMAL_ACCEPT_HOURS[0]);
   let acceptDeadline = m + Math.round(acceptHours * 60) + approachMin;
   const earliestPickup = m + 60 + Math.floor(rng() * 120); // 1–3 h
-  const latestLoadStart = acceptDeadline;
-  const bufferMin = Math.round((NORMAL_BUFFER_HOURS[0] + rng() * (NORMAL_BUFFER_HOURS[1] - NORMAL_BUFFER_HOURS[0])) * 60);
+  let latestLoadStart = acceptDeadline;
+  const bufferMin = Math.max(0, Math.round((normalBufLo + rng() * (normalBufHi - normalBufLo)) * 60));
   const deliveryDeadline = Math.max(earliestPickup, m + approachMin) + opMin + restTime + bufferMin;
 
   // Außerhalb Dienstzeit: Annahmefrist bis nächsten Dienstbeginn verlängern
@@ -252,7 +273,8 @@ function computeTimeWindows(state, m, offerType, fromCity, toCity, km, rng) {
   }
 
   const paymentTermsDays = PAYMENT_TERMS_DAYS[Math.floor(rng() * PAYMENT_TERMS_DAYS.length)];
-  return { acceptDeadline, earliestPickup, latestLoadStart, deliveryDeadline, paymentTermsDays };
+  latestLoadStart = Math.max(earliestPickup, deliveryDeadline - opMin);
+    return { acceptDeadline, earliestPickup, latestLoadStart, deliveryDeadline, paymentTermsDays };
 }
 
 // Berechnet die Leerfahrzeit vom nächsten Flottenstandort zur Abholstadt.
@@ -286,6 +308,9 @@ function checkOfferFeasibility(state, offer) {
   for (const v of state.vehicles || []) {
     if (v.status === "archived" || v.condition < 20) continue;
     if (v.capacityTons < offer.tons) continue;
+    // Aufbau-Kompatibilität: strikte Frachtarten erfordern passenden Aufbau.
+    const bodyCheck = checkBodyTypeCompatibility(offer, v);
+    if (!bodyCheck.ok) continue;
 
     const emptyKm = getDistance(v.locationCity, offer.fromCity);
     const emptyDriveMin = driveMinutes(emptyKm);
@@ -331,17 +356,68 @@ function makeMarketOffer(state, m) {
   const anchors = computeAnchorCities(state);
   const customer = pickCustomer(state, anchors, rng);
   const fromCity = pickDepot(customer, rng);
-  const toCity = pickDestination(state, customer, fromCity, anchors, rng);
-  const cargo = customer.cargoTypes[Math.floor(rng() * customer.cargoTypes.length)];
-  const tons = 4 + Math.floor(rng() * 9); // 4–12 t
 
-  // Angebotsart: 60 % normal, 25 % Vorlauf, 15 % Express
+  // Business-Focus: Gewichte für Angebotstyp-Verteilung
+  migrateBusinessFocus(state);
+  const weights = getMarketWeightsForBranch(state, "b1");
+  const wRegional = weights.regional || 0.35;
+  const wExpress = weights.express || 0.20;
+  const wStandard = weights.standard || 0.35;
+  // dangerousGoods wird separat über DG-Welle generiert
+
+  // Angebotstyp gewichtet nach Fokus
   const typeRoll = rng();
-  const offerType = typeRoll < 0.60 ? "normal" : typeRoll < 0.85 ? "advance" : "express";
+  let offerType;
+  if (typeRoll < wExpress) {
+    offerType = "express";
+  } else if (typeRoll < wExpress + wStandard * 0.35) {
+    offerType = "advance";
+  } else {
+    offerType = "normal";
+  }
+
+  // Bei Regional-Fokus: bevorzugt kurze Distanzen (≤150 km)
+  let toCity;
+  if (wRegional > 0.45 && rng() < wRegional) {
+    const nearby = CITIES.filter(c => c !== fromCity && getDistance(fromCity, c) <= 150);
+    if (nearby.length > 0) {
+      toCity = nearby[Math.floor(rng() * nearby.length)];
+    } else {
+      toCity = pickDestination(state, customer, fromCity, anchors, rng);
+    }
+  } else {
+    toCity = pickDestination(state, customer, fromCity, anchors, rng);
+  }
+
+  const cargo = customer.cargoTypes[Math.floor(rng() * customer.cargoTypes.length)];
+  const cargoCat = pickCargoCategory(cargo, rng);
+  // Gewichtete Tonnen-Verteilung: 45 % klein (4–8 t), 35 % mittel (8–14 t), 20 % schwer (14–24 t).
+  // Schwere Ladungen erfordern einen schweren Lkw (24 t). Die Gesamtzahl der Angebote
+  // wird durch computeWaveBudget begrenzt — nur die Tonnage-Verteilung ändert sich.
+  const tonRoll = rng();
+  let tons;
+  if (tonRoll < 0.45) {
+    tons = 4 + Math.floor(rng() * 5);   // 4–8 t
+  } else if (tonRoll < 0.80) {
+    tons = 8 + Math.floor(rng() * 7);   // 8–14 t
+  } else {
+    tons = 14 + Math.floor(rng() * 11); // 14–24 t
+  }
 
   const km = getDistance(fromCity, toCity);
   const relFactor = relationFactor(state, fromCity, toCity);
-  const paymentCents = computeOfferPrice(km, tons, offerType, relFactor);
+  let paymentCents = computeOfferPrice(km, tons, offerType, relFactor);
+
+  // Markt-Dynamik: Preisfaktor genau einmal auf die berechnete Vergütung anwenden.
+  // Wird NACH relFactor und expressFactor multipliziert, keine Doppelzählung.
+  migrateMarketDynamics(state);
+  const fromRegion = getRegionOfCity(fromCity);
+  const isExpressOffer = offerType === "express";
+  const priceSeg = isExpressOffer ? "express" : (km <= 150 ? "regional" : "standard");
+  const priceFactor = getPriceFactor(state, fromRegion, priceSeg);
+  paymentCents = Math.round(paymentCents * priceFactor);
+  // Frachtart-Preisfaktor: spezialisierte Fracht zahlt mehr Grundpreis.
+  paymentCents = Math.round(paymentCents * cargoCat.priceFactor);
 
   const tw = computeTimeWindows(state, m, offerType, fromCity, toCity, km, rng);
 
@@ -350,14 +426,16 @@ function makeMarketOffer(state, m) {
     customerId: customer.id,
     customer: customer.name,
     shipmentId: "S" + (state.idCounter + 1),
-    fromCity, toCity, cargo, tons,
+    fromCity, toCity, cargo, tons, cargoCategory: cargoCat.id,
     paymentCents,
+    priceFactor: Math.round(priceFactor * 100) / 100,
     offerType,
     relationFactor: relFactor,
     publishedAtMin: m,
     acceptDeadlineMin: tw.acceptDeadline,
     earliestPickupMin: tw.earliestPickup,
     latestLoadStartMin: tw.latestLoadStart,
+    windowVersion: 2,
     deliveryDeadlineMin: tw.deliveryDeadline,
     paymentTermsDays: tw.paymentTermsDays,
     paymentDueMin: null,
@@ -387,6 +465,8 @@ export function generateMarketWave(state, m, log) {
     }
   }
 
+  const failed = failOverdueOrders(state, m, log);
+
   // 2. N, T, B berechnen
   const n = computePlanableFleetN(state);
   const t = computeTargetInventory(n);
@@ -411,6 +491,7 @@ export function generateMarketWave(state, m, log) {
   state.market.stats.wavesProcessed = (state.market.stats.wavesProcessed || 0) + 1;
   state.market.stats.offersGenerated = (state.market.stats.offersGenerated || 0) + generated;
   state.market.stats.offersExpired = (state.market.stats.offersExpired || 0) + expired;
+  state.market.stats.ordersFailed = (state.market.stats.ordersFailed || 0) + failed;
   state.market.stats.lastN = n;
   state.market.stats.lastT = t;
   state.market.stats.lastB = b;
@@ -420,7 +501,7 @@ export function generateMarketWave(state, m, log) {
   state.market.stats.lastWaveMin = m;
   state.market.nextWaveMin = m + MARKET_WAVE_INTERVAL;
 
-  log.push({ type: "market_wave", atMin: m, n, t, b, o, generated, feasible, expired });
+  log.push({ type: "market_wave", atMin: m, n, t, b, o, generated, feasible, expired, failed });
 
   // ---------- Gefahrgut-Wellen (Auftrag 32) ----------
   generateDgWave(state, m, log);
@@ -553,4 +634,45 @@ export function migrateMarket(state) {
     // Auf Zielbestand auffüllen (einmalig)
     fillInitialMarket(state);
   }
+}
+// Einheitlicher Abschluss für überfällige Aufträge, unabhängig vom Aufrufpfad.
+export function failOverdueOrders(state, m, log) {
+  let failed = 0;
+  for (const o of state.orders) {
+    if (o.status !== "angenommen") continue;
+    if (o.deliveryDeadlineMin + 240 > m) continue;
+    // Prüfen, ob der Auftrag unterwegs ist (Trip läuft noch)
+    const isUnderway = (state.trips || []).some(t => t.orderId === o.id && t.status === "in_progress");
+    if (isUnderway) continue;
+    if (o.externalTransportId && (state.partners?.transports || []).some(t => t.id === o.externalTransportId && ["booked", "in_progress"].includes(t.status))) continue;
+    // Auftrag gescheitert — Konventionalstrafe 10% vom Firmenkonto
+    const penalty = Math.round((o.paymentCents || 0) * 0.1);
+    o.status = "failed";
+    o.failedAtMin = m;
+    o.failurePenaltyCents = penalty;
+    if (penalty > 0) bookExpense(state, { expenseAccount: "5700", amountCents: penalty,
+      text: "Konventionalstrafe: " + o.customer, type: "order_failed", gameTime: m, refId: "failed:" + o.id });
+    o.reservedByTourId = null;
+    recordOrderOutcome(state, o, "failed", m, 0);
+    log.push({ type: "order_failed", order: o.id, atMin: m, penaltyCents: penalty });
+    state.stats = state.stats || {};
+    state.stats.failedOrders = (state.stats.failedOrders || 0) + 1;
+    state.stats.consecutiveTimely = 0;
+    state.private = state.private || {};
+    state.private.relationship = Math.max(0, (state.private.relationship || 0) - 2);
+    state.private.happiness = Math.max(0, (state.private.happiness || 0) - 1);
+    pushEvent(state, {
+      type: "order_failed", gameTime: m, isSystem: true,
+      orderIds: [o.id],
+      details: {
+        customer: o.customer, fromCity: o.fromCity, toCity: o.toCity,
+        cargo: o.cargo, tons: o.tons, paymentCents: o.paymentCents,
+        penaltyCents: penalty, deliveryDeadlineMin: o.deliveryDeadlineMin,
+      },
+      dedupKey: "order_failed:" + o.id,
+    });
+    failed++;
+  }
+
+  return failed;
 }

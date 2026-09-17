@@ -1,0 +1,757 @@
+{
+  "source_archive": "logistic-game.zip",
+  "source_sha256": "1317ac17871dc8c920b37a409d85691c7a928a5f2b57fedcc54d5b153de9dc92",
+  "total_changed_or_added_code_files": 107,
+  "generated_shared_files": 54,
+  "changes": [
+    {
+      "path": "base44/functions/cloudSync/entry.ts",
+      "status": "modified",
+      "sha256_before": "b4d3756441ed0da2154bd0c584d409d91f4f32710566d38615f2591bc55b7e2f",
+      "sha256_after": "eaa8e4c5e8f1d2110b145a550cdd1eb9eee7183258a2a6f3ccdfa5ee9393a250",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "base44/functions/gameCommand/entry.ts",
+      "status": "modified",
+      "sha256_before": "d763daf292bdeabcd88ca37852670eaaea32a73a133e9aca59bdb17a9c852728",
+      "sha256_after": "4bc474172706f42f9fdfe017e66053dacb7ca17b78bed79e9aa78ee162d6d6e1",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "base44/functions/processAutomationTick/entry.ts",
+      "status": "modified",
+      "sha256_before": "98823b1788543c6860ce362f5192b2ee2ced700c53416208b393797b4ba83d08",
+      "sha256_after": "f21731b7ce91b4bdfcdd8e5b74686e3294ae9a1c131e4da0324b45bb0cd5869d",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "base44/shared/accountingEngine.ts",
+      "status": "modified",
+      "sha256_before": "8d9c14eb15431f6b213ad39a64c9ad12473d8b80cc9097fe5a95a9a8b2999d4d",
+      "sha256_after": "52571f53f4b7abeb4c5c7107d1bae46b3f7b8c94809278293db9abbaa26c3d36",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/acquisitionCommands.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "2c5dd3a78d5d8b6c9939b9f4f02ef3d14053004bc470515b326ab3cce12bfe12",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/acquisitionEngine.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "50105d10c898daef92ae8526f946aede30d9923771325b1a1d798f5082cba5c0",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/assistantEngine.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "a7bca2ce047cef7f0068b56be785b0386dfe9304989bcbce00272b91b139801e",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/branchEngine.ts",
+      "status": "modified",
+      "sha256_before": "788f38cb89d35bdffc15c133852ed54ed133d2edc59fa6a09d993a3ab6abe69b",
+      "sha256_after": "83979c883372d4b37fc75966988c516615b407d96da91a81b73794dfd0727fad",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/branchManagerEngine.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "28bd2c1ec68d0e627dbf7647f99a76dd2154971c8f7d57542dc7da81e65b0f39",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/businessFocusEngine.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "e152af530dec83216efb099113c996fde7c283233cb26be9691d15d4f6374ffa",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/customerCommands.ts",
+      "status": "modified",
+      "sha256_before": "b72132a2b7a61d44561ff57feeab2f0253ef8cbe6b1b0866a0732cab01a70071",
+      "sha256_after": "c401d034441c7083fab5254ad5a835b1a8c70654e93801d6c95fa3cd7e5236b0",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/customerEngine.ts",
+      "status": "modified",
+      "sha256_before": "4fb67669a585f1a02a26e147b1e4d9cfacac5a181ca199171962561c893b6518",
+      "sha256_after": "bab6f88b7973bd2cfda059d7b9161daa01ae916169182bbec1187e7214914f8e",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/dangerousGoodsEngine.ts",
+      "status": "modified",
+      "sha256_before": "1504df1094f8d262b1940e3a3d695320f509a3a5ba86da8a6e1e569be55de131",
+      "sha256_after": "4cd6e3cfe9f0f1639e0548750676c81ffa7a4b9234f5e1beeba8579806a08cbc",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/datingEngine.ts",
+      "status": "modified",
+      "sha256_before": "ba511dcaef5db633d61d32f74a3b22a4c0c5363408875ab6b15b9cd717540eb5",
+      "sha256_after": "601a653c5692673c413c0c96e3803a851b8118677c96ab3ad9ace3262bc3470c",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/delegationEngine.ts",
+      "status": "modified",
+      "sha256_before": "698806a06834061585adb62cdce5955129050f934c433cc81be01ffdffe7edf6",
+      "sha256_after": "dee6a70cbc74449ed1f8dbfdc734eecfe42ce6bc223bb2670c6c7e29fd303e83",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/developmentGoalsCommands.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "2823c5297db6cd35f5a1e62262f4316f9666842c9417a1ca031aadc9879f3ed8",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/developmentGoalsEngine.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "9356ba0a9c0a893796561710096584793a6d6bf2fbbe2f3b48077b7bd7778d7d",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/difficultyProfiles.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "a6712bf6be1870bd24868bc05052619ecb3f695ae1fe739a7cb4c2de9d9a5c2d",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/disruptionEngine.ts",
+      "status": "modified",
+      "sha256_before": "37f57c1e999a7d1e7184278575cdddd4eee058b48b6be2d877fdd23b7810ec41",
+      "sha256_after": "a43f52be39a13797775e828ba9c6417026256529a327d91a373f802f1593fe92",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/driverTimeEngine.ts",
+      "status": "modified",
+      "sha256_before": "48630b190060144e160a72b21df6ed608c086158d16ce24da7cc20e1fa7a147b",
+      "sha256_after": "eb05cf697300b59fb134ede6add4e87210093d05beb0a169aec2d81e7ace2711",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/eventScheduler.ts",
+      "status": "modified",
+      "sha256_before": "a417529c2c8104d28b6d8ee1e6553334840c71596db9a12cade07d1dd374b30d",
+      "sha256_after": "a3fdd41e1b4ccb3cbbe70c9369533f51c7a96f5f00640e31598e768a5988c475",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/financingEngine.ts",
+      "status": "modified",
+      "sha256_before": "428d300011e59aafaee593b5465a8ea0371875e7c1175fc6eea9cf163696cfa3",
+      "sha256_after": "effcb6542006997120b1b1787e3e3e0df543d1c205d8e63095326fc4b8325797",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/gameRules.ts",
+      "status": "modified",
+      "sha256_before": "f131b671f9dd6ce607a4f41ce63b5667e7df06e89da6ed2b1b068e7dd2e9b1c3",
+      "sha256_after": "44b0212ad5e61081f16b1a3b7a34a76ad3fc381e62c863ce137afaeb595e1441",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/helpSettings.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "8e0b96f930447a616c6cb3ccf138792be74858c6361caba0d84590befd93708d",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/historyCleanup.ts",
+      "status": "modified",
+      "sha256_before": "cd25d9af95986329f4c8786bfb29e2f6871d22182617ac8aa88dcee78d1f3bf5",
+      "sha256_after": "b885e9bde1d360deaed64220f340973e7b05c2d69d72e70904e8c35aec3133c8",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/initialStateEngine.ts",
+      "status": "modified",
+      "sha256_before": "0f7340321a7656066c71c49cf2cf8752196953f76fc55eeca5e5c881d5c00650",
+      "sha256_after": "dc8e2d0c7e67e486d66f380241cf8b24a0d1ef4566b61e655ab474d629082f28",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/investmentCorporate.ts",
+      "status": "modified",
+      "sha256_before": "02fbc68fa2c9b8d7c84d89a6b18d9c0b9a1548aed20c678930844443f919a52f",
+      "sha256_after": "082d63d2b9fbd5cdac035f2af830b8e94f2148947d20f88219eb6fe1250af07e",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/investmentEngine.ts",
+      "status": "modified",
+      "sha256_before": "830c07967e15cd9ded6617ec9ede8056f3f1246d5e5b338c500976ef2910fc2a",
+      "sha256_after": "248e5c85615cc0fe4754648c8471bf64722fc070888cac498a2b961215690a7f",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/liquidityForecastEngine.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "0c6cbece7b5f4b9db41ae7d12d357ce8d4ff381849f4f7a7032c5b90ac30af4c",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/mailCommands.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "663bd1e6960c01f720fa1191656f678489aa08d1ff5c4b906f58168ee8666146",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/mailEngine.ts",
+      "status": "modified",
+      "sha256_before": "3f7bafb08a6d99b9e3377e4acdda3d84c4629249d8c373aba6b38feed9bbd18a",
+      "sha256_after": "b8451c393c8bb58f6f645df74cd087740120461a076941e42238d1aca23a6352",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/mailIntents.ts",
+      "status": "modified",
+      "sha256_before": "cc2c62c0dcd297acb764edc45cbaaa78d25b00c79ca3365d7d2bcfc590bba09d",
+      "sha256_after": "b063b63aadfbcacb75cf8b5f31cdc81df277f19eec86c6606bef2a204bf6088b",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/marketDynamicsEngine.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "f1520e8a3b272f249d474968cb49a208b10a43ec247e756f6991c676599253a5",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/marketEngine.ts",
+      "status": "modified",
+      "sha256_before": "71ffadf0c1bd6db4383bf5717eef9ca3fe02c6c41d1a046562d33be9dd96d1cf",
+      "sha256_after": "99642f020c3546c08837366a04f3b38cc58603f387a62d65d38798c651abfe9b",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/partnerCatalog.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "5a0fe1bf43b42cff927a6a1ae8b13da10ad62a62d6895f02633f047615b5cadc",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/partnerCommands.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "097df88df38535fb9f83c38ea086da32cc6934ab1bda280e8030bc3c2fb6cdc8",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/partnerEngine.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "4e7acef5dd07067cb8093708d8512aba32534f316657ef5231b31c45c37fc576",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/personnelMarketEngine.ts",
+      "status": "modified",
+      "sha256_before": "ffb073c23f28cda1c265558576379ffb09e069e5ab9d2776ca4fa5ae79e8468c",
+      "sha256_after": "4a6c98568c83160d85a6086782ddb5a737f289a0e003995159770dd91192c90f",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/planningCommands.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "af0b0e7ad1f1eb28a88f4f921c526598a409701de44c9c4e1000942e65649be4",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/planningEngine.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "b9e7718b7ed8eac852723c4461e8d7e70acbe87df80561e605136e62aa1ba4ff",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/progressEngine.ts",
+      "status": "modified",
+      "sha256_before": "299d120ad913b091f0a135434709f5671d265235f9fb091ff6a291b5c8954460",
+      "sha256_after": "079930fa8cea1772714d32bb4169b0fc39dd1849e958d50bdd054c4f3a9f6337",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/purchaseEngine.ts",
+      "status": "modified",
+      "sha256_before": "526d6aa8448687f36462df8766866ff3caff1ad3433a2d7ef252b4f36875f6b0",
+      "sha256_after": "8e662919d9b85b8cc8479b12c96d9a757e0aa953d93d60ac03d840376331c29d",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/randomEngine.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "99c92564c3265ef0297cd45ab838773c920142b3e63064693760597286913375",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/relationshipEngine.ts",
+      "status": "modified",
+      "sha256_before": "e54f9a3ac17a056c8492488b8a671668da4567ce4c35c369eb7562fcf52b4c93",
+      "sha256_after": "b0297fab966c4ed2fc9ea2bc4b47691a5fd703237ba515a585ed9f443d55e0fd",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/satisfactionEngine.ts",
+      "status": "modified",
+      "sha256_before": "32b9c6d4de0e05260f159235c336f7fd19cf099a57bd07615d82552214d0fcef",
+      "sha256_after": "dc1d293a6d104b30961b385d3ca25ab153c09333d346cc94101db710b7f9f04b",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/segmentEngine.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "1356a3d02c61e1b8132aab7c3ac44b2626f94b5a70d692085513899b213ea806",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/segmentStatsEngine.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "de6fb326b1de8a9b43de7abfe6682769e247486ab8f842870bdbbd87b65b86b5",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/serviceEngine.ts",
+      "status": "modified",
+      "sha256_before": "6225550627941ab3f8055311c6a87dacd4f2f85b70b319a884fe9a49dc4d13f0",
+      "sha256_after": "1b3559883eb24634de934b868660dca9addfe5f2d2d8fbc7c55ce375acca60a1",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/simulationEngine.ts",
+      "status": "modified",
+      "sha256_before": "517a9e57bfe710d6430b5e3d56ded87492b5e0f09bb99a23e4d61fbc8d64f8fb",
+      "sha256_after": "2dc30d8ab5be0c80483eabb73a1ae453f2a284786a6e80174da620de6571e92e",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/siteExpansionCommands.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "aff064ae5d6c05c9fdd7d22f148c7b4b12bde71439d84d33dfe2d45a538658ab",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/siteExpansionEngine.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "d936f6f4f7f3f286c7df967d0f0e2ee2ac5bfdfe31deed718cc121ea1281dd61",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/storyEngine.ts",
+      "status": "modified",
+      "sha256_before": "5c891d25b5292eff3b4d4c2277cc2fb69982f72129efac76a5a53d288f2dfc16",
+      "sha256_after": "620fece3f3b9e3c1bb785c2a84db7f8ce744f5f6d495aff40e0caf2cfda60e93",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/tourEngine.ts",
+      "status": "modified",
+      "sha256_before": "bf92edf7c79a952f1e4d3d393087a73966c21b8d629bb2a4c614bda562e24c5a",
+      "sha256_after": "1dd0e3f1ba187e56307b98430acb49b7ac161537a8cb80f8bfb73bd64889bde4",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/vehicleAnalysisEngine.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "d296a6dd531702b591b66afb5375c2164dbd3f709f9e6562a6d424c3f8c72e06",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/vehicleMarketCommands.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "56de4e80218cac9ee78283a76d07edb437ed8bbb42b5db1dfe44f22328522ead",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/vehicleMarketEngine.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "44df063301c4536c09d4eaee0e076c98fed76f00014bbcd30f99d023944dacaf",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "base44/shared/workshopEngine.ts",
+      "status": "modified",
+      "sha256_before": "0b360fc27ad76501b899cf7fa8264c45cb01529532e151293785fbf32c1b0999",
+      "sha256_after": "be445e5820baacbdba7b83ec4a456a0277518b397e8a3eacd04cf135d8d011c4",
+      "generated_shared_copy": true
+    },
+    {
+      "path": "bench/harness.cjs",
+      "status": "modified",
+      "sha256_before": "48fca1c2995e32842c7f414b5994cc2e79af06119ec54dc2186047198f3d1824",
+      "sha256_after": "36e822ed611e3f0c6404f20c86287110e05fd5915c50e8946a538ef8b8c4ee38",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "jsconfig.json",
+      "status": "modified",
+      "sha256_before": "e73e9adf0fcd9194c496670efb5251825685314475c9548c3ec4d74056ccc75b",
+      "sha256_after": "41cf7144eb7a6db0cec435ef5e31aa2706bea911e160d5fb15acc42222130871",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "package-lock.json",
+      "status": "modified",
+      "sha256_before": "7b887d8ce72693b34ae39056aa002c453b8ab65307d8c644e6a8345ec3cfbca9",
+      "sha256_after": "ad837ceeea905ab09b5827b8f1e13c233d38eed4cabd11319fc81644e62cd3a4",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "package.json",
+      "status": "modified",
+      "sha256_before": "f32295b26c70abe92c4e24c7413c8add86605991acf96a95cf794bae1b5f9bf3",
+      "sha256_after": "360344bb39031fddec8abac1499a1afcc580a96beab4b2082886f4aab5c1c6c2",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "scripts/sync-simulation.mjs",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "bc4ae8178151fe3db9a164e33250742b6fe2cd7fd5eaf82a51e38786dd5c258f",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/components/achievements/GoalCard.jsx",
+      "status": "modified",
+      "sha256_before": "425561d17623d6fa3b9b47127cf0fdec2c0e6915239f7bdc6bf9cf958625a51a",
+      "sha256_after": "bf76fbb8ff980d31f9510c4e1cd86f0b3ae4b3748675259f85af995845b1cc0e",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/components/branches/BranchCard.jsx",
+      "status": "modified",
+      "sha256_before": "ac6eb9985a8f57e51a018ca9ee494983f090861baafec53b85c1d6ae5e1d46ff",
+      "sha256_after": "59944fbacc6878b094f1046da47174a2351fef33fbe92fc631b87e4d5791f6ed",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/components/dispatch/DispatchPlanner.jsx",
+      "status": "modified",
+      "sha256_before": "8c63b935e2a4e0e8db60783f005a1a76824327dcb5992ae495f72d8230f1e97f",
+      "sha256_after": "15a8813a9f92ae2852dc283c8a6331453262f7e46115fc89de32fd6d8281c162",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/components/finance/BranchFinanceSection.jsx",
+      "status": "modified",
+      "sha256_before": "a44f0e821965fc01958efce1a08913b9a9ea770b0a46657a9ab872636b78b529",
+      "sha256_after": "4859525ff28a59e746de350fad619949c61b52fcf37de35997c12c2137c0cf4b",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/components/finance/ReportsView.jsx",
+      "status": "modified",
+      "sha256_before": "0391309734b1475bdbc720791a38d1a26d1c63d86ebf7c714b93a8e088e5c6a5",
+      "sha256_after": "d20dc39f208d32cea9e7cd2381cb95bc6c6adf5895f678bc11731695faffe8e6",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/components/fleet/DgSection.jsx",
+      "status": "modified",
+      "sha256_before": "62a3987200a733a7ba647dd4c8136c8789ef5bd993acb6bcddf27e4538a467e7",
+      "sha256_after": "1a06de078060bf29061da0a95e276babb49f95a5825acb5ebf59294f98b005fe",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/components/game/CloudSyncSection.jsx",
+      "status": "modified",
+      "sha256_before": "13d6c72fdb09b3512fec804105df02221b5f5db9fda9392c5afc95525d47bae5",
+      "sha256_after": "b15973b3be65ed670aee6426ba305cc6205eae3cdebd9f1d9de3bcbbebd07343",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/accountingData.js",
+      "status": "modified",
+      "sha256_before": "10fd2065bdb89b9fdc97ac04d4181d40a5d6b2d66e33b1850a08e301a656a569",
+      "sha256_after": "072afc725f24d797a2be84af60938458ce9c737dc95c2ee445a866bb8932ec6e",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/driverTimeEngine.js",
+      "status": "modified",
+      "sha256_before": "ff8073dbe0323148608111e9457a9a31b0fd6e974645c72acfde27ae682766e4",
+      "sha256_after": "04133f576fc2766ea55c76205d5528c1e2cc186e3f911ce1fb9a22a21fbad1a5",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/gameContext.jsx",
+      "status": "modified",
+      "sha256_before": "5864a46c6beec8acf7b376b01a3a6b4ca7563339e9dd67030cc743adb6bb7e8b",
+      "sha256_after": "543ecc2638a83efbc8a48e0aa068503d0c9a14b433302726a0e13318d58538b3",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/scenarios/scenarioEngine.js",
+      "status": "modified",
+      "sha256_before": "a678729f5257f4dcc7564400d9fa967c72ac26b3ad0bf771365b98c1bf2d5275",
+      "sha256_after": "f10a4d58461e88abf0a95e57191d520dbc4d83d8cd55672e32ffe4fa96fa8ed8",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/scenarios/scenarioSetups.js",
+      "status": "modified",
+      "sha256_before": "62f70b05c8e706e52c65f957e236a27305ed6aa1fd3170484e0177ce1465ca42",
+      "sha256_after": "0dacce0e4bb9a2dc5f8166ad7c0d5eced7fd4a32503657eaa6306895f9ec1f3c",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/simulation/accountingEngine.ts",
+      "status": "modified",
+      "sha256_before": "b518bd960303e3d42d3f05dcd03bfbd2d37afe1ff030fd8f89f782b680d9e6b0",
+      "sha256_after": "52571f53f4b7abeb4c5c7107d1bae46b3f7b8c94809278293db9abbaa26c3d36",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/simulation/branchEngine.ts",
+      "status": "modified",
+      "sha256_before": "85fc37cd116083bb908db37fc7042702a393bc02286aaebfc5fc32899f8289c1",
+      "sha256_after": "83979c883372d4b37fc75966988c516615b407d96da91a81b73794dfd0727fad",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/simulation/branchManagerEngine.ts",
+      "status": "modified",
+      "sha256_before": "406deab0a6d472c18f9e289dd61f481bf514f58a1d75c3dba20091416d8ccdf1",
+      "sha256_after": "28bd2c1ec68d0e627dbf7647f99a76dd2154971c8f7d57542dc7da81e65b0f39",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/simulation/customerEngine.ts",
+      "status": "modified",
+      "sha256_before": "53dae792371c179b5b6feabd0d6576d13d903cd74d69e96e69d030a864b6fbfc",
+      "sha256_after": "bab6f88b7973bd2cfda059d7b9161daa01ae916169182bbec1187e7214914f8e",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/simulation/dangerousGoodsEngine.ts",
+      "status": "modified",
+      "sha256_before": "1504df1094f8d262b1940e3a3d695320f509a3a5ba86da8a6e1e569be55de131",
+      "sha256_after": "4cd6e3cfe9f0f1639e0548750676c81ffa7a4b9234f5e1beeba8579806a08cbc",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/simulation/disruptionEngine.ts",
+      "status": "modified",
+      "sha256_before": "1b46f1d9daacd04a39a4f4858935c7642a387ad09be9e179dbcbab1a47414778",
+      "sha256_after": "a43f52be39a13797775e828ba9c6417026256529a327d91a373f802f1593fe92",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/simulation/driverTimeEngine.ts",
+      "status": "modified",
+      "sha256_before": "e51aeeb8666e1155d5918a690857813877e120cfc132f22b8053d75710dd27f0",
+      "sha256_after": "eb05cf697300b59fb134ede6add4e87210093d05beb0a169aec2d81e7ace2711",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/simulation/financingEngine.ts",
+      "status": "modified",
+      "sha256_before": "03d7e5de48d63d49b3d89508e9a2b6282920475c913e77bd8626a3e7842313b6",
+      "sha256_after": "effcb6542006997120b1b1787e3e3e0df543d1c205d8e63095326fc4b8325797",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/simulation/historyCleanup.ts",
+      "status": "modified",
+      "sha256_before": "cd25d9af95986329f4c8786bfb29e2f6871d22182617ac8aa88dcee78d1f3bf5",
+      "sha256_after": "b885e9bde1d360deaed64220f340973e7b05c2d69d72e70904e8c35aec3133c8",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/simulation/investmentCorporate.ts",
+      "status": "modified",
+      "sha256_before": "02fbc68fa2c9b8d7c84d89a6b18d9c0b9a1548aed20c678930844443f919a52f",
+      "sha256_after": "082d63d2b9fbd5cdac035f2af830b8e94f2148947d20f88219eb6fe1250af07e",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/simulation/investmentEngine.ts",
+      "status": "modified",
+      "sha256_before": "880c7fd5d47cc1947e219c89bc2be90e5f233c8349a18adefde372600c8a7bc3",
+      "sha256_after": "248e5c85615cc0fe4754648c8471bf64722fc070888cac498a2b961215690a7f",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/simulation/mailEngine.ts",
+      "status": "modified",
+      "sha256_before": "3f7bafb08a6d99b9e3377e4acdda3d84c4629249d8c373aba6b38feed9bbd18a",
+      "sha256_after": "b8451c393c8bb58f6f645df74cd087740120461a076941e42238d1aca23a6352",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/simulation/marketEngine.ts",
+      "status": "modified",
+      "sha256_before": "aab45e995d669afca07b6137ffb8363f04ebf3faedc2d2370de3be380d237565",
+      "sha256_after": "99642f020c3546c08837366a04f3b38cc58603f387a62d65d38798c651abfe9b",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/simulation/partnerEngine.ts",
+      "status": "modified",
+      "sha256_before": "61abbc202864df0d42045dda24fea222249b5526c3ae7d538044cc1ca2ca9a0f",
+      "sha256_after": "4e7acef5dd07067cb8093708d8512aba32534f316657ef5231b31c45c37fc576",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/simulation/progressEngine.ts",
+      "status": "modified",
+      "sha256_before": "299d120ad913b091f0a135434709f5671d265235f9fb091ff6a291b5c8954460",
+      "sha256_after": "079930fa8cea1772714d32bb4169b0fc39dd1849e958d50bdd054c4f3a9f6337",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/simulation/randomEngine.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "99c92564c3265ef0297cd45ab838773c920142b3e63064693760597286913375",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/simulation/relationshipEngine.ts",
+      "status": "modified",
+      "sha256_before": "39378f2f0ddb3d513aefc9d41de7d4bcc965fdec2a5a7d48fb8bea8998e3eb8b",
+      "sha256_after": "b0297fab966c4ed2fc9ea2bc4b47691a5fd703237ba515a585ed9f443d55e0fd",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/simulation/simulationEngine.ts",
+      "status": "modified",
+      "sha256_before": "4aaed57f1656fcc54fd6031e7f2b6ed5dfd7fc6d2091687dcae134d49fee9676",
+      "sha256_after": "2dc30d8ab5be0c80483eabb73a1ae453f2a284786a6e80174da620de6571e92e",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/simulation/storyEngine.ts",
+      "status": "modified",
+      "sha256_before": "5c891d25b5292eff3b4d4c2277cc2fb69982f72129efac76a5a53d288f2dfc16",
+      "sha256_after": "620fece3f3b9e3c1bb785c2a84db7f8ce744f5f6d495aff40e0caf2cfda60e93",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/simulation/tourEngine.ts",
+      "status": "modified",
+      "sha256_before": "ed5e47cd9706c010c716532018ea5853172937567c506ebeaa828d0a02507c27",
+      "sha256_after": "1dd0e3f1ba187e56307b98430acb49b7ac161537a8cb80f8bfb73bd64889bde4",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/simulation/vehicleMarketEngine.ts",
+      "status": "modified",
+      "sha256_before": "d3619359463e8ea40f283e9c6e8e4a582cbe739dba67e5a599c0419199c07627",
+      "sha256_after": "44df063301c4536c09d4eaee0e076c98fed76f00014bbcd30f99d023944dacaf",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/simulation/workshopEngine.ts",
+      "status": "modified",
+      "sha256_before": "0b360fc27ad76501b899cf7fa8264c45cb01529532e151293785fbf32c1b0999",
+      "sha256_after": "be445e5820baacbdba7b83ec4a456a0277518b397e8a3eacd04cf135d8d011c4",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/simulationAdapter.js",
+      "status": "modified",
+      "sha256_before": "16b24c3376a13d42d14e3031303852b8723afc7d90aceae1689d072038ec8190",
+      "sha256_after": "6db52b900bab0e02171a00ffe19a46479db91cde352079e1bc519c49b8d33af7",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "src/lib/tourEngine.js",
+      "status": "modified",
+      "sha256_before": "5453edd3b9042f4685af64fc4a730ea9fa2c0f5392a54f05816f35b97727d34a",
+      "sha256_after": "9f928f0f787ec4529cba7e33eeb05890b33705140783679976b18dc162a45122",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "tests/accounting-lifecycle.test.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "b51ed2c4bc5226219e79e0c35fa6a8388c6b810d14ef84d52e779cade6399ea1",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "tests/audit-regressions.test.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "276043aaef286697891c39a9f1550eb567bffa7c01a8d08b0172f6372069c5ee",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "tests/cloud-contract.test.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "9aefbb50b2cc2aa2353cd967cc9de9af9c068098c5cd2b47d6d8d5e3205a26b3",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "tests/engine-parity.test.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "e56b3a9e5e1f0c6113a6139c79d27151c48e26b4600e259711e4c10393f0b853",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "tests/long-run.test.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "9138d9663a062c625536f720f319a8af35bf5a7d7b198318bec2fdf74ccc6c6e",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "tests/real-replay.test.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "5fbf4f7b86296669a2d1677903671dd310d1bfe16fae3e997c7ed165b9e2d001",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "tests/scenarios-financing.test.ts",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "a756d730b5d354fe4efb4eb732157867fa500d47c66b209740aa621f7ee96fe0",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "tests/simulation.consistency.test.ts",
+      "status": "modified",
+      "sha256_before": "a80d2c2ac217f7afb790c949c76e9ac44cf146b0edf610dae82fc84da7bededb",
+      "sha256_after": "9163414fc0d72526c405e9fd928574cb2c2df93b733f13c3d4af55cda710e31a",
+      "generated_shared_copy": false
+    },
+    {
+      "path": "vitest.config.js",
+      "status": "added",
+      "sha256_before": null,
+      "sha256_after": "697231dc02005764494cab96848dab8cccaf22fe9e1df106912b71a0700c4484",
+      "generated_shared_copy": false
+    }
+  ]
+}

@@ -134,7 +134,10 @@ function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
 export function roundQty(qty, type) {
   const precision = type === "crypto" ? CRYPTO_QTY_PRECISION : STOCK_QTY_PRECISION;
-  return Math.floor(qty / precision) * precision;
+  const scaled = qty / precision;
+  const nearest = Math.round(scaled);
+  const units = Math.abs(scaled - nearest) <= Math.max(type === "crypto" ? 1e-7 : 0, 8 * Number.EPSILON * Math.max(1, Math.abs(scaled))) ? nearest : Math.floor(scaled);
+  return units / Math.round(1 / precision);
 }
 
 export function computeFee(type, grossCents) {
@@ -374,7 +377,7 @@ export function getDepot(state, depotId) {
 export function depositToDepot(state, { depotId, amountCents }) {
   const depot = getDepot(state, depotId);
   if (!depot) throw new Error("Depot nicht gefunden.");
-  if (amountCents <= 0) throw new Error("Betrag muss positiv sein.");
+  if (!Number.isSafeInteger(amountCents) || amountCents <= 0) throw new Error("Betrag muss eine positive ganze Centzahl sein.");
   const bank = depotId === "company" ? state.company.accountCents : state.private.accountCents;
   if (bank < amountCents) throw new Error(`${depotId === "company" ? "Firmenbank" : "Privatbank"} reicht für diese Umbuchung nicht aus.`);
   if (depotId === "company") {
@@ -395,7 +398,7 @@ export function depositToDepot(state, { depotId, amountCents }) {
 export function withdrawFromDepot(state, { depotId, amountCents }) {
   const depot = getDepot(state, depotId);
   if (!depot) throw new Error("Depot nicht gefunden.");
-  if (amountCents <= 0) throw new Error("Betrag muss positiv sein.");
+  if (!Number.isSafeInteger(amountCents) || amountCents <= 0) throw new Error("Betrag muss eine positive ganze Centzahl sein.");
   const free = getFreeSettlement(state, depotId);
   if (free < amountCents) throw new Error(`Freie Depotliquidität reicht nicht aus (verfügbar: ${(free / 100).toFixed(2)} €).`);
   depot.settlementCents -= amountCents;
@@ -610,7 +613,8 @@ function tryExecuteOrder(state, order, min) {
   // Stunde auf "open" aktualisiert, aber der Preis davor ist handelbar).
   const quote = inst.currentQuote;
 
-  const remainingQty = order.qty - order.filledQty;
+  const qtyScale = Math.round(1 / (isStock ? STOCK_QTY_PRECISION : CRYPTO_QTY_PRECISION));
+  const remainingQty = (Math.round(order.qty * qtyScale) - Math.round(order.filledQty * qtyScale)) / qtyScale;
   if (remainingQty <= 0) return { filled: false };
 
   // Preisprüfung
@@ -677,14 +681,14 @@ function tryExecuteOrder(state, order, min) {
   // Fill anwenden
   applyFill(state, order.depotId, order.instrumentId, order.side, fillQty, execPrice, incrementalFee, min);
 
-  order.filledQty += fillQty;
+  order.filledQty = (Math.round(order.filledQty * qtyScale) + Math.round(fillQty * qtyScale)) / qtyScale;
   order.filledGrossCents += grossCents;
   order.feeCents = newTotalFee;
 
   // Reserve anpassen
   if (order.side === "buy") {
     const costForThisFill = grossCents + incrementalFee;
-    order.reservedCents -= costForThisFill;
+    order.reservedCents = Math.max(0, order.reservedCents - costForThisFill);
   }
 
   // Status aktualisieren

@@ -1,6 +1,8 @@
-// Simulations-Engine für "Spedition & Leben".
-// Reine Spielregeln und Zustandsänderungen – keine Auth, keine Speicherung.
-// Trennung: gameRules (statische Daten) · simulationEngine (Regeln/Zustand) · gameRepository (Speicherung via Backend-Funktion).
+import { processAssistant, migrateAssistant } from "./assistantEngine.ts";
+import { generateBranchDecisions } from "./branchManagerEngine.ts";
+import { migrateAcquisition, processAcquisitionEvents } from "./acquisitionEngine.ts";
+// Simulations-Engine für "Spedition & Leben". Reine Spielregeln/Zustände – keine Auth/Speicherung.
+// Trennung: gameRules (statisch) · simulationEngine (Regeln/Zustand) · gameRepository (Speicherung).
 
 import {
   CITIES, getDistance, mulberry32, INVITATION_TEMPLATES,
@@ -13,8 +15,11 @@ import {
   PERSONNEL_ROLES, SERVICE_START_MIN, SERVICE_END_MIN, SERVICE_INTERVAL_MIN, SHIFT_TEMPLATES,
   APPLICANT_NAMES, PORTRAIT_IDS, NOTICE_PERIOD_MIN,
   computeMarketValue, computeDealerOffer,
+  VEHICLE_CATALOG, VEHICLE_CATALOG_LIST, getVehicleProfile,
+  VEHICLE_BODY_TYPES, getVehicleBodyType, getVehicleEffectiveMaintenanceCost,
+  checkBodyTypeCompatibility,
 } from "./gameRules.ts";
-import { buildTourPlan, confirmTour as doConfirmTour, cancelTour as doCancelTour, processTours, onTripCompleted, findReturnLoads, suggestTours, futureLocation, futureDriverLocation, _clearPlanCache } from "./tourEngine.ts";
+import { getOrderReservation, buildDeployment, buildTourPlan, confirmTour as doConfirmTour, cancelTour as doCancelTour, processTours, onTripCompleted, findReturnLoads, suggestTours, futureLocation, futureDriverLocation, _clearPlanCache } from "./tourEngine.ts";
 import {
   buildPhases, buildWorkSteps, buildEmptyWorkSteps,
   computeFinalCounters, resetCounters, needsRest, migrateTripPhases,
@@ -26,7 +31,8 @@ import {
   addOpenItem, settleOpenItem, registerAsset, disposeAsset,
   calculateDepreciation, processMonthEnd, processAccountant,
   roleExpenseAccount, periodOf, periodStartMin, periodEndMin, MONTH_MIN,
-  migrateAccounting, getVehicleBookValue, addBooking, CAUSE_ACCOUNT_MAP,
+  migrateAccounting, getVehicleBookValue,
+  addBooking, CAUSE_ACCOUNT_MAP,
 } from "./accountingEngine.ts";
 import {
   initMail, migrateMail, deliverMessage, getPersonInfo, getAllContacts,
@@ -54,7 +60,7 @@ import {
   isActivelyEmployed, findPerson,
 } from "./terminationEngine.ts";
 import {
-  generateMarketWave, migrateMarket, fillInitialMarket, getMarketStats,
+  generateMarketWave, migrateMarket, fillInitialMarket, getMarketStats, failOverdueOrders,
 } from "./marketEngine.ts";
 import {
   enableAutomation, pauseAutomation, syncToTarget, computeTargetGameMinute,
@@ -133,6 +139,7 @@ import {
   DG_PROFILES, TANK_TRUCK, TANK_TRUCK_LEASING, TANK_CLEANING_PROVIDERS,
   DG_EQUIP_EXTERNAL_COST_CENTS, DG_EQUIP_INTERNAL_MATERIAL_CENTS,
   DG_INSPECTION_EXTERNAL_COST_CENTS, TANK_CLEANING_COST_CENTS,
+  DG_HANDLING_FEE_TANK_CENTS, DG_HANDLING_FEE_VERSANDSTUECK_CENTS,
   handleDgCommand,
 } from "./dangerousGoodsEngine.ts";
 import {
@@ -173,6 +180,28 @@ import {
   setDevelopmentFocus as doSetFocus, startOnboarding, pauseOnboarding,
   resumeOnboarding, dismissOnboarding, markOnboardingReviewed, recordAutoDecisionDay,
 } from "./developmentEngine.ts";
+import { handleMailCommand } from "./mailCommands.ts";
+import { handleDevelopmentGoalsCommand } from "./developmentGoalsCommands.ts";
+import { migrateSegmentFields, getOrderSegments, getOrderCharacteristics, getPrimarySegment } from "./segmentEngine.ts";
+import { migrateBusinessFocus, setBusinessFocus as doSetBusinessFocus, setBranchBusinessFocus as doSetBranchBusinessFocus, getBusinessFocus, getEffectiveFocusForBranch, getMarketWeightsForBranch, orderMatchesFocus, getFocusPriority, BUSINESS_FOCI } from "./businessFocusEngine.ts";
+import { migrateSegmentStats, recordSegmentDelivery, recordTankCleaning, recordEmptyTrip, getSegmentStats } from "./segmentStatsEngine.ts";
+import { migrateMarketDynamics, processMarketDynamicsDayChange, getMarketOverview } from "./marketDynamicsEngine.ts";
+import {
+  migrateDevelopmentGoals, processMentoringEvents, processOverduePromises,
+  checkGoalFulfillment, fulfillPromiseByAction, getDevelopmentProfile,
+  getDevelopmentOverview, createDevelopmentGoal, removeDevelopmentGoal,
+  assignMentor, removeMentoring, getConversationCooldown, setConversationCooldown,
+  createPromise, getOpenPromises, getSuggestedCourses, getAvailableMentors,
+} from "./developmentGoalsEngine.ts";
+import {
+  migrateDisruptions, processDisruptions, generateAbsenceDisruption,
+  maybeGenerateLoadingDelay, maybeGenerateTechnicalDefectForTrip, handleDisruptionCommand,
+} from "./disruptionEngine.ts";
+import {
+  migrateUsedVehicleMarket, generateUsedVehicleOffers,
+} from "./vehicleMarketEngine.ts";
+import { handleVehicleMarketCommand } from "./vehicleMarketCommands.ts";
+import { handlePlanningCommand } from "./planningCommands.ts"; import { handlePartnerCommand } from "./partnerCommands.ts"; import { migratePartners, processPartnerTransports, getPartnerTransportEventTimes } from "./partnerEngine.ts"; import { migrateSiteExpansion, processExpansionCompletion, getExpansionEventTimes, processBreakAreaDecay, checkParkingCapacity, findBranchWithCapacity } from "./siteExpansionEngine.ts"; import { handleSiteExpansionCommand } from "./siteExpansionCommands.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -184,9 +213,11 @@ function nextRng(state) {
   return v;
 }
 // Ursachen-Zuordnung zu Buchungskonten für die Legacy-Schnittstelle.
-// addBooking und CAUSE_ACCOUNT_MAP wurden nach accountingEngine.ts verschoben.
+// addBooking und CAUSE_ACCOUNT_MAP wurden nach accountingEngine.ts verschoben
+// (Paket 2: zentrale Buchungsroutine für konsistente Journal-Einträge).
 function isPlayerBlocked(state) {
-  return state.appointments.some(a => a.status === "active");
+  // Szenario-Auszeit blockiert keine operativen Aktionen — Eingriffe werden gezählt.
+  return state.appointments.some(a => a.status === "active" && a.type !== "scenario_timeoff");
 }
 function nextBlockEnd(state) {
   let end = null;
@@ -199,16 +230,6 @@ function ensureNotBlocked(state) {
   if (isPlayerBlocked(state)) {
     throw new Error("Du bist derzeit mit einer privaten Aktivität beschäftigt. Operative Aktionen sind bis " + formatGameTime(nextBlockEnd(state)) + " gesperrt.");
   }
-}
-
-function checkMilestones(state, min) {
-  const set = (id, cond) => {
-    const m = state.milestones.find(x => x.id === id);
-    if (m && !m.achieved && cond) { m.achieved = true; m.achievedAtMin = min; }
-  };
-  set("m1", state.stats.totalDeliveries >= 1);
-  set("m2", state.stats.timelyDeliveries >= 10);
-  set("m3", state.vehicles.length >= 4);
 }
 
 // ---------- Initialzustand ----------
@@ -276,11 +297,12 @@ function doDailyAccounting(state, midnight) {
   const drivers = [...state.drivers].sort((a, b) => (a.id < b.id ? -1 : 1));
   for (const d of drivers) {
     if (!isActivelyEmployed(d)) continue;
-    const r = payCost(state, "company", DRIVER_COST_PER_DAY, "Fahrerlohn: " + d.name, d.id, midnight, { employeeId: d.id });
+    const r = payCost(state, "company", d.costPerDayCents ?? DRIVER_COST_PER_DAY, "Fahrerlohn: " + d.name, d.id, midnight, { employeeId: d.id });
     log.push({ cause: "Fahrerlohn", driver: d.name, paid: r.paid, unpaid: r.unpaid });
   }
   for (const b of state.branches) {
-    const r = payCost(state, "company", BRANCH_COST_PER_DAY, "Standort: " + b.name, b.id, midnight);
+    if (b.status === "closed") continue;
+    const r = payCost(state, "company", b.costPerDayCents ?? BRANCH_COST_PER_DAY, "Standort: " + b.name, b.id, midnight);
     log.push({ cause: "Standort", branch: b.name, paid: r.paid, unpaid: r.unpaid });
   }
   // Löhne für alle Angestellten (nicht fahrende Rollen) – rollenspezifische Konten
@@ -312,14 +334,18 @@ function doDailyAccounting(state, midnight) {
   processDailyRecovery(state, midnight);
   processTerminationWarnings(state, midnight);
   processDailyRelationship(state, midnight);
+  // Entwicklungsziele: Überfällige Zusagen markieren
+  processOverduePromises(state, midnight);
   return log;
 }
 
 // ---------- Zeitverarbeitung ----------
 import { earliestEventAfter } from "./eventScheduler.ts";
 import { reportProgress } from "./progressHook.js";
+
 function completeTrip(state, trip, m, log) {
-  if (trip.status === "completed") return; // Idempotenz (Paket 2)
+  // Idempotenz: Bereits abgeschlossene Trips nicht erneut vergüten (Paket 2).
+  if (trip.status === "completed") return;
   trip.status = "completed";
   trip.endMin = m;
   const vehicle = state.vehicles.find(v => v.id === trip.vehicleId);
@@ -350,7 +376,9 @@ function completeTrip(state, trip, m, log) {
     driver.workMinutesSinceRest = 0; driver.driveMinutesSinceBreak = 0;
   } else {
     // Neues Modell: Zähler aus Phasen ableiten, Ruhe nur bei erschöpftem Budget
-    const counters = computeFinalCounters(phases);
+    const counters = computeFinalCounters(phases, trip.initialCounters || {
+      workMin: driver.workMinutesSinceRest || 0, driveMin: driver.driveMinutesSinceBreak || 0,
+    });
     driver.workMinutesSinceRest = counters.workMin;
     driver.driveMinutesSinceBreak = counters.driveMin;
     if (driver.workMinutesSinceRest >= WORK_BUDGET_MIN) {
@@ -364,11 +392,20 @@ function completeTrip(state, trip, m, log) {
 
   if (trip.type === "empty") {
     onTripCompleted(state, trip, m, log);
+    recordEmptyTrip(state, trip);
     log.push({ type: "emptytrip_completed", trip: trip.id, vehicle: vehicle.id, driver: driver.id, atCity: finalCity });
     planSingleVehicle(state, vehicle, m, log);
     return;
   }
   const order = state.orders.find(o => o.id === trip.orderId);
+  // Alte Spielstände können zwei verschiedene Trips für denselben Auftrag
+  // enthalten. Fahrzeugfreigabe ist nötig, eine zweite Leistung/Zahlung nicht.
+  if (!order || order.deliveredAtMin != null || order.paidCents != null ||
+      ["geliefert", "storniert", "failed", "expired"].includes(order.status)) {
+    onTripCompleted(state, trip, m, log);
+    log.push({ type: "delivery_duplicate_ignored", trip: trip.id, order: trip.orderId, atMin: m });
+    return;
+  }
   order.status = "geliefert"; order.deliveredAtMin = m;
   const onTime = m <= order.deliveryDeadlineMin;
   const payment = onTime ? trip.paymentCents : Math.round(trip.paymentCents * 0.9);
@@ -379,6 +416,14 @@ function completeTrip(state, trip, m, log) {
   order.history = order.history || [];
   order.history.push({ type: "delivered", min: m, actor: driver.id, actorName: driver.name, details: { onTime, paymentCents: payment } });
   state.stats.totalDeliveries++;
+  // Szenario: Lieferungen zählen (gesamt und während Auszeit)
+  if (state.scenario && state.scenario.status === "active") {
+    state.scenario.totalDeliveries = (state.scenario.totalDeliveries || 0) + 1;
+    if (state.scenario.timeoffStartMin != null && state.scenario.timeoffEndMin != null &&
+        m >= state.scenario.timeoffStartMin && m < state.scenario.timeoffEndMin) {
+      state.scenario.deliveriesDuringTimeoff = (state.scenario.deliveriesDuringTimeoff || 0) + 1;
+    }
+  }
   if (onTime) { state.stats.timelyDeliveries++; state.stats.consecutiveTimely = (state.stats.consecutiveTimely || 0) + 1; }
   else { state.stats.consecutiveTimely = 0; }
   state.stats.totalRevenueCents = (state.stats.totalRevenueCents || 0) + payment;
@@ -403,6 +448,13 @@ function completeTrip(state, trip, m, log) {
     dedupKey: "delivery_completed:" + trip.id,
   });
   onTripCompleted(state, trip, m, log);
+  // Segment-Statistik: Lieferung erfassen
+  let _dgHandlingCents = 0;
+  if (order.isDangerousGoods) {
+    const _dgProfile = getDgProfile(order.dgProfileId);
+    if (_dgProfile) _dgHandlingCents = _dgProfile.transportType === "tank" ? DG_HANDLING_FEE_TANK_CENTS : DG_HANDLING_FEE_VERSANDSTUECK_CENTS;
+  }
+  recordSegmentDelivery(state, order, trip, onTime, payment, trip.fuelCents || 0, trip.tollCents || 0, 0, _dgHandlingCents);
   // Auftrag 32: DG-Lieferung statistisch erfassen
   if (order.isDangerousGoods) {
     recordDgDelivery(state, order, onTime, m);
@@ -569,17 +621,21 @@ function processEventsAt(state, m, log) {
     log.push({ type: "daily_accounting", min: m, details: dlog });
     // Auftrag 25: Krankheitsgenerator, Urlaubsverbrauch, Sauberkeitsverlust
     maybeGenerateSickness(state, m);
+    // Stoerungsmanagement: Bei neuer Krankheit Personalausfall-Stoerungen erzeugen
+    for (const s of (state.absences?.sicknesses || [])) {
+      if (s.status === "active") generateAbsenceDisruption(state, s.personId, m, log);
+    }
     maybeGenerateVacationRequest(state, m);
     processVacationDayConsumption(state, m);
-    processDailyCleaningDecay(state, m);
-    // Auftrag 26: Taeglicher Unterhalt fuer Anschaffungen
-    processDailyMaintenance(state, m);
+    processDailyCleaningDecay(state, m); processBreakAreaDecay(state, m); processDailyMaintenance(state, m);
     // History-Cleanup: Abgeschlossene Trips/Tours und erledigte Aufträge
     // entfernen, die älter als 7 bzw. 30 Tage sind. Verhindert unendliches
     // Wachstum von state.trips/orders/tours über lange Spiele und
     // beschleunigt earliestEventAfter (iteriert über alle Trips pro Event).
     cleanupHistory(state, m);
     processDailyStories(state, m, log);
+    // Markt-Dynamik: Ereignis-Übergänge und Generierung am Tageswechsel
+    processMarketDynamicsDayChange(state, m, log);
     resetDailySpendIfNeeded(state);
     expireApprovals(state);
     // Rahmenverträge: Tägliche Auftragsgenerierung, Auswertung und
@@ -597,6 +653,10 @@ function processEventsAt(state, m, log) {
   }
   // Auftrag 27: Werkstatt-Verarbeitung und Automatik
   processWorkshop(state, m, log); evaluateWorkshopAutomation(state, m, log); checkKmMaintenanceDue(state, m, log);
+  // Stoerungsmanagement: Auto-Auflösung, Abschluss laufender Maßnahmen
+  processDisruptions(state, m, log); processPartnerTransports(state, m, log); processExpansionCompletion(state, m, log);
+  // Gebrauchtfahrzeugmarkt: Angebote generieren/ablaufen lassen (alle 3 Tage)
+  generateUsedVehicleOffers(state, m, log);
   // Auftrag 29: Personalmarkt-Wellen und Ablauf
   if (isRegularWaveTime(m)) {
     generatePersonnelWave(state, m, log, false);
@@ -609,8 +669,13 @@ function processEventsAt(state, m, log) {
   // Auftrag 31: Aus- und Weiterbildung – Kursblöcke, Ausbildungen, Ablauf
   processCourseEvents(state, m, log);
   processApprenticeshipEvents(state, m, log);
+  // Entwicklungsziele: Mentoring-Lerntermine verarbeiten
+  processMentoringEvents(state, m, log);
   // Auftrag 32: Gefahrgut – Tankreinigung, Ausrüstung, Spielprüfung
   processTankCleaning(state, m, log);
+  for (const _le of log) {
+    if (_le.type === "tank_cleaning_completed" && _le.atMin === m) recordTankCleaning(state, TANK_CLEANING_COST_CENTS);
+  }
   processEquipmentJobs(state, m, log);
   processInspectionJobs(state, m, log);
   // 4b. Monatswechsel (Abschreibung, Periodenabschluss)
@@ -620,23 +685,19 @@ function processEventsAt(state, m, log) {
   }
   // 5. Angebotsablauf
   for (const o of state.orders) { if (o.status === "offered" && o.acceptDeadlineMin === m) { o.status = "expired"; log.push({ type: "order_expired", order: o.id }); } }
-  // 5a. Angenommene Aufträge mit überschrittener Lieferfrist als "failed" markieren.
-  // suggestTours/buildTourPlan lassen Aufträge bis zu 4h (LATE_GRACE_MIN = 240)
-  // nach der Lieferfrist noch zu. Danach sind sie nicht mehr planbar, bleiben aber
-  // sonst ewig als "angenommen" stehen — sie blähen die UI-Zahl auf, blockieren
-  // den Dispatcher-Skip-Cache (unplannedCount bleibt konstant → keine Neuplanung)
-  // und verhindern, dass die Disposition freie Lkw tatsächlich einsetzt.
-  for (const o of state.orders) {
-    if (o.status === "angenommen" && o.deliveryDeadlineMin + 240 <= m) {
-      o.status = "failed";
-      o.failedAtMin = m;
-      recordOrderOutcome(state, o, "failed", m, 0);
-      log.push({ type: "order_failed", order: o.id, customer: o.customer, reason: "Lieferfrist überschritten" });
-    }
-  }
+  processAcquisitionEvents(state, m, log);
+  failOverdueOrders(state, m, log);
   // 5b. Marktwelle zu jeder vollen Spielstunde (Auftrag 19)
   if (m % 60 === 0) {
     generateMarketWave(state, m, log);
+    generateBranchDecisions(state);
+    migrateAssistant(state);
+    for (const emp of state.employees || []) {
+      if (emp.role === "assistant" && emp.employmentStatus === "employed" && isPersonAvailable(state, emp.id, m)) {
+        processAssistant(state, emp, m, log);
+      }
+    }
+    state.assistantState = { ...state.assistantState, lastProcessedHour: Math.floor(m / 60) };
     // Investment-Markt-Tick bei jeder vollen Stunde (Auftrag 33)
     if (state.investment?.market) {
       processMarketTick(state, m, log);
@@ -659,6 +720,10 @@ function processEventsAt(state, m, log) {
   // Beide sind idempotent und checkAchievements ruft computeCompanyValue auf,
   // das alle Fahrzeuge/Anlagen iteriert — bei der Zeitautomatik mit vielen
   // Ereignissen pro Tick war das der CPU-Flaschenhals.
+  // 8. Szenario: Stichtags-Flag setzen (Auswertung erfolgt im Adapter)
+  if (state.scenario && state.scenario.status === "active" && m >= state.scenario.deadlineMin && !state.scenario.pendingEvaluation) {
+    state.scenario.pendingEvaluation = true;
+  }
 }
 function advanceTo(state, targetMin, log, reportStart) {
   // Flag für processDispatcher: während eines Vorlaufs (reportStart definiert)
@@ -682,10 +747,11 @@ function advanceTo(state, targetMin, log, reportStart) {
   let eventCount = 0;
   let lastReportMs = startTime;
   let stopped = false;
+  let stopReason = "max_events_safety";
   try {
     while (true) {
       if (eventCount >= MAX_EVENTS) { stopped = true; break; }
-      if (shouldStopForApproval(state)) { stopped = true; log.push({ type: "advance_stopped_approval", atMin: t, targetMin, reason: "pending_approval" }); break; }
+      if (shouldStopForApproval(state)) { stopped = true; stopReason = "pending_approval"; log.push({ type: "advance_stopped_approval", atMin: t, targetMin, reason: "pending_approval" }); break; }
       const next = earliestEventAfter(state, t, targetMin);
       if (next === null) break;
       processEventsAt(state, next, log);
@@ -706,7 +772,7 @@ function advanceTo(state, targetMin, log, reportStart) {
     state._bulkAdvance = false;
     state._largeAdvance = false;
   }
-  if (stopped) log.push({ type: "advance_stopped", atMin: t, targetMin, reason: "max_events_safety" });
+  if (stopped) log.push({ type: "advance_stopped", atMin: t, targetMin, reason: stopReason });
   if (reportStart !== undefined) {
     reportProgress(state.gameTime - reportStart, targetMin - reportStart, eventCount, null);
   }
@@ -714,62 +780,17 @@ function advanceTo(state, targetMin, log, reportStart) {
 
 // ---------- Dispositionsplanung ----------
 function planTrip(state, order, vehicle, driver) {
-  const workSteps = buildWorkSteps(vehicle.locationCity, order);
-  const counters = {
-    workMin: driver.workMinutesSinceRest || 0,
-    driveMin: driver.driveMinutesSinceBreak || 0,
-  };
-  const result = buildPhases(workSteps, counters, state.gameTime);
-  const totalKm = workSteps.reduce((s, step) => s + (step.distanceKm || 0), 0);
-  return { phases: result.phases, totalKm, totalDuration: result.endMin - state.gameTime, endMin: result.endMin };
-}
+  const plan = buildDeployment(state, order, vehicle, vehicle.locationCity, state.gameTime, {
+    workMin: driver.workMinutesSinceRest || 0, driveMin: driver.driveMinutesSinceBreak || 0,
+  });
+  return { ...plan, totalDuration: plan.durationMin };
 
-// ---------- Task-Parameter Extraktion ----------
-function extractTaskParams(body, state, conv) {
-  const params = {};
-  const orderMatch = body.match(/o_\d+/i);
-  if (orderMatch) params.orderId = orderMatch[0];
-  const tourMatch = body.match(/tour_\d+/i);
-  if (tourMatch) params.tourId = tourMatch[0];
-  const vehicleMatch = body.match(/v\d+/i);
-  if (vehicleMatch) params.vehicleId = vehicleMatch[0];
-  if (conv?.linkedRef) {
-    if (conv.linkedRef.type === "order") params.orderId = conv.linkedRef.id;
-    if (conv.linkedRef.type === "tour") params.tourId = conv.linkedRef.id;
-    if (conv.linkedRef.type === "vehicle") params.vehicleId = conv.linkedRef.id;
-  }
-  return params;
 }
 
 // ---------- Befehle ----------
 export function applyCommand(state, command, params) {
   _clearPlanCache(); migrateState(state);
-  [migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories].forEach(fn => fn(state));
-  if (state.bookings && state.bookings.length > 200) state.bookings = state.bookings.slice(-200);
-  // Historie begrenzen: abgeschlossene Touren, Aufträge und Termine älter als 30 Tage
-  // entfernen. Hält den Zustand kompakt und beschleunigt Laden/Speichern bei langen Spielen.
-  // Aktive/offene Einträge bleiben erhalten; die 30-Tage-Fenster reichen für Trends aus.
-  {
-    const cutoff = state.gameTime - 30 * 1440;
-    if (Array.isArray(state.trips) && state.trips.length > 100) {
-      state.trips = state.trips.filter(t =>
-        t.status === "in_progress" || (t.endMin != null ? t.endMin : t.startMin) > cutoff
-      );
-    }
-    if (Array.isArray(state.orders) && state.orders.length > 100) {
-      state.orders = state.orders.filter(o => {
-        if (o.status === "offered" || o.status === "angenommen" || o.status === "unterwegs") return true;
-        const ref = o.deliveredAtMin || o.failedAtMin || o.acceptDeadlineMin || o.acceptedAtMin || 0;
-        return ref > cutoff;
-      });
-    }
-    if (Array.isArray(state.appointments) && state.appointments.length > 50) {
-      state.appointments = state.appointments.filter(a => {
-        if (a.status === "pending" || a.status === "accepted" || a.status === "active") return true;
-        return (a.endMin || 0) > cutoff;
-      });
-    }
-  }
+  [migrateAcquisition, migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories, migrateSegmentFields, migrateBusinessFocus, migrateSegmentStats, migrateMarketDynamics, migrateDevelopmentGoals, migrateDisruptions, migrateUsedVehicleMarket, migratePartners, migrateSiteExpansion].forEach(fn => fn(state));
   const p = params || {};
   let result;
   switch (command) {
@@ -847,12 +868,16 @@ export function applyCommand(state, command, params) {
       result = { ok: true, removedCount: removed };
       break;
     }
+
     case "startTransport": {
       ensureNotBlocked(state);
       const o = state.orders.find(x => x.id === p.orderId);
       if (!o) throw new Error("Auftrag nicht gefunden.");
       if (o.status !== "angenommen") throw new Error("Auftrag muss zuerst angenommen werden.");
-      if (o.reservedByTourId) throw new Error("Auftrag ist bereits für eine Tour reserviert: " + o.reservedByTourId);
+      const reservation = getOrderReservation(state, o.id);
+      if (reservation) throw new Error("Auftrag ist bereits für eine Tour reserviert: " + reservation.id);
+      if (o.externalTransportId && (state.partners?.transports || []).some(t => t.id === o.externalTransportId && ["booked", "in_progress"].includes(t.status))) throw new Error("Auftrag ist bereits extern vergeben.");
+      o.reservedByTourId = null;
       if (state.trips.some(t => t.orderId === o.id && t.status === "in_progress")) throw new Error("Für diesen Auftrag läuft bereits eine Fahrt.");
       const v = state.vehicles.find(x => x.id === p.vehicleId);
       if (!v) throw new Error("Fahrzeug nicht gefunden.");
@@ -861,13 +886,19 @@ export function applyCommand(state, command, params) {
       if (v.status !== "free") throw new Error("Fahrzeug ist nicht frei.");
       if (d.status !== "free") throw new Error("Fahrer ist nicht frei.");
       if (!isActivelyEmployed(d)) throw new Error("Dieser Fahrer ist nicht mehr aktiv beschäftigt.");
+      if (!isPersonAvailable(state, d.id, state.gameTime) || isPersonInTraining(state, d.id, state.gameTime)) throw new Error("Fahrer ist krank, im Urlaub oder in Weiterbildung.");
       if (d.attendance === "released") throw new Error("Dieser Fahrer wurde freigestellt und ist nicht für neue Touren verfügbar.");
       if (v.condition < 20) throw new Error("Fahrzeugzustand zu schlecht für einen Einsatz (unter 20). Wartung erforderlich.");
       if (d.restUntil !== null && d.restUntil > state.gameTime) throw new Error("Fahrer ist noch in der Erholung (bis " + formatGameTime(d.restUntil) + ").");
       if (isLeasingOverdueBlocked(state, v.id)) throw new Error("Leasingrückstand: Neue Touren mit diesem Fahrzeug sind gesperrt.");
       if (v.locationCity !== d.locationCity) throw new Error("Fahrer und Lkw befinden sich an unterschiedlichen Orten.");
       if (o.tons > v.capacityTons) throw new Error("Überladung: " + o.tons + " t überschreiten Kapazität von " + v.capacityTons + " t.");
+      const bodyCheck = checkBodyTypeCompatibility(o, v);
+      if (!bodyCheck.ok) throw new Error(bodyCheck.error);
       const plan = planTrip(state, o, v, d);
+      if (o.windowVersion >= 2 && plan.phases.find(p => p.type === "loading")?.startMin > o.latestLoadStartMin) {
+        throw new Error("Das Ladefenster ist abgelaufen.");
+      }
       // DG-Validierung (Auftrag 32)
       if (o.isDangerousGoods) {
         const dgCheck = validateDgTransport(state, o, v, d, plan.endMin);
@@ -876,6 +907,10 @@ export function applyCommand(state, command, params) {
         }
       }
       // Kein MAX_DUTY_MIN-Ablehnungsgrund mehr — lange Aufträge sind mit Pausen/Ruhe ausführbar
+      // Störungsmanagement: Technischer Defekt vor Buchung von Kraftstoff/Maut prüfen
+      if (maybeGenerateTechnicalDefectForTrip(state, v, d, o, state.gameTime, [])) {
+        throw new Error("Technischer Defekt! " + v.id + " kann den Transport nicht antreten. Siehe Störungen im Büro.");
+      }
       const fuel = fuelCents(plan.totalKm, v.consumptionPer100km);
       const toll = tollCents(plan.totalKm);
       const totalCost = fuel + toll;
@@ -884,8 +919,8 @@ export function applyCommand(state, command, params) {
       addBooking(state, state.gameTime, "Maut: " + o.customer, -toll, "company", "toll:" + o.id);
       const trip = {
         id: uid(state, "t"), type: "loaded", orderId: o.id, vehicleId: v.id, driverId: d.id,
-        phases: plan.phases, currentPhase: 0, startMin: state.gameTime, endMin: plan.endMin,
-        status: "in_progress", paymentCents: o.paymentCents, fuelCents: fuel, tollCents: toll,
+        phases: plan.phases, initialCounters: { workMin: d.workMinutesSinceRest || 0, driveMin: d.driveMinutesSinceBreak || 0 }, currentPhase: 0, startMin: state.gameTime, endMin: plan.endMin,
+        status: "in_progress", paymentCents: plan.paymentCents, fuelCents: fuel, tollCents: toll,
         totalKm: plan.totalKm, drivenKm: 0,
       };
       state.trips.push(trip);
@@ -899,6 +934,8 @@ export function applyCommand(state, command, params) {
       o.history.push({ type: "planned", min: state.gameTime, actor: "player", actorName: state.private.playerName, details: { vehicleId: v.id, driverId: d.id, startMin: state.gameTime, endMin: plan.endMin, fuelCents: fuel, tollCents: toll } });
       o.history.push({ type: "started", min: state.gameTime, actor: "player", actorName: state.private.playerName, details: { tripId: trip.id, vehicleId: v.id, driverId: d.id } });
       if (state.tutorial.active && state.tutorial.step === 1) state.tutorial.step = 2;
+      // Stoerungsmanagement: Ladeverzoegerung fuer manuellen Transport pruefen
+      maybeGenerateLoadingDelay(state, trip, state.gameTime, []);
       result = { ok: true, tripId: trip.id, fuelCents: fuel, tollCents: toll, totalKm: plan.totalKm, endMin: plan.endMin, phases: plan.phases };
       break;
     }
@@ -911,6 +948,7 @@ export function applyCommand(state, command, params) {
       if (v.status !== "free") throw new Error("Fahrzeug ist nicht frei.");
       if (d.status !== "free") throw new Error("Fahrer ist nicht frei.");
       if (v.condition < 20) throw new Error("Fahrzeugzustand zu schlecht für einen Einsatz.");
+      if (!isPersonAvailable(state, d.id, state.gameTime) || d.attendance === "released" || isPersonInTraining(state, d.id, state.gameTime)) throw new Error("Fahrer ist nicht verfügbar.");
       if (d.restUntil !== null && d.restUntil > state.gameTime) throw new Error("Fahrer ist noch in der Erholung.");
       if (v.locationCity !== d.locationCity) throw new Error("Fahrer und Lkw befinden sich an unterschiedlichen Orten.");
       if (v.locationCity !== p.fromCity) throw new Error("Fahrzeug und Fahrer müssen am Abfahrtsort sein.");
@@ -926,7 +964,7 @@ export function applyCommand(state, command, params) {
       addBooking(state, state.gameTime, "Maut (Leerfahrt)", -toll, "company", "emptytoll");
       const trip = {
         id: uid(state, "t"), type: "empty", orderId: null, vehicleId: v.id, driverId: d.id,
-        phases: phaseResult.phases, currentPhase: 0, startMin: state.gameTime, endMin: phaseResult.endMin,
+        phases: phaseResult.phases, initialCounters: counters, currentPhase: 0, startMin: state.gameTime, endMin: phaseResult.endMin,
         status: "in_progress", paymentCents: 0, fuelCents: fuel, tollCents: toll, totalKm: dist, drivenKm: 0,
       };
       state.trips.push(trip);
@@ -942,12 +980,14 @@ export function applyCommand(state, command, params) {
       if (!v) throw new Error("Fahrzeug nicht gefunden.");
       if (v.status !== "free") throw new Error("Wartung ist nur für freie Fahrzeuge möglich.");
       if (v.condition >= 100) throw new Error("Fahrzeug ist bereits in bestem Zustand.");
-      let cost = MAINTENANCE_COST;
+      const maintProfile = getVehicleProfile(v);
+      let cost = getVehicleEffectiveMaintenanceCost(v);
+      const maintDuration = maintProfile.maintenanceDurationMin;
       const stressed = state.private.stress >= STRESS_MAINT_THRESHOLD;
       if (stressed) cost = Math.round(cost * MAINT_STRESS_FACTOR);
       if (state.company.accountCents < cost) throw new Error("Firmenkonto reicht für die Wartung (" + (cost / 100).toFixed(2) + " €) nicht aus.");
       addBooking(state, state.gameTime, "Wartung: " + v.id, -cost, "company", "maintain:" + v.id);
-      v.status = "maintenance"; v.maintenanceUntil = state.gameTime + MAINTENANCE_DURATION;
+      v.status = "maintenance"; v.maintenanceUntil = state.gameTime + maintDuration;
       result = { ok: true, vehicleId: v.id, costCents: cost, stressed, until: v.maintenanceUntil };
       break;
     }
@@ -955,27 +995,30 @@ export function applyCommand(state, command, params) {
     case "buyVehicle": {
       ensureNotBlocked(state);
       if (state.openCosts.some(o => o.account === "company")) throw new Error("Es gibt offene betriebliche Kosten. Bitte bezahle diese zuerst.");
-      if (state.company.accountCents < VEHICLE_PRICE) throw new Error("Firmenkonto reicht für den Lkw-Kauf (30.000 €) nicht aus.");
+      const profile = VEHICLE_CATALOG[p.vehicleType] || VEHICLE_CATALOG.standard;
+      const bodyType = VEHICLE_BODY_TYPES[p.bodyType] || VEHICLE_BODY_TYPES.planen;
+      const buyPrice = Math.round(profile.priceCents * bodyType.priceMultiplier);
+      if (state.company.accountCents < buyPrice) throw new Error("Firmenkonto reicht für den Kauf (" + (buyPrice / 100).toFixed(0) + " €) nicht aus.");
       const buyBranch = p.branchId ? state.branches.find(b => b.id === p.branchId) : state.branches[0];
       if (!buyBranch || buyBranch.status !== "active") throw new Error("Keine aktive Filiale verfügbar.");
-      addBooking(state, state.gameTime, "Fahrzeugkauf", -VEHICLE_PRICE, "company", "buy");
-      const v = { id: uid(state, "v"), branchId: buyBranch.id, type: STANDARD_TRUCK.type, capacityTons: 12,
-        consumptionPer100km: 28, bookValueCents: VEHICLE_PRICE, condition: 85,
+      { const _c=checkParkingCapacity(state,buyBranch.id,1); if(!_c.ok){ const _a=findBranchWithCapacity(state,buyBranch.city,1); throw new Error(_c.message+(_a?` Alternative: ${_a.name} (${_a.city}).`:"")+" Stellplatzausbau möglich."); } }
+      addBooking(state, state.gameTime, "Fahrzeugkauf: " + profile.label + " (" + bodyType.label + ")", -buyPrice, "company", "buy");
+      const v = { id: uid(state, "v"), branchId: buyBranch.id, type: profile.label, catalogId: profile.id, bodyType: bodyType.id,
+        capacityTons: profile.capacityTons, consumptionPer100km: profile.consumptionPer100km + bodyType.consumptionAdd,
+        bookValueCents: buyPrice, condition: 85,
         locationCity: buyBranch.city, status: "free", tripId: null, maintenanceUntil: null,
-        ownership_type: "owned", odometerKm: 0, acquiredAtMin: state.gameTime, referencePriceCents: VEHICLE_PRICE,
+        ownership_type: "owned", odometerKm: 0, acquiredAtMin: state.gameTime, referencePriceCents: Math.round(profile.referencePriceCents * bodyType.priceMultiplier),
         markedForSale: false, saleOffer: null, };
       state.vehicles.push(v);
       registerAsset(state, {
         vehicleId: v.id, account: "1200",
         name: "Lkw " + String(parseInt(String(v.id).replace(/[^0-9]/g, ""), 10) || 1).padStart(2, "0"),
-        acquisitionCostCents: VEHICLE_PRICE, acquiredAtMin: state.gameTime,
+        acquisitionCostCents: buyPrice, acquiredAtMin: state.gameTime,
       });
       const newAchs = checkAchievements(state, state.gameTime);
-      result = { ok: true, vehicleId: v.id, newAchievements: newAchs };
+      result = { ok: true, vehicleId: v.id, vehicleType: profile.id, bodyType: bodyType.id, priceCents: buyPrice, newAchievements: newAchs };
       break;
     }
-
-    // ---------- Fahrzeugverkauf (Auftrag 21) ----------
 
     case "previewSale": {
       const v = state.vehicles.find(x => x.id === p.vehicleId);
@@ -1125,6 +1168,10 @@ export function applyCommand(state, command, params) {
         linkedRefs: { type: "vehicle", id: v.id }, dedupKey: `vehicle_sold:${v.id}`,
       });
       const newAchs = checkAchievements(state, state.gameTime);
+      // Szenario: Fahrzeugverkauf-Erlös verfolgen
+      if (state.scenario && state.scenario.status === "active") {
+        state.scenario.vehicleSaleRevenue = (state.scenario.vehicleSaleRevenue || 0) + offerPrice;
+      }
       result = { ok: true, vehicleId: v.id, salePriceCents: offerPrice, bookValueCents: bookValue, gainLossCents: gainLoss, newAchievements: newAchs };
       break;
     }
@@ -1524,7 +1571,7 @@ export function applyCommand(state, command, params) {
       // tour_deployment_started-Events tragen branchId und atMin.
       const stats = { totalDeliveries: 0, totalRevenue: 0, totalTours: 0, branches: {} };
       for (const ev of log) {
-        if (ev.type === "delivery") {
+        if (ev.type === "delivery" || ev.type === "partner_transport_completed") {
           stats.totalDeliveries++;
           stats.totalRevenue += ev.paymentCents || 0;
           const bid = ev.branchId || "_haupt";
@@ -1538,6 +1585,12 @@ export function applyCommand(state, command, params) {
           stats.branches[bid].tours++;
         }
       }
+      // Neu generierte Aufträge (während advanceTo) mit Segment-Feldern
+      // migrieren. Ohne diesen Aufruf würden Aufträge, die während eines
+      // großen Zeitsprungs erzeugt wurden, erst beim nächsten applyCommand
+      // migriert — was bei unterschiedlicher Vorlauf-Stückelung zu
+      // abweichenden isRegional/isExpress-Werten führt.
+      migrateSegmentFields(state);
       const MAX_LOG = 200;
       const trimmedLog = log.length > MAX_LOG ? log.slice(-MAX_LOG) : log;
       const stoppedEvent = log.find(ev => ev.type === "advance_stopped");
@@ -1598,7 +1651,7 @@ export function applyCommand(state, command, params) {
         driverId: p.driverId,
         orderIds: p.orderIds || [],
         desiredEndCity: p.desiredEndCity || null,
-        latestReturnMin: p.latestReturnMin || null,
+        latestReturnMin: p.latestReturnMin || null, minStartTime: p.minStartTime || null,
       });
       result = r;
       break;
@@ -1799,134 +1852,6 @@ export function applyCommand(state, command, params) {
       break;
     }
 
-    // ---------- Postfach ----------
-
-    case "sendMail": {
-      const { conversationId, toId, subject, body, intentType } = p;
-      if (!body || !body.trim()) throw new Error("Nachrichtentext darf nicht leer sein.");
-      if (body.length > 10000) throw new Error("Nachricht darf maximal 10.000 Zeichen haben.");
-
-      let conv = null;
-      if (conversationId) {
-        conv = (state.mail?.conversations || []).find(c => c.id === conversationId);
-        if (!conv) throw new Error("Gespraech nicht gefunden.");
-      }
-
-      let recipientId = toId;
-      if (conv && !recipientId) {
-        recipientId = conv.participantIds.find(id => id !== "player");
-      }
-      if (!recipientId) throw new Error("Empfaenger erforderlich.");
-
-      const recipient = getPersonInfo(state, recipientId);
-      if (!recipient) throw new Error("Empfaenger nicht gefunden.");
-
-      // Intent erkennen
-      let intent = null;
-      if (intentType) {
-        intent = getIntentByType(intentType, recipient.roleKey);
-      } else {
-        intent = detectIntent(body, { recipientRoleKey: recipient.roleKey });
-      }
-
-      // Bei operativer Freigabe: Sperre pruefen
-      if (intent && intent.requiresDecision) {
-        ensureNotBlocked(state);
-      }
-
-      // Nachricht senden
-      const msg = deliverMessage(state, {
-        fromId: "player",
-        toId: recipientId,
-        subject: subject || (conv ? "Re: " + conv.subject : "Neue Nachricht"),
-        body,
-        gameTime: state.gameTime,
-        category: conv?.category || "operations",
-        priority: "normal",
-        conversationId: conv?.id,
-        intent,
-        status: "delivered",
-      });
-
-      // Staff-Task erstellen
-      if (intent && intent.createsTask) {
-        createStaffTask(state, {
-          employeeId: recipientId,
-          conversationId: msg.conversationId,
-          messageId: msg.id,
-          type: intent.type,
-          params: { body, conversationId: msg.conversationId, ...extractTaskParams(body, state, conv) },
-          earliestProcessMin: state.gameTime + 15,
-        });
-      } else if (!intent && !recipient.isFormer) {
-        createStaffTask(state, {
-          employeeId: recipientId,
-          conversationId: msg.conversationId,
-          messageId: msg.id,
-          type: "no_intent",
-          params: { body },
-          earliestProcessMin: state.gameTime + 15,
-        });
-      }
-
-      result = { ok: true, messageId: msg.id, conversationId: msg.conversationId, intent };
-      break;
-    }
-
-    case "saveDraft": {
-      const draft = saveDraft(state, p);
-      result = { ok: true, draftId: draft.id };
-      break;
-    }
-
-    case "deleteDraft": {
-      deleteDraft(state, p.draftId);
-      result = { ok: true };
-      break;
-    }
-
-    case "markMessageRead": {
-      markMessageRead(state, p.messageId, p.read !== false);
-      result = { ok: true };
-      break;
-    }
-
-    case "markConversationRead": {
-      markConversationRead(state, p.conversationId);
-      result = { ok: true };
-      break;
-    }
-
-    case "starMessage": {
-      starMessage(state, p.messageId, p.starred !== false);
-      result = { ok: true };
-      break;
-    }
-
-    case "archiveMessage": {
-      archiveMessage(state, p.messageId, p.archived !== false);
-      result = { ok: true };
-      break;
-    }
-
-    case "deleteConversation": {
-      deleteConversation(state, p.conversationId);
-      result = { ok: true };
-      break;
-    }
-
-    case "clearAllConversations": {
-      clearAllConversations(state);
-      result = { ok: true };
-      break;
-    }
-
-    case "exportCorrespondence": {
-      const data = exportCorrespondence(state);
-      result = { ok: true, export: data };
-      break;
-    }
-
     // ---------- Finanzierung (Auftrag 17) ----------
 
     case "takeLoan": {
@@ -1937,7 +1862,7 @@ export function applyCommand(state, command, params) {
     }
 
     case "previewFinancing": {
-      const r = checkFinancingAccess(state, { type: p.financingType, offerId: p.offerId, amountCents: p.amountCents, termMonths: p.termMonths, provisionCity: p.provisionCity, clearArrears: p.clearArrears });
+      const r = checkFinancingAccess(state, { type: p.financingType, offerId: p.offerId, amountCents: p.amountCents, termMonths: p.termMonths, provisionCity: p.provisionCity, clearArrears: p.clearArrears, bodyType: p.bodyType });
       result = r;
       break;
     }
@@ -1956,7 +1881,7 @@ export function applyCommand(state, command, params) {
 
     case "leaseTruck": {
       ensureNotBlocked(state);
-      const r = leaseTruck(state, { provisionCity: p.provisionCity, offerId: p.offerId, branchId: p.branchId });
+      const r = leaseTruck(state, { provisionCity: p.provisionCity, offerId: p.offerId, branchId: p.branchId, bodyType: p.bodyType });
       result = r;
       break;
     }
@@ -2053,6 +1978,9 @@ export function applyCommand(state, command, params) {
     case "approveVacation": {
       ensureNotBlocked(state);
       const r = approveVacation(state, { requestId: p.requestId, conflictResolution: p.conflictResolution });
+      // Entwicklungsziele: Zusage "Urlaubswunsch bearbeiten" erfüllen
+      const req = (state.absences?.vacationRequests || []).find(rr => rr.id === p.requestId);
+      if (req) fulfillPromiseByAction(state, req.personId, "approve_vacation", { requestId: p.requestId });
       result = r;
       break;
     }
@@ -2081,6 +2009,8 @@ export function applyCommand(state, command, params) {
     case "reportSickness": {
       ensureNotBlocked(state);
       const r = reportSickness(state, { personId: p.personId, startMin: p.startMin, expectedDurationDays: p.expectedDurationDays });
+      // Stoerungsmanagement: Personalausfall-Stoerung erzeugen bei betroffenen Touren
+      if (r.ok) generateAbsenceDisruption(state, p.personId, state.gameTime, []);
       result = r;
       break;
     }
@@ -2258,6 +2188,8 @@ export function applyCommand(state, command, params) {
     case "raiseSalary": {
       ensureNotBlocked(state);
       const r = raiseSalary(state, p.personId, p.newDailyWageCents);
+      // Entwicklungsziele: Zusage "Gehaltsanpassung" erfüllen
+      fulfillPromiseByAction(state, p.personId, "raise_salary", { newDailyWageCents: p.newDailyWageCents });
       result = r;
       break;
     }
@@ -2306,6 +2238,8 @@ export function applyCommand(state, command, params) {
     case "bookCourse": {
       ensureNotBlocked(state);
       const r = bookCourse(state, p.personId, p.courseId, { confirmPromotion: p.confirmPromotion || false });
+      // Entwicklungsziele: Zusage "Weiterbildung buchen" erfüllen
+      fulfillPromiseByAction(state, p.personId, "book_course", { courseId: p.courseId });
       result = r;
       break;
     }
@@ -2442,6 +2376,33 @@ export function applyCommand(state, command, params) {
       break;
     }
 
+    case "setBusinessFocus": {
+      const r = doSetBusinessFocus(state, p.focusId);
+      result = r;
+      break;
+    }
+
+    case "setBranchBusinessFocus": {
+      const r = doSetBranchBusinessFocus(state, p.branchId, p.focusId);
+      result = r;
+      break;
+    }
+
+    case "getBusinessFocus": {
+      result = { ok: true, ...getBusinessFocus(state) };
+      break;
+    }
+
+    case "getSegmentStats": {
+      result = { ok: true, ...getSegmentStats(state) };
+      break;
+    }
+
+    case "getMarketOverview": {
+      result = { ok: true, ...getMarketOverview(state) };
+      break;
+    }
+
     case "startOnboarding": {
       const r = startOnboarding(state);
       result = r;
@@ -2484,6 +2445,12 @@ export function applyCommand(state, command, params) {
       const delegationResult = handleDelegationCommand(state, command, p);
       if (delegationResult !== null) { result = delegationResult; break; }
       const storyResult = handleStoryCommand(state, command, p); if (storyResult !== null) { result = storyResult; break; }
+      const mailResult = handleMailCommand(state, command, p); if (mailResult !== null) { result = mailResult; break; }
+      const devGoalsResult = handleDevelopmentGoalsCommand(state, command, p); if (devGoalsResult !== undefined) { result = devGoalsResult; break; }
+      const disruptionResult = handleDisruptionCommand(state, command, p); if (disruptionResult !== null) { result = disruptionResult; break; }
+      const vehicleMarketResult = handleVehicleMarketCommand(state, command, p); if (vehicleMarketResult !== null) { result = vehicleMarketResult; break; }
+      const planningResult = handlePlanningCommand(state, command, p); if (planningResult !== null) { result = planningResult; break; } const partnerResult = handlePartnerCommand(state, command, p); if (partnerResult !== null) { result = partnerResult; break; }
+      const expansionResult = handleSiteExpansionCommand(state, command, p); if (expansionResult !== null) { result = expansionResult; break; }
       throw new Error("Unbekannter Befehl: " + command);
     }
   }

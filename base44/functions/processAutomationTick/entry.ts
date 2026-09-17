@@ -1,8 +1,8 @@
 // Hintergrund-Verarbeitung für die Zeitautomatik (Auftrag 20).
 // Wird vom Workflow-Scheduler alle 5 Minuten aufgerufen.
 // Findet alle Spielstände mit aktivierter Automatik und verarbeitet fällige Ereignisse.
-// Verwendet Service-Role (keine Nutzer-Auth erforderlich für Scheduler-Aufrufe).
-// Bei direktem HTTP-Aufruf durch Nutzer: Admin-Rolle erforderlich.
+// Service-Role-Zugriff nur nach nachgewiesener Admin-Anmeldung.
+// Fehlende Nutzer-Identität ist kein Nachweis für einen Scheduler-Aufruf.
 
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
 import { applyCommand } from "../../shared/simulationEngine.ts";
@@ -16,9 +16,7 @@ export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
-    // Bei direktem Nutzer-Aufruf: Admin-Rolle prüfen.
-    // Scheduler-Aufrufe ohne Nutzer-Auth sind erlaubt.
-    if (user && user.role !== "admin") {
+    if (!user || user.role !== "admin") {
       return Response.json({ error: "Admin erforderlich" }, { status: 403 });
     }
 

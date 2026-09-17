@@ -5,7 +5,8 @@
 
 import {
   CITIES, getDistance, driveMinutes, fuelCents, tollCents, roundCents,
-  LOAD_MIN, UNLOAD_MIN, MAX_DUTY_MIN, REST_MIN, WORK_BUDGET_MIN, formatGameTime
+  LOAD_MIN, UNLOAD_MIN, MAX_DUTY_MIN, REST_MIN, WORK_BUDGET_MIN, formatGameTime,
+  checkBodyTypeCompatibility, computeBodyBonusFactor,
 } from "./gameRules.ts";
 import {
   buildPhases, buildWorkSteps, buildEmptyWorkSteps,
@@ -15,7 +16,10 @@ import {
   getDgProfile, getEffectiveLoadMin, getEffectiveUnloadMin,
   validateDgTransport, isTankClean, chargeDgHandlingFee,
 } from "./dangerousGoodsEngine.ts";
+import { maybeGenerateTechnicalDefect, maybeGenerateLoadingDelay } from "./disruptionEngine.ts";
 import { addBooking } from "./accountingEngine.ts";
+import { isPersonAvailable } from "./absenceEngine.ts";
+import { isPersonInTraining } from "./trainingEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 
@@ -38,8 +42,9 @@ function _cached(key, fn) {
 }
 
 // Lookup-Maps für O(1) Zugriff auf Fahrzeuge, Fahrer und Aufträge.
-// Werden von suggestTours einmal pro Aufruf aufgebaut und von buildTourPlan
-// genutzt, wenn verfügbar. Eliminiert O(n) .find()-Aufrufe.
+// Werden von suggestTours einmal pro Aufruf aufgebaut (buildLookupMaps) und
+// von buildTourPlan genutzt, wenn verfügbar. Eliminiert O(n) .find()-Aufrufe
+// bei 192K+ buildTourPlan-Aufrufen pro Tagesvorlauf.
 function _vehicleById(state, id) {
   if (state._vehicleMap) return state._vehicleMap.get(id);
   return state.vehicles.find(v => v.id === id);
@@ -92,7 +97,7 @@ export function earliestAvailable(state, vehicle, driver) {
     t = Math.max(t, driver.restUntil);
   }
   if (driver.status === "on_trip") {
-    const trip = state.trips.find(tr => tr.id === driver.tripId || tr.driverId === driver.id);
+    const trip = state.trips.find(tr => tr.status === "in_progress" && tr.driverId === driver.id);
     if (trip) t = Math.max(t, trip.endMin);
   }
   return t;
@@ -196,6 +201,10 @@ export function buildDeployment(state, order, vehicle, startCity, earliestStart,
   const fuel = fuelCents(totalKm, vehicle.consumptionPer100km);
   const toll = tollCents(totalKm);
 
+  // Aufbau-Bonus: passender Spezial-Lkw erhält höhere Vergütung.
+  const bodyBonusFactor = computeBodyBonusFactor(order, vehicle);
+  const adjustedPayment = Math.round(order.paymentCents * bodyBonusFactor);
+
   return {
     orderId: order.id,
     orderStatus: order.status,
@@ -217,8 +226,9 @@ export function buildDeployment(state, order, vehicle, startCity, earliestStart,
     fuelCents: fuel,
     tollCents: toll,
     variableCostCents: fuel + toll,
-    paymentCents: order.paymentCents,
-    contributionCents: order.paymentCents - fuel - toll,
+    paymentCents: adjustedPayment,
+    bodyBonusFactor,
+    contributionCents: adjustedPayment - fuel - toll,
     deliveryDeadlineMin: order.deliveryDeadlineMin,
     deadlineBufferMin: order.deliveryDeadlineMin - result.endMin,
   };
@@ -265,10 +275,13 @@ export function buildEmptyDeployment(state, fromCity, toCity, vehicle, earliestS
 // deployments: Array von { orderId } in Ausführungsreihenfolge.
 // Optional: emptyDeployments (Leerfahrten) zwischen Aufträgen.
 export function buildTourPlan(state, opts) {
-  const { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin } = opts;
+  const { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin, minStartTime } = opts;
   const vehicle = _vehicleById(state, vehicleId);
   const driver = _driverById(state, driverId);
   if (!vehicle || !driver) return { error: "Fahrzeug oder Fahrer nicht gefunden." };
+  if (!Array.isArray(orderIds) || orderIds.length === 0 || new Set(orderIds).size !== orderIds.length) {
+    return { error: "Eine Tour benötigt eindeutige Aufträge." };
+  }
 
   // Prüfe Grundvoraussetzungen
   // Für Vorausplanung: Wenn Fahrzeug/Fahrer auf Tour sind, vergleiche
@@ -282,10 +295,11 @@ export function buildTourPlan(state, opts) {
   // Orten von freien Fahrern vom Hauptsitz genutzt werden.
   let driverTravelMin = 0;
   if (vehicleFutureCity !== driverFutureCity) {
-    driverTravelMin = driveMinutes(getDistance(driverFutureCity, vehicleFutureCity));
+    return { error: "Fahrer und Lkw sind an verschiedenen Orten. Bitte zuerst eine Fahrerreise planen." };
   }
 
-  const earliestStart = _cached("ea:" + vehicleId + "|" + driverId, () => earliestAvailable(state, vehicle, driver)) + driverTravelMin;
+  const _calcStart = _cached("ea:" + vehicleId + "|" + driverId, () => earliestAvailable(state, vehicle, driver)) + driverTravelMin;
+  const earliestStart = minStartTime ? Math.max(_calcStart, minStartTime) : _calcStart;
   let currentCity = vehicleFutureCity;
   let t = earliestStart;
   const deployments = [];
@@ -317,8 +331,19 @@ export function buildTourPlan(state, opts) {
       if (order.tons > vehicle.capacityTons) {
         return { error: "Überladung: " + order.tons + " t überschreiten Kapazität von " + vehicle.capacityTons + " t." };
       }
+      // Aufbau-Kompatibilität: strikte Frachtarten erfordern passenden Aufbau.
+      const bodyCheck = checkBodyTypeCompatibility(order, vehicle);
+      if (!bodyCheck.ok) return { error: bodyCheck.error };
       const dep = buildDeployment(state, order, vehicle, currentCity, t, counters);
-      if (dep.endMin > order.deliveryDeadlineMin) {
+      if (order.windowVersion >= 2 && dep.phases.find(p => p.type === "loading")?.startMin > order.latestLoadStartMin) {
+        return { error: "Ladefenster von " + order.customer + " wird überschritten." };
+      }
+      // Spätlieferung-Toleranz: 4h Gnadenfrist. completeTrip zahlt 90% bei
+      // Spätlieferung — buildTourPlan soll daher leichte Überschreitungen
+      // zulassen, damit der Disponent knappe Aufträge noch retten kann,
+      // statt sie aufzugeben (was zu überfälligen Aufträgen führt).
+      const LATE_GRACE_MIN = 240;
+      if (dep.endMin > order.deliveryDeadlineMin + LATE_GRACE_MIN) {
         return { error: "Lieferung von " + order.customer + " würde die Lieferfrist überschreiten (Ankunft " + formatGameTime(dep.endMin) + ", Frist " + formatGameTime(order.deliveryDeadlineMin) + ")." };
       }
       if (order.status === "offered" && order.acceptDeadlineMin <= state.gameTime) {
@@ -377,25 +402,16 @@ export function buildTourPlan(state, opts) {
     };
   }
 
-  // Natürliche Ruhe-Rücksetzung: Wenn der Fahrer 12+ Stunden frei war,
-  // sind seine Arbeitszeit-Zähler zurückgesetzt. freeSinceMin wird von
-  // processTours und completeTrip gesetzt; falls nicht gesetzt (Migration),
-  // nehmen wir an, dass der Fahrer lange genug geruht hat.
-  if (driver.status === "free") {
-    if (!driver.freeSinceMin || state.gameTime - driver.freeSinceMin >= REST_MIN) {
-      driver.workMinutesSinceRest = 0;
-      driver.driveMinutesSinceBreak = 0;
-      if (!driver.freeSinceMin) driver.freeSinceMin = state.gameTime;
-    }
+  // Vorschauen ändern den Zustand nicht. Nur dokumentierte Ruhe setzt
+  // Zähler zurück; fehlendes freeSinceMin ist kein Nachweis für 12h Ruhe.
+  const rested = driver.status === "resting" || (driver.status === "free" &&
+    driver.freeSinceMin != null && state.gameTime - driver.freeSinceMin >= REST_MIN);
+  let initCounters = { workMin: rested ? 0 : (driver.workMinutesSinceRest || 0),
+    driveMin: rested ? 0 : (driver.driveMinutesSinceBreak || 0) };
+  if (driver.status === "on_trip") {
+    const trip = state.trips.find(t => t.driverId === driverId && t.status === "in_progress");
+    if (trip) initCounters = computeFinalCounters(trip.phases || [], trip.initialCounters || initCounters);
   }
-  // Ruhende Fahrer: earliestAvailable verschiebt den Tour-Start auf restUntil.
-  // Zu diesem Zeitpunkt ist der Fahrer ausgeruht — workMin muss 0 sein,
-  // sonst löst die Ruhe-voraus-Strategie fälschlich eine weitere 720-Min-Ruhe
-  // aus, die alle Lieferfristen sprengt.
-  const initCounters = {
-    workMin: driver.status === "resting" ? 0 : (driver.workMinutesSinceRest || 0),
-    driveMin: driver.status === "resting" ? 0 : (driver.driveMinutesSinceBreak || 0),
-  };
 
   // Erster Versuch: mit aktuellen Fahrer-Zählern planen.
   let planResult = _tryPlan(earliestStart, initCounters);
@@ -471,18 +487,34 @@ export function checkTourLiquidity(state, deployments, returnDeployment, startMi
   return { ok: true, finalBalance: balance };
 }
 
+// Reservierungen auch in alten Spielständen ohne reservedByTourId erkennen.
+export function getOrderReservation(state, orderId, excludingTourId = null) {
+  return (state.tours || []).find(t => t.id !== excludingTourId && ["active", "planned"].includes(t.status) &&
+    (t.deployments || []).some(d => d.orderId === orderId && ["planned", "active"].includes(d.status)));
+}
+
 // ---------- Bestätigung (atomar) ----------
 
 export function confirmTour(state, params) {
-  const { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin } = params;
+  const { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin, minStartTime } = params;
 
+  // Plan-Cache löschen: suggestTours bevölkert den Cache, aber zwischen
+  // suggestTours und confirmTour ändert sich der Zustand (andere Touren werden
+  // bestätigt, Fahrzeuge wechseln den Status). Stale Cache-Werte für
+  // futureLocation/earliestAvailable/nextReservationStart können die
+  // Bestätigung fälschlich fehlschlagen lassen ("Tour-Bestätigung fehlgeschlagen").
   _clearPlanCache();
+
   // 1. Plane die Tour (Validierung)
-  const plan = buildTourPlan(state, { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin });
+  const plan = buildTourPlan(state, { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin, minStartTime });
   if (plan.error) throw new Error(plan.error);
+  if (!("earliestStartMin" in plan)) throw new Error("Tourplanung unvollständig.");
 
   const vehicle = _vehicleById(state, vehicleId);
   const driver = _driverById(state, driverId);
+  if (!isPersonAvailable(state, driverId, plan.earliestStartMin) || driver.attendance === "released" || isPersonInTraining(state, driverId, plan.earliestStartMin)) {
+    throw new Error("Fahrer ist zum geplanten Start nicht verfügbar.");
+  }
 
   // 2. Prüfe Ressourcen-Verfügbarkeit erneut
   // Für 24/7-Vorausplanung: Erlaube auch on_trip, wenn die neue Tour
@@ -508,10 +540,12 @@ export function confirmTour(state, params) {
   }
 
   // 3. Reservierungsprüfung: Kein Auftrag darf bereits von einer anderen
-  //    aktiven Tour reserviert sein (Paket 1: verhindert Doppelbuchung).
+  //    aktiven Tour reserviert sein (Paket 1: verhindert Doppelbuchung
+  //    bei manueller und automatischer Disposition).
   for (const orderId of orderIds) {
     const o = state.orders.find(x => x.id === orderId);
     if (!o) continue;
+    if (getOrderReservation(state, orderId)) throw new Error("Auftrag ist bereits für eine andere Tour reserviert.");
     if (o.reservedByTourId) {
       const otherTour = (state.tours || []).find(t => t.id === o.reservedByTourId);
       if (otherTour && otherTour.status === "active" && !otherTour.pauseReason) {
@@ -566,7 +600,7 @@ export function confirmTour(state, params) {
     deployments: plan.deployments.map((dep, i) => ({
       ...dep,
       id: "dep_" + (i + 1),
-      status: i === 0 ? "active" : "planned",
+      status: "planned",
       actualStartMin: null,
       actualEndMin: null,
       tripId: null,
@@ -630,6 +664,15 @@ function startDeployment(state, tour, dep, depIndex) {
   const driver = state.drivers.find(d => d.id === tour.driverId);
   if (!vehicle || !driver) throw new Error("Fahrzeug oder Fahrer nicht gefunden.");
 
+  // Beim tatsächlichen Start aktuelle Zähler benutzen; die Vorausplanung
+  // kann durch vorherige Fahrten oder Wartezeiten überholt sein.
+  const initialCounters = { workMin: driver.workMinutesSinceRest || 0, driveMin: driver.driveMinutesSinceBreak || 0 };
+  const order = dep.orderId ? state.orders.find(o => o.id === dep.orderId) : null;
+  const fresh = order
+    ? buildDeployment(state, order, vehicle, vehicle.locationCity, state.gameTime, initialCounters)
+    : buildEmptyDeployment(state, vehicle.locationCity, dep.toCity, vehicle, state.gameTime, initialCounters);
+  Object.assign(dep, fresh);
+
   // Phasen aus dem Deployment übernehmen, bei zeitlicher Abweichung verschieben
   const timeShift = state.gameTime - dep.startMin;
   const phases = dep.phases.map(p => ({
@@ -647,6 +690,7 @@ function startDeployment(state, tour, dep, depIndex) {
     vehicleId: vehicle.id,
     driverId: driver.id,
     phases,
+    initialCounters,
     currentPhase: 0,
     startMin: state.gameTime,
     endMin: phases.length > 0 ? phases[phases.length - 1].endMin : state.gameTime,
@@ -697,6 +741,13 @@ export function cancelTour(state, tourId) {
   if (!tour) throw new Error("Tour nicht gefunden.");
   if (tour.status === "completed") throw new Error("Tour ist bereits abgeschlossen.");
   if (tour.status === "cancelled") throw new Error("Tour ist bereits aufgelöst.");
+  const freedCount = tour.deployments.filter(d => d.status === "planned").length;
+  for (const dep of [...tour.deployments, tour.returnDeployment].filter(Boolean)) {
+    if (dep.status !== "planned") continue;
+    const order = state.orders.find(o => o.id === dep.orderId);
+    if (order?.reservedByTourId === tour.id) order.reservedByTourId = null;
+    dep.status = "cancelled";
+  }
 
   // Aktiver Einsatz läuft weiter – nur zukünftige Einsätze freigeben
   const activeDep = tour.deployments.find(d => d.status === "active");
@@ -706,7 +757,7 @@ export function cancelTour(state, tourId) {
     tour.status = "cancelled";
     tour.pauseReason = "Vom Spieler aufgelöst";
     // Fahrzeug/Fahrer werden nach Abschluss des aktiven Trips normal freigegeben
-    return { ok: true, activeTripContinues: true, freedFutureDeployments: tour.deployments.filter(d => d.status === "planned").length };
+    return { ok: true, activeTripContinues: true, freedFutureDeployments: freedCount };
   }
 
   // Kein aktiver Einsatz: sofort freigeben
@@ -723,7 +774,7 @@ export function cancelTour(state, tourId) {
     }
   }
 
-  return { ok: true, freedFutureDeployments: tour.deployments.filter(d => d.status === "planned").length };
+  return { ok: true, freedFutureDeployments: freedCount };
 }
 
 // ---------- Automatische Ausführung ----------
@@ -731,20 +782,22 @@ export function cancelTour(state, tourId) {
 // Wird bei jedem Ereignis-Zeitpunkt aufgerufen.
 // Prüft, ob eine Tour zum nächsten Einsatz starten kann.
 export function processTours(state, m, log) {
+  _clearPlanCache();
   // Natürliche Ruhe-Rücksetzung: Ein Fahrer, der 12+ Stunden frei war,
   // hat sich von selbst ausgeruht. Seine Arbeitszeit-Zähler werden
   // zurückgesetzt, damit er für neue Touren voll verfügbar ist.
   // Verhindert, dass Fahrer mit hohem workMin dauerhaft unbrauchbar werden.
-  for (const d of state.drivers || []) {
-    if (d.status !== "free") continue;
-    // Migration: freeSinceMin wird beim ersten Mal auf m - REST_MIN gesetzt
-    // (annimmt 12h Ruhe), damit bestehende Fahrer sofort zurückgesetzt werden.
-    // Neu freigegebene Fahrer erhalten freeSinceMin in completeTrip.
-    if (!d.freeSinceMin) { d.freeSinceMin = m - REST_MIN; d.workMinutesSinceRest = 0; d.driveMinutesSinceBreak = 0; }
-    if (m - d.freeSinceMin >= REST_MIN) {
-      d.workMinutesSinceRest = 0;
-      d.driveMinutesSinceBreak = 0;
-      d.freeSinceMin = m;
+  // Performance: Nur bei vollen Stunden prüfen (statt bei jedem Event),
+  // da die Ruhe-Rücksetzung stundenbasiert ist (12h Schwelle).
+  if (m % 60 === 0) {
+    for (const d of state.drivers || []) {
+      if (d.status !== "free") continue;
+      if (d.freeSinceMin == null) d.freeSinceMin = m;
+      if (m - d.freeSinceMin >= REST_MIN) {
+        d.workMinutesSinceRest = 0;
+        d.driveMinutesSinceBreak = 0;
+        d.freeSinceMin = m;
+      }
     }
   }
 
@@ -789,6 +842,8 @@ export function processTours(state, m, log) {
   for (const tour of state.tours || []) {
     if (tour.status !== "active") continue;
     if (tour.pauseReason) continue;
+    // Tour durch Stoerung blockiert — nicht starten, aber auch nicht aufloesen
+    if (tour.disruptionId) continue;
 
     // Finde den nächsten geplanten Einsatz
     const nextDep = findNextDeployment(tour);
@@ -814,6 +869,21 @@ export function processTours(state, m, log) {
     if (vehicle.status !== "free" && vehicle.status !== "resting") continue;
     if (driver.status !== "free" && driver.status !== "resting") continue;
     if (driver.restUntil && driver.restUntil > m) continue;
+    if (!isPersonAvailable(state, driver.id, m) || driver.attendance === "released" || isPersonInTraining(state, driver.id, m)) continue;
+    if (driver.locationCity !== vehicle.locationCity) {
+      tour.pauseReason = "Fahrer und Fahrzeug sind nicht am selben Ort.";
+      continue;
+    }
+    if (nextDep.dep.orderId) {
+      const order = state.orders.find(o => o.id === nextDep.dep.orderId);
+      const running = state.trips.some(t => t.orderId === nextDep.dep.orderId && t.status === "in_progress") || !!getOrderReservation(state, nextDep.dep.orderId, tour.id);
+      if (!order || order.status !== "angenommen" || running ||
+          (order.reservedByTourId && order.reservedByTourId !== tour.id)) {
+        nextDep.dep.status = "skipped";
+        if (order?.reservedByTourId === tour.id) order.reservedByTourId = null;
+        continue;
+      }
+    }
 
     // Fahrzeugzustand prüfen
     if (vehicle.condition < 20) {
@@ -831,10 +901,30 @@ export function processTours(state, m, log) {
     }
 
     // Ort-Konsistenz prüfen (erste Phase gibt den Startort an)
-    const firstPhase = nextDep.dep.phases[0];
+    const firstPhase = nextDep.dep.phases.find(p => p.fromCity);
     if (firstPhase && vehicle.locationCity !== firstPhase.fromCity) {
       tour.pauseReason = "Fahrzeug ist nicht am erwarteten Ort (" + firstPhase.fromCity + ", aktuell " + vehicle.locationCity + ").";
       log.push({ type: "tour_paused", tour: tour.id, reason: tour.pauseReason });
+      continue;
+    }
+
+    if (nextDep.dep.orderId) {
+      const order = state.orders.find(o => o.id === nextDep.dep.orderId);
+      const fresh = buildDeployment(state, order, vehicle, vehicle.locationCity, m, {
+        workMin: driver.workMinutesSinceRest || 0, driveMin: driver.driveMinutesSinceBreak || 0,
+      });
+      if (order.tons > vehicle.capacityTons || !checkBodyTypeCompatibility(order, vehicle).ok ||
+          (order.windowVersion >= 2 && fresh.phases.find(p => p.type === "loading")?.startMin > order.latestLoadStartMin) ||
+          (order.isDangerousGoods && !validateDgTransport(state, order, vehicle, driver, fresh.endMin).ok)) {
+        tour.pauseReason = "Auftrag ist mit den aktuellen Ressourcen oder Ladezeiten nicht mehr ausführbar.";
+        continue;
+      }
+    }
+
+    // Stoerungsmanagement: Technischen Defekt vor Tourbeginn pruefen
+    if (maybeGenerateTechnicalDefect(state, tour, nextDep.dep, m, log)) {
+      // Defekt aufgetreten — Tour blockiert, Einsatz nicht starten
+      log.push({ type: "tour_blocked_defect", tour: tour.id, atMin: m });
       continue;
     }
 
@@ -844,7 +934,11 @@ export function processTours(state, m, log) {
     nextDep.dep.status = "active";
     nextDep.dep.actualStartMin = m;
     tour.currentDepIndex = nextDep.index;
-    log.push({ type: "tour_deployment_started", tour: tour.id, deployment: nextDep.dep.id, trip: startResult.tripId, customer: nextDep.dep.customer });
+    log.push({ type: "tour_deployment_started", tour: tour.id, deployment: nextDep.dep.id, trip: startResult.tripId, customer: nextDep.dep.customer, atMin: m, branchId: vehicle.branchId });
+
+    // Stoerungsmanagement: Ladeverzoegerung fuer den neuen Trip pruefen
+    const newTrip = state.trips.find(t => t.id === startResult.tripId);
+    if (newTrip) maybeGenerateLoadingDelay(state, newTrip, m, log);
   }
 }
 
@@ -911,6 +1005,7 @@ export function findReturnLoads(state, primaryOrderId, vehicleId, driverId) {
     if (o.status !== "offered" && o.status !== "angenommen") continue;
     if (o.fromCity !== destCity) continue;
     if (o.tons > vehicle.capacityTons) continue;
+    if (!checkBodyTypeCompatibility(o, vehicle).ok) continue;
 
     const plan = buildTourPlan(state, {
       vehicleId, driverId,
@@ -943,6 +1038,7 @@ export function findReturnLoads(state, primaryOrderId, vehicleId, driverId) {
     if (o.fromCity === destCity) continue; // schon als direkte Rückladung erfasst
     if (o.toCity !== order.fromCity && o.toCity !== "Hamburg") continue; // nur sinnvolle Ziele
     if (o.tons > vehicle.capacityTons) continue;
+    if (!checkBodyTypeCompatibility(o, vehicle).ok) continue;
 
     // Tour mit Leerfahrt: Hin → Leerfahrt → Rück
     // Wir testen: Hin + Rück (mit automatischer Leerfahrt vom Tour-Endort zum Abholort)
@@ -976,10 +1072,12 @@ export function findReturnLoads(state, primaryOrderId, vehicleId, driverId) {
 // mode: "balanced" | "high_margin" | "low_empty"
 export function suggestTours(state, opts) {
   _clearPlanCache();
-  const { vehicleIds, earliestStart, horizonMin, desiredEndCity, latestReturnMin, mode, acceptNew } = opts;
+  const { vehicleIds, earliestStart, horizonMin, desiredEndCity, latestReturnMin, mode, acceptNew, restrictOrderIds, fastMode } = opts;
+  const restrictSet = restrictOrderIds ? new Set(restrictOrderIds) : null;
   const suggestions = [];
 
-  // Lookup-Maps für O(1) Zugriff in buildTourPlan
+  // Lookup-Maps aufbauen: O(1) Zugriff für buildTourPlan statt O(n) .find().
+  // Bei 192K buildTourPlan-Aufrufen mit 320 Aufträgen spart das ~46M Iterationen.
   state._vehicleMap = new Map(state.vehicles.map(v => [v.id, v]));
   state._driverMap = new Map(state.drivers.map(d => [d.id, d]));
   state._orderMap = new Map(state.orders.map(o => [o.id, o]));
@@ -990,16 +1088,51 @@ export function suggestTours(state, opts) {
   const usedDriverIds = new Set();
   const usedOrderIds = new Set();
 
-  // Performance: Wenn freie/ruhende Lkw verfügbar sind, plane nur für diese.
+  // Performance: Active-tour-Auftrags-IDs einmal pro suggestTours-Aufruf
+  // vorberechnen (statt pro Fahrzeug pro Auftrag). Eliminiert O(vehicles ×
+  // orders × tours × deployments) und ersetzt es durch O(tours × deployments)
+  // + O(1) Lookups.
+  const activeTourOrderIds = new Set();
+  for (const t of (state.tours || [])) {
+    if (t.status !== "active") continue;
+    for (const d of (t.deployments || [])) {
+      if (d.orderId && d.status !== "cancelled") activeTourOrderIds.add(d.orderId);
+    }
+  }
+
+  // Freie/ruhende Lkw zuerst, dann on_trip-Rückkehrer. Der Early-Exit unten
+  // stoppt sobald alle Aufträge verplant sind — on_trip-Lkw werden nur
+  // erreicht, wenn die freien Lkw nicht ausreichen. Das ermöglicht
+  // Vorausplanung für Rückkehrer an Filialen, statt Aufträge aufzustauen.
   const allCandidateVehicles = (vehicleIds || state.vehicles.map(v => v.id))
     .map(vid => state.vehicles.find(v => v.id === vid))
     .filter(v => v && (v.status === "free" || v.status === "resting" || v.status === "on_trip"));
-  const hasFreeOrResting = allCandidateVehicles.some(v => v.status === "free" || v.status === "resting");
-  const effectiveVehicleIds = hasFreeOrResting
-    ? allCandidateVehicles.filter(v => v.status === "free" || v.status === "resting").map(v => v.id)
-    : allCandidateVehicles.map(v => v.id);
+  const effectiveVehicleIds = allCandidateVehicles
+    .sort((a, b) => {
+      const aFree = a.status === "free" || a.status === "resting" ? 0 : 1;
+      const bFree = b.status === "free" || b.status === "resting" ? 0 : 1;
+      return aFree - bFree;
+    })
+    .map(v => v.id);
 
-  for (const vehicleId of effectiveVehicleIds) {
+  // Performance: Gesamtzahl verfügbarer Aufträge zählen für Early-Exit.
+  // Wenn alle Aufträge verplant sind, müssen keine weiteren Fahrzeuge
+  // geprüft werden — das spart bei 100 Fahrzeugen mit 10 Aufträgen 90%
+  // der buildTourPlan-Aufrufe.
+  const totalAvailableOrders = state.orders.filter(o =>
+    (o.status === "angenommen" || (acceptNew && o.status === "offered")) &&
+    o.deliveryDeadlineMin > startMin - 240 &&
+    !activeTourOrderIds.has(o.id) &&
+    !o.reservedByTourId &&
+    (!restrictSet || restrictSet.has(o.id))
+  ).length;
+
+  // Early-Exit reicht als Performance-Optimierung: sobald alle Aufträge
+  // verplant sind, wird abgebrochen. Ein festes Fahrzeug-Limit würde
+  // Fahrzeuge an entfernten Standorten überspringen, wenn die ersten N
+  // Lkw alle am Hauptsitz stehen — das würde Filial-Disposition brechen.
+  for (let vi = 0; vi < effectiveVehicleIds.length; vi++) {
+    const vehicleId = effectiveVehicleIds[vi];
     const vehicle = state.vehicles.find(v => v.id === vehicleId);
     if (!vehicle) continue;
     if (vehicle.status !== "free" && vehicle.status !== "resting" && vehicle.status !== "on_trip") continue;
@@ -1018,10 +1151,10 @@ export function suggestTours(state, opts) {
       if (d.employmentStatus !== "employed") return false;
       if (usedDriverIds.has(d.id)) return false;
       if (d.status !== "free" && d.status !== "resting" && d.status !== "on_trip") return false;
-      const driverFutureCity = futureDriverLocation(state, d);
+      const driverFutureCity = _cached("futD:" + d.id, () => futureDriverLocation(state, d));
       if (driverFutureCity !== vehicleFutureCity) return false;
       if (d.status === "on_trip" || vehicle.status === "on_trip") {
-        const driverAvail = earliestAvailable(state, { id: null }, d);
+        const driverAvail = _cached("eaD:" + d.id, () => earliestAvailable(state, { id: null }, d));
         if (Math.abs(driverAvail - vehicleAvail) > 120) return false;
       }
       return true;
@@ -1034,7 +1167,7 @@ export function suggestTours(state, opts) {
       if (d.employmentStatus !== "employed") return false;
       if (usedDriverIds.has(d.id)) return false;
       if (d.status !== "free") return false; // Nur freie Fahrer für Cross-City
-      const driverFutureCity = futureDriverLocation(state, d);
+      const driverFutureCity = _cached("futD:" + d.id, () => futureDriverLocation(state, d));
       if (driverFutureCity === vehicleFutureCity) return false; // bereits in sameCityDrivers
       return true;
     }) : [];
@@ -1047,20 +1180,32 @@ export function suggestTours(state, opts) {
     const crossCitySorted = [...crossCityDrivers].sort((a, b) => (a.workMinutesSinceRest || 0) - (b.workMinutesSinceRest || 0));
     const candidateDrivers = [...sameCitySorted, ...crossCitySorted];
     // CPU-Schutz: höchstens 4 Fahrer pro Fahrzeug probieren.
-    if (candidateDrivers.length > 4) candidateDrivers.length = 4;
+    // Konstanter Wert (unabhängig von fastMode), damit die gewählte
+    // Zeitsteuerung (1×1440 vs 24×60 vs 96×15) die fachlichen Ergebnisse
+    // der Tourensuche nicht verändert.
+    const maxDrivers = 4;
+    if (candidateDrivers.length > maxDrivers) candidateDrivers.length = maxDrivers;
     if (candidateDrivers.length === 0) continue;
 
     // 1. Bereits angenommene, unzugewiesene Aufträge (nicht bereits zugewiesen,
     //    nicht bereits Teil einer aktiven Tour — verhindert Doppelbuchung im Pool-Modell)
     //    Lieferfrist muss noch in der Zukunft liegen (sonst ist der Auftrag unrealisierbar).
+    // 1. Bereits angenommene, unzugewiesene Aufträge (nicht bereits zugewiesen,
+    //    nicht bereits Teil einer aktiven Tour — verhindert Doppelbuchung im Pool-Modell)
+    //    Spätlieferung-Toleranz: Aufträge bis zu 4h nach der Frist werden noch
+    //    geplant (completeTrip zahlt 90% Vergütung bei Spätlieferung).
+    //    Sortiert nach Dringlichkeit (knappste Frist zuerst), damit bei
+    //    Truncation auf 12 Aufträge die eiligsten nicht verloren gehen.
     const acceptedOrders = state.orders.filter(o =>
       o.status === "angenommen" &&
-      o.deliveryDeadlineMin > startMin &&
+      o.deliveryDeadlineMin > startMin - 240 &&
       o.tons <= vehicle.capacityTons &&
+      checkBodyTypeCompatibility(o, vehicle).ok &&
       !usedOrderIds.has(o.id) &&
+      !activeTourOrderIds.has(o.id) &&
       !o.reservedByTourId &&
-      !(state.tours || []).some(t => t.status === "active" && (t.deployments || []).some(d => d.orderId === o.id && d.status !== "cancelled"))
-    );
+      (!restrictSet || restrictSet.has(o.id))
+    ).sort((a, b) => a.deliveryDeadlineMin - b.deliveryDeadlineMin);
 
     // 2. Offene Angebote (nur wenn acceptNew, nicht bereits zugewiesen)
     //    Lieferfrist muss noch in der Zukunft liegen.
@@ -1069,9 +1214,11 @@ export function suggestTours(state, opts) {
       o.acceptDeadlineMin > startMin &&
       o.deliveryDeadlineMin > startMin &&
       o.tons <= vehicle.capacityTons &&
+      checkBodyTypeCompatibility(o, vehicle).ok &&
       !usedOrderIds.has(o.id) &&
+      !activeTourOrderIds.has(o.id) &&
       !o.reservedByTourId &&
-      !(state.tours || []).some(t => t.status === "active" && (t.deployments || []).some(d => d.orderId === o.id && d.status !== "cancelled"))
+      (!restrictSet || restrictSet.has(o.id))
     ) : [];
 
     const allOrders = [...acceptedOrders, ...offeredOrders];
@@ -1083,7 +1230,11 @@ export function suggestTours(state, opts) {
     // Reine Vergütungs-Sortierung bevorzugt Express-Aufträge mit hohen Preisen
     // aber unrealisierbar kurzen Lieferfristen, die dann alle durch buildTourPlan
     // abgelehnt werden und die machbaren Advance-Aufträge verdrängen.
-    if (allOrders.length > 12) {
+    // CPU-Schutz: die Doppel-Tour-Suche ist O(n²). Bei vielen Aufträgen
+    // wird die Liste begrenzt, damit die kombinatorische Explosion vermieden wird.
+    // Konstanter Wert (unabhängig von fastMode) — siehe maxDrivers-Kommentar.
+    const orderLimit = 12;
+    if (allOrders.length > orderLimit) {
       const vehicleCity = vehicleFutureCity;
       const scored = allOrders.map(o => {
         const emptyKm = getDistance(vehicleCity, o.fromCity);
@@ -1093,7 +1244,7 @@ export function suggestTours(state, opts) {
       });
       scored.sort((a, b) => b.score - a.score);
       allOrders.length = 0;
-      for (const s of scored.slice(0, 12)) allOrders.push(s.o);
+      for (const s of scored.slice(0, orderLimit)) allOrders.push(s.o);
     }
 
     // Probiere jeden Kandidaten-Fahrer und wähle den mit dem besten Plan.
@@ -1168,6 +1319,10 @@ export function suggestTours(state, opts) {
         mode,
       });
     }
+
+    // Performance: Early-Exit wenn alle verfügbaren Aufträge verplant sind.
+    // Bei 100 Fahrzeugen und 10 Aufträgen spart das 90% der buildTourPlan-Aufrufe.
+    if (usedOrderIds.size >= totalAvailableOrders) break;
   }
 
   return { suggestions };

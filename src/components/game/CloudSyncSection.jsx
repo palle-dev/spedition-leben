@@ -136,7 +136,7 @@ export default function CloudSyncSection() {
                   </div>
                   <div className="text-[11px] text-muted-foreground">
                     {s.company_name ? s.company_name + " · " : ""}
-                    Tag {s.game_day ?? "—"}
+                    Tag {s.game_time_min != null ? Math.floor(s.game_time_min / 1440) + 1 : (s.game_day ?? "—")}
                     {s.scenario_id ? " · Szenario" : ""}
                     {s.cloud_saved_at ? " · " + fmt(s.cloud_saved_at) : ""}
                   </div>

@@ -697,7 +697,7 @@ export function processLeasingRate(state, contract, m, log) {
 
   contract.payments.push({ type: "rate", atMin: m, amountCents: rate, paidCents: paid, unpaidCents: unpaid, status: unpaid > 0 ? "partial" : "paid" });
   contract.paidRates++;
-  contract.nextRateDueMin = contract.paidRates < contract.termMonths ? contract.startMin + contract.paidRates * 30 * DAY_MIN : null;
+  contract.nextRateDueMin = contract.paidRates < contract.termMonths ? contract.startMin + (contract.paidRates + 1) * 30 * DAY_MIN : null;
   log.push({ type: "leasing_rate", contract: contract.id, atMin: m, paid, unpaid });
 }
 

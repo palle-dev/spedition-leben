@@ -81,8 +81,8 @@ export function processDividends(state, min, log) {
         postJournal(state, {
           text: `Dividendenanspruch ${def.id}: ${claimCents / 100} €`, type: "dividend_claim", gameTime: min,
           lines: [
-            { account: "1400", debit: claimCents },
-            { account: "4300", credit: claimCents },
+            { account: "1160", debit: claimCents },
+            { account: "4301", credit: claimCents },
           ],
         });
       }
@@ -110,7 +110,7 @@ export function processDividends(state, min, log) {
             text: `Dividendenzahlung ${c.instrumentId}: ${c.amountCents / 100} €`, type: "dividend_payment", gameTime: min,
             lines: [
               { account: "1005", debit: c.amountCents },
-              { account: "1400", credit: c.amountCents },
+              { account: "1160", credit: c.amountCents },
             ],
           });
         }

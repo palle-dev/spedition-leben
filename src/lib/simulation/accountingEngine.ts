@@ -9,7 +9,7 @@ import {
 } from "./gameRules.ts";
 
 // ---------- Kontenplan ----------
-export const ACCOUNTS = {
+export const ACCOUNTS: Record<string, { no: string; name: string; type: string; group: string; contra?: boolean }> = {
   // Aktiva
   "1000": { no: "1000", name: "Firmenbank", type: "asset", group: "current_assets" },
   "1100": { no: "1100", name: "Kundenforderungen", type: "asset", group: "current_assets" },
@@ -40,6 +40,7 @@ export const ACCOUNTS = {
   "5120": { no: "5120", name: "Buchhaltung und Verwaltung", type: "expense", group: "personnel" },
   "5130": { no: "5130", name: "Reinigung und Werkstattpersonal", type: "expense", group: "personnel" },
   "5140": { no: "5140", name: "Personalgewinnung und Bereitstellung", type: "expense", group: "personnel" },
+  "5150": { no: "5150", name: "Aus- und Weiterbildung", type: "expense", group: "personnel" },
   "5200": { no: "5200", name: "Standortkosten", type: "expense", group: "operations" },
   "5210": { no: "5210", name: "Externe Reinigung und Betriebshilfen", type: "expense", group: "operations" },
   "5220": { no: "5220", name: "Miete für Fahrzeuge und Ausstattung", type: "expense", group: "operations" },
@@ -111,6 +112,12 @@ export function initAccounting(state) {
 
 // ---------- Buchungsjournal ----------
 export function postJournal(state, data) {
+  for (const line of data.lines || []) {
+    if (!ACCOUNTS[line.account] || !Number.isSafeInteger(line.debit ?? 0) || !Number.isSafeInteger(line.credit ?? 0) ||
+        (line.debit || 0) < 0 || (line.credit || 0) < 0) {
+      throw new Error("Ungültiges Konto oder Centbetrag: " + data.text);
+    }
+  }
   if (!state.accounting) initAccounting(state);
   const lines = (data.lines || []).filter(l => (l.debit || 0) > 0 || (l.credit || 0) > 0);
   const debit = lines.reduce((s, l) => s + (l.debit || 0), 0);
@@ -171,7 +178,7 @@ export function postJournal(state, data) {
     const acc = ACCOUNTS[l.account];
     if (!acc) continue;
     if (acc.type === "revenue") {
-      d.revenue += acc.contra ? (l.debitCents - l.creditCents) : (l.creditCents - l.debitCents);
+      d.revenue += l.creditCents - l.debitCents;
     } else if (acc.type === "expense") {
       const amt = l.debitCents - l.creditCents;
       d.expenses += amt;
@@ -183,13 +190,8 @@ export function postJournal(state, data) {
     }
   }
 
-  // Performance: Journal auf 14 Tage begrenzen – die Tageszusammenfassung
-  // behält die historischen Daten für Charts. Das Journal selbst wird nur
-  // für die detaillierte Journal-Ansicht benötigt (letzte 14 Tage).
-  const journalCutoff = gt - 14 * 1440;
-  if (state.accounting.journal.length > 1500 || state.accounting.journal[0].gameTime < journalCutoff) {
-    state.accounting.journal = state.accounting.journal.filter(e => e.gameTime >= journalCutoff);
-  }
+  // Das Journal ist der prüfbare Buchungsnachweis. Nicht ohne vollständiges
+  // Archiv löschen: Kontensalden allein können Periodenberichte nicht ersetzen.
   return entry;
 }
 
@@ -204,13 +206,17 @@ export const CAUSE_ACCOUNT_MAP = {
   "Kraftstoff (Leerfahrt)": "5000", "Maut (Leerfahrt)": "5010",
   "Offene Kosten bezahlt": "2120",
   "Disposition": "5110", "Reinigung und Werkstatt": "5130", "Buchhaltung": "5120",
-  "Werkstattbau": "1200", "Wartungsteile": "5300",
+  "Werkstattbau": "1210", "Wartungsteile": "5300",
+  "Gebrauchtfahrzeugkauf": "1200", "Kraftstoff (Überstellung)": "5000", "Maut (Überstellung)": "5010",
+  "Reiseticket": "5700", "Mietfahrzeug": "5220", "Notfallreparatur": "5300", "Fremdfahrer": "5140",
 };
 
 // Zentrale Buchungsroutine: Legacy-Array + doppelte Buchführung über Journal.
 // Wird von simulationEngine UND tourEngine verwendet, damit jede Geldbewegung
 // eine konsistente Journal-Zeile erhält (Paket 2: keine Buchung ohne Journal).
 export function addBooking(state, min, cause, amountCents, account, refId) {
+  if (!Number.isSafeInteger(amountCents)) throw new Error("Ungültiger Centbetrag.");
+  if (amountCents === 0) return;
   state.bookings.push({ min, cause, amountCents, account, refId });
   if (state.bookings.length > 200) state.bookings = state.bookings.slice(-200);
   if (account === "private") {
@@ -222,16 +228,16 @@ export function addBooking(state, min, cause, amountCents, account, refId) {
   const causeKey = cause.split(":")[0].trim();
   const matchAcct = CAUSE_ACCOUNT_MAP[causeKey] || (isPositive ? "4000" : "5700");
   if (matchAcct === "2010") {
-    postJournal(state, { text: cause, type: "withdrawal", gameTime: min,
+    postJournal(state, { text: cause, sourceEventId: refId, type: "withdrawal", gameTime: min,
       lines: [{ account: "2010", debit: abs }, { account: "1000", credit: abs }] });
   } else if (matchAcct === "1200") {
-    postJournal(state, { text: cause, type: "vehicle_purchase", gameTime: min,
+    postJournal(state, { text: cause, sourceEventId: refId, type: "vehicle_purchase", gameTime: min,
       lines: [{ account: "1200", debit: abs }, { account: "1000", credit: abs }] });
   } else if (isPositive) {
-    postJournal(state, { text: cause, type: "revenue", gameTime: min,
+    postJournal(state, { text: cause, sourceEventId: refId, type: "revenue", gameTime: min,
       lines: [{ account: "1000", debit: abs }, { account: matchAcct, credit: abs }] });
   } else {
-    postJournal(state, { text: cause, type: "expense", gameTime: min,
+    postJournal(state, { text: cause, sourceEventId: refId, type: "expense", gameTime: min,
       lines: [{ account: matchAcct, debit: abs }, { account: "1000", credit: abs }] });
   }
 }
@@ -353,7 +359,7 @@ export const TEMPLATES = {
     vehicleId: p.vehicleId,
     lines: [
       { account: "5300", debit: p.amountCents },
-      { account: "1000", credit: p.paidCents || p.amountCents },
+      { account: "1000", credit: p.paidCents ?? p.amountCents },
       ...(p.unpaidCents > 0 ? [{ account: p.liabilityAccount || "2120", credit: p.unpaidCents }] : []),
     ],
   }),
@@ -364,7 +370,7 @@ export const TEMPLATES = {
     employeeId: p.employeeId,
     lines: [
       { account: "5140", debit: p.amountCents },
-      { account: "1000", credit: p.paidCents || p.amountCents },
+      { account: "1000", credit: p.paidCents ?? p.amountCents },
       ...(p.unpaidCents > 0 ? [{ account: "2120", credit: p.unpaidCents }] : []),
     ],
   }),
@@ -445,6 +451,7 @@ export function book(state, templateName, params) {
   if (!tpl) throw new Error("Unbekannte Buchungsvorlage: " + templateName);
   const data = tpl(state, params || {});
   if (params?.gameTime !== undefined) data.gameTime = params.gameTime;
+  data.sourceEventId = data.sourceEventId || params?.sourceEventId || params?.refId || null;
   const entry = postJournal(state, data);
   createReceipt(state, entry);
   // Open Item erstellen falls definiert
@@ -456,6 +463,7 @@ export function book(state, templateName, params) {
 
 // ---------- Aufwand mit teilweiser Zahlung ----------
 export function bookExpense(state, params) {
+  if (params.amountCents === 0) return { entry: null, paidCents: 0, unpaidCents: 0 };
   if (!state.accounting) initAccounting(state);
   const bal = state.company.accountCents;
   const paidCents = Math.min(bal, params.amountCents);
@@ -574,6 +582,7 @@ export function registerAsset(state, params) {
     acquisitionCostCents: params.acquisitionCostCents,
     acquiredAtMin: params.acquiredAtMin,
     acquiredPeriod: periodOf(params.acquiredAtMin),
+    lastDepreciationMonth: periodOf(params.acquiredAtMin) - 1,
     accumulatedDepreciationCents: 0,
     bookValueCents: params.acquisitionCostCents,
     disposedAtMin: null,
@@ -606,6 +615,8 @@ export function disposeAsset(state, assetId, salePriceCents) {
 
 // ---------- Abschreibung ----------
 function depreciateAssetForMonth(state, asset, currentMonth, isDisposal) {
+  const lastBooked = asset.lastDepreciationMonth ?? (asset.accumulatedDepreciationCents > 0 ? state.accounting.lastDepreciationMonth : 0);
+  if (lastBooked >= currentMonth) return 0;
   if (asset.disposedAtMin !== null) return 0;
   if (currentMonth < asset.depreciationStartMonth && !isDisposal) return 0;
   if (currentMonth < asset.acquiredPeriod) return 0;
@@ -614,17 +625,18 @@ function depreciateAssetForMonth(state, asset, currentMonth, isDisposal) {
   let depRate = monthlyDep;
   // Anschaffungsmonat: zeitanteilig
   if (currentMonth === asset.acquiredPeriod && asset.acquiredPeriod >= asset.depreciationStartMonth) {
-    const daysInMonth = MONTH_DAYS - dayOfMin(asset.acquiredAtMin) + 1;
+    const daysInMonth = MONTH_DAYS - Math.floor((asset.acquiredAtMin % MONTH_MIN) / 1440);
     depRate = dailyDep * daysInMonth;
   }
   // Abgangsmonat: zeitanteilig (Abgangstag zählt nicht)
   if (isDisposal && currentMonth === periodOf(state.gameTime)) {
-    const daysUsed = dayOfMin(state.gameTime) - 1;
+    const daysUsed = Math.floor((state.gameTime % MONTH_MIN) / 1440);
     depRate = dailyDep * Math.max(0, daysUsed);
   }
   // Nicht unter 0
   depRate = Math.min(depRate, asset.bookValueCents);
   if (depRate > 0) {
+    asset.lastDepreciationMonth = currentMonth;
     asset.accumulatedDepreciationCents += depRate;
     asset.bookValueCents -= depRate;
     book(state, "depreciation", {
@@ -659,13 +671,14 @@ export function calculateDepreciation(state, min) {
 // ---------- Periodenabschluss ----------
 export function processMonthEnd(state, min, log) {
   if (!state.accounting) initAccounting(state);
-  const currentMonth = periodOf(min);
+  const currentMonth = periodOf(min) - 1;
+  if (currentMonth < 1) return;
   // Abschreibung buchen
   calculateDepreciation(state, min);
   // Periodenrecord erstellen oder aktualisieren
   let period = state.accounting.periods.find(p => p.month === currentMonth);
   if (!period) {
-    const pnl = getPnL(state, periodStartMin(currentMonth), min);
+    const pnl = getPnL(state, periodStartMin(currentMonth), min - 1);
     period = {
       id: "per_" + currentMonth,
       month: currentMonth,
@@ -738,10 +751,10 @@ export function processAccountant(state, emp, m, log) {
 
 // ---------- Auswertungen ----------
 export function getAccountBalance(state, accountNo, upToMin) {
-  if (!state.accounting) return 0;
+  if (!state.accounting || upToMin < 0) return 0;
   // Fast path: cumulative balance from accountBalances cache (maintained
   // incrementally by postJournal). O(1) instead of O(journal).
-  if (upToMin === undefined) {
+  if (upToMin === undefined || upToMin >= state.gameTime) {
     return state.accounting.accountBalances?.[accountNo] || 0;
   }
   // Historical balance: start from cumulative cache and subtract entries
@@ -752,7 +765,7 @@ export function getAccountBalance(state, accountNo, upToMin) {
   let bal = cum;
   for (let i = journal.length - 1; i >= 0; i--) {
     const e = journal[i];
-    if (e.gameTime <= upToMin) break;
+    if (e.gameTime <= upToMin) continue;
     for (const l of e.lines) {
       if (l.account === accountNo) bal -= l.debitCents - l.creditCents;
     }
@@ -776,9 +789,9 @@ export function getPnL(state, fromMin, toMin) {
   for (const acc of revAccounts) {
     const bal = getAccountBalance(state, acc.no, toMin) - getAccountBalance(state, acc.no, fromMin - 1);
     if (bal !== 0) {
-      const signed = acc.contra ? bal : -bal; // Erträge sind Haben (negativ im Saldo), contra positiv
-      lines.push({ account: acc.no, name: acc.name, amountCents: acc.contra ? bal : -bal, type: "revenue", contra: acc.contra });
-      totalRev += acc.contra ? bal : -bal;
+      const signed = -bal; // Erträge sind Haben (negativ im Saldo), contra positiv
+      lines.push({ account: acc.no, name: acc.name, amountCents: -bal, type: "revenue", contra: acc.contra });
+      totalRev += -bal;
     }
   }
   for (const acc of expAccounts) {
@@ -806,7 +819,7 @@ export function getBalanceSheet(state, atMin) {
       liabilities.push({ account: acc.no, name: acc.name, amountCents: -bal });
       totalLiab += -bal;
     } else if (acc.type === "equity") {
-      const signed = acc.contra ? bal : -bal;
+      const signed = -bal;
       equity.push({ account: acc.no, name: acc.name, amountCents: signed, contra: acc.contra });
       totalEquity += signed;
     }
@@ -998,7 +1011,7 @@ export function migrateAccounting(state) {
         const acc = ACCOUNTS[l.account];
         if (!acc) continue;
         if (acc.type === "revenue") {
-          d.revenue += acc.contra ? (l.debitCents - l.creditCents) : (l.creditCents - l.debitCents);
+          d.revenue += l.creditCents - l.debitCents;
         } else if (acc.type === "expense") {
           const amt = l.debitCents - l.creditCents;
           d.expenses += amt;
@@ -1013,13 +1026,11 @@ export function migrateAccounting(state) {
     a.dailySummaryRebuilt = true;
   }
 
-  // Performance: Journal auf 14 Tage begrenzen – die Tageszusammenfassung
-  // behält die historischen Daten. Belege auf 200 begrenzen.
-  const journalCutoff = (state.gameTime || 0) - 14 * 1440;
-  if (a.journal.length > 1500 || (a.journal[0] && a.journal[0].gameTime < journalCutoff)) {
-    a.journal = a.journal.filter(e => e.gameTime >= journalCutoff);
+  // Alte, bereits gekürzte Exporte kennzeichnen; fehlende Buchungen lassen
+  // sich aus dem Kontostand nicht zuverlässig rekonstruieren.
+  if (a.historyChecked !== true) {
+    a.historyIncompleteBeforeMin = a.journal[0]?.entryNo > 1 ? a.journal[0].gameTime : null;
+    a.historyChecked = true;
   }
-  if (a.receipts.length > 200) a.receipts = a.receipts.slice(-200);
-
   return state;
 }

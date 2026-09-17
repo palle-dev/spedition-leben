@@ -33,7 +33,7 @@ function executeInWorker(state, command, params, onProgress, diag) {
   const id = ++_workerMsgId;
   const tSend = performance.now();
   let stateSize = 0;
-  try { stateSize = new Blob([JSON.stringify(state)]).size; } catch(e) {}
+  if (diag) { try { stateSize = new Blob([JSON.stringify(state)]).size; } catch(e) {} }
   return new Promise((resolve) => {
     if (onProgress) _workerProgress.set(id, onProgress);
     _workerPending.set(id, (data) => {
@@ -43,7 +43,11 @@ function executeInWorker(state, command, params, onProgress, diag) {
       }
       resolve(data);
     });
-    simWorker.postMessage({ id, state, command, params });
+    try { simWorker.postMessage({ id, state, command, params }); }
+    catch (error) {
+      _workerPending.delete(id); _workerProgress.delete(id);
+      resolve({ error: error.message || "Spielzustand konnte nicht an den Worker übertragen werden." });
+    }
   });
 }
 
@@ -452,7 +456,7 @@ export function GameProvider({ children }) {
 
   // ---- Befehl lokal ausführen (kein Netzwerk) ----
   const send = useCallback(async (command, params, onProgress) => {
-    while (syncInFlightRef.current || backgroundAdvanceRef.current) {
+    while (syncInFlightRef.current || backgroundAdvanceRef.current || sendInFlightRef.current) {
       await new Promise(resolve => setTimeout(resolve, 50));
     }
     if (!stateRef.current) throw new Error("Kein Spielstand geladen");

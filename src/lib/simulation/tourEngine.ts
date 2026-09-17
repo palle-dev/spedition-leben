@@ -18,6 +18,8 @@ import {
 } from "./dangerousGoodsEngine.ts";
 import { maybeGenerateTechnicalDefect, maybeGenerateLoadingDelay } from "./disruptionEngine.ts";
 import { addBooking } from "./accountingEngine.ts";
+import { isPersonAvailable } from "./absenceEngine.ts";
+import { isPersonInTraining } from "./trainingEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 
@@ -95,7 +97,7 @@ export function earliestAvailable(state, vehicle, driver) {
     t = Math.max(t, driver.restUntil);
   }
   if (driver.status === "on_trip") {
-    const trip = state.trips.find(tr => tr.id === driver.tripId || tr.driverId === driver.id);
+    const trip = state.trips.find(tr => tr.status === "in_progress" && tr.driverId === driver.id);
     if (trip) t = Math.max(t, trip.endMin);
   }
   return t;
@@ -277,6 +279,9 @@ export function buildTourPlan(state, opts) {
   const vehicle = _vehicleById(state, vehicleId);
   const driver = _driverById(state, driverId);
   if (!vehicle || !driver) return { error: "Fahrzeug oder Fahrer nicht gefunden." };
+  if (!Array.isArray(orderIds) || orderIds.length === 0 || new Set(orderIds).size !== orderIds.length) {
+    return { error: "Eine Tour benötigt eindeutige Aufträge." };
+  }
 
   // Prüfe Grundvoraussetzungen
   // Für Vorausplanung: Wenn Fahrzeug/Fahrer auf Tour sind, vergleiche
@@ -290,7 +295,7 @@ export function buildTourPlan(state, opts) {
   // Orten von freien Fahrern vom Hauptsitz genutzt werden.
   let driverTravelMin = 0;
   if (vehicleFutureCity !== driverFutureCity) {
-    driverTravelMin = driveMinutes(getDistance(driverFutureCity, vehicleFutureCity));
+    return { error: "Fahrer und Lkw sind an verschiedenen Orten. Bitte zuerst eine Fahrerreise planen." };
   }
 
   const _calcStart = _cached("ea:" + vehicleId + "|" + driverId, () => earliestAvailable(state, vehicle, driver)) + driverTravelMin;
@@ -330,6 +335,9 @@ export function buildTourPlan(state, opts) {
       const bodyCheck = checkBodyTypeCompatibility(order, vehicle);
       if (!bodyCheck.ok) return { error: bodyCheck.error };
       const dep = buildDeployment(state, order, vehicle, currentCity, t, counters);
+      if (order.windowVersion >= 2 && dep.phases.find(p => p.type === "loading")?.startMin > order.latestLoadStartMin) {
+        return { error: "Ladefenster von " + order.customer + " wird überschritten." };
+      }
       // Spätlieferung-Toleranz: 4h Gnadenfrist. completeTrip zahlt 90% bei
       // Spätlieferung — buildTourPlan soll daher leichte Überschreitungen
       // zulassen, damit der Disponent knappe Aufträge noch retten kann,
@@ -394,25 +402,16 @@ export function buildTourPlan(state, opts) {
     };
   }
 
-  // Natürliche Ruhe-Rücksetzung: Wenn der Fahrer 12+ Stunden frei war,
-  // sind seine Arbeitszeit-Zähler zurückgesetzt. freeSinceMin wird von
-  // processTours und completeTrip gesetzt; falls nicht gesetzt (Migration),
-  // nehmen wir an, dass der Fahrer lange genug geruht hat.
-  if (driver.status === "free") {
-    if (!driver.freeSinceMin || state.gameTime - driver.freeSinceMin >= REST_MIN) {
-      driver.workMinutesSinceRest = 0;
-      driver.driveMinutesSinceBreak = 0;
-      if (!driver.freeSinceMin) driver.freeSinceMin = state.gameTime;
-    }
+  // Vorschauen ändern den Zustand nicht. Nur dokumentierte Ruhe setzt
+  // Zähler zurück; fehlendes freeSinceMin ist kein Nachweis für 12h Ruhe.
+  const rested = driver.status === "resting" || (driver.status === "free" &&
+    driver.freeSinceMin != null && state.gameTime - driver.freeSinceMin >= REST_MIN);
+  let initCounters = { workMin: rested ? 0 : (driver.workMinutesSinceRest || 0),
+    driveMin: rested ? 0 : (driver.driveMinutesSinceBreak || 0) };
+  if (driver.status === "on_trip") {
+    const trip = state.trips.find(t => t.driverId === driverId && t.status === "in_progress");
+    if (trip) initCounters = computeFinalCounters(trip.phases || [], trip.initialCounters || initCounters);
   }
-  // Ruhende Fahrer: earliestAvailable verschiebt den Tour-Start auf restUntil.
-  // Zu diesem Zeitpunkt ist der Fahrer ausgeruht — workMin muss 0 sein,
-  // sonst löst die Ruhe-voraus-Strategie fälschlich eine weitere 720-Min-Ruhe
-  // aus, die alle Lieferfristen sprengt.
-  const initCounters = {
-    workMin: driver.status === "resting" ? 0 : (driver.workMinutesSinceRest || 0),
-    driveMin: driver.status === "resting" ? 0 : (driver.driveMinutesSinceBreak || 0),
-  };
 
   // Erster Versuch: mit aktuellen Fahrer-Zählern planen.
   let planResult = _tryPlan(earliestStart, initCounters);
@@ -488,6 +487,12 @@ export function checkTourLiquidity(state, deployments, returnDeployment, startMi
   return { ok: true, finalBalance: balance };
 }
 
+// Reservierungen auch in alten Spielständen ohne reservedByTourId erkennen.
+export function getOrderReservation(state, orderId, excludingTourId = null) {
+  return (state.tours || []).find(t => t.id !== excludingTourId && ["active", "planned"].includes(t.status) &&
+    (t.deployments || []).some(d => d.orderId === orderId && ["planned", "active"].includes(d.status)));
+}
+
 // ---------- Bestätigung (atomar) ----------
 
 export function confirmTour(state, params) {
@@ -503,9 +508,13 @@ export function confirmTour(state, params) {
   // 1. Plane die Tour (Validierung)
   const plan = buildTourPlan(state, { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin, minStartTime });
   if (plan.error) throw new Error(plan.error);
+  if (!("earliestStartMin" in plan)) throw new Error("Tourplanung unvollständig.");
 
   const vehicle = _vehicleById(state, vehicleId);
   const driver = _driverById(state, driverId);
+  if (!isPersonAvailable(state, driverId, plan.earliestStartMin) || driver.attendance === "released" || isPersonInTraining(state, driverId, plan.earliestStartMin)) {
+    throw new Error("Fahrer ist zum geplanten Start nicht verfügbar.");
+  }
 
   // 2. Prüfe Ressourcen-Verfügbarkeit erneut
   // Für 24/7-Vorausplanung: Erlaube auch on_trip, wenn die neue Tour
@@ -536,6 +545,7 @@ export function confirmTour(state, params) {
   for (const orderId of orderIds) {
     const o = state.orders.find(x => x.id === orderId);
     if (!o) continue;
+    if (getOrderReservation(state, orderId)) throw new Error("Auftrag ist bereits für eine andere Tour reserviert.");
     if (o.reservedByTourId) {
       const otherTour = (state.tours || []).find(t => t.id === o.reservedByTourId);
       if (otherTour && otherTour.status === "active" && !otherTour.pauseReason) {
@@ -654,6 +664,15 @@ function startDeployment(state, tour, dep, depIndex) {
   const driver = state.drivers.find(d => d.id === tour.driverId);
   if (!vehicle || !driver) throw new Error("Fahrzeug oder Fahrer nicht gefunden.");
 
+  // Beim tatsächlichen Start aktuelle Zähler benutzen; die Vorausplanung
+  // kann durch vorherige Fahrten oder Wartezeiten überholt sein.
+  const initialCounters = { workMin: driver.workMinutesSinceRest || 0, driveMin: driver.driveMinutesSinceBreak || 0 };
+  const order = dep.orderId ? state.orders.find(o => o.id === dep.orderId) : null;
+  const fresh = order
+    ? buildDeployment(state, order, vehicle, vehicle.locationCity, state.gameTime, initialCounters)
+    : buildEmptyDeployment(state, vehicle.locationCity, dep.toCity, vehicle, state.gameTime, initialCounters);
+  Object.assign(dep, fresh);
+
   // Phasen aus dem Deployment übernehmen, bei zeitlicher Abweichung verschieben
   const timeShift = state.gameTime - dep.startMin;
   const phases = dep.phases.map(p => ({
@@ -671,6 +690,7 @@ function startDeployment(state, tour, dep, depIndex) {
     vehicleId: vehicle.id,
     driverId: driver.id,
     phases,
+    initialCounters,
     currentPhase: 0,
     startMin: state.gameTime,
     endMin: phases.length > 0 ? phases[phases.length - 1].endMin : state.gameTime,
@@ -721,6 +741,13 @@ export function cancelTour(state, tourId) {
   if (!tour) throw new Error("Tour nicht gefunden.");
   if (tour.status === "completed") throw new Error("Tour ist bereits abgeschlossen.");
   if (tour.status === "cancelled") throw new Error("Tour ist bereits aufgelöst.");
+  const freedCount = tour.deployments.filter(d => d.status === "planned").length;
+  for (const dep of [...tour.deployments, tour.returnDeployment].filter(Boolean)) {
+    if (dep.status !== "planned") continue;
+    const order = state.orders.find(o => o.id === dep.orderId);
+    if (order?.reservedByTourId === tour.id) order.reservedByTourId = null;
+    dep.status = "cancelled";
+  }
 
   // Aktiver Einsatz läuft weiter – nur zukünftige Einsätze freigeben
   const activeDep = tour.deployments.find(d => d.status === "active");
@@ -730,7 +757,7 @@ export function cancelTour(state, tourId) {
     tour.status = "cancelled";
     tour.pauseReason = "Vom Spieler aufgelöst";
     // Fahrzeug/Fahrer werden nach Abschluss des aktiven Trips normal freigegeben
-    return { ok: true, activeTripContinues: true, freedFutureDeployments: tour.deployments.filter(d => d.status === "planned").length };
+    return { ok: true, activeTripContinues: true, freedFutureDeployments: freedCount };
   }
 
   // Kein aktiver Einsatz: sofort freigeben
@@ -747,7 +774,7 @@ export function cancelTour(state, tourId) {
     }
   }
 
-  return { ok: true, freedFutureDeployments: tour.deployments.filter(d => d.status === "planned").length };
+  return { ok: true, freedFutureDeployments: freedCount };
 }
 
 // ---------- Automatische Ausführung ----------
@@ -755,6 +782,7 @@ export function cancelTour(state, tourId) {
 // Wird bei jedem Ereignis-Zeitpunkt aufgerufen.
 // Prüft, ob eine Tour zum nächsten Einsatz starten kann.
 export function processTours(state, m, log) {
+  _clearPlanCache();
   // Natürliche Ruhe-Rücksetzung: Ein Fahrer, der 12+ Stunden frei war,
   // hat sich von selbst ausgeruht. Seine Arbeitszeit-Zähler werden
   // zurückgesetzt, damit er für neue Touren voll verfügbar ist.
@@ -764,7 +792,7 @@ export function processTours(state, m, log) {
   if (m % 60 === 0) {
     for (const d of state.drivers || []) {
       if (d.status !== "free") continue;
-      if (!d.freeSinceMin) { d.freeSinceMin = m - REST_MIN; d.workMinutesSinceRest = 0; d.driveMinutesSinceBreak = 0; }
+      if (d.freeSinceMin == null) d.freeSinceMin = m;
       if (m - d.freeSinceMin >= REST_MIN) {
         d.workMinutesSinceRest = 0;
         d.driveMinutesSinceBreak = 0;
@@ -841,6 +869,21 @@ export function processTours(state, m, log) {
     if (vehicle.status !== "free" && vehicle.status !== "resting") continue;
     if (driver.status !== "free" && driver.status !== "resting") continue;
     if (driver.restUntil && driver.restUntil > m) continue;
+    if (!isPersonAvailable(state, driver.id, m) || driver.attendance === "released" || isPersonInTraining(state, driver.id, m)) continue;
+    if (driver.locationCity !== vehicle.locationCity) {
+      tour.pauseReason = "Fahrer und Fahrzeug sind nicht am selben Ort.";
+      continue;
+    }
+    if (nextDep.dep.orderId) {
+      const order = state.orders.find(o => o.id === nextDep.dep.orderId);
+      const running = state.trips.some(t => t.orderId === nextDep.dep.orderId && t.status === "in_progress") || !!getOrderReservation(state, nextDep.dep.orderId, tour.id);
+      if (!order || order.status !== "angenommen" || running ||
+          (order.reservedByTourId && order.reservedByTourId !== tour.id)) {
+        nextDep.dep.status = "skipped";
+        if (order?.reservedByTourId === tour.id) order.reservedByTourId = null;
+        continue;
+      }
+    }
 
     // Fahrzeugzustand prüfen
     if (vehicle.condition < 20) {
@@ -858,11 +901,24 @@ export function processTours(state, m, log) {
     }
 
     // Ort-Konsistenz prüfen (erste Phase gibt den Startort an)
-    const firstPhase = nextDep.dep.phases[0];
+    const firstPhase = nextDep.dep.phases.find(p => p.fromCity);
     if (firstPhase && vehicle.locationCity !== firstPhase.fromCity) {
       tour.pauseReason = "Fahrzeug ist nicht am erwarteten Ort (" + firstPhase.fromCity + ", aktuell " + vehicle.locationCity + ").";
       log.push({ type: "tour_paused", tour: tour.id, reason: tour.pauseReason });
       continue;
+    }
+
+    if (nextDep.dep.orderId) {
+      const order = state.orders.find(o => o.id === nextDep.dep.orderId);
+      const fresh = buildDeployment(state, order, vehicle, vehicle.locationCity, m, {
+        workMin: driver.workMinutesSinceRest || 0, driveMin: driver.driveMinutesSinceBreak || 0,
+      });
+      if (order.tons > vehicle.capacityTons || !checkBodyTypeCompatibility(order, vehicle).ok ||
+          (order.windowVersion >= 2 && fresh.phases.find(p => p.type === "loading")?.startMin > order.latestLoadStartMin) ||
+          (order.isDangerousGoods && !validateDgTransport(state, order, vehicle, driver, fresh.endMin).ok)) {
+        tour.pauseReason = "Auftrag ist mit den aktuellen Ressourcen oder Ladezeiten nicht mehr ausführbar.";
+        continue;
+      }
     }
 
     // Stoerungsmanagement: Technischen Defekt vor Tourbeginn pruefen

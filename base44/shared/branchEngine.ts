@@ -1,3 +1,6 @@
+import { addBooking, postJournal, registerAsset } from "./accountingEngine.ts";
+import { isPersonAvailable } from "./absenceEngine.ts";
+import { buildPhases, buildEmptyWorkSteps } from "./driverTimeEngine.ts";
 // Filial-Engine für FERNWERK – Standorte eröffnen, verwalten, stilllegen.
 // Reine Logik – keine Auth, keine Speicherung. Wird von simulationEngine importiert.
 
@@ -10,6 +13,7 @@ import {
   STANDARD_TRUCK, VEHICLE_PRICE, HIRE_FEE,
   PORTRAIT_IDS,
 } from "./gameRules.ts";
+import { checkParkingCapacity, findBranchWithCapacity } from "./siteExpansionEngine.ts";
 
 // ---------- Hilfsfunktionen ----------
 
@@ -66,8 +70,12 @@ export function openBranch(state, { city, name }) {
   }
 
   // Gebühr buchen
-  state.company.accountCents -= BRANCH_OPEN_FEE;
-  state.bookings = state.bookings || [];
+  postJournal(state, { text: "Filialeröffnung inklusive Basis-Lkw: " + city, type: "branch_open",
+    gameTime: state.gameTime, lines: [
+      { account: "1200", debit: VEHICLE_PRICE },
+      { account: "5700", debit: BRANCH_OPEN_FEE - VEHICLE_PRICE },
+      { account: "1000", credit: BRANCH_OPEN_FEE },
+    ] });
   state.bookings.push({ min: state.gameTime, cause: "Filialeröffnung: " + city, amountCents: -BRANCH_OPEN_FEE, account: "company", refId: "branch_open" });
 
   // Filiale anlegen
@@ -96,6 +104,8 @@ export function openBranch(state, { city, name }) {
     referencePriceCents: VEHICLE_PRICE, markedForSale: false, saleOffer: null,
   };
   state.vehicles.push(vehicle);
+  registerAsset(state, { vehicleId: vehicle.id, account: "1200", name: "Basis-Lkw " + city,
+    acquisitionCostCents: VEHICLE_PRICE, acquiredAtMin: state.gameTime });
 
   // Basis-Fahrer vor Ort anlegen
   const portraitIdx = (state.drivers.length) % PORTRAIT_IDS.length;
@@ -120,7 +130,7 @@ function pickDriverName(state) {
   ];
   const used = new Set([...(state.drivers || []).map(d => d.name), ...(state.hiredApplicantNames || [])]);
   const available = pool.filter(n => !used.has(n));
-  if (available.length > 0) return available[Math.floor(Math.random() * available.length)];
+  if (available.length > 0) return available[Math.floor(mulberry32((state.rngSeed ^ state.idCounter) >>> 0)() * available.length)];
   return "Fahrer " + ((state.drivers || []).length + 1);
 }
 
@@ -201,10 +211,18 @@ export function moveVehicle(state, { vehicleId, targetBranchId }) {
   if (target.status !== "active") throw new Error("Zielfiliale ist nicht aktiv.");
   if (v.branchId === targetBranchId) throw new Error("Fahrzeug ist bereits an dieser Filiale.");
 
+  // Kapazitätsprüfung am Zielstandort
+  const capCheck = checkParkingCapacity(state, targetBranchId, 1);
+  if (!capCheck.ok) {
+    const alt = findBranchWithCapacity(state, target.city, 1);
+    throw new Error("Zielfiliale hat keine freien Stellplätze. " + capCheck.message +
+      (alt ? ` Alternative: ${alt.name} (${alt.city}).` : "") + " Ein Stellplatzausbau ist möglich.");
+  }
+
   // Fahrer am selben Ort finden, der das Fahrzeug überstellen kann
   const driver = (state.drivers || []).find(d =>
     d.employmentStatus === "employed" &&
-    d.attendance !== "released" &&
+    d.attendance !== "released" && isPersonAvailable(state, d.id, state.gameTime) &&
     d.status === "free" &&
     d.locationCity === v.locationCity &&
     (d.restUntil === null || d.restUntil <= state.gameTime)
@@ -226,20 +244,14 @@ export function moveVehicle(state, { vehicleId, targetBranchId }) {
   }
 
   // Gebühren buchen
-  state.company.accountCents -= fuel + toll;
-  state.bookings = state.bookings || [];
-  state.bookings.push({ min: state.gameTime, cause: "Kraftstoff (Überstellung)", amountCents: -fuel, account: "company", refId: "move_vehicle" });
-  state.bookings.push({ min: state.gameTime, cause: "Maut (Überstellung)", amountCents: -toll, account: "company", refId: "move_vehicle" });
-
-  // Leerfahrt-Trip erstellen
-  const driveMin = driveMinutes(dist);
+  addBooking(state, state.gameTime, "Kraftstoff (Überstellung)", -fuel, "company", "move_vehicle_fuel:" + v.id + ":" + state.gameTime);
+  addBooking(state, state.gameTime, "Maut (Überstellung)", -toll, "company", "move_vehicle_toll:" + v.id + ":" + state.gameTime);
+  const initialCounters = { workMin: driver.workMinutesSinceRest || 0, driveMin: driver.driveMinutesSinceBreak || 0 };
+  const plan = buildPhases(buildEmptyWorkSteps(v.locationCity, target.city), initialCounters, state.gameTime);
   const trip = {
     id: uid(state, "t"), type: "empty", orderId: null, vehicleId: v.id, driverId: driver.id,
-    phases: [{
-      type: "empty_drive", fromCity: v.locationCity, toCity: target.city,
-      distanceKm: dist, startMin: state.gameTime, endMin: state.gameTime + driveMin,
-    }],
-    currentPhase: 0, startMin: state.gameTime, endMin: state.gameTime + driveMin,
+    phases: plan.phases, initialCounters,
+    currentPhase: 0, startMin: state.gameTime, endMin: plan.endMin,
     status: "in_progress", paymentCents: 0, fuelCents: fuel, tollCents: toll,
     totalKm: dist, drivenKm: 0, targetBranchId, isRelocation: true,
   };
@@ -292,9 +304,8 @@ export function moveDriver(state, { driverId, targetBranchId }) {
     throw new Error("Firmenkonto reicht für das Reiseticket nicht aus.");
   }
 
-  state.company.accountCents -= cost;
-  state.bookings = state.bookings || [];
-  state.bookings.push({ min: state.gameTime, cause: "Reiseticket: " + d.name, amountCents: -cost, account: "company", refId: "move_driver" });
+  if (!isPersonAvailable(state, d.id, state.gameTime)) throw new Error("Fahrer ist nicht verfügbar.");
+  addBooking(state, state.gameTime, "Reiseticket: " + d.name, -cost, "company", "move_driver:" + d.id + ":" + state.gameTime);
 
   const travelMin = Math.ceil(dist / DRIVER_TRAVEL_SPEED * 60);
   const travel = {
@@ -342,6 +353,9 @@ export function assignDispatcherToBranch(state, { employeeId, branchId }) {
   return assignEmployeeToBranch(state, { employeeId, branchId });
 }
 
+// Allgemeine Zuweisung eines Angestellten (Mechaniker, Reinigung, Buchhaltung,
+// Disponent, Filialleiter) zu einer anderen Filiale. Erfolgt sofort –
+// Angestellte pendeln selbstständig, keine Überstellung nötig.
 export function assignEmployeeToBranch(state, { employeeId, branchId }) {
   const emp = (state.employees || []).find(e => e.id === employeeId);
   if (!emp) throw new Error("Angestellter nicht gefunden.");

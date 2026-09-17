@@ -1,3 +1,5 @@
+import { recordOrderOutcome } from "./customerEngine.ts";
+import { bookExpense } from "./accountingEngine.ts";
 // Markt-Engine für FERNWERK – Auftrag 19.
 // Stündlicher, mitwachsender Auftragsmarkt mit flottenabhängigem Zielbestand,
 // räumlicher Verteilung, neuer Preisformel und diversen Angebotsarten.
@@ -234,9 +236,10 @@ function computeTimeWindows(state, m, offerType, fromCity, toCity, km, rng) {
     const acceptHours = EXPRESS_ACCEPT_HOURS[0] + rng() * (EXPRESS_ACCEPT_HOURS[1] - EXPRESS_ACCEPT_HOURS[0]);
     const acceptDeadline = m + Math.round(acceptHours * 60) + approachMin;
     const earliestPickup = m + 30;
-    const latestLoadStart = acceptDeadline;
+    let latestLoadStart = acceptDeadline;
     const bufferMin = Math.max(0, Math.round((expressBufLo + rng() * (expressBufHi - expressBufLo)) * 60));
     const deliveryDeadline = Math.max(earliestPickup, m + approachMin) + opMin + restTime + bufferMin;
+    latestLoadStart = Math.max(earliestPickup, deliveryDeadline - opMin);
     return { acceptDeadline, earliestPickup, latestLoadStart, deliveryDeadline, paymentTermsDays: 0 };
   }
 
@@ -245,9 +248,10 @@ function computeTimeWindows(state, m, offerType, fromCity, toCity, km, rng) {
     const acceptDeadline = m + Math.round(acceptHours * 60) + approachMin;
     const nextDay = Math.floor(m / 1440) * 1440 + 1440;
     const earliestPickup = nextDay + 480 + Math.floor(rng() * 240); // 08:00–12:00
-    const latestLoadStart = acceptDeadline;
+    let latestLoadStart = acceptDeadline;
     const bufferMin = Math.max(0, Math.round((normalBufLo + rng() * (normalBufHi - normalBufLo)) * 60));
     const deliveryDeadline = Math.max(earliestPickup, m + approachMin) + opMin + restTime + bufferMin;
+    latestLoadStart = Math.max(earliestPickup, deliveryDeadline - opMin);
     return { acceptDeadline, earliestPickup, latestLoadStart, deliveryDeadline, paymentTermsDays: 3 };
   }
 
@@ -255,7 +259,7 @@ function computeTimeWindows(state, m, offerType, fromCity, toCity, km, rng) {
   const acceptHours = NORMAL_ACCEPT_HOURS[0] + rng() * (NORMAL_ACCEPT_HOURS[1] - NORMAL_ACCEPT_HOURS[0]);
   let acceptDeadline = m + Math.round(acceptHours * 60) + approachMin;
   const earliestPickup = m + 60 + Math.floor(rng() * 120); // 1–3 h
-  const latestLoadStart = acceptDeadline;
+  let latestLoadStart = acceptDeadline;
   const bufferMin = Math.max(0, Math.round((normalBufLo + rng() * (normalBufHi - normalBufLo)) * 60));
   const deliveryDeadline = Math.max(earliestPickup, m + approachMin) + opMin + restTime + bufferMin;
 
@@ -269,7 +273,8 @@ function computeTimeWindows(state, m, offerType, fromCity, toCity, km, rng) {
   }
 
   const paymentTermsDays = PAYMENT_TERMS_DAYS[Math.floor(rng() * PAYMENT_TERMS_DAYS.length)];
-  return { acceptDeadline, earliestPickup, latestLoadStart, deliveryDeadline, paymentTermsDays };
+  latestLoadStart = Math.max(earliestPickup, deliveryDeadline - opMin);
+    return { acceptDeadline, earliestPickup, latestLoadStart, deliveryDeadline, paymentTermsDays };
 }
 
 // Berechnet die Leerfahrzeit vom nächsten Flottenstandort zur Abholstadt.
@@ -430,6 +435,7 @@ function makeMarketOffer(state, m) {
     acceptDeadlineMin: tw.acceptDeadline,
     earliestPickupMin: tw.earliestPickup,
     latestLoadStartMin: tw.latestLoadStart,
+    windowVersion: 2,
     deliveryDeadlineMin: tw.deliveryDeadline,
     paymentTermsDays: tw.paymentTermsDays,
     paymentDueMin: null,
@@ -459,59 +465,7 @@ export function generateMarketWave(state, m, log) {
     }
   }
 
-  // 1b. Überfällige angenommene Aufträge als "failed" markieren.
-  // Gnadenfrist: 12h nach Lieferfrist. Danach ist eine Spätlieferung
-  // nicht mehr sinnvoll. Der Auftrag wird mit einer Konventionalstrafe
-  // (10% der Vergütung) abgerechnet und aus dem aktiven Bestand entfernt.
-  // Das verhindert, dass unzustellbare Aufträge ewig als "angenommen"
-  // stehen bleiben und den Disponenten-Backlog aufblähen.
-  const FAILED_GRACE_MIN = 12 * 60;
-  let failed = 0;
-  for (const o of state.orders) {
-    if (o.status !== "angenommen") continue;
-    if (o.deliveryDeadlineMin + FAILED_GRACE_MIN > m) continue;
-    // Prüfen, ob der Auftrag unterwegs ist (Trip läuft noch)
-    const isUnderway = (state.trips || []).some(t => t.orderId === o.id && t.status === "in_progress");
-    if (isUnderway) continue;
-    // Auftrag gescheitert — Konventionalstrafe 10% vom Firmenkonto
-    const penalty = Math.round((o.paymentCents || 0) * 0.1);
-    o.status = "failed";
-    o.failedAtMin = m;
-    o.failurePenaltyCents = penalty;
-    if (penalty > 0) {
-      if (state.company.accountCents >= penalty) {
-        state.company.accountCents -= penalty;
-      } else {
-        const paid = state.company.accountCents;
-        state.company.accountCents = 0;
-        state.openCosts = state.openCosts || [];
-        state.openCosts.push({
-          id: "oc_" + (state.idCounter = (state.idCounter || 100) + 1),
-          account: "company", cause: "Konventionalstrafe: " + o.customer,
-          amountCents: penalty - paid, refId: "failed:" + o.id, createdAtMin: m,
-        });
-      }
-      state.bookings = state.bookings || [];
-      state.bookings.push({ min: m, cause: "Konventionalstrafe: " + o.customer, amountCents: -penalty, account: "company", refId: "failed:" + o.id });
-    }
-    state.stats = state.stats || {};
-    state.stats.failedOrders = (state.stats.failedOrders || 0) + 1;
-    state.stats.consecutiveTimely = 0;
-    state.private = state.private || {};
-    state.private.relationship = Math.max(0, (state.private.relationship || 0) - 2);
-    state.private.happiness = Math.max(0, (state.private.happiness || 0) - 1);
-    pushEvent(state, {
-      type: "order_failed", gameTime: m, isSystem: true,
-      orderIds: [o.id],
-      details: {
-        customer: o.customer, fromCity: o.fromCity, toCity: o.toCity,
-        cargo: o.cargo, tons: o.tons, paymentCents: o.paymentCents,
-        penaltyCents: penalty, deliveryDeadlineMin: o.deliveryDeadlineMin,
-      },
-      dedupKey: "order_failed:" + o.id,
-    });
-    failed++;
-  }
+  const failed = failOverdueOrders(state, m, log);
 
   // 2. N, T, B berechnen
   const n = computePlanableFleetN(state);
@@ -680,4 +634,45 @@ export function migrateMarket(state) {
     // Auf Zielbestand auffüllen (einmalig)
     fillInitialMarket(state);
   }
+}
+// Einheitlicher Abschluss für überfällige Aufträge, unabhängig vom Aufrufpfad.
+export function failOverdueOrders(state, m, log) {
+  let failed = 0;
+  for (const o of state.orders) {
+    if (o.status !== "angenommen") continue;
+    if (o.deliveryDeadlineMin + 240 > m) continue;
+    // Prüfen, ob der Auftrag unterwegs ist (Trip läuft noch)
+    const isUnderway = (state.trips || []).some(t => t.orderId === o.id && t.status === "in_progress");
+    if (isUnderway) continue;
+    if (o.externalTransportId && (state.partners?.transports || []).some(t => t.id === o.externalTransportId && ["booked", "in_progress"].includes(t.status))) continue;
+    // Auftrag gescheitert — Konventionalstrafe 10% vom Firmenkonto
+    const penalty = Math.round((o.paymentCents || 0) * 0.1);
+    o.status = "failed";
+    o.failedAtMin = m;
+    o.failurePenaltyCents = penalty;
+    if (penalty > 0) bookExpense(state, { expenseAccount: "5700", amountCents: penalty,
+      text: "Konventionalstrafe: " + o.customer, type: "order_failed", gameTime: m, refId: "failed:" + o.id });
+    o.reservedByTourId = null;
+    recordOrderOutcome(state, o, "failed", m, 0);
+    log.push({ type: "order_failed", order: o.id, atMin: m, penaltyCents: penalty });
+    state.stats = state.stats || {};
+    state.stats.failedOrders = (state.stats.failedOrders || 0) + 1;
+    state.stats.consecutiveTimely = 0;
+    state.private = state.private || {};
+    state.private.relationship = Math.max(0, (state.private.relationship || 0) - 2);
+    state.private.happiness = Math.max(0, (state.private.happiness || 0) - 1);
+    pushEvent(state, {
+      type: "order_failed", gameTime: m, isSystem: true,
+      orderIds: [o.id],
+      details: {
+        customer: o.customer, fromCity: o.fromCity, toCity: o.toCity,
+        cargo: o.cargo, tons: o.tons, paymentCents: o.paymentCents,
+        penaltyCents: penalty, deliveryDeadlineMin: o.deliveryDeadlineMin,
+      },
+      dedupKey: "order_failed:" + o.id,
+    });
+    failed++;
+  }
+
+  return failed;
 }

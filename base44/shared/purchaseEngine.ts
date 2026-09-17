@@ -58,6 +58,13 @@ export const BASIC_ACTIVITIES = [
   { type: "wellness", label: "Wellnessnachmittag", durationMin: 240, costCents: 12000, stressDelta: -14, happinessDelta: 5, maxPerDay: 1 },
   { type: "cooking", label: "Gemeinsam kochen", durationMin: 120, costCents: 3500, stressDelta: -5, happinessDelta: 3, contactDelta: 4, maxPerDay: 1, requiresContact: true },
   { type: "concert", label: "Konzertabend", durationMin: 240, costCents: 10000, stressDelta: -10, happinessDelta: 4, contactDelta: 5, maxPerWeek: 1, requiresContact: true },
+  { type: "date_night", label: "Romantischer Abend", durationMin: 180, costCents: 8000, stressDelta: -8, happinessDelta: 5, contactDelta: 8, maxPerWeek: 1, requiresContact: true },
+  { type: "flowers", label: "Blumen schenken", durationMin: 30, costCents: 500, stressDelta: -1, happinessDelta: 1, contactDelta: 3, maxPerDay: 1, requiresContact: true },
+  { type: "cinema_date", label: "Kinoabend zu zweit", durationMin: 150, costCents: 3000, stressDelta: -6, happinessDelta: 3, contactDelta: 5, maxPerWeek: 2, requiresContact: true },
+  { type: "gift_date", label: "Geschenk überreichen", durationMin: 60, costCents: 5000, stressDelta: -2, happinessDelta: 2, contactDelta: 6, maxPerWeek: 1, requiresContact: true },
+  { type: "weekend_getaway", label: "Wochenendtrip zu zweit", durationMin: 2880, costCents: 25000, stressDelta: -18, happinessDelta: 7, contactDelta: 12, isTrip: true, maxPerDay: 1, requiresContact: true },
+  { type: "couples_therapy", label: "Paarberatung", durationMin: 120, costCents: 8000, stressDelta: -3, happinessDelta: 1, contactDelta: 10, maxPerWeek: 1, requiresContact: true, minRelationship: 0, maxRelationship: 60 },
+  { type: "renew_vows", label: "Ehegelübde erneuern", durationMin: 240, costCents: 20000, stressDelta: -10, happinessDelta: 8, contactDelta: 15, maxPerWeek: 1, requiresContact: true, requiresMarried: true },
   { type: "short_trip", label: "Kurzurlaub", durationMin: 2880, costCents: 90000, stressDelta: -20, happinessDelta: 8, isTrip: true, maxPerDay: 1 },
 ];
 
@@ -248,6 +255,19 @@ export function startPrivateActivity(state, { activityType, voucherId, itemId })
   // Pruefen: Spieler blockiert?
   const isBlocked = (state.appointments || []).some(a => a.status === "active");
   if (isBlocked) throw new Error("Du bist derzeit mit einer privaten Aktivitaet beschaeftigt.");
+
+  // Pruefen: Nur fuer Verheiratete?
+  if (activity.requiresMarried && state.private.relationshipStatus !== "married") {
+    throw new Error("Diese Aktivitaet ist nur fuer Verheiratete verfuegbar.");
+  }
+  // Pruefen: Beziehungs-Bedingung (z.B. Paarberatung nur bei niedriger Beziehung)
+  const rel = state.private.relationship || 0;
+  if (activity.maxRelationship != null && rel > activity.maxRelationship) {
+    throw new Error("Eure Beziehung ist bereits stark genug fuer diese Aktivitaet (max " + activity.maxRelationship + "/100).");
+  }
+  if (activity.minRelationship != null && rel < activity.minRelationship) {
+    throw new Error("Eure Beziehung ist zu schwach fuer diese Aktivitaet (min " + activity.minRelationship + "/100).");
+  }
 
   // Pruefen: max 2 frei gestartete Aktivitaeten pro Spieltag
   const day = Math.floor(state.gameTime / DAY_MIN);
@@ -441,7 +461,15 @@ export function getActiveHome(state) {
 }
 
 export function getActivityOptions(state) {
-  const options = [...BASIC_ACTIVITIES.map(a => ({ ...a, source: "basic", itemId: null }))];
+  const rel = state.private?.relationship || 0;
+  const isMarried = state.private?.relationshipStatus === "married";
+  const basic = BASIC_ACTIVITIES.filter(a => {
+    if (a.requiresMarried && !isMarried) return false;
+    if (a.maxRelationship != null && rel > a.maxRelationship) return false;
+    if (a.minRelationship != null && rel < a.minRelationship) return false;
+    return true;
+  }).map(a => ({ ...a, source: "basic", itemId: null }));
+  const options = [...basic];
   for (const item of (state.private?.purchases?.items || []).filter(i => i.status === "active")) {
     const entry = PURCHASE_CATALOG.find(p => p.id === item.catalogId);
     if (entry?.activity) {

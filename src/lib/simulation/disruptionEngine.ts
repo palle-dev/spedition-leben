@@ -1,3 +1,4 @@
+import { addBooking } from "./accountingEngine.ts";
 // Störungsmanagement-Engine für FERNWERK.
 // Verwaltet betriebliche Störungen: technische Defekte, Ladeverzögerungen,
 // Personalausfälle. Nutzt vorhandene Wartung, Dienstleistungen, Mietfahrzeuge,
@@ -800,8 +801,7 @@ function executeOption(state, d, optionId, params, m, log) {
       const blocks = 2;
       const cost = provider.handoverCents + blocks * provider.blockRateCents;
       if (state.company.accountCents < cost) throw new Error("Firmenkonto reicht nicht aus.");
-      state.company.accountCents -= cost;
-      state.bookings.push({ min: m, cause: "Mietfahrzeug: " + provider.name, amountCents: -cost, account: "company", refId: "disruption_rental:" + d.id });
+      addBooking(state, m, "Mietfahrzeug: " + provider.name, -cost, "company", "disruption_rental:" + d.id);
       const rentalVehicle = {
         id: uid(state, "v_rent"), branchId: (tour ? tour.branchId : (vehicle ? vehicle.branchId : "b1")) || "b1",
         type: "Miet-Lkw", capacityTons: 12, consumptionPer100km: 30,
@@ -837,8 +837,7 @@ function executeOption(state, d, optionId, params, m, log) {
       const cost = DISRUPTION_CONFIG.technicalDefect.repairCostCents;
       const duration = DISRUPTION_CONFIG.technicalDefect.repairDurationMin;
       if (state.company.accountCents < cost) throw new Error("Firmenkonto reicht nicht aus.");
-      state.company.accountCents -= cost;
-      state.bookings.push({ min: m, cause: "Notfallreparatur: " + vehicleLabel(vehicle), amountCents: -cost, account: "company", refId: "disruption_repair:" + d.id });
+      addBooking(state, m, "Notfallreparatur: " + vehicleLabel(vehicle), -cost, "company", "disruption_repair:" + d.id);
       vehicle.status = "maintenance";
       vehicle.maintenanceUntil = m + duration;
       d.status = "measure_running";
@@ -972,8 +971,7 @@ function executeOption(state, d, optionId, params, m, log) {
       const blocks = 2;
       const cost = provider.provisionCents + blocks * provider.blockRateCents;
       if (state.company.accountCents < cost) throw new Error("Firmenkonto reicht nicht aus.");
-      state.company.accountCents -= cost;
-      state.bookings.push({ min: m, cause: "Fremdfahrer: " + provider.name, amountCents: -cost, account: "company", refId: "disruption_temp:" + d.id });
+      addBooking(state, m, "Fremdfahrer: " + provider.name, -cost, "company", "disruption_temp:" + d.id);
       const tempDriver = {
         id: uid(state, "d_temp"), name: "Fremdfahrer (" + provider.name + ")",
         branchId: tour.branchId || "b1", costPerDayCents: 0,

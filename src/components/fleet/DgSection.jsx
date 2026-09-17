@@ -1,12 +1,10 @@
 import React, { useState, useMemo } from "react";
-import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime } from "@/lib/gameData";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
 import StatusBadge from "@/components/ui/StatusBadge";
 import Drawer from "@/components/ui/Drawer";
 import {
-  Flame, Droplet, ShieldCheck, Wrench, Sparkles, AlertTriangle,
-  Truck, MapPin, Clock, Plus, Check, Info,
+  Flame, Droplet, ShieldCheck, Sparkles, AlertTriangle, MapPin, Clock, Plus, Check,
 } from "lucide-react";
 
 const TANK_TRUCK_PRICE = 6500000;
@@ -247,7 +245,7 @@ function DgVehicleCard({ vehicle, gameTime, onEquip, onInspect, onClean, busy })
       <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
         <MapPin className="w-3 h-3 text-foreground/40" /> {vehicle.locationCity}
         {isTank && <><span>·</span><span className="text-muted-foreground/60">18 t · 0,34 l/km</span></>}
-        {!isTank && <><span>·</span><span className="text-muted-foreground/60">12 t · 28 L/100km</span></>}
+        {!isTank && <><span>·</span><span className="text-muted-foreground/60">{vehicle.capacityTons} t · {vehicle.consumptionPer100km} L/100km</span></>}
       </div>
 
       {/* DG-Status */}

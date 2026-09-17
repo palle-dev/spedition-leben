@@ -1,0 +1,503 @@
+{
+  "tests": 75,
+  "passed": 75,
+  "failed": 0,
+  "pending": 0,
+  "suites": [
+    {
+      "file": "accounting-lifecycle.test.ts",
+      "tests": [
+        {
+          "name": "Finanz- und Lebenszyklusregeln Verkauf schreibt einen bereits gebuchten Monat nicht ein zweites Mal ab",
+          "status": "passed",
+          "durationMs": 63.871316999999976,
+          "failure": []
+        },
+        {
+          "name": "Finanz- und Lebenszyklusregeln bei leerem Firmenkonto wird Aufwand vollständig als Verbindlichkeit gebucht",
+          "status": "passed",
+          "durationMs": 11.655806999999982,
+          "failure": []
+        },
+        {
+          "name": "Finanz- und Lebenszyklusregeln Monatsabschluss schließt den abgelaufenen Monat ab",
+          "status": "passed",
+          "durationMs": 4.129852999999912,
+          "failure": []
+        },
+        {
+          "name": "Finanz- und Lebenszyklusregeln Anschaffung im dritten Monat erhält eine positive zeitanteilige Abschreibung",
+          "status": "passed",
+          "durationMs": 6.831680000000006,
+          "failure": []
+        },
+        {
+          "name": "Finanz- und Lebenszyklusregeln abgelaufener Vertragsauftrag zählt einschließlich Strafe genau einmal",
+          "status": "passed",
+          "durationMs": 8.120540000000005,
+          "failure": []
+        },
+        {
+          "name": "Finanz- und Lebenszyklusregeln Kryptomenge bleibt an der kleinsten handelbaren Einheit stabil",
+          "status": "passed",
+          "durationMs": 0.2651809999999841,
+          "failure": []
+        },
+        {
+          "name": "Finanz- und Lebenszyklusregeln Kryptoorder wird vollständig ausgeführt und gibt ihre Reserve frei",
+          "status": "passed",
+          "durationMs": 10.10659499999997,
+          "failure": []
+        },
+        {
+          "name": "Finanz- und Lebenszyklusregeln Geburt bleibt bei gleichem gespeicherten Zufallszustand reproduzierbar",
+          "status": "passed",
+          "durationMs": 4.271417999999926,
+          "failure": []
+        },
+        {
+          "name": "Finanz- und Lebenszyklusregeln Mailboxbereinigung hinterlässt keine Nachrichten-IDs ohne Nachricht",
+          "status": "passed",
+          "durationMs": 9.091418999999973,
+          "failure": []
+        },
+        {
+          "name": "Finanz- und Lebenszyklusregeln Wartungsfreigabe wird bei unverändertem Bedarf nicht minütlich dupliziert",
+          "status": "passed",
+          "durationMs": 6.284264000000007,
+          "failure": []
+        },
+        {
+          "name": "Finanz- und Lebenszyklusregeln Werkstattarbeit läuft am Folgetag mit Ersatzmechaniker ohne neue Teilekosten weiter",
+          "status": "passed",
+          "durationMs": 7.349529000000075,
+          "failure": []
+        }
+      ]
+    },
+    {
+      "file": "audit-regressions.test.ts",
+      "tests": [
+        {
+          "name": "Nachgewiesene Simulationseigenschaften Freigabe-Stopp meldet den tatsächlichen Grund und keinen abgeschlossenen Tag",
+          "status": "passed",
+          "durationMs": 52.766621000000214,
+          "failure": []
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften ein Auftrag wird auch bei zwei importierten Fahrten nur einmal vergütet",
+          "status": "passed",
+          "durationMs": 30.767765000000054,
+          "failure": []
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften eine geplante Tour startet einen inzwischen stornierten Auftrag nicht",
+          "status": "passed",
+          "durationMs": 9.10482200000024,
+          "failure": []
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften derselbe Auftrag kann nicht zweimal in einer Tour stehen",
+          "status": "passed",
+          "durationMs": 8.820087999999942,
+          "failure": []
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften Tourauflösung gibt auch bei laufender erster Fahrt alle zukünftigen Aufträge frei",
+          "status": "passed",
+          "durationMs": 9.522146000000248,
+          "failure": []
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften Krankheit verhindert den manuellen Start",
+          "status": "passed",
+          "durationMs": 6.877935999999863,
+          "failure": []
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften eine nach Planung eingetretene Krankheit verhindert den automatischen Start",
+          "status": "passed",
+          "durationMs": 5.01609899999994,
+          "failure": []
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften veraltete Planung versetzt keinen Fahrer an einen anderen Ort",
+          "status": "passed",
+          "durationMs": 5.6960949999997865,
+          "failure": []
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften Fahrerzeit enthält vorherige Arbeit und setzt Lenkzeit an Pausen zurück",
+          "status": "passed",
+          "durationMs": 1.8535480000000462,
+          "failure": []
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften ein zweiter Trip vergisst das vorherige Arbeitsbudget nicht",
+          "status": "passed",
+          "durationMs": 48.354039000000284,
+          "failure": []
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften Vorschau und Engine verwenden für jedes Städtepaar dieselbe Entfernung",
+          "status": "passed",
+          "durationMs": 2.7889679999998407,
+          "failure": []
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften Vorschau und Engine berücksichtigen dasselbe Ladefenster",
+          "status": "passed",
+          "durationMs": 3.321785000000091,
+          "failure": []
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften neue Marktangebote haben geordnete Abhol- und Lieferfenster",
+          "status": "passed",
+          "durationMs": 43.94991800000025,
+          "failure": []
+        },
+        {
+          "name": "Nachgewiesene Simulationseigenschaften Vertragsfristen lassen eine Lieferung nach Beginn des Ladefensters zu",
+          "status": "passed",
+          "durationMs": 3.624651999999969,
+          "failure": []
+        },
+        {
+          "name": "Buchhaltung Werkstattkauf stimmt zwischen Firmenkonto, Journal und Anlagen überein",
+          "status": "passed",
+          "durationMs": 5.141019000000142,
+          "failure": []
+        },
+        {
+          "name": "Buchhaltung Filialpaket bucht enthaltenen Lkw und übrige Eröffnungskosten",
+          "status": "passed",
+          "durationMs": 4.111255000000256,
+          "failure": []
+        },
+        {
+          "name": "Buchhaltung Private Entnahme senkt das Eigenkapital und die Bilanz bleibt ausgeglichen",
+          "status": "passed",
+          "durationMs": 3.6409100000000763,
+          "failure": []
+        },
+        {
+          "name": "Buchhaltung Erlösschmälerungen vermindern den Umsatz",
+          "status": "passed",
+          "durationMs": 2.333444000000327,
+          "failure": []
+        },
+        {
+          "name": "Buchhaltung Periodenberichte bleiben nach Ablauf der Journal-Aufbewahrungsfrist korrekt",
+          "status": "passed",
+          "durationMs": 7.583099999999831,
+          "failure": []
+        },
+        {
+          "name": "Buchhaltung ungültige Centbeträge werden vor jeder Zustandsänderung abgewiesen",
+          "status": "passed",
+          "durationMs": 6.915727999999945,
+          "failure": []
+        },
+        {
+          "name": "Werkstatt und tatsächlicher Adapter-Pfad Werkstatt zeigt das Ende der laufenden Schicht korrekt an",
+          "status": "passed",
+          "durationMs": 5.686071999999967,
+          "failure": []
+        },
+        {
+          "name": "Werkstatt und tatsächlicher Adapter-Pfad Tages- und Stunden-Vorlauf bereinigen auch im Adapter dieselben Daten",
+          "status": "passed",
+          "durationMs": 72.4487039999999,
+          "failure": []
+        }
+      ]
+    },
+    {
+      "file": "cloud-contract.test.ts",
+      "tests": [
+        {
+          "name": "Cloud-Handler-Verträge globale Zeitautomatik benötigt einen belegten Admin",
+          "status": "passed",
+          "durationMs": 7.259444999999914,
+          "failure": []
+        },
+        {
+          "name": "Cloud-Handler-Verträge globale Zeitautomatik benötigt einen belegten Admin",
+          "status": "passed",
+          "durationMs": 1.3050289999998768,
+          "failure": []
+        },
+        {
+          "name": "Cloud-Handler-Verträge Anmeldung ist für jede Cloud-Aktion erforderlich",
+          "status": "passed",
+          "durationMs": 3.067491000000018,
+          "failure": []
+        },
+        {
+          "name": "Cloud-Handler-Verträge Listen enthalten ausschließlich eigene Spielstände",
+          "status": "passed",
+          "durationMs": 2.3098009999998794,
+          "failure": []
+        },
+        {
+          "name": "Cloud-Handler-Verträge Fremder Spielstand bleibt für load gesperrt",
+          "status": "passed",
+          "durationMs": 1.602617999999893,
+          "failure": []
+        },
+        {
+          "name": "Cloud-Handler-Verträge Fremder Spielstand bleibt für save gesperrt",
+          "status": "passed",
+          "durationMs": 1.1866919999999936,
+          "failure": []
+        },
+        {
+          "name": "Cloud-Handler-Verträge Fremder Spielstand bleibt für delete gesperrt",
+          "status": "passed",
+          "durationMs": 1.2855220000001282,
+          "failure": []
+        },
+        {
+          "name": "Cloud-Handler-Verträge veraltete Revision meldet 409 und verändert den Zustand nicht",
+          "status": "passed",
+          "durationMs": 1.244432000000188,
+          "failure": []
+        },
+        {
+          "name": "Cloud-Handler-Verträge Speichern filtert auf Eigentümer und Revision und zeigt denselben Spieltag",
+          "status": "passed",
+          "durationMs": 1.6587919999999485,
+          "failure": []
+        },
+        {
+          "name": "Cloud-Handler-Verträge ungültige Revision null wird vor dem Schreiben abgewiesen",
+          "status": "passed",
+          "durationMs": 1.2090800000000854,
+          "failure": []
+        },
+        {
+          "name": "Cloud-Handler-Verträge ungültige Revision 3 wird vor dem Schreiben abgewiesen",
+          "status": "passed",
+          "durationMs": 1.1211660000001302,
+          "failure": []
+        },
+        {
+          "name": "Cloud-Handler-Verträge ungültige Revision -1 wird vor dem Schreiben abgewiesen",
+          "status": "passed",
+          "durationMs": 0.8065790000000561,
+          "failure": []
+        },
+        {
+          "name": "Cloud-Handler-Verträge ungültige Revision 1.5 wird vor dem Schreiben abgewiesen",
+          "status": "passed",
+          "durationMs": 0.6828069999999116,
+          "failure": []
+        },
+        {
+          "name": "Cloud-Handler-Verträge gleiche newGame-Aktion erzeugt bei sequenzieller Wiederholung kein Duplikat",
+          "status": "passed",
+          "durationMs": 17.80969899999991,
+          "failure": []
+        },
+        {
+          "name": "Cloud-Handler-Verträge dieselbe newGame-ID mit anderem Inhalt wird als Konflikt abgewiesen",
+          "status": "passed",
+          "durationMs": 6.616338000000042,
+          "failure": []
+        }
+      ]
+    },
+    {
+      "file": "customer-contracts.test.ts",
+      "tests": [
+        {
+          "name": "Kundenbeziehungen Migration erstellt für alle 30 Kunden einen neutralen Beziehungsdatensatz",
+          "status": "passed",
+          "durationMs": 17.549625000000106,
+          "failure": []
+        },
+        {
+          "name": "Kundenbeziehungen Eine pünktliche Lieferung erhöht Vertrauen um +2 und Umsatz genau einmal",
+          "status": "passed",
+          "durationMs": 2.6031960000000254,
+          "failure": []
+        },
+        {
+          "name": "Kundenbeziehungen Ablaufen eines nicht angenommenen Angebots schadet der Beziehung nicht",
+          "status": "passed",
+          "durationMs": 3.343152999999802,
+          "failure": []
+        },
+        {
+          "name": "Kundenbeziehungen Stammkunden-Erkennung bei ≥5 Transporten und ≥60 Vertrauen",
+          "status": "passed",
+          "durationMs": 2.2840590000000702,
+          "failure": []
+        },
+        {
+          "name": "Rahmenverträge Vertragsangebot ist deterministisch — gleiche Parameter ergeben gleiches Angebot",
+          "status": "passed",
+          "durationMs": 2.6604919999999765,
+          "failure": []
+        },
+        {
+          "name": "Rahmenverträge Vertragsaufträge entstehen pro Leistungstag in der vereinbarten Anzahl",
+          "status": "passed",
+          "durationMs": 6.500344999999925,
+          "failure": []
+        },
+        {
+          "name": "Rahmenverträge Maximal ein aktiver Vertrag pro Kunde",
+          "status": "passed",
+          "durationMs": 3.2050139999996645,
+          "failure": []
+        },
+        {
+          "name": "Rahmenverträge Vorzeitige Beendigung stoppt zukünftige Transporte und kostet 6 Vertrauen",
+          "status": "passed",
+          "durationMs": 4.618951999999808,
+          "failure": []
+        },
+        {
+          "name": "Rahmenverträge Vertragsauswertung nach Abschluss aller Aufträge",
+          "status": "passed",
+          "durationMs": 3.9463340000002063,
+          "failure": []
+        },
+        {
+          "name": "Konsistenz mit Zeitvorläufen Vertragsaufträge entstehen auch bei aufgeteilten Vorläufen korrekt",
+          "status": "passed",
+          "durationMs": 91.73506199999974,
+          "failure": []
+        }
+      ]
+    },
+    {
+      "file": "engine-parity.test.ts",
+      "tests": [
+        {
+          "name": "Browser- und Base44-Module sind identische, überprüfbare Kopien",
+          "status": "passed",
+          "durationMs": 57.05837900000006,
+          "failure": []
+        },
+        {
+          "name": "Browser- und Server-Engine führen denselben Spieltag aus",
+          "status": "passed",
+          "durationMs": 125.83465700000033,
+          "failure": []
+        }
+      ]
+    },
+    {
+      "file": "long-run.test.ts",
+      "tests": [
+        {
+          "name": "35 Betriebstage mit Personal, Disposition und Monatswechsel erhalten Buchungsinvarianten",
+          "status": "passed",
+          "durationMs": 4950.585891000001,
+          "failure": []
+        }
+      ]
+    },
+    {
+      "file": "real-replay.test.ts",
+      "tests": [
+        {
+          "name": "Reale Spielstände: Tag 28 → 29 Tages-, Stunden- und Viertelstunden-Schritte ergeben denselben fachlichen Zustand",
+          "status": "passed",
+          "durationMs": 8643.223156,
+          "failure": []
+        }
+      ]
+    },
+    {
+      "file": "scenarios-financing.test.ts",
+      "tests": [
+        {
+          "name": "Szenario wieder_auf_kurs startet und bleibt nach einem Tag buchhalterisch konsistent",
+          "status": "passed",
+          "durationMs": 109.02748500000007,
+          "failure": []
+        },
+        {
+          "name": "Szenario ein_kunde_zaehlt_auf_dich startet und bleibt nach einem Tag buchhalterisch konsistent",
+          "status": "passed",
+          "durationMs": 156.7077519999998,
+          "failure": []
+        },
+        {
+          "name": "Szenario der_betrieb_laeuft_auch_ohne_dich startet und bleibt nach einem Tag buchhalterisch konsistent",
+          "status": "passed",
+          "durationMs": 80.26816800000006,
+          "failure": []
+        },
+        {
+          "name": "Kredit und Leasing buchen die erste fällige Rate genau einmal",
+          "status": "passed",
+          "durationMs": 22.058551999999963,
+          "failure": []
+        },
+        {
+          "name": "ungültige Depotüberweisung NaN verändert kein Konto",
+          "status": "passed",
+          "durationMs": 12.532148999999663,
+          "failure": []
+        },
+        {
+          "name": "ungültige Depotüberweisung Infinity verändert kein Konto",
+          "status": "passed",
+          "durationMs": 7.1163799999999355,
+          "failure": []
+        },
+        {
+          "name": "ungültige Depotüberweisung -10 verändert kein Konto",
+          "status": "passed",
+          "durationMs": 8.149281999999857,
+          "failure": []
+        },
+        {
+          "name": "ungültige Depotüberweisung 0.5 verändert kein Konto",
+          "status": "passed",
+          "durationMs": 5.457409999999982,
+          "failure": []
+        }
+      ]
+    },
+    {
+      "file": "simulation.consistency.test.ts",
+      "tests": [
+        {
+          "name": "Zeitvorlauf-Konsistenz 1×1440 == 24×60 == 96×15 ergeben denselben fachlichen Endzustand",
+          "status": "passed",
+          "durationMs": 145.69590599999992,
+          "failure": []
+        },
+        {
+          "name": "Speichern/Laden-Konsistenz Zustand nach Serialisierung/Deserialisierung bleibt simulationstauglich",
+          "status": "passed",
+          "durationMs": 37.46649600000001,
+          "failure": []
+        },
+        {
+          "name": "Idempotenz Zweimaliges advanceTime um 0 min verändert den Zustand nicht",
+          "status": "passed",
+          "durationMs": 8.664400000000114,
+          "failure": []
+        },
+        {
+          "name": "Abbruch-Behandlung Ein durch MAX_EVENTS abgebrochener Vorlauf meldet stopped:true",
+          "status": "passed",
+          "durationMs": 1.9326289999999062,
+          "failure": []
+        },
+        {
+          "name": "Tagesabrechnung Wird pro Mitternacht genau einmal ausgeführt (Idempotenz-Sperre)",
+          "status": "passed",
+          "durationMs": 24.78925500000014,
+          "failure": []
+        }
+      ]
+    }
+  ]
+}

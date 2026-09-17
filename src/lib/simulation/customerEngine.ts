@@ -450,7 +450,7 @@ export function processContractDay(state, m, log) {
 
       // Lieferfrist: Tagesbeginn + Fahrzeit + Operationen + Puffer
       const dayStart = (day - 1) * 1440;
-      const deliveryDeadline = dayStart + contract.opMin + contract.deliveryBufferMin;
+      const deliveryDeadline = dayStart + 480 + contract.opMin + contract.deliveryBufferMin;
 
       const order = {
         id: orderId,
@@ -467,7 +467,8 @@ export function processContractDay(state, m, log) {
         publishedAtMin: m,
         acceptDeadlineMin: null, // bereits angenommen
         earliestPickupMin: dayStart + 480, // 08:00
-        latestLoadStartMin: dayStart + 960, // 16:00
+        latestLoadStartMin: Math.min(dayStart + 960, deliveryDeadline - contract.opMin),
+        windowVersion: 2,
         deliveryDeadlineMin: deliveryDeadline,
         paymentTermsDays: 0,
         paymentDueMin: null,

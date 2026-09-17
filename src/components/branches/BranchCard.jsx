@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro } from "@/lib/gameData";
-import { vehicleDisplayName } from "@/lib/displayHelpers";
 import Portrait from "@/components/ui/Portrait";
 import {
   Building2, MapPin, Truck, Users, Headset, TrendingUp, Wallet, Edit2, X,
@@ -174,7 +173,7 @@ export default function BranchCard({ branch, onMoveResource }) {
           <MetricCell icon={TrendingUp} label="Umsatz" value={formatEuro(stats.revenueCents)} />
           <MetricCell icon={ArrowRight} label="Lieferungen" value={stats.deliveries} />
           <MetricCell icon={Percent} label="Marge" value={`${margin}%`} valueClass={margin >= 30 ? "text-lime" : margin >= 10 ? "text-amber-300" : "text-coral"} />
-          <MetricCell icon={Wallet} label="Kosten/Tag" value={formatEuro(branch.totalDailyCostCents || branch.costPerDayCents)} />
+          <MetricCell icon={Wallet} label="Kosten/Tag" value={formatEuro((branch.costPerDayCents || 0) + drivers.reduce((sum, d) => sum + (d.costPerDayCents || 0), 0) + allStaff.reduce((sum, e) => sum + (e.costPerDayCents || 0), 0))} />
         </div>
 
         {/* Fahrzeugzustand */}

@@ -313,7 +313,7 @@ export function migrateState(state) {
   // akkumulieren sich über Wochen und blähen den State auf (6 MB+ nach
   // 100 Tagen), was jede Berechnung verlangsamt. Die Tageszusammenfassung
   // (dailySummary) bewahrt die aggregierten Finanzdaten historisch auf.
-  cleanupOldData(state);
+  // Zeitabhängige Bereinigung findet ausschließlich am Tageswechsel statt.
 
   return state;
 }

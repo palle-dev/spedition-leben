@@ -11,7 +11,7 @@ import { pushEvent } from "./eventLog.ts";
 import { deliverMessage } from "./mailEngine.ts";
 import { isPersonAvailable } from "./absenceEngine.ts";
 import { isActivelyEmployed } from "./terminationEngine.ts";
-import { registerAsset, bookExpense } from "./accountingEngine.ts";
+import { registerAsset, bookExpense, postJournal } from "./accountingEngine.ts";
 import { checkSpendAuthority, recordSpend, createApprovalRequest } from "./delegationEngine.ts";
 
 const DAY_MIN = 1440;
@@ -45,15 +45,15 @@ function vehicleLabel(v) {
 function estimateMaintenanceEnd(order, m) {
   const remaining = Math.max(0, order.requiredMinutes - order.completedMinutes);
   if (remaining <= 0) return m;
-  const dayStart = Math.floor(m / DAY_MIN) * DAY_MIN;
-  let serviceStart = dayStart + SERVICE_START_MIN;
-  if (serviceStart <= m) serviceStart += DAY_MIN;
-  const serviceLen = SERVICE_END_MIN - SERVICE_START_MIN;
-  let end = serviceStart;
+  let end = m;
   let left = remaining;
   while (left > 0) {
-    if (left <= serviceLen) { end += left; left = 0; }
-    else { end += serviceLen; left -= serviceLen; end = Math.floor(end / DAY_MIN) * DAY_MIN + DAY_MIN + SERVICE_START_MIN; }
+    let dayStart = Math.floor(end / DAY_MIN) * DAY_MIN;
+    if (end >= dayStart + SERVICE_END_MIN) { dayStart += DAY_MIN; end = dayStart + SERVICE_START_MIN; }
+    if (end < dayStart + SERVICE_START_MIN) end = dayStart + SERVICE_START_MIN;
+    const chunk = Math.min(left, dayStart + SERVICE_END_MIN - end);
+    left -= chunk;
+    end += chunk;
   }
   return end;
 }
@@ -117,14 +117,15 @@ export function buildWorkshopSlot(state, { branchId }) {
     throw new Error("Firmenkonto reicht für den Werkstattbau (5.000 €) nicht aus.");
   }
   // Kauf buchen
-  state.company.accountCents -= WORKSHOP_SLOT_PRICE;
+  postJournal(state, { text: "Werkstattbau: " + branch.name, type: "workshop_purchase", branchId,
+    lines: [{ account: "1210", debit: WORKSHOP_SLOT_PRICE }, { account: "1000", credit: WORKSHOP_SLOT_PRICE }] });
   state.bookings.push({
     min: state.gameTime, cause: "Werkstattbau: " + branch.name,
     amountCents: -WORKSHOP_SLOT_PRICE, account: "company", refId: "workshop_build",
   });
   // Anlage im Anlagenverzeichnis
   const asset = registerAsset(state, {
-    vehicleId: null, account: "1200",
+    vehicleId: null, account: "1210",
     name: "Werkstattplatz " + branch.name,
     acquisitionCostCents: WORKSHOP_SLOT_PRICE, acquiredAtMin: state.gameTime,
   });
@@ -269,6 +270,7 @@ function startWork(state, order, slot, mechanic, partsCost, m, log) {
 
   // Auftrag starten
   order.status = "in_progress";
+  order.mechanicId = mechanic.id;
   order.working = true;
   order.workSessionStart = m;
   order.startMin = m;
@@ -588,7 +590,7 @@ export function evaluateWorkshopAutomation(state, m, log) {
           urgency: v.condition <= profile.urgentThreshold ? "high" : "medium",
           deadlineMin: null,
           actionData: { vehicleId: v.id, branchId: branch.id, type: "standard", costCents: cost },
-          dedupKey: "workshop_auto:" + v.id + ":" + state.gameTime,
+          dedupKey: "workshop_auto:" + v.id,
         });
       }
       continue;

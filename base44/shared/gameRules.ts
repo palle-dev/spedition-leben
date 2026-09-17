@@ -96,6 +96,259 @@ export const STANDARD_TRUCK = {
 // Referenz-Neupreis für die Marktwertberechnung (Auftrag 21).
 export const VEHICLE_REFERENCE_PRICE = 3000000; // 30.000 €
 
+// ---------- Fahrzeugkatalog (Fahrzeugprofile) ----------
+// Drei normale Fahrzeugprofile mit unterschiedlichen Kapazitäten, Anschaffungskosten
+// und Verbrauchswerten. Die Wahl hängt von Aufträgen, Geschäftsmodell und finanziellen
+// Möglichkeiten ab. Geschwindigkeit und Fahrerzeitregeln bleiben für alle Typen gleich.
+export const VEHICLE_CATALOG = {
+  regional: {
+    id: "regional",
+    label: "Regional-Lkw",
+    capacityTons: 8,
+    priceCents: 1800000,          // 18.000 €
+    consumptionPer100km: 22,       // geringerer Verbrauch
+    maintenanceCostCents: 120000,  // 1.200 € (geringere Wartungskosten)
+    maintenanceDurationMin: 360,  // 6 h (kürzere Wartung)
+    referencePriceCents: 1800000,
+    description: "Kompakter Lkw für regionale Transporte. Günstige Anschaffung und niedriger Verbrauch.",
+    suitableFor: ["regional", "normal"],
+  },
+  standard: {
+    id: "standard",
+    label: "Standard-Lkw",
+    capacityTons: 12,
+    priceCents: 3000000,           // 30.000 € (wie bisher)
+    consumptionPer100km: 28,
+    maintenanceCostCents: 150000,  // 1.500 € (wie bisher)
+    maintenanceDurationMin: 480,   // 8 h (wie bisher)
+    referencePriceCents: 3000000,
+    description: "Universeller Lkw für mittlere bis lange Strecken. Ausgewogenes Verhältnis von Kapazität und Kosten.",
+    suitableFor: ["regional", "normal", "express"],
+  },
+  heavy: {
+    id: "heavy",
+    label: "Schwerer Fernverkehrs-Lkw",
+    capacityTons: 24,
+    priceCents: 5500000,            // 55.000 €
+    consumptionPer100km: 35,        // höherer Verbrauch
+    maintenanceCostCents: 220000,   // 2.200 € (höhere Wartungskosten)
+    maintenanceDurationMin: 600,   // 10 h (längere Wartung)
+    referencePriceCents: 5500000,
+    description: "Großer Lkw für schwere Ladungen und lange Fernverkehrsstrecken. Hohe Nutzlast bei höheren Kosten.",
+    suitableFor: ["normal", "express", "heavy"],
+  },
+};
+
+export const VEHICLE_CATALOG_LIST = [
+  VEHICLE_CATALOG.regional,
+  VEHICLE_CATALOG.standard,
+  VEHICLE_CATALOG.heavy,
+];
+
+export function getVehicleProfile(vehicle) {
+  if (!vehicle) return VEHICLE_CATALOG.standard;
+  // Bestimmung über catalogId (neue Fahrzeuge) oder Rückwärtskompatibel über type
+  if (vehicle.catalogId && VEHICLE_CATALOG[vehicle.catalogId]) return VEHICLE_CATALOG[vehicle.catalogId];
+  if (vehicle.type === "Regional-Lkw") return VEHICLE_CATALOG.regional;
+  if (vehicle.type === "Schwerer Fernverkehrs-Lkw") return VEHICLE_CATALOG.heavy;
+  // Standard-Lkw und alle älteren Fahrzeuge (inkl. Miet-Lkw, Leasing, Tank) → Standard
+  return VEHICLE_CATALOG.standard;
+}
+
+// ---------- Fahrzeug-Aufbauten (Spezialisierte Lkw-Typen) ----------
+// Aufbauten sind kombinierbar mit den drei Größenklassen (Regional/Standard/Schwer).
+// Jeder Aufbau modifiziert Preis, Wartungskosten und Verbrauch gegenüber dem
+// Basis-Profil. Die Wahl des Aufbaus bestimmt, welche Frachtarten der Lkw
+// transportieren kann (strikte Anforderung) oder für die er einen Bonus erhält.
+export const VEHICLE_BODY_TYPES = {
+  planen: {
+    id: "planen",
+    label: "Planen",
+    priceMultiplier: 1.0,
+    maintenanceMultiplier: 1.0,
+    consumptionAdd: 0,
+    description: "Standard-Sattelzug mit Plane. Universell für Standardfracht einsetzbar.",
+  },
+  kuehl: {
+    id: "kuehl",
+    label: "Kühlwagen",
+    priceMultiplier: 1.15,
+    maintenanceMultiplier: 1.20,
+    consumptionAdd: 2,
+    description: "Kühl- und Gefriertransporte. Höhere Wartungs- und Kraftstoffkosten durch Kühlaggregat.",
+  },
+  tank: {
+    id: "tank",
+    label: "Tankwagen",
+    priceMultiplier: 1.20,
+    maintenanceMultiplier: 1.15,
+    consumptionAdd: 1,
+    description: "Flüssig- und Schüttguttransporte. Spezielle Pumpe und Tankausstattung.",
+  },
+  kipper: {
+    id: "kipper",
+    label: "Kipper/Silo",
+    priceMultiplier: 1.10,
+    maintenanceMultiplier: 1.10,
+    consumptionAdd: 1,
+    description: "Schüttgut und Baustoffe. Hydraulische Kippeinrichtung für schnelles Entladen.",
+  },
+};
+
+export const VEHICLE_BODY_TYPE_LIST = [
+  VEHICLE_BODY_TYPES.planen,
+  VEHICLE_BODY_TYPES.kuehl,
+  VEHICLE_BODY_TYPES.tank,
+  VEHICLE_BODY_TYPES.kipper,
+];
+
+// Liefert den Aufbau-Typ eines Fahrzeugs (mit Fallback auf Planen).
+export function getVehicleBodyType(vehicle) {
+  if (!vehicle) return VEHICLE_BODY_TYPES.planen;
+  if (vehicle.bodyType && VEHICLE_BODY_TYPES[vehicle.bodyType]) return VEHICLE_BODY_TYPES[vehicle.bodyType];
+  return VEHICLE_BODY_TYPES.planen;
+}
+
+// Effektiver Verbrauch inkl. Aufbau-Zuschlag.
+export function getVehicleEffectiveConsumption(vehicle) {
+  const profile = getVehicleProfile(vehicle);
+  const body = getVehicleBodyType(vehicle);
+  return profile.consumptionPer100km + body.consumptionAdd;
+}
+
+// Effektive Wartungskosten inkl. Aufbau-Multiplikator.
+export function getVehicleEffectiveMaintenanceCost(vehicle) {
+  const profile = getVehicleProfile(vehicle);
+  const body = getVehicleBodyType(vehicle);
+  return Math.round(profile.maintenanceCostCents * body.maintenanceMultiplier);
+}
+
+// ---------- Frachtarten (Cargo-Kategorien) ----------
+// Bestimmt, welcher Aufbau für einen Auftrag erforderlich (strikt) oder
+// bevorzugt (Bonus) ist. Strikte Frachtarten blockieren unpassende Lkw;
+// Bonus-Frachtarten zulassen alle Lkw, zahlen aber dem passenden Spezial-Lkw
+// einen Preis-Aufschlag.
+export const CARGO_CATEGORIES = {
+  standard: {
+    id: "standard",
+    label: "Standardfracht",
+    requiredBodyType: null,
+    bonusBodyType: null,
+    bonusFactor: 1.0,
+    priceFactor: 1.0,
+  },
+  kuehl: {
+    id: "kuehl",
+    label: "Kühlfracht",
+    requiredBodyType: "kuehl",
+    bonusBodyType: "kuehl",
+    bonusFactor: 1.0,
+    priceFactor: 1.20,
+  },
+  lebensmittel: {
+    id: "lebensmittel",
+    label: "Lebensmittel",
+    requiredBodyType: null,
+    bonusBodyType: "kuehl",
+    bonusFactor: 1.15,
+    priceFactor: 1.05,
+  },
+  fluessig: {
+    id: "fluessig",
+    label: "Flüssigtransport",
+    requiredBodyType: "tank",
+    bonusBodyType: "tank",
+    bonusFactor: 1.0,
+    priceFactor: 1.15,
+  },
+  getraenke: {
+    id: "getraenke",
+    label: "Getränke",
+    requiredBodyType: null,
+    bonusBodyType: "tank",
+    bonusFactor: 1.10,
+    priceFactor: 1.05,
+  },
+  schuettgut: {
+    id: "schuettgut",
+    label: "Schüttgut",
+    requiredBodyType: "kipper",
+    bonusBodyType: "kipper",
+    bonusFactor: 1.0,
+    priceFactor: 1.10,
+  },
+  baustoffe: {
+    id: "baustoffe",
+    label: "Baustoffe",
+    requiredBodyType: null,
+    bonusBodyType: "kipper",
+    bonusFactor: 1.12,
+    priceFactor: 1.05,
+  },
+};
+
+export const CARGO_CATEGORY_LIST = Object.values(CARGO_CATEGORIES);
+
+// Liefert die Cargo-Kategorie eines Auftrags (mit Fallback auf Standard).
+export function getCargoCategory(order) {
+  if (!order) return CARGO_CATEGORIES.standard;
+  if (order.cargoCategory && CARGO_CATEGORIES[order.cargoCategory]) return CARGO_CATEGORIES[order.cargoCategory];
+  return CARGO_CATEGORIES.standard;
+}
+
+// Abbildung von CARGO_TYPES auf gewichtete Cargo-Kategorien.
+// Der Markt wählt pro Auftrag eine Kategorie basierend auf der Frachtart.
+export const CARGO_TO_CATEGORY_WEIGHTS = {
+  "Lebensmittel": [{ cat: "kuehl", w: 0.35 }, { cat: "lebensmittel", w: 0.65 }],
+  "Getränke":     [{ cat: "fluessig", w: 0.30 }, { cat: "getraenke", w: 0.70 }],
+  "Baustoffe":    [{ cat: "schuettgut", w: 0.40 }, { cat: "baustoffe", w: 0.60 }],
+  "Bauteile":     [{ cat: "baustoffe", w: 0.25 }, { cat: "standard", w: 0.75 }],
+  "Stückgut":     [{ cat: "standard", w: 1.0 }],
+  "Möbel":        [{ cat: "standard", w: 1.0 }],
+  "Elektronik":   [{ cat: "standard", w: 1.0 }],
+  "Verpackungsmaterial": [{ cat: "standard", w: 1.0 }],
+  "Maschinenteile": [{ cat: "standard", w: 1.0 }],
+  "Textilien":    [{ cat: "standard", w: 1.0 }],
+};
+
+// Wählt eine Cargo-Kategorie für eine gegebene Frachtart (deterministisch via rng).
+export function pickCargoCategory(cargoType, rng) {
+  const weights = CARGO_TO_CATEGORY_WEIGHTS[cargoType] || [{ cat: "standard", w: 1.0 }];
+  const total = weights.reduce((s, e) => s + e.w, 0);
+  let r = rng() * total;
+  for (const entry of weights) {
+    r -= entry.w;
+    if (r <= 0) return CARGO_CATEGORIES[entry.cat];
+  }
+  return CARGO_CATEGORIES.standard;
+}
+
+// Prüft, ob ein Fahrzeug-Aufbau für einen Auftrag geeignet ist.
+// Gibt { ok: true } oder { ok: false, error } zurück.
+export function checkBodyTypeCompatibility(order, vehicle) {
+  const cat = getCargoCategory(order);
+  if (!cat.requiredBodyType) return { ok: true };
+  const body = getVehicleBodyType(vehicle);
+  if (body.id !== cat.requiredBodyType) {
+    return {
+      ok: false,
+      error: "Frachtart '" + cat.label + "' erfordert Aufbau '" +
+        VEHICLE_BODY_TYPES[cat.requiredBodyType].label + "' — dieser Lkw hat '" + body.label + "'.",
+    };
+  }
+  return { ok: true };
+}
+
+// Berechnet den Bonus-Faktor für eine Lieferung basierend auf Aufbau und Frachtart.
+// 1.0 = kein Bonus; > 1.0 = Spezial-Lkw erhält Aufschlag.
+export function computeBodyBonusFactor(order, vehicle) {
+  const cat = getCargoCategory(order);
+  if (!cat.bonusBodyType) return 1.0;
+  const body = getVehicleBodyType(vehicle);
+  if (body.id === cat.bonusBodyType) return cat.bonusFactor;
+  return 1.0;
+}
+
 // ---------- Marktwertfunktion (Auftrag 21) ----------
 // R = gespeicherter Referenz-Neupreis des Modells.
 // A = seit Inbetriebnahme verstrichene Spielmonate (kontinuierlich, 1 Monat = 30 Tage = 43200 Min).
@@ -141,6 +394,8 @@ export const PERSONNEL_ROLES = {
   mechanic:           { id: "mechanic",           label: "Werkstattmitarbeiter",    hireFeeCents: 50000,  costPerDayCents: 14000, capacity: 1 },
   accountant:         { id: "accountant",         label: "Buchhalter/Buchhalterin",       hireFeeCents: 40000,  costPerDayCents: 12000, capacity: 40 },
   accountant_senior:  { id: "accountant_senior",  label: "Erfahrene Buchhaltungskraft",   hireFeeCents: 70000,  costPerDayCents: 19000, capacity: 80 },
+  assistant:          { id: "assistant",          label: "Assistent der Geschäftsführung", hireFeeCents: 80000,  costPerDayCents: 22000, capacity: 0 },
+  branch_manager:     { id: "branch_manager",     label: "Filialleiter",                    hireFeeCents: 120000, costPerDayCents: 35000, capacity: 0 },
 };
 
 // Dienstzeiten für nicht fahrende Mitarbeiter (Buchhaltung, Reinigung etc.)
@@ -164,6 +419,8 @@ export const APPLICANT_NAMES = {
   cleaner:           ["Tanja Hennig", "Dorothee Saar"],
   mechanic:          ["Manfred Brod", "Veit Karger"],
   accountant:        ["Greta Möller", "Tobias Brandt"],
+  assistant:         ["Lorenz Greif", "Christine Stahl"],
+  branch_manager:    ["Max Becker", "Lena Walter", "Karl Herrmann", "Inge Keller"],
 };
 
 // Porträt-Katalog: 12 einheitliche Cartoon-Porträts.

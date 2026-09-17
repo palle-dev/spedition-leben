@@ -1,3 +1,4 @@
+import { addBooking } from "./accountingEngine.ts";
 // Störungsmanagement-Engine für FERNWERK.
 // Verwaltet betriebliche Störungen: technische Defekte, Ladeverzögerungen,
 // Personalausfälle. Nutzt vorhandene Wartung, Dienstleistungen, Mietfahrzeuge,
@@ -24,6 +25,7 @@ import {
   SERVICE_PROVIDERS, BLOCK_DURATION_MIN,
 } from "./serviceEngine.ts";
 import { checkSpendAuthority } from "./delegationEngine.ts";
+import { getEffectiveParams, applyDisruptionRate } from "./difficultyProfiles.ts";
 
 // ---------- Zentrale Konfiguration ----------
 // Wahrscheinlichkeiten und Auswirkungen — kalibriert für ausgewogenen Betrieb.
@@ -34,7 +36,7 @@ import { checkSpendAuthority } from "./delegationEngine.ts";
 export const DISRUPTION_CONFIG = {
   technicalDefect: {
     baseRate: 0.01,              // 1% Basischance pro Tourstart
-    conditionRiskFactor: 0.002,  // +0.2% pro Zustandspunkt unter 100
+    conditionRiskFactor: 0.002,  // +0,2% pro Zustandspunkt unter 100
     minConditionForDefect: 20,   // Unter 20 ist Fahrzeug ohnehin gesperrt
     repairDurationMin: 240,      // 4h Notfallreparatur
     repairCostCents: 30000,      // 300 € Notfallreparatur
@@ -489,7 +491,10 @@ export function maybeGenerateTechnicalDefect(state, tour, deployment, m, log) {
   if (hasExistingDisruption(state, dedupKey)) return false;
 
   const conditionGap = 100 - vehicle.condition;
-  const probability = DISRUPTION_CONFIG.technicalDefect.baseRate
+  const baseRate = applyDisruptionRate(
+    DISRUPTION_CONFIG.technicalDefect.baseRate, getEffectiveParams(state)
+  );
+  const probability = baseRate
     + conditionGap * DISRUPTION_CONFIG.technicalDefect.conditionRiskFactor;
 
   if (nextRng(state) > probability) return false;
@@ -538,7 +543,10 @@ export function maybeGenerateTechnicalDefectForTrip(state, vehicle, driver, orde
   if (hasExistingDisruption(state, dedupKey)) return false;
 
   const conditionGap = 100 - vehicle.condition;
-  const probability = DISRUPTION_CONFIG.technicalDefect.baseRate
+  const baseRate = applyDisruptionRate(
+    DISRUPTION_CONFIG.technicalDefect.baseRate, getEffectiveParams(state)
+  );
+  const probability = baseRate
     + conditionGap * DISRUPTION_CONFIG.technicalDefect.conditionRiskFactor;
 
   if (nextRng(state) > probability) return false;
@@ -587,7 +595,10 @@ export function maybeGenerateLoadingDelay(state, trip, m, log) {
   const dedupKey = "delay:" + trip.id + ":" + delayPhaseIndex;
   if (hasExistingDisruption(state, dedupKey)) return false;
 
-  if (nextRng(state) > DISRUPTION_CONFIG.loadingDelay.baseRate) return false;
+  const loadingRate = applyDisruptionRate(
+    DISRUPTION_CONFIG.loadingDelay.baseRate, getEffectiveParams(state)
+  );
+  if (nextRng(state) > loadingRate) return false;
 
   const delayMin = DISRUPTION_CONFIG.loadingDelay.minDelayMin
     + Math.floor(nextRng(state) * (DISRUPTION_CONFIG.loadingDelay.maxDelayMin - DISRUPTION_CONFIG.loadingDelay.minDelayMin + 1));
@@ -790,8 +801,7 @@ function executeOption(state, d, optionId, params, m, log) {
       const blocks = 2;
       const cost = provider.handoverCents + blocks * provider.blockRateCents;
       if (state.company.accountCents < cost) throw new Error("Firmenkonto reicht nicht aus.");
-      state.company.accountCents -= cost;
-      state.bookings.push({ min: m, cause: "Mietfahrzeug: " + provider.name, amountCents: -cost, account: "company", refId: "disruption_rental:" + d.id });
+      addBooking(state, m, "Mietfahrzeug: " + provider.name, -cost, "company", "disruption_rental:" + d.id);
       const rentalVehicle = {
         id: uid(state, "v_rent"), branchId: (tour ? tour.branchId : (vehicle ? vehicle.branchId : "b1")) || "b1",
         type: "Miet-Lkw", capacityTons: 12, consumptionPer100km: 30,
@@ -827,8 +837,7 @@ function executeOption(state, d, optionId, params, m, log) {
       const cost = DISRUPTION_CONFIG.technicalDefect.repairCostCents;
       const duration = DISRUPTION_CONFIG.technicalDefect.repairDurationMin;
       if (state.company.accountCents < cost) throw new Error("Firmenkonto reicht nicht aus.");
-      state.company.accountCents -= cost;
-      state.bookings.push({ min: m, cause: "Notfallreparatur: " + vehicleLabel(vehicle), amountCents: -cost, account: "company", refId: "disruption_repair:" + d.id });
+      addBooking(state, m, "Notfallreparatur: " + vehicleLabel(vehicle), -cost, "company", "disruption_repair:" + d.id);
       vehicle.status = "maintenance";
       vehicle.maintenanceUntil = m + duration;
       d.status = "measure_running";
@@ -962,8 +971,7 @@ function executeOption(state, d, optionId, params, m, log) {
       const blocks = 2;
       const cost = provider.provisionCents + blocks * provider.blockRateCents;
       if (state.company.accountCents < cost) throw new Error("Firmenkonto reicht nicht aus.");
-      state.company.accountCents -= cost;
-      state.bookings.push({ min: m, cause: "Fremdfahrer: " + provider.name, amountCents: -cost, account: "company", refId: "disruption_temp:" + d.id });
+      addBooking(state, m, "Fremdfahrer: " + provider.name, -cost, "company", "disruption_temp:" + d.id);
       const tempDriver = {
         id: uid(state, "d_temp"), name: "Fremdfahrer (" + provider.name + ")",
         branchId: tour.branchId || "b1", costPerDayCents: 0,

@@ -1,10 +1,9 @@
+import { buildDeployment } from "@/lib/simulation/tourEngine";
 import React, { useState, useMemo, useEffect } from "react";
 import { useGame } from "@/lib/gameContext";
-import {
-  CITIES, getDistance, driveMinutes, fuelEur, tollEur, formatEuro, formatGameTime,
-  LOAD_MIN, UNLOAD_MIN, WORK_BUDGET_MIN
+import { getDistance, fuelEur, tollEur, formatEuro, formatGameTime, WORK_BUDGET_MIN
 } from "@/lib/gameData";
-import { buildPhases, buildWorkSteps, summarizePhases, phaseLabel } from "@/lib/driverTimeEngine";
+import { summarizePhases, phaseLabel } from "@/lib/driverTimeEngine";
 import { vehicleDisplayName, driverDisplayName, driverInitials, driverAvatarClass } from "@/lib/displayHelpers";
 import { Truck, Users, Play, ArrowLeft, AlertTriangle, Package, MapPin, Clock, Fuel, CreditCard, ArrowRight, CheckCircle2, Coffee, Moon } from "lucide-react";
 
@@ -20,12 +19,12 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
 
   const plan = useMemo(() => {
     if (!order || !vehicle) return null;
-    const workSteps = buildWorkSteps(vehicle.locationCity, order);
+
     const counters = driver
       ? { workMin: driver.workMinutesSinceRest || 0, driveMin: driver.driveMinutesSinceBreak || 0 }
       : { workMin: 0, driveMin: 0 };
-    const result = buildPhases(workSteps, counters, state.gameTime);
-    const totalKm = workSteps.reduce((s, step) => s + (step.distanceKm || 0), 0);
+    const result = buildDeployment(state, order, vehicle, vehicle.locationCity, state.gameTime, counters);
+    const totalKm = result.totalKm;
     const emptyKm = vehicle.locationCity !== order.fromCity ? getDistance(vehicle.locationCity, order.fromCity) : 0;
     const driveKm = getDistance(order.fromCity, order.toCity);
     const summary = summarizePhases(result.phases);

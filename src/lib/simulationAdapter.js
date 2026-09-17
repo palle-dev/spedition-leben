@@ -7,66 +7,14 @@
 // synchron gehalten werden (erneut kopieren).
 
 import { applyCommand, createInitialState } from "@/lib/simulation/simulationEngine";
-import { generateBranchDecisions, approveBranchDecision, rejectBranchDecision, setBranchManagerMode } from "@/lib/simulation/branchManagerEngine";
-import { processAssistant, migrateAssistant } from "@/lib/simulation/assistantEngine";
+import { approveBranchDecision, rejectBranchDecision, setBranchManagerMode } from "@/lib/simulation/branchManagerEngine";
+import { migrateAssistant } from "@/lib/simulation/assistantEngine";
 import { createScenarioState, evaluateScenario, continueAsFreePlay, recordIntervention, isOperativeCommand } from "@/lib/scenarios/scenarioEngine";
-import { migrateAcquisition, processAcquisitionEvents } from "@/lib/simulation/acquisitionEngine";
+import { migrateAcquisition } from "@/lib/simulation/acquisitionEngine";
 import { migrateDifficulty } from "@/lib/simulation/difficultyProfiles";
 import { migrateHelpSettings } from "@/lib/simulation/helpSettings";
 
-// Reduziert die Zustandsgröße vor der Ausführung.
-// Entfernt gesehene Events (>1 Tag alt), kappt das Legacy-Buchungs-Array,
-// und entfernt alte abgeschlossene Trips/Tours/Aufträge die ohnehin bei
-// Mitternacht aufgeräumt werden. Reduziert postMessage-Serialisierung und
-// earliestEventAfter-Iterationen (O(n) pro Event) bei großen Spielständen.
-const _DONE_ORDER_STATUSES = new Set(["geliefert", "storniert", "expired", "failed"]);
-function slimState(state) {
-  if (!state) return state;
-  let slim = state;
-  if (state.events && state.events.length > 80) {
-    const cutoff = state.gameTime - 1440;
-    const slimEvents = state.events.filter(e => !(e.seen && e.gameTime < cutoff));
-    if (slimEvents.length < state.events.length) {
-      slim = { ...slim, events: slimEvents };
-    }
-  }
-  if (state.bookings && state.bookings.length > 50) {
-    slim = { ...slim, bookings: state.bookings.slice(-50) };
-  }
-  // Alte abgeschlossene Trips/Tours entfernen (7 Tage Retention).
-  // Die Simulation benötigt nur in_progress Trips und active/planned Tours.
-  const tripCutoff = state.gameTime - 7 * 1440;
-  if (state.trips && state.trips.length > 40) {
-    const slimTrips = state.trips.filter(t =>
-      t.status === "in_progress" || (t.endMin != null && t.endMin >= tripCutoff)
-    );
-    if (slimTrips.length < state.trips.length) {
-      slim = { ...slim, trips: slimTrips };
-    }
-  }
-  if (state.tours && state.tours.length > 40) {
-    const slimTours = state.tours.filter(t =>
-      t.status === "active" || t.status === "planned" ||
-      (t.createdAt != null && t.createdAt >= tripCutoff)
-    );
-    if (slimTours.length < state.tours.length) {
-      slim = { ...slim, tours: slimTours };
-    }
-  }
-  // Alte erledigte Aufträge entfernen (30 Tage Retention, wie UI-Filter).
-  const orderCutoff = state.gameTime - 30 * 1440;
-  if (state.orders && state.orders.length > 60) {
-    const slimOrders = state.orders.filter(o =>
-      !_DONE_ORDER_STATUSES.has(o.status) ||
-      (o.failedAtMin != null && o.failedAtMin >= orderCutoff) ||
-      (o.deliveredAtMin != null && o.deliveredAtMin >= orderCutoff)
-    );
-    if (slimOrders.length < state.orders.length) {
-      slim = { ...slim, orders: slimOrders };
-    }
-  }
-  return slim;
-}
+// Der Worker erhält einen vollständigen Zustand; Bereinigung folgt der Spielzeit.
 
 export async function executeCommand(state, command, params) {
   // Neues Spiel erstellen (kein State erforderlich)
@@ -147,7 +95,8 @@ export async function executeCommand(state, command, params) {
   migrateDifficulty(state);
   migrateHelpSettings(state);
 
-  let slim = slimState(state);
+  const slim = state;
+  const preCommandGameTime = state.gameTime;
 
   // Hinweis: Ein früherer Pre-Dispatch (dispatchAllNow vor advanceTime ≥ 1440)
   // wurde entfernt. Er veränderte den Zustand VOR dem Vorlauf und damit die
@@ -160,11 +109,6 @@ export async function executeCommand(state, command, params) {
   try {
     const r = applyCommand(slim, command, paramsWithTime);
     let newState = r.state;
-    // Akquise-Ereignisse nach Zeitvorlauf verarbeiten (Fristen, Entscheidungen, Ablauf)
-    if (newState && (command === "advanceTime" || command === "advanceToNextEvent" || command === "syncAutomation")) {
-      migrateAcquisition(newState);
-      processAcquisitionEvents(newState, newState.gameTime, []);
-    }
     // Hilfs-Maps und Transient-Flags entfernen — sie dürfen nicht persistiert
     // oder an die Oberfläche übertragen werden. try/finally in suggestTours
     // und advanceTo sorgt bereits für Cleanup im Normalfall; dies ist ein
@@ -180,7 +124,7 @@ export async function executeCommand(state, command, params) {
     // Nur bei erfolgreicher Ausführung (applyCommand hat nicht geworfen).
     // preCommandGameTime aus dem Original-State (vor slimming).
     if (newState && newState.scenario && newState.scenario.status === "active") {
-      const preTime = state.gameTime || 0;
+      const preTime = preCommandGameTime || 0;
       recordIntervention(newState, command, preTime);
     }
     // Szenario: Stichtags-Auswertung nach Zeitvorlauf.
@@ -188,37 +132,6 @@ export async function executeCommand(state, command, params) {
     // Die Auswertung erfolgt hier nach allen Ereignissen dieses Zeitpunkts.
     if (newState && newState.scenario && newState.scenario.pendingEvaluation) {
       evaluateScenario(newState);
-    }
-    // Assistent der Geschäftsführung: stündliche Verarbeitung.
-    // Läuft bei Zeitautomatik (syncAutomation) UND manuellem Zeitvorlauf (advanceTo).
-    if (newState && (command === "syncAutomation" || command === "advanceTime" || command === "advanceToNextEvent")) {
-      newState = generateBranchDecisions(newState);
-      if (!newState.assistantState) newState.assistantState = { lastProcessedHour: 0 };
-      const lastHour = newState.assistantState.lastProcessedHour || 0;
-      const currentHour = Math.floor(newState.gameTime / 60);
-      if (currentHour > lastHour) {
-        const assistants = (newState.employees || []).filter(e =>
-          e.role === "assistant" && e.employmentStatus === "employed" && e.attendance === "present"
-        );
-        if (assistants.length > 0) {
-          // Bei Automatik (syncAutomation): 8 Stunden Rückblick.
-          // Bei manuellem Zeitvorlauf (advanceTime/advanceToNextEvent):
-          // nur die aktuelle Stunde — die stündliche Disposition läuft
-          // bereits in advanceTo über processEmployees. Alle Stunden
-          // einzeln nachzuholen wäre der Hauptflaschenhals bei 24h-Sprüngen.
-          const isAutomation = command === "syncAutomation";
-          const hoursAdvanced = Math.max(0, currentHour - lastHour);
-          const maxHours = isAutomation ? Math.max(8, hoursAdvanced) : 1;
-          const startHour = Math.max(lastHour + 1, currentHour - maxHours + 1);
-          for (let h = startHour; h <= currentHour; h++) {
-            const t = h * 60;
-            for (const emp of assistants) {
-              try { processAssistant(newState, emp, t, []); } catch (e) { /* Fehler einzelner Assistent-Funktion ignorieren */ }
-            }
-          }
-        }
-        newState.assistantState.lastProcessedHour = currentHour;
-      }
     }
     return { state: newState, result: r.result };
   } catch (e) {

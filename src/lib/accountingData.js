@@ -1,158 +1,8 @@
-// Clientseitige Buchhaltungsdaten für FERNWERK.
-// Spiegelt den Kontenplan und die Auswertungslogik aus base44/shared/accountingEngine.ts.
-// Wird für die Darstellung in der Finanzen-Seite verwendet.
-
-// Kontenplan (Spiegel von accountingEngine.ts)
-export const ACCOUNTS = {
-  "1000": { no: "1000", name: "Firmenbank", type: "asset", group: "current_assets" },
-  "1100": { no: "1100", name: "Kundenforderungen", type: "asset", group: "current_assets" },
-  "1150": { no: "1150", name: "Sonstige Forderungen", type: "asset", group: "current_assets" },
-  "1200": { no: "1200", name: "Eigene Lkw", type: "asset", group: "fixed_assets" },
-  "1210": { no: "1210", name: "Werkstattausstattung", type: "asset", group: "fixed_assets" },
-  "1220": { no: "1220", name: "Weitere Betriebsanlagen", type: "asset", group: "fixed_assets" },
-  "2000": { no: "2000", name: "Eigenkapital", type: "equity", group: "equity" },
-  "2010": { no: "2010", name: "Private Entnahmen", type: "equity", group: "equity", contra: true },
-  "2020": { no: "2020", name: "Private Einlagen", type: "equity", group: "equity" },
-  "2100": { no: "2100", name: "Lieferantenverbindlichkeiten", type: "liability", group: "current_liabilities" },
-  "2110": { no: "2110", name: "Offene Löhne", type: "liability", group: "current_liabilities" },
-  "2120": { no: "2120", name: "Sonstige Verbindlichkeiten", type: "liability", group: "current_liabilities" },
-  "2200": { no: "2200", name: "Darlehen", type: "liability", group: "long_term_liabilities" },
-  "4000": { no: "4000", name: "Transporterlöse", type: "revenue", group: "operating_revenue" },
-  "4090": { no: "4090", name: "Erlösschmälerungen", type: "revenue", group: "operating_revenue", contra: true },
-  "4100": { no: "4100", name: "Versicherungsentschädigungen", type: "revenue", group: "other_revenue" },
-  "4200": { no: "4200", name: "Gewinne aus Anlagenverkauf", type: "revenue", group: "other_revenue" },
-  "5000": { no: "5000", name: "Kraftstoff", type: "expense", group: "direct_costs" },
-  "5010": { no: "5010", name: "Maut", type: "expense", group: "direct_costs" },
-  "5020": { no: "5020", name: "Fremdtransporte", type: "expense", group: "direct_costs" },
-  "5100": { no: "5100", name: "Fahrerlohn", type: "expense", group: "personnel" },
-  "5110": { no: "5110", name: "Disposition", type: "expense", group: "personnel" },
-  "5120": { no: "5120", name: "Buchhaltung und Verwaltung", type: "expense", group: "personnel" },
-  "5130": { no: "5130", name: "Reinigung und Werkstattpersonal", type: "expense", group: "personnel" },
-  "5140": { no: "5140", name: "Personalgewinnung und Bereitstellung", type: "expense", group: "personnel" },
-  "5200": { no: "5200", name: "Standortkosten", type: "expense", group: "operations" },
-  "5210": { no: "5210", name: "Externe Reinigung und Betriebshilfen", type: "expense", group: "operations" },
-  "5220": { no: "5220", name: "Miete für Fahrzeuge und Ausstattung", type: "expense", group: "operations" },
-  "5300": { no: "5300", name: "Wartung und Reparatur", type: "expense", group: "operations" },
-  "5310": { no: "5310", name: "Unfall-, Abschlepp- und Ladungsschäden", type: "expense", group: "operations" },
-  "5400": { no: "5400", name: "Versicherungsbeiträge", type: "expense", group: "operations" },
-  "5500": { no: "5500", name: "Abschreibungen", type: "expense", group: "depreciation" },
-  "5510": { no: "5510", name: "Verluste aus Anlagenverkauf", type: "expense", group: "depreciation" },
-  "5600": { no: "5600", name: "Zinsaufwand", type: "expense", group: "finance" },
-  "5700": { no: "5700", name: "Auftragsstorno und sonstige Betriebskosten", type: "expense", group: "operations" },
-};
-
-export const ACCOUNT_LIST = Object.values(ACCOUNTS);
-
-export const MONTH_MIN = 43200;
-export const MONTH_DAYS = 30;
-
-export function accountName(no) { return ACCOUNTS[no]?.name || no; }
-export function accountType(no) { return ACCOUNTS[no]?.type || "unknown"; }
-export function accountGroup(no) { return ACCOUNTS[no]?.group || "unknown"; }
-export function isContraAccount(no) { return ACCOUNTS[no]?.contra || false; }
-
-export function periodOf(min) { return Math.floor(min / MONTH_MIN) + 1; }
-export function periodStartMin(p) { return (p - 1) * MONTH_MIN; }
-export function periodEndMin(p) { return p * MONTH_MIN; }
-export function dayOfMin(min) { return Math.floor(min / 1440) + 1; }
-
-// ---------- Auswertungen (clientseitig aus Journal) ----------
-
-export function getAccountBalance(state, accountNo, upToMin) {
-  if (!state?.accounting?.journal) return 0;
-  const cap = upToMin === undefined ? Infinity : upToMin;
-  let bal = 0;
-  for (const e of state.accounting.journal) {
-    if (e.gameTime > cap) continue;
-    for (const l of e.lines) {
-      if (l.account === accountNo) bal += l.debitCents - l.creditCents;
-    }
-  }
-  return bal;
-}
-
-export function getPnL(state, fromMin, toMin) {
-  if (!state?.accounting?.journal) return { revenue: 0, expenses: 0, result: 0, lines: [] };
-  // Single-Pass: Journal einmal durchlaufen und Salden pro Konto sammeln,
-  // statt getAccountBalance (O(journal)) pro Konto aufzurufen (O(accounts × journal)).
-  const from = (fromMin || 0) - 1;
-  const cap = toMin === undefined ? Infinity : toMin;
-  const balToMin = {};
-  const balFromMin = {};
-  for (const e of state.accounting.journal) {
-    if (e.gameTime > cap) continue;
-    for (const l of e.lines) {
-      const delta = l.debitCents - l.creditCents;
-      if (delta === 0) continue;
-      balToMin[l.account] = (balToMin[l.account] || 0) + delta;
-      if (e.gameTime <= from) balFromMin[l.account] = (balFromMin[l.account] || 0) + delta;
-    }
-  }
-  const lines = [];
-  let totalRev = 0, totalExp = 0;
-  for (const acc of ACCOUNT_LIST.filter(a => a.type === "revenue")) {
-    const bal = (balToMin[acc.no] || 0) - (balFromMin[acc.no] || 0);
-    if (bal !== 0) {
-      const signed = acc.contra ? bal : -bal;
-      lines.push({ account: acc.no, name: acc.name, amountCents: signed, type: "revenue", contra: acc.contra });
-      totalRev += signed;
-    }
-  }
-  for (const acc of ACCOUNT_LIST.filter(a => a.type === "expense")) {
-    const bal = (balToMin[acc.no] || 0) - (balFromMin[acc.no] || 0);
-    if (bal !== 0) {
-      lines.push({ account: acc.no, name: acc.name, amountCents: bal, type: "expense", contra: acc.contra });
-      totalExp += bal;
-    }
-  }
-  return { revenue: totalRev, expenses: totalExp, result: totalRev - totalExp, lines };
-}
-
-export function getBalanceSheet(state, atMin) {
-  if (!state?.accounting?.journal) return { assets: [], liabilities: [], equity: [], total: {} };
-  const cap = atMin === undefined ? Infinity : atMin;
-  // Single-Pass: Journal einmal durchlaufen und Salden pro Konto sammeln,
-  // statt getAccountBalance (O(journal)) pro Konto aufzurufen (O(accounts × journal)).
-  const balMap = {};
-  for (const e of state.accounting.journal) {
-    if (e.gameTime > cap) continue;
-    for (const l of e.lines) {
-      const delta = l.debitCents - l.creditCents;
-      if (delta === 0) continue;
-      balMap[l.account] = (balMap[l.account] || 0) + delta;
-    }
-  }
-  const assets = [], liabilities = [], equity = [];
-  let totalAssets = 0, totalLiab = 0, totalEquity = 0;
-  for (const acc of ACCOUNT_LIST) {
-    const bal = balMap[acc.no] || 0;
-    if (bal === 0) continue;
-    if (acc.type === "asset") { assets.push({ account: acc.no, name: acc.name, amountCents: bal }); totalAssets += bal; }
-    else if (acc.type === "liability") { liabilities.push({ account: acc.no, name: acc.name, amountCents: -bal }); totalLiab += -bal; }
-    else if (acc.type === "equity") { const signed = acc.contra ? bal : -bal; equity.push({ account: acc.no, name: acc.name, amountCents: signed, contra: acc.contra }); totalEquity += signed; }
-  }
-  const pnl = getPnL(state, 0, cap);
-  if (pnl.result !== 0) { equity.push({ account: "PNL", name: "Periodenergebnis", amountCents: pnl.result }); totalEquity += pnl.result; }
-  return { assets, liabilities, equity, total: { assets: totalAssets, liabilities: totalLiab, equity: totalEquity, balanced: totalAssets === totalLiab + totalEquity } };
-}
-
-export function getCashFlow(state, fromMin, toMin) {
-  if (!state?.accounting?.journal) return { operating: 0, investing: 0, financing: 0, total: 0 };
-  let operating = 0, investing = 0, financing = 0;
-  for (const e of state.accounting.journal) {
-    if (e.gameTime < (fromMin || 0) || e.gameTime > toMin) continue;
-    for (const l of e.lines) {
-      if (l.account !== "1000") continue;
-      const delta = l.debitCents - l.creditCents;
-      if (delta === 0) continue;
-      const otherAccounts = e.lines.filter(x => x.account !== "1000").map(x => x.account);
-      if (otherAccounts.some(a => ACCOUNTS[a]?.group === "fixed_assets")) investing += delta;
-      else if (otherAccounts.some(a => a === "2010" || a === "2020" || a === "2200")) financing += delta;
-      else operating += delta;
-    }
-  }
-  return { operating, investing, financing, total: operating + investing + financing };
-}
+// Einheitlicher Kontenplan und einheitliche Auswertungen für UI und Simulation.
+import { ACCOUNTS, MONTH_MIN } from "./simulation/accountingEngine.ts";
+export { ACCOUNTS, ACCOUNT_LIST, MONTH_MIN, MONTH_DAYS, accountName, accountType,
+  accountGroup, isContraAccount, periodOf, periodStartMin, periodEndMin, dayOfMin,
+  getAccountBalance, getPnL, getBalanceSheet, getCashFlow } from "./simulation/accountingEngine.ts";
 
 export function getLiquidityProjection(state, days) {
   const startMin = state.gameTime;
@@ -179,7 +29,8 @@ export function getLiquidityProjection(state, days) {
 // Filialbezogene Finanzdaten für einen Zeitraum: Umsatz, direkte Kosten,
 // Personalkosten, Standortkosten und Gewinn pro aktiver Filiale.
 export function getBranchFinancials(state, fromMin, toMin) {
-  const days = Math.max(1, Math.ceil((toMin - fromMin) / 1440));
+  const billedDaysSince = start => Math.max(0, Math.floor(toMin / 1440) -
+    Math.max(Math.ceil(fromMin / 1440), Math.floor((start || 0) / 1440) + 1) + 1);
   const branches = (state.branches || []).filter(b => b.status === "active");
 
   // Pre-build Maps für O(1) Lookups (statt O(orders × trips × vehicles))
@@ -211,9 +62,9 @@ export function getBranchFinancials(state, fromMin, toMin) {
       if (vehicle?.branchId === b.id) directCosts += (t.fuelCents || 0) + (t.tollCents || 0);
     }
 
-    const driverWages = branchDrivers.reduce((s, d) => s + (d.costPerDayCents || 10000), 0) * days;
-    const employeeWages = branchEmployees.reduce((s, e) => s + (e.costPerDayCents || 0), 0) * days;
-    const branchCosts = (b.costPerDayCents || 0) * days;
+    const driverWages = branchDrivers.reduce((sum, d) => sum + (d.costPerDayCents ?? 10000) * billedDaysSince(Math.max(b.openedAtMin || 0, d.hiredAtMin ?? ((d.employedDay || 1) - 1) * 1440)), 0);
+    const employeeWages = branchEmployees.reduce((sum, e) => sum + (e.costPerDayCents || 0) * billedDaysSince(Math.max(b.openedAtMin || 0, e.hiredAtMin ?? ((e.employedDay || 1) - 1) * 1440)), 0);
+    const branchCosts = (b.costPerDayCents || 0) * billedDaysSince(b.openedAtMin);
     const personnelCosts = driverWages + employeeWages;
     const totalCosts = directCosts + personnelCosts + branchCosts;
     const contribution = revenue - directCosts;

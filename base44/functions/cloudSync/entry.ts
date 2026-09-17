@@ -15,7 +15,7 @@ import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
 function extractMeta(state) {
   const s = state || {};
   const gameTime = s.gameTime || 0;
-  const day = Math.floor(gameTime / 1440);
+  const day = Math.floor(gameTime / 1440) + 1;
   return {
     company_name: s.company?.name || null,
     game_day: day,
@@ -109,7 +109,7 @@ export default async function (req) {
     if (command === "save") {
       const { stateId, state, expected_revision, save_label, save_type } = body;
       if (!stateId || !state) return Response.json({ error: "stateId und state erforderlich" }, { status: 400 });
-      if (expected_revision === undefined) return Response.json({ error: "expected_revision erforderlich" }, { status: 400 });
+      if (!Number.isSafeInteger(expected_revision) || expected_revision < 1) return Response.json({ error: "Gültige expected_revision erforderlich" }, { status: 400 });
 
       const meta = extractMeta(state);
       const newRev = expected_revision + 1;

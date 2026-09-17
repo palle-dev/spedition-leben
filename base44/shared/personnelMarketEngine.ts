@@ -168,6 +168,8 @@ export function computeRoleTargets(state) {
     cleaner:           Math.max(4, Math.ceil(H / 20) + 2 * (V.cleaner || 0)),
     accountant:        accStandard,
     accountant_senior: accSenior,
+    assistant:         Math.max(2, Math.ceil(H / 30) + 2 * (V.assistant || 0)),
+    branch_manager:    Math.max(2, (state.branches || []).filter((b: any) => b.status === "active").length + 2),
   };
 }
 
@@ -219,6 +221,8 @@ export function initStartApplicants(state) {
     { role: "cleaner",            count: 4  },
     { role: "accountant",         count: 2  },
     { role: "accountant_senior",  count: 2  },
+    { role: "assistant",          count: 2  },
+    { role: "branch_manager",     count: 2  },
   ];
   const m = state.gameTime || 480;
   const usedNames = getUsedNames(state);

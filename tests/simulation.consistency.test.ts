@@ -87,7 +87,7 @@ describe("Speichern/Laden-Konsistenz", () => {
     const snapDirect = snapshot(s2);
 
     expect(snapAfter).toEqual(snapDirect);
-    expect(before.gameTime).toBe(720);
+    expect(before.gameTime).toBe(makeBaseState().gameTime + 720);
   });
 });
 

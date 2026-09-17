@@ -18,6 +18,13 @@ import { getInvestmentEventTimes } from "./investmentEngine.ts";
 import { getDriverTravelEventTimes } from "./branchEngine.ts";
 import { getPregnancyEventTimes } from "./relationshipEngine.ts";
 import { getDateEventTimes } from "./datingEngine.ts";
+import { getStoryEventTimes } from "./storyEngine.ts";
+import { getMentoringEventTimes } from "./developmentGoalsEngine.ts";
+import { getDisruptionEventTimes } from "./disruptionEngine.ts";
+import { getUsedMarketEventTimes } from "./vehicleMarketEngine.ts";
+import { getAcquisitionEventTimes } from "./acquisitionEngine.ts";
+import { getPartnerTransportEventTimes } from "./partnerEngine.ts";
+import { getExpansionEventTimes } from "./siteExpansionEngine.ts";
 
 export function earliestEventAfter(state, t, maxMin) {
   let best = null;
@@ -143,5 +150,22 @@ export function earliestEventAfter(state, t, maxMin) {
   // Fahrer-Reisen (Filialverschiebung)
   for (const tm of getDriverTravelEventTimes(state, t, maxMin)) cand(tm);
   for (const tm of [...getPregnancyEventTimes(state, t, maxMin), ...getDateEventTimes(state, t, maxMin)]) cand(tm);
+  for (const tm of getStoryEventTimes(state, t, maxMin)) cand(tm);
+  // Mentoring-Lerntermine (Entwicklungsziele)
+  for (const tm of getMentoringEventTimes(state, t, maxMin)) cand(tm);
+  // Stoerungsmanagement: Abschluss laufender Maßnahmen
+  for (const tm of getDisruptionEventTimes(state, t, maxMin)) cand(tm);
+  // Partner-Transporte: Start und Lieferung externer Vergaben
+  for (const tm of getPartnerTransportEventTimes(state, t, maxMin)) cand(tm);
+  // Standortausbau: Bauabschlüsse
+  for (const tm of getExpansionEventTimes(state, t, maxMin)) cand(tm);
+  // Gebrauchtfahrzeugmarkt: Generierung + Ablauf
+  if (state.usedVehicleMarket) {
+    for (const tm of getUsedMarketEventTimes(state, t, maxMin)) cand(tm);
+  }
+  // Akquise: Ausschreibungsfristen, Entscheidungen, Vertragsablauf
+  if (state.acquisition) {
+    for (const tm of getAcquisitionEventTimes(state, t, maxMin)) cand(tm);
+  }
   return best;
 }

@@ -1,3 +1,4 @@
+import { nextRandom } from "./randomEngine.ts";
 // Geschichten-Engine für FERNWERK.
 // Verwaltet persönliche Geschichten mit Szenen, Entscheidungen, Versprechen
 // und einer persönlichen Chronik. Baut auf vorhandenen Beziehungs-, Termin-,
@@ -523,7 +524,7 @@ function pickFriendName(state) {
   ]);
   const available = FRIEND_NAMES.filter(n => !used.has(n));
   if (available.length === 0) return "Robin";
-  return available[Math.floor(Math.random() * available.length)];
+  return available[Math.floor(nextRandom(state) * available.length)];
 }
 
 // ---------- Entscheidungsverarbeitung ----------

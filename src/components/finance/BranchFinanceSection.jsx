@@ -33,6 +33,7 @@ export default function BranchFinanceSection({ state }) {
 
   return (
     <div className="glass border border-white/10 rounded-xl p-4">
+      <p className="text-xs text-muted-foreground mb-3">Schätzung anhand der aktuellen Standortzuordnung und Kosten. Frühere Personalwechsel und archivierte Fahrten können den Vergleich beeinflussen.</p>
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-medium text-sm flex items-center gap-2">
           <Building2 className="w-4 h-4 text-lime/70" /> Filialvergleich

@@ -9,6 +9,7 @@ import { isPersonAvailable } from "./absenceEngine.ts";
 import { deliverMessage } from "./mailEngine.ts";
 import { pushEvent } from "./eventLog.ts";
 import { settleOpenItem, book as _book } from "./accountingEngine.ts";
+import { getWorkEnvironmentBonus } from "./siteExpansionEngine.ts";
 
 // ---------- Konstanten ----------
 const DAY_MIN = 1440;
@@ -323,6 +324,28 @@ export function processDailySatisfaction(state, midnight) {
       for (const c of causes) {
         resolveCause(state, c.id, midnight);
         log.push({ personId: c.personId, type: "dirty_workplace_resolved" });
+      }
+    }
+  }
+
+  // 3b. Aufenthaltsbereich: Arbeitsumfeld-Bonus (begrenzt, pflegeabhängig)
+  for (const b of (state.branches || [])) {
+    if (b.status !== "active") continue;
+    const bonus = getWorkEnvironmentBonus(state, b.id);
+    if (bonus <= 0) continue;
+    const persons = getPersonsAtBranch(state, b.id);
+    for (const p of persons) {
+      if (!isActivelyEmployed(p)) continue;
+      const cause = findOrCreateCause(state, p.id, "good_workplace",
+        `Aufenthaltsbereich Stufe ${b.breakAreaLevel} in ${b.name}`,
+        [b.id],
+        { branchId: b.id, level: b.breakAreaLevel, condition: b.breakAreaCondition }
+      );
+      if (cause.meta.lastEffectDay !== day) {
+        const r = applySatisfactionChange(state, p.id, bonus,
+          `Tagesabschluss: gutes Arbeitsumfeld (${b.name})`, "good_workplace", cause.id);
+        cause.meta.lastEffectDay = day;
+        log.push({ personId: p.id, type: "good_workplace", delta: r.applied });
       }
     }
   }

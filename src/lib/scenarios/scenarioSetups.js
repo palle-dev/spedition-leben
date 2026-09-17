@@ -3,7 +3,6 @@
 // Nutzt die vorhandenen Erzeugungsfunktionen und validierten Datenstrukturen.
 
 import { generateLoanSchedule, LOAN_INTEREST_RATE_MONTHLY } from "@/lib/simulation/financingEngine";
-import { postJournal } from "@/lib/simulation/accountingEngine";
 import { migrateContracts, migrateCustomerRelations, CONTRACT_DISCOUNT, CONTRACT_DURATION_DAYS, CONTRACT_DELIVERY_BUFFER_HOURS } from "@/lib/simulation/customerEngine";
 import { getDistance, driveMinutes, LOAD_MIN, UNLOAD_MIN, PORTRAIT_IDS } from "@/lib/simulation/gameRules";
 import { computeOfferPrice } from "@/lib/simulation/marketEngine";
@@ -38,7 +37,7 @@ export function setupWiederAufKurs(state, names) {
   const loanPrincipal = 3500000;
   const termMonths = 24;
   const schedule = generateLoanSchedule(loanPrincipal, termMonths, LOAN_INTEREST_RATE_MONTHLY);
-  const firstPaymentMin = state.gameTime + 15 * 1440;
+  const firstPaymentMin = state.gameTime + 14 * 1440;
 
   const loan = {
     id: "loan_scenario_1",
@@ -63,14 +62,7 @@ export function setupWiederAufKurs(state, names) {
   };
   state.loans = [loan];
 
-  // Buchung: Darlehen in der Bilanz (Geld wurde bereits für Betrieb ausgegeben)
-  postJournal(state, {
-    text: "Bestehender Kredit: 35.000 € Darlehen",
-    type: "loan_existing", gameTime: state.gameTime,
-    lines: [
-      { account: "2200", credit: loanPrincipal },
-    ],
-  });
+  // Die vollständige Eröffnungsbilanz wird nach dem Szenario-Setup erstellt.
 
   // Szenario-spezifische Hinweisnachricht
   deliverMessage(state, {

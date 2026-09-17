@@ -1,3 +1,6 @@
+import { processAssistant, migrateAssistant } from "./assistantEngine.ts";
+import { generateBranchDecisions } from "./branchManagerEngine.ts";
+import { migrateAcquisition, processAcquisitionEvents } from "./acquisitionEngine.ts";
 // Simulations-Engine für "Spedition & Leben". Reine Spielregeln/Zustände – keine Auth/Speicherung.
 // Trennung: gameRules (statisch) · simulationEngine (Regeln/Zustand) · gameRepository (Speicherung).
 
@@ -16,7 +19,7 @@ import {
   VEHICLE_BODY_TYPES, getVehicleBodyType, getVehicleEffectiveMaintenanceCost,
   checkBodyTypeCompatibility,
 } from "./gameRules.ts";
-import { buildTourPlan, confirmTour as doConfirmTour, cancelTour as doCancelTour, processTours, onTripCompleted, findReturnLoads, suggestTours, futureLocation, futureDriverLocation, _clearPlanCache } from "./tourEngine.ts";
+import { getOrderReservation, buildDeployment, buildTourPlan, confirmTour as doConfirmTour, cancelTour as doCancelTour, processTours, onTripCompleted, findReturnLoads, suggestTours, futureLocation, futureDriverLocation, _clearPlanCache } from "./tourEngine.ts";
 import {
   buildPhases, buildWorkSteps, buildEmptyWorkSteps,
   computeFinalCounters, resetCounters, needsRest, migrateTripPhases,
@@ -57,7 +60,7 @@ import {
   isActivelyEmployed, findPerson,
 } from "./terminationEngine.ts";
 import {
-  generateMarketWave, migrateMarket, fillInitialMarket, getMarketStats,
+  generateMarketWave, migrateMarket, fillInitialMarket, getMarketStats, failOverdueOrders,
 } from "./marketEngine.ts";
 import {
   enableAutomation, pauseAutomation, syncToTarget, computeTargetGameMinute,
@@ -294,11 +297,12 @@ function doDailyAccounting(state, midnight) {
   const drivers = [...state.drivers].sort((a, b) => (a.id < b.id ? -1 : 1));
   for (const d of drivers) {
     if (!isActivelyEmployed(d)) continue;
-    const r = payCost(state, "company", DRIVER_COST_PER_DAY, "Fahrerlohn: " + d.name, d.id, midnight, { employeeId: d.id });
+    const r = payCost(state, "company", d.costPerDayCents ?? DRIVER_COST_PER_DAY, "Fahrerlohn: " + d.name, d.id, midnight, { employeeId: d.id });
     log.push({ cause: "Fahrerlohn", driver: d.name, paid: r.paid, unpaid: r.unpaid });
   }
   for (const b of state.branches) {
-    const r = payCost(state, "company", BRANCH_COST_PER_DAY, "Standort: " + b.name, b.id, midnight);
+    if (b.status === "closed") continue;
+    const r = payCost(state, "company", b.costPerDayCents ?? BRANCH_COST_PER_DAY, "Standort: " + b.name, b.id, midnight);
     log.push({ cause: "Standort", branch: b.name, paid: r.paid, unpaid: r.unpaid });
   }
   // Löhne für alle Angestellten (nicht fahrende Rollen) – rollenspezifische Konten
@@ -372,7 +376,9 @@ function completeTrip(state, trip, m, log) {
     driver.workMinutesSinceRest = 0; driver.driveMinutesSinceBreak = 0;
   } else {
     // Neues Modell: Zähler aus Phasen ableiten, Ruhe nur bei erschöpftem Budget
-    const counters = computeFinalCounters(phases);
+    const counters = computeFinalCounters(phases, trip.initialCounters || {
+      workMin: driver.workMinutesSinceRest || 0, driveMin: driver.driveMinutesSinceBreak || 0,
+    });
     driver.workMinutesSinceRest = counters.workMin;
     driver.driveMinutesSinceBreak = counters.driveMin;
     if (driver.workMinutesSinceRest >= WORK_BUDGET_MIN) {
@@ -392,6 +398,14 @@ function completeTrip(state, trip, m, log) {
     return;
   }
   const order = state.orders.find(o => o.id === trip.orderId);
+  // Alte Spielstände können zwei verschiedene Trips für denselben Auftrag
+  // enthalten. Fahrzeugfreigabe ist nötig, eine zweite Leistung/Zahlung nicht.
+  if (!order || order.deliveredAtMin != null || order.paidCents != null ||
+      ["geliefert", "storniert", "failed", "expired"].includes(order.status)) {
+    onTripCompleted(state, trip, m, log);
+    log.push({ type: "delivery_duplicate_ignored", trip: trip.id, order: trip.orderId, atMin: m });
+    return;
+  }
   order.status = "geliefert"; order.deliveredAtMin = m;
   const onTime = m <= order.deliveryDeadlineMin;
   const payment = onTime ? trip.paymentCents : Math.round(trip.paymentCents * 0.9);
@@ -671,21 +685,19 @@ function processEventsAt(state, m, log) {
   }
   // 5. Angebotsablauf
   for (const o of state.orders) { if (o.status === "offered" && o.acceptDeadlineMin === m) { o.status = "expired"; log.push({ type: "order_expired", order: o.id }); } }
-  // 5a. Angenommene Aufträge mit überschrittener Lieferfrist als "failed" markieren.
-  // LATE_GRACE_MIN = 240 (4h Gnadenfrist nach buildTourPlan). Extern vergebene
-  // Aufträge überspringen (Partner-Transport läuft noch).
-  for (const o of state.orders) {
-    if (o.status === "angenommen" && o.deliveryDeadlineMin + 240 <= m) {
-      if (o.externalTransportId && (state.partners?.transports || []).some(t => t.id === o.externalTransportId && (t.status === "booked" || t.status === "in_progress"))) continue;
-      o.status = "failed";
-      o.failedAtMin = m;
-      recordOrderOutcome(state, o, "failed", m, 0);
-      log.push({ type: "order_failed", order: o.id, customer: o.customer, reason: "Lieferfrist überschritten" });
-    }
-  }
+  processAcquisitionEvents(state, m, log);
+  failOverdueOrders(state, m, log);
   // 5b. Marktwelle zu jeder vollen Spielstunde (Auftrag 19)
   if (m % 60 === 0) {
     generateMarketWave(state, m, log);
+    generateBranchDecisions(state);
+    migrateAssistant(state);
+    for (const emp of state.employees || []) {
+      if (emp.role === "assistant" && emp.employmentStatus === "employed" && isPersonAvailable(state, emp.id, m)) {
+        processAssistant(state, emp, m, log);
+      }
+    }
+    state.assistantState = { ...state.assistantState, lastProcessedHour: Math.floor(m / 60) };
     // Investment-Markt-Tick bei jeder vollen Stunde (Auftrag 33)
     if (state.investment?.market) {
       processMarketTick(state, m, log);
@@ -735,10 +747,11 @@ function advanceTo(state, targetMin, log, reportStart) {
   let eventCount = 0;
   let lastReportMs = startTime;
   let stopped = false;
+  let stopReason = "max_events_safety";
   try {
     while (true) {
       if (eventCount >= MAX_EVENTS) { stopped = true; break; }
-      if (shouldStopForApproval(state)) { stopped = true; log.push({ type: "advance_stopped_approval", atMin: t, targetMin, reason: "pending_approval" }); break; }
+      if (shouldStopForApproval(state)) { stopped = true; stopReason = "pending_approval"; log.push({ type: "advance_stopped_approval", atMin: t, targetMin, reason: "pending_approval" }); break; }
       const next = earliestEventAfter(state, t, targetMin);
       if (next === null) break;
       processEventsAt(state, next, log);
@@ -759,7 +772,7 @@ function advanceTo(state, targetMin, log, reportStart) {
     state._bulkAdvance = false;
     state._largeAdvance = false;
   }
-  if (stopped) log.push({ type: "advance_stopped", atMin: t, targetMin, reason: "max_events_safety" });
+  if (stopped) log.push({ type: "advance_stopped", atMin: t, targetMin, reason: stopReason });
   if (reportStart !== undefined) {
     reportProgress(state.gameTime - reportStart, targetMin - reportStart, eventCount, null);
   }
@@ -767,45 +780,17 @@ function advanceTo(state, targetMin, log, reportStart) {
 
 // ---------- Dispositionsplanung ----------
 function planTrip(state, order, vehicle, driver) {
-  const workSteps = buildWorkSteps(vehicle.locationCity, order);
-  const counters = {
-    workMin: driver.workMinutesSinceRest || 0,
-    driveMin: driver.driveMinutesSinceBreak || 0,
-  };
-  const result = buildPhases(workSteps, counters, state.gameTime);
-  const totalKm = workSteps.reduce((s, step) => s + (step.distanceKm || 0), 0);
-  return { phases: result.phases, totalKm, totalDuration: result.endMin - state.gameTime, endMin: result.endMin };
+  const plan = buildDeployment(state, order, vehicle, vehicle.locationCity, state.gameTime, {
+    workMin: driver.workMinutesSinceRest || 0, driveMin: driver.driveMinutesSinceBreak || 0,
+  });
+  return { ...plan, totalDuration: plan.durationMin };
+
 }
 
 // ---------- Befehle ----------
 export function applyCommand(state, command, params) {
   _clearPlanCache(); migrateState(state);
-  [migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories, migrateSegmentFields, migrateBusinessFocus, migrateSegmentStats, migrateMarketDynamics, migrateDevelopmentGoals, migrateDisruptions, migrateUsedVehicleMarket, migratePartners, migrateSiteExpansion].forEach(fn => fn(state));
-  if (state.bookings && state.bookings.length > 200) state.bookings = state.bookings.slice(-200);
-  // Historie begrenzen: abgeschlossene Touren, Aufträge und Termine älter als 30 Tage
-  // entfernen. Hält den Zustand kompakt und beschleunigt Laden/Speichern bei langen Spielen.
-  // Aktive/offene Einträge bleiben erhalten; die 30-Tage-Fenster reichen für Trends aus.
-  {
-    const cutoff = state.gameTime - 30 * 1440;
-    if (Array.isArray(state.trips) && state.trips.length > 100) {
-      state.trips = state.trips.filter(t =>
-        t.status === "in_progress" || (t.endMin != null ? t.endMin : t.startMin) > cutoff
-      );
-    }
-    if (Array.isArray(state.orders) && state.orders.length > 100) {
-      state.orders = state.orders.filter(o => {
-        if (o.status === "offered" || o.status === "angenommen" || o.status === "unterwegs") return true;
-        const ref = o.deliveredAtMin || o.failedAtMin || o.acceptDeadlineMin || o.acceptedAtMin || 0;
-        return ref > cutoff;
-      });
-    }
-    if (Array.isArray(state.appointments) && state.appointments.length > 50) {
-      state.appointments = state.appointments.filter(a => {
-        if (a.status === "pending" || a.status === "accepted" || a.status === "active") return true;
-        return (a.endMin || 0) > cutoff;
-      });
-    }
-  }
+  [migrateAcquisition, migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories, migrateSegmentFields, migrateBusinessFocus, migrateSegmentStats, migrateMarketDynamics, migrateDevelopmentGoals, migrateDisruptions, migrateUsedVehicleMarket, migratePartners, migrateSiteExpansion].forEach(fn => fn(state));
   const p = params || {};
   let result;
   switch (command) {
@@ -889,7 +874,10 @@ export function applyCommand(state, command, params) {
       const o = state.orders.find(x => x.id === p.orderId);
       if (!o) throw new Error("Auftrag nicht gefunden.");
       if (o.status !== "angenommen") throw new Error("Auftrag muss zuerst angenommen werden.");
-      if (o.reservedByTourId) throw new Error("Auftrag ist bereits für eine Tour reserviert: " + o.reservedByTourId);
+      const reservation = getOrderReservation(state, o.id);
+      if (reservation) throw new Error("Auftrag ist bereits für eine Tour reserviert: " + reservation.id);
+      if (o.externalTransportId && (state.partners?.transports || []).some(t => t.id === o.externalTransportId && ["booked", "in_progress"].includes(t.status))) throw new Error("Auftrag ist bereits extern vergeben.");
+      o.reservedByTourId = null;
       if (state.trips.some(t => t.orderId === o.id && t.status === "in_progress")) throw new Error("Für diesen Auftrag läuft bereits eine Fahrt.");
       const v = state.vehicles.find(x => x.id === p.vehicleId);
       if (!v) throw new Error("Fahrzeug nicht gefunden.");
@@ -898,6 +886,7 @@ export function applyCommand(state, command, params) {
       if (v.status !== "free") throw new Error("Fahrzeug ist nicht frei.");
       if (d.status !== "free") throw new Error("Fahrer ist nicht frei.");
       if (!isActivelyEmployed(d)) throw new Error("Dieser Fahrer ist nicht mehr aktiv beschäftigt.");
+      if (!isPersonAvailable(state, d.id, state.gameTime) || isPersonInTraining(state, d.id, state.gameTime)) throw new Error("Fahrer ist krank, im Urlaub oder in Weiterbildung.");
       if (d.attendance === "released") throw new Error("Dieser Fahrer wurde freigestellt und ist nicht für neue Touren verfügbar.");
       if (v.condition < 20) throw new Error("Fahrzeugzustand zu schlecht für einen Einsatz (unter 20). Wartung erforderlich.");
       if (d.restUntil !== null && d.restUntil > state.gameTime) throw new Error("Fahrer ist noch in der Erholung (bis " + formatGameTime(d.restUntil) + ").");
@@ -907,6 +896,9 @@ export function applyCommand(state, command, params) {
       const bodyCheck = checkBodyTypeCompatibility(o, v);
       if (!bodyCheck.ok) throw new Error(bodyCheck.error);
       const plan = planTrip(state, o, v, d);
+      if (o.windowVersion >= 2 && plan.phases.find(p => p.type === "loading")?.startMin > o.latestLoadStartMin) {
+        throw new Error("Das Ladefenster ist abgelaufen.");
+      }
       // DG-Validierung (Auftrag 32)
       if (o.isDangerousGoods) {
         const dgCheck = validateDgTransport(state, o, v, d, plan.endMin);
@@ -927,8 +919,8 @@ export function applyCommand(state, command, params) {
       addBooking(state, state.gameTime, "Maut: " + o.customer, -toll, "company", "toll:" + o.id);
       const trip = {
         id: uid(state, "t"), type: "loaded", orderId: o.id, vehicleId: v.id, driverId: d.id,
-        phases: plan.phases, currentPhase: 0, startMin: state.gameTime, endMin: plan.endMin,
-        status: "in_progress", paymentCents: o.paymentCents, fuelCents: fuel, tollCents: toll,
+        phases: plan.phases, initialCounters: { workMin: d.workMinutesSinceRest || 0, driveMin: d.driveMinutesSinceBreak || 0 }, currentPhase: 0, startMin: state.gameTime, endMin: plan.endMin,
+        status: "in_progress", paymentCents: plan.paymentCents, fuelCents: fuel, tollCents: toll,
         totalKm: plan.totalKm, drivenKm: 0,
       };
       state.trips.push(trip);
@@ -956,6 +948,7 @@ export function applyCommand(state, command, params) {
       if (v.status !== "free") throw new Error("Fahrzeug ist nicht frei.");
       if (d.status !== "free") throw new Error("Fahrer ist nicht frei.");
       if (v.condition < 20) throw new Error("Fahrzeugzustand zu schlecht für einen Einsatz.");
+      if (!isPersonAvailable(state, d.id, state.gameTime) || d.attendance === "released" || isPersonInTraining(state, d.id, state.gameTime)) throw new Error("Fahrer ist nicht verfügbar.");
       if (d.restUntil !== null && d.restUntil > state.gameTime) throw new Error("Fahrer ist noch in der Erholung.");
       if (v.locationCity !== d.locationCity) throw new Error("Fahrer und Lkw befinden sich an unterschiedlichen Orten.");
       if (v.locationCity !== p.fromCity) throw new Error("Fahrzeug und Fahrer müssen am Abfahrtsort sein.");
@@ -971,7 +964,7 @@ export function applyCommand(state, command, params) {
       addBooking(state, state.gameTime, "Maut (Leerfahrt)", -toll, "company", "emptytoll");
       const trip = {
         id: uid(state, "t"), type: "empty", orderId: null, vehicleId: v.id, driverId: d.id,
-        phases: phaseResult.phases, currentPhase: 0, startMin: state.gameTime, endMin: phaseResult.endMin,
+        phases: phaseResult.phases, initialCounters: counters, currentPhase: 0, startMin: state.gameTime, endMin: phaseResult.endMin,
         status: "in_progress", paymentCents: 0, fuelCents: fuel, tollCents: toll, totalKm: dist, drivenKm: 0,
       };
       state.trips.push(trip);
@@ -1578,7 +1571,7 @@ export function applyCommand(state, command, params) {
       // tour_deployment_started-Events tragen branchId und atMin.
       const stats = { totalDeliveries: 0, totalRevenue: 0, totalTours: 0, branches: {} };
       for (const ev of log) {
-        if (ev.type === "delivery") {
+        if (ev.type === "delivery" || ev.type === "partner_transport_completed") {
           stats.totalDeliveries++;
           stats.totalRevenue += ev.paymentCents || 0;
           const bid = ev.branchId || "_haupt";
