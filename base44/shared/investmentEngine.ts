@@ -585,8 +585,7 @@ export function cancelOrder(state, { orderId }) {
     }
     // Reserve freigeben
     if (o.side === "buy") {
-      // reservedCents wird durch Status-Wechsel automatisch freigegeben
-      // (getFreeSettlement zählt nur open/partially_filled/pending_stop/active_stop)
+      o.reservedCents = 0; // F09: Reserve explizit nullen
     } else {
       const pos = depot.positions[o.instrumentId];
       if (pos) pos.availableQty += (o.qty - o.filledQty);
