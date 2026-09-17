@@ -64,8 +64,8 @@ export default function FocusSelector({ state, send, showToast }) {
               whileHover={{ scale: active ? 1 : 1.01 }}
               className={`relative text-left p-4 rounded-xl border transition disabled:opacity-50 ${
                 active
-                  ? "border-lime/40 bg-lime/5 shadow-[0_0_20px_-6px_hsl(var(--lime)/0.3)]"
-                  : "border-white/10 bg-white/5 hover:border-white/20"
+                  ? "glass border-lime/40 shadow-[0_0_20px_-6px_hsl(var(--lime)/0.3)]"
+                  : "glass border-white/10 hover:border-white/20"
               }`}
             >
               <div className="flex items-start justify-between">
