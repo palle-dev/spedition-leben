@@ -14,6 +14,7 @@ import {
   APPLICANT_NAMES, PORTRAIT_IDS, NOTICE_PERIOD_MIN,
   computeMarketValue, computeDealerOffer,
   VEHICLE_CATALOG, VEHICLE_CATALOG_LIST, getVehicleProfile,
+  VEHICLE_BODY_TYPES, getVehicleBodyType, getVehicleEffectiveMaintenanceCost,
 } from "./gameRules.ts";
 import { buildTourPlan, confirmTour as doConfirmTour, cancelTour as doCancelTour, processTours, onTripCompleted, findReturnLoads, suggestTours, futureLocation, futureDriverLocation, _clearPlanCache } from "./tourEngine.ts";
 import {

@@ -13,6 +13,7 @@ import {
   NORMAL_BUFFER_HOURS, EXPRESS_BUFFER_HOURS, PAYMENT_TERMS_DAYS,
   LOAD_MIN, UNLOAD_MIN, WORK_BUDGET_MIN, DRIVE_BUDGET_MIN, BREAK_MIN, REST_MIN,
   SERVICE_START_MIN,
+  pickCargoCategory, checkBodyTypeCompatibility,
 } from "./gameRules.ts";
 import { earliestAvailable } from "./tourEngine.ts";
 import {
@@ -302,6 +303,9 @@ function checkOfferFeasibility(state, offer) {
   for (const v of state.vehicles || []) {
     if (v.status === "archived" || v.condition < 20) continue;
     if (v.capacityTons < offer.tons) continue;
+    // Aufbau-Kompatibilität: strikte Frachtarten erfordern passenden Aufbau.
+    const bodyCheck = checkBodyTypeCompatibility(offer, v);
+    if (!bodyCheck.ok) continue;
 
     const emptyKm = getDistance(v.locationCity, offer.fromCity);
     const emptyDriveMin = driveMinutes(emptyKm);
@@ -381,6 +385,7 @@ function makeMarketOffer(state, m) {
   }
 
   const cargo = customer.cargoTypes[Math.floor(rng() * customer.cargoTypes.length)];
+  const cargoCat = pickCargoCategory(cargo, rng);
   // Gewichtete Tonnen-Verteilung: 45 % klein (4–8 t), 35 % mittel (8–14 t), 20 % schwer (14–24 t).
   // Schwere Ladungen erfordern einen schweren Lkw (24 t). Die Gesamtzahl der Angebote
   // wird durch computeWaveBudget begrenzt — nur die Tonnage-Verteilung ändert sich.
@@ -406,6 +411,8 @@ function makeMarketOffer(state, m) {
   const priceSeg = isExpressOffer ? "express" : (km <= 150 ? "regional" : "standard");
   const priceFactor = getPriceFactor(state, fromRegion, priceSeg);
   paymentCents = Math.round(paymentCents * priceFactor);
+  // Frachtart-Preisfaktor: spezialisierte Fracht zahlt mehr Grundpreis.
+  paymentCents = Math.round(paymentCents * cargoCat.priceFactor);
 
   const tw = computeTimeWindows(state, m, offerType, fromCity, toCity, km, rng);
 
@@ -414,7 +421,7 @@ function makeMarketOffer(state, m) {
     customerId: customer.id,
     customer: customer.name,
     shipmentId: "S" + (state.idCounter + 1),
-    fromCity, toCity, cargo, tons,
+    fromCity, toCity, cargo, tons, cargoCategory: cargoCat.id,
     paymentCents,
     priceFactor: Math.round(priceFactor * 100) / 100,
     offerType,

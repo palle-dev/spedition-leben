@@ -155,6 +155,200 @@ export function getVehicleProfile(vehicle) {
   return VEHICLE_CATALOG.standard;
 }
 
+// ---------- Fahrzeug-Aufbauten (Spezialisierte Lkw-Typen) ----------
+// Aufbauten sind kombinierbar mit den drei Größenklassen (Regional/Standard/Schwer).
+// Jeder Aufbau modifiziert Preis, Wartungskosten und Verbrauch gegenüber dem
+// Basis-Profil. Die Wahl des Aufbaus bestimmt, welche Frachtarten der Lkw
+// transportieren kann (strikte Anforderung) oder für die er einen Bonus erhält.
+export const VEHICLE_BODY_TYPES = {
+  planen: {
+    id: "planen",
+    label: "Planen",
+    priceMultiplier: 1.0,
+    maintenanceMultiplier: 1.0,
+    consumptionAdd: 0,
+    description: "Standard-Sattelzug mit Plane. Universell für Standardfracht einsetzbar.",
+  },
+  kuehl: {
+    id: "kuehl",
+    label: "Kühlwagen",
+    priceMultiplier: 1.15,
+    maintenanceMultiplier: 1.20,
+    consumptionAdd: 2,
+    description: "Kühl- und Gefriertransporte. Höhere Wartungs- und Kraftstoffkosten durch Kühlaggregat.",
+  },
+  tank: {
+    id: "tank",
+    label: "Tankwagen",
+    priceMultiplier: 1.20,
+    maintenanceMultiplier: 1.15,
+    consumptionAdd: 1,
+    description: "Flüssig- und Schüttguttransporte. Spezielle Pumpe und Tankausstattung.",
+  },
+  kipper: {
+    id: "kipper",
+    label: "Kipper/Silo",
+    priceMultiplier: 1.10,
+    maintenanceMultiplier: 1.10,
+    consumptionAdd: 1,
+    description: "Schüttgut und Baustoffe. Hydraulische Kippeinrichtung für schnelles Entladen.",
+  },
+};
+
+export const VEHICLE_BODY_TYPE_LIST = [
+  VEHICLE_BODY_TYPES.planen,
+  VEHICLE_BODY_TYPES.kuehl,
+  VEHICLE_BODY_TYPES.tank,
+  VEHICLE_BODY_TYPES.kipper,
+];
+
+// Liefert den Aufbau-Typ eines Fahrzeugs (mit Fallback auf Planen).
+export function getVehicleBodyType(vehicle) {
+  if (!vehicle) return VEHICLE_BODY_TYPES.planen;
+  if (vehicle.bodyType && VEHICLE_BODY_TYPES[vehicle.bodyType]) return VEHICLE_BODY_TYPES[vehicle.bodyType];
+  return VEHICLE_BODY_TYPES.planen;
+}
+
+// Effektiver Verbrauch inkl. Aufbau-Zuschlag.
+export function getVehicleEffectiveConsumption(vehicle) {
+  const profile = getVehicleProfile(vehicle);
+  const body = getVehicleBodyType(vehicle);
+  return profile.consumptionPer100km + body.consumptionAdd;
+}
+
+// Effektive Wartungskosten inkl. Aufbau-Multiplikator.
+export function getVehicleEffectiveMaintenanceCost(vehicle) {
+  const profile = getVehicleProfile(vehicle);
+  const body = getVehicleBodyType(vehicle);
+  return Math.round(profile.maintenanceCostCents * body.maintenanceMultiplier);
+}
+
+// ---------- Frachtarten (Cargo-Kategorien) ----------
+// Bestimmt, welcher Aufbau für einen Auftrag erforderlich (strikt) oder
+// bevorzugt (Bonus) ist. Strikte Frachtarten blockieren unpassende Lkw;
+// Bonus-Frachtarten zulassen alle Lkw, zahlen aber dem passenden Spezial-Lkw
+// einen Preis-Aufschlag.
+export const CARGO_CATEGORIES = {
+  standard: {
+    id: "standard",
+    label: "Standardfracht",
+    requiredBodyType: null,
+    bonusBodyType: null,
+    bonusFactor: 1.0,
+    priceFactor: 1.0,
+  },
+  kuehl: {
+    id: "kuehl",
+    label: "Kühlfracht",
+    requiredBodyType: "kuehl",
+    bonusBodyType: "kuehl",
+    bonusFactor: 1.0,
+    priceFactor: 1.20,
+  },
+  lebensmittel: {
+    id: "lebensmittel",
+    label: "Lebensmittel",
+    requiredBodyType: null,
+    bonusBodyType: "kuehl",
+    bonusFactor: 1.15,
+    priceFactor: 1.05,
+  },
+  fluessig: {
+    id: "fluessig",
+    label: "Flüssigtransport",
+    requiredBodyType: "tank",
+    bonusBodyType: "tank",
+    bonusFactor: 1.0,
+    priceFactor: 1.15,
+  },
+  getraenke: {
+    id: "getraenke",
+    label: "Getränke",
+    requiredBodyType: null,
+    bonusBodyType: "tank",
+    bonusFactor: 1.10,
+    priceFactor: 1.05,
+  },
+  schuettgut: {
+    id: "schuettgut",
+    label: "Schüttgut",
+    requiredBodyType: "kipper",
+    bonusBodyType: "kipper",
+    bonusFactor: 1.0,
+    priceFactor: 1.10,
+  },
+  baustoffe: {
+    id: "baustoffe",
+    label: "Baustoffe",
+    requiredBodyType: null,
+    bonusBodyType: "kipper",
+    bonusFactor: 1.12,
+    priceFactor: 1.05,
+  },
+};
+
+export const CARGO_CATEGORY_LIST = Object.values(CARGO_CATEGORIES);
+
+// Liefert die Cargo-Kategorie eines Auftrags (mit Fallback auf Standard).
+export function getCargoCategory(order) {
+  if (!order) return CARGO_CATEGORIES.standard;
+  if (order.cargoCategory && CARGO_CATEGORIES[order.cargoCategory]) return CARGO_CATEGORIES[order.cargoCategory];
+  return CARGO_CATEGORIES.standard;
+}
+
+// Abbildung von CARGO_TYPES auf gewichtete Cargo-Kategorien.
+// Der Markt wählt pro Auftrag eine Kategorie basierend auf der Frachtart.
+export const CARGO_TO_CATEGORY_WEIGHTS = {
+  "Lebensmittel": [{ cat: "kuehl", w: 0.35 }, { cat: "lebensmittel", w: 0.65 }],
+  "Getränke":     [{ cat: "fluessig", w: 0.30 }, { cat: "getraenke", w: 0.70 }],
+  "Baustoffe":    [{ cat: "schuettgut", w: 0.40 }, { cat: "baustoffe", w: 0.60 }],
+  "Bauteile":     [{ cat: "baustoffe", w: 0.25 }, { cat: "standard", w: 0.75 }],
+  "Stückgut":     [{ cat: "standard", w: 1.0 }],
+  "Möbel":        [{ cat: "standard", w: 1.0 }],
+  "Elektronik":   [{ cat: "standard", w: 1.0 }],
+  "Verpackungsmaterial": [{ cat: "standard", w: 1.0 }],
+  "Maschinenteile": [{ cat: "standard", w: 1.0 }],
+  "Textilien":    [{ cat: "standard", w: 1.0 }],
+};
+
+// Wählt eine Cargo-Kategorie für eine gegebene Frachtart (deterministisch via rng).
+export function pickCargoCategory(cargoType, rng) {
+  const weights = CARGO_TO_CATEGORY_WEIGHTS[cargoType] || [{ cat: "standard", w: 1.0 }];
+  const total = weights.reduce((s, e) => s + e.w, 0);
+  let r = rng() * total;
+  for (const entry of weights) {
+    r -= entry.w;
+    if (r <= 0) return CARGO_CATEGORIES[entry.cat];
+  }
+  return CARGO_CATEGORIES.standard;
+}
+
+// Prüft, ob ein Fahrzeug-Aufbau für einen Auftrag geeignet ist.
+// Gibt { ok: true } oder { ok: false, error } zurück.
+export function checkBodyTypeCompatibility(order, vehicle) {
+  const cat = getCargoCategory(order);
+  if (!cat.requiredBodyType) return { ok: true };
+  const body = getVehicleBodyType(vehicle);
+  if (body.id !== cat.requiredBodyType) {
+    return {
+      ok: false,
+      error: "Frachtart '" + cat.label + "' erfordert Aufbau '" +
+        VEHICLE_BODY_TYPES[cat.requiredBodyType].label + "' — dieser Lkw hat '" + body.label + "'.",
+    };
+  }
+  return { ok: true };
+}
+
+// Berechnet den Bonus-Faktor für eine Lieferung basierend auf Aufbau und Frachtart.
+// 1.0 = kein Bonus; > 1.0 = Spezial-Lkw erhält Aufschlag.
+export function computeBodyBonusFactor(order, vehicle) {
+  const cat = getCargoCategory(order);
+  if (!cat.bonusBodyType) return 1.0;
+  const body = getVehicleBodyType(vehicle);
+  if (body.id === cat.bonusBodyType) return cat.bonusFactor;
+  return 1.0;
+}
+
 // ---------- Marktwertfunktion (Auftrag 21) ----------
 // R = gespeicherter Referenz-Neupreis des Modells.
 // A = seit Inbetriebnahme verstrichene Spielmonate (kontinuierlich, 1 Monat = 30 Tage = 43200 Min).

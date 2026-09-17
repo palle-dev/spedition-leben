@@ -5,7 +5,8 @@
 
 import {
   CITIES, getDistance, driveMinutes, fuelCents, tollCents, roundCents,
-  LOAD_MIN, UNLOAD_MIN, MAX_DUTY_MIN, REST_MIN, WORK_BUDGET_MIN, formatGameTime
+  LOAD_MIN, UNLOAD_MIN, MAX_DUTY_MIN, REST_MIN, WORK_BUDGET_MIN, formatGameTime,
+  checkBodyTypeCompatibility, computeBodyBonusFactor,
 } from "./gameRules.ts";
 import {
   buildPhases, buildWorkSteps, buildEmptyWorkSteps,
@@ -197,6 +198,10 @@ export function buildDeployment(state, order, vehicle, startCity, earliestStart,
   const fuel = fuelCents(totalKm, vehicle.consumptionPer100km);
   const toll = tollCents(totalKm);
 
+  // Aufbau-Bonus: passender Spezial-Lkw erhält höhere Vergütung.
+  const bodyBonusFactor = computeBodyBonusFactor(order, vehicle);
+  const adjustedPayment = Math.round(order.paymentCents * bodyBonusFactor);
+
   return {
     orderId: order.id,
     orderStatus: order.status,
@@ -218,8 +223,9 @@ export function buildDeployment(state, order, vehicle, startCity, earliestStart,
     fuelCents: fuel,
     tollCents: toll,
     variableCostCents: fuel + toll,
-    paymentCents: order.paymentCents,
-    contributionCents: order.paymentCents - fuel - toll,
+    paymentCents: adjustedPayment,
+    bodyBonusFactor,
+    contributionCents: adjustedPayment - fuel - toll,
     deliveryDeadlineMin: order.deliveryDeadlineMin,
     deadlineBufferMin: order.deliveryDeadlineMin - result.endMin,
   };
@@ -319,6 +325,9 @@ export function buildTourPlan(state, opts) {
       if (order.tons > vehicle.capacityTons) {
         return { error: "Überladung: " + order.tons + " t überschreiten Kapazität von " + vehicle.capacityTons + " t." };
       }
+      // Aufbau-Kompatibilität: strikte Frachtarten erfordern passenden Aufbau.
+      const bodyCheck = checkBodyTypeCompatibility(order, vehicle);
+      if (!bodyCheck.ok) return { error: bodyCheck.error };
       const dep = buildDeployment(state, order, vehicle, currentCity, t, counters);
       // Spätlieferung-Toleranz: 4h Gnadenfrist. completeTrip zahlt 90% bei
       // Spätlieferung — buildTourPlan soll daher leichte Überschreitungen
@@ -923,6 +932,7 @@ export function findReturnLoads(state, primaryOrderId, vehicleId, driverId) {
     if (o.status !== "offered" && o.status !== "angenommen") continue;
     if (o.fromCity !== destCity) continue;
     if (o.tons > vehicle.capacityTons) continue;
+    if (!checkBodyTypeCompatibility(o, vehicle).ok) continue;
 
     const plan = buildTourPlan(state, {
       vehicleId, driverId,
@@ -955,6 +965,7 @@ export function findReturnLoads(state, primaryOrderId, vehicleId, driverId) {
     if (o.fromCity === destCity) continue; // schon als direkte Rückladung erfasst
     if (o.toCity !== order.fromCity && o.toCity !== "Hamburg") continue; // nur sinnvolle Ziele
     if (o.tons > vehicle.capacityTons) continue;
+    if (!checkBodyTypeCompatibility(o, vehicle).ok) continue;
 
     // Tour mit Leerfahrt: Hin → Leerfahrt → Rück
     // Wir testen: Hin + Rück (mit automatischer Leerfahrt vom Tour-Endort zum Abholort)
@@ -1115,6 +1126,7 @@ export function suggestTours(state, opts) {
       o.status === "angenommen" &&
       o.deliveryDeadlineMin > startMin - 240 &&
       o.tons <= vehicle.capacityTons &&
+      checkBodyTypeCompatibility(o, vehicle).ok &&
       !usedOrderIds.has(o.id) &&
       !activeTourOrderIds.has(o.id) &&
       (!restrictSet || restrictSet.has(o.id))
@@ -1127,6 +1139,7 @@ export function suggestTours(state, opts) {
       o.acceptDeadlineMin > startMin &&
       o.deliveryDeadlineMin > startMin &&
       o.tons <= vehicle.capacityTons &&
+      checkBodyTypeCompatibility(o, vehicle).ok &&
       !usedOrderIds.has(o.id) &&
       !activeTourOrderIds.has(o.id) &&
       (!restrictSet || restrictSet.has(o.id))

@@ -21,6 +21,7 @@ import { isPersonAvailable } from "./absenceEngine.ts";
 import {
   getDistance, driveMinutes, formatGameTime,
   LOAD_MIN, UNLOAD_MIN, WORK_BUDGET_MIN, REST_MIN,
+  checkBodyTypeCompatibility,
 } from "./gameRules.ts";
 import { isLeasingOverdueBlocked } from "./financingEngine.ts";
 import { cancelCourse, bookCourse } from "./trainingEngine.ts";
@@ -185,6 +186,13 @@ function checkReassignObstacles(state, tour, newVehicle, newDriver, plan) {
         message: "Auftrag " + order.customer + ": " + order.tons + " t überschreitet Kapazität von " + newVehicle.capacityTons + " t.",
       });
     }
+    // Aufbau-Kompatibilität bei Neuzuweisung prüfen.
+    if (order) {
+      const bodyCheck = checkBodyTypeCompatibility(order, newVehicle);
+      if (!bodyCheck.ok) {
+        hard.push({ type: "body_type", message: bodyCheck.error });
+      }
+    }
   }
 
   // Fahrzeugzustand
@@ -328,6 +336,7 @@ export function findResourcesForOrder(state, orderId) {
     if (v.capacityTons < order.tons) continue;
     if (v.condition < 20) continue;
     if (isLeasingOverdueBlocked(state, v.id)) continue;
+    if (!checkBodyTypeCompatibility(order, v).ok) continue;
 
     for (const d of (state.drivers || [])) {
       if (!isActivelyEmployed(d)) continue;
