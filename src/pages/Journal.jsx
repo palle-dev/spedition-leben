@@ -65,7 +65,7 @@ export default function Journal() {
   const hasAssistantLog = (state?.assistantLog || []).length > 0;
 
   return (
-    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 w-full space-y-5">
+    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1600px] mx-auto space-y-5">
       <PageHint pageKey="journal" />
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">

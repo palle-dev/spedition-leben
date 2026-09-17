@@ -65,7 +65,7 @@ export default function Achievements() {
   const availableTemplates = GOAL_TEMPLATES.filter(t => !goals.some(g => g.templateId === t.id));
 
   return (
-    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1400px] mx-auto space-y-6">
+    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1600px] mx-auto space-y-6">
       {/* Header */}
       <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-start">
         <div className="flex-1">

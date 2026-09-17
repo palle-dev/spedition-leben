@@ -38,9 +38,9 @@ export default function Customers() {
   const activeContracts = customers.filter(c => c.activeContract && c.activeContract.status === "active").length;
 
   return (
-    <div className="min-h-full flex flex-col">
+    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1600px] mx-auto space-y-6">
       {/* Header */}
-      <div className="px-4 lg:px-12 py-4 border-b border-white/10">
+      <div className="border-b border-white/10 pb-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="font-heading text-xl font-semibold flex items-center gap-2">
@@ -93,7 +93,7 @@ export default function Customers() {
       </div>
 
       {/* Inhalt */}
-      <div className="flex-1 px-4 lg:px-12 py-4">
+      <div>
         {loading ? (
           <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">Lade Kunden…</div>
         ) : selectedTenderId ? (

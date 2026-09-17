@@ -10,7 +10,7 @@ export default function BusinessModels() {
 
   return (
     <div className="relative z-10 min-h-screen pb-24 lg:pb-12">
-      <div className="max-w-5xl mx-auto px-4 lg:px-6 pt-6 lg:pt-8 space-y-6">
+      <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1600px] mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-lime/10 grid place-items-center">
