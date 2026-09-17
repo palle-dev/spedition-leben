@@ -52,7 +52,7 @@ export default function PlanningTimeline({ rows, horizonStart, horizonEnd, selec
       )}
 
       {/* Ressourcen-Zeilen */}
-      <div className="max-h-[500px] overflow-y-auto scrollbar-thin">
+      <div>
         {rows.length === 0 ? (
           <div className="px-3 py-12 text-center text-sm text-muted-foreground">
             Keine Ressourcen in dieser Ansicht.
