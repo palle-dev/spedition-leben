@@ -25,11 +25,13 @@ export default function PhoneCenter() {
  const soundReady=useSoundEnabled();
  const phoneAudioStatus=usePhoneAudioStatus(), soundVolume=useSoundVolume();
  const [playerStatus,setPlayerStatus]=useState("");
- const incoming=queue.calls.find(c=>!later.includes(c.id));
+ const missed=state.missedPhoneCalls||[];
+ const missedIds=new Set(missed.map(c=>c.id));
+ const incoming=queue.calls.find(c=>!later.includes(c.id)&&!missedIds.has(c.id));
  useEffect(()=>{setOfficeDucked(!!incoming||!!selected);return()=>setOfficeDucked(false);},[!!incoming,!!selected]);
  const recent=(state.disruptions?.items||[]).filter(d=>d.status==="completed").slice(-5).reverse();
 
- const canRing=soundReady && !selected && !overlay && !backgroundAdvance?.active;
+ const canRing=soundReady && !busy && !selected && !overlay && !backgroundAdvance?.active;
  useEffect(()=>{
   if (!incoming || !canRing || document.hidden) return;
   for(const id of ringCounts.current.keys())if(!queue.calls.some(c=>c.id===id))ringCounts.current.delete(id);
@@ -74,7 +76,7 @@ export default function PhoneCenter() {
   return result;
  }
  return <>
- <button onClick={()=>setShowList(true)} aria-label={incoming?"Eingehender Anruf – Telefon öffnen":`Telefon öffnen · ${queue.calls.length} offene Anliegen`} title="Telefon"
+ <button onClick={()=>setShowList(true)} aria-label={incoming?"Eingehender Anruf – Telefon öffnen":`Telefon öffnen · ${queue.calls.length} offene Anliegen · ${missed.length} verpasste Anrufe`} title="Telefon"
  className={`relative w-9 h-9 grid place-items-center rounded-full border shrink-0 ${incoming?"border-emerald-300 bg-emerald-400/15 text-emerald-200":"border-white/10 bg-white/5 text-muted-foreground hover:text-lime"}`}>
  <Phone className="w-4 h-4"/>
  {queue.calls.length>0&&<span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-emerald-300 text-slate-950 text-[9px] font-bold">{queue.calls.length>9?"9+":queue.calls.length}</span>}
@@ -87,7 +89,8 @@ export default function PhoneCenter() {
  {incoming && !selected && !overlay && <div className="border-t border-white/10 p-3">
  <div className="flex items-center gap-3"><motion.div animate={motionEnabled&&!reduced?{rotate:[0,-12,12,0]}:{rotate:0}} transition={{duration:.5,repeat:2}}><PhoneIncoming className="text-emerald-300 w-6 h-6"/></motion.div><div><p className="text-sm font-semibold text-white">{incoming.source}</p><p className="text-xs text-slate-300">{incoming.title}</p></div></div>
  <div className="flex gap-2 mt-3"><button disabled={blocked} onClick={()=>answer(incoming)} className="flex-1 rounded-xl bg-emerald-400 text-slate-950 py-2 text-xs font-semibold disabled:opacity-50">Annehmen</button><button onClick={()=>setLater(prev=>[...new Set([...prev,incoming.id])])} className="rounded-xl bg-white/10 text-white px-3 text-xs">Später</button></div></div>}
- {showList && <div className="border-t border-white/10 p-2 max-h-64 overflow-y-auto">{queue.calls.length===0?<p className="p-2 text-xs text-slate-400">Keine offenen Rückrufe.</p>:queue.calls.map(c=><button key={c.id} disabled={blocked} onClick={()=>answer(c)} className="w-full text-left rounded-xl hover:bg-white/10 p-3 disabled:opacity-50"><p className="text-xs font-medium text-white">{c.source} · {c.title}</p><p className="text-[10px] text-amber-200 mt-1">{deadlineLabel(c.deadline,state.gameTime)}</p></button>)}</div>}
+ {showList && <div className="border-t border-white/10 p-2 max-h-64 overflow-y-auto">{queue.calls.length===0?<p className="p-2 text-xs text-slate-400">Keine offenen Rückrufe.</p>:queue.calls.map(c=><button key={c.id} disabled={blocked} onClick={()=>answer(c)} className="w-full text-left rounded-xl hover:bg-white/10 p-3 disabled:opacity-50"><p className="text-xs font-medium text-white">{missedIds.has(c.id)?"Verpasster Anruf · ":""}{c.source} · {c.title}</p><p className="text-[10px] text-amber-200 mt-1">{deadlineLabel(c.deadline,state.gameTime)}</p></button>)}</div>}
+ {showList&&missed.length>0&&<section aria-label="Verpasste Anrufe" className="border-t border-white/10 p-3 space-y-2"><h3 className="text-sm font-semibold">Verpasste Anrufe im Zeitvorlauf</h3><p className="text-xs text-slate-400">Offene Anliegen kannst du oben zurückrufen. Bereits erledigte bleiben hier dokumentiert.</p><div className="max-h-40 overflow-y-auto space-y-2">{missed.slice(-20).reverse().map(c=><p key={c.id} className="text-xs text-slate-300">{formatGameTime(c.missedAtMin)} · {c.source||"Leitstelle"} · {c.title||"Lieferung in Gefahr"} · {queue.calls.some(q=>q.id===c.id)?"Rückruf offen":"Nicht mehr offen"}</p>)}</div></section>}
  {showList && <div className="border-t border-white/10 px-3 py-3 space-y-2">
  <OfficeAudioControls compact />
  <button disabled={blocked} onClick={testCall} className="w-full rounded-lg border border-cyan-300/30 py-2 text-xs text-cyan-100 disabled:opacity-40">Testanruf starten · Ton aktivieren</button>
