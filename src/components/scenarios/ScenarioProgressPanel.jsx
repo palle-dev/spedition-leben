@@ -1,4 +1,5 @@
 import React from "react";
+import ScenarioResultPanel from "./ScenarioResultPanel";
 import { useGame } from "@/lib/gameContext";
 import { getScenarioProgress } from "@/lib/scenarios/scenarioEngine";
 import { Clock, Target, AlertTriangle, CheckCircle2, XCircle, Calendar, Activity } from "lucide-react";
@@ -7,7 +8,8 @@ import { Clock, Target, AlertTriangle, CheckCircle2, XCircle, Calendar, Activity
 // Zeigt verbleibende Zeit, Ziele, Verpflichtungen und Risiken.
 export default function ScenarioProgressPanel() {
   const { state } = useGame();
-  if (!state?.scenario || state.scenario.status !== "active") return null;
+  if (!state?.scenario) return null;
+  if (state.scenario.status !== "active") return <ScenarioResultPanel />;
 
   const progress = getScenarioProgress(state);
   if (!progress) return null;
@@ -22,7 +24,7 @@ export default function ScenarioProgressPanel() {
   return (
     <div className="glass border border-white/10 rounded-2xl p-5 space-y-4">
       {/* Kopfzeile */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Target className="w-5 h-5 text-lime" />
           <h2 className="text-lg font-semibold text-foreground">{progress.title}</h2>
@@ -56,7 +58,7 @@ export default function ScenarioProgressPanel() {
               ) : (
                 <XCircle className="w-4 h-4 text-muted-foreground/40 shrink-0" />
               )}
-              <span className={`text-sm truncate ${goal.met ? "text-foreground" : "text-muted-foreground"}`}>
+              <span className={`text-sm ${goal.met ? "text-foreground" : "text-muted-foreground"}`}>
                 {goal.label}
               </span>
             </div>
@@ -81,7 +83,7 @@ export default function ScenarioProgressPanel() {
                 ) : (
                   <div className="w-4 h-4 rounded-full border border-muted-foreground/30 shrink-0" />
                 )}
-                <span className={`text-sm truncate ${goal.met ? "text-foreground" : "text-muted-foreground"}`}>
+                <span className={`text-sm ${goal.met ? "text-foreground" : "text-muted-foreground"}`}>
                   {goal.label}
                 </span>
               </div>
