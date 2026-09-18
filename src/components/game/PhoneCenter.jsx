@@ -26,6 +26,9 @@ export default function PhoneCenter() {
  const incoming=queue.calls.find(c=>!later.includes(c.id));
  useEffect(()=>{setOfficeDucked(!!incoming||!!selected);return()=>setOfficeDucked(false);},[!!incoming,!!selected]);
  const recent=(state.disruptions?.items||[]).filter(d=>d.status==="completed").slice(-5).reverse();
+ useEffect(()=>{
+  if(incoming && automationEnabled && !busy && !backgroundAdvance?.active) void pauseAutomation(true,"delivery_at_risk");
+ },[incoming?.id,automationEnabled,busy,backgroundAdvance?.active,pauseAutomation]);
  const canRing=soundReady && !selected && !overlay && !backgroundAdvance?.active && !busy;
  useEffect(()=>{
   if (!incoming || !canRing || document.hidden) return;
