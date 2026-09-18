@@ -304,8 +304,8 @@ export function GameProvider({ children }) {
       // (typisch bei Zeitvorläufen) werden Routine-Meldungen zu einer
       // einzigen Zusammenfassung gebündelt. Kritische Ereignisse
       // (Fehler, Beziehungen, Belohnungen) erscheinen weiterhin einzeln.
-      if (newToasts.length <= 3) {
-        if (newToasts.length) setToasts(previous => [...previous, ...newToasts].slice(-20));
+      if (newToasts.length <= 2) {
+        if (newToasts.length) setToasts(previous => [...previous, ...newToasts].slice(-6));
       } else {
         const critical = [];
         const routine = [];
@@ -313,9 +313,13 @@ export function GameProvider({ children }) {
           if (CRITICAL_EVENT_TYPES.has(t._eventType)) critical.push(t);
           else routine.push(t);
         }
-        const summary = summarizeRoutineToasts(routine);
-        const finalToasts = summary ? [...critical, summary] : critical;
-        if (finalToasts.length) setToasts(previous => [...previous, ...finalToasts].slice(-20));
+        // Höchstens 2 kritische Toasts einzeln zeigen;
+        // alle weiteren (kritisch + routinemäßig) in einer Zusammenfassung bündeln.
+        const visibleCritical = critical.slice(-2);
+        const overflow = critical.slice(0, -2);
+        const summary = summarizeRoutineToasts([...routine, ...overflow]);
+        const finalToasts = summary ? [...visibleCritical, summary] : visibleCritical;
+        if (finalToasts.length) setToasts(previous => [...previous, ...finalToasts].slice(-6));
       }
     }
     setUnseenCount(getUnseenEventCount(newState));

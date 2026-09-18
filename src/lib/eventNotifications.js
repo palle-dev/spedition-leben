@@ -40,14 +40,33 @@ export const CRITICAL_EVENT_TYPES = new Set([
   "branch_employee_hired",
 ]);
 
-// Kurzbezeichnungen für die Zusammenfassung routinemäßiger Ereignisse.
-const ROUTINE_LABELS = {
+// Kurzbezeichnungen für die Zusammenfassung aller Ereignisse.
+// Routinemäßige Ereignisse werden immer gebündelt; kritische Ereignisse
+// nur, wenn sie die sichtbare Obergrenze überschreiten (siehe gameContext).
+const EVENT_LABELS = {
+  // Routinemäßig
   delivery_completed: "Lieferung",
   tour_started: "Tour gestartet",
   order_accepted_by_dispatcher: "Auftrag angenommen",
   tour_planned_by_dispatcher: "Tour geplant",
   order_accepted_by_assistant: "Assistent: Auftrag",
   order_auto_dispatched: "Assistent: Disposition",
+  // Kritisch (nur bei Überlauf in Zusammenfassung)
+  order_failed: "Fehllieferung",
+  dating_match: "Match",
+  date_completed: "Date",
+  new_partner: "Partnerschaft",
+  breakup: "Trennung",
+  reward_available: "Belohnung",
+  reward_claimed: "Belohnung abgeholt",
+  purchase_completed: "Anschaffung",
+  purchase_sold: "Verkauf",
+  private_activity_started: "Aktivität",
+  assistant_training_booked: "Schulung",
+  branch_training_booked: "Filial-Schulung",
+  branch_vehicle_purchased: "Filial-Lkw",
+  branch_workshop_built: "Filial-Werkstatt",
+  branch_employee_hired: "Filial-Personal",
 };
 
 // Bündelt eine Liste von Routine-Toasts zu einem einzigen Zusammenfassungs-Toast.
@@ -58,7 +77,7 @@ export function summarizeRoutineToasts(routineToasts) {
 
   const counts = {};
   for (const t of routineToasts) {
-    const label = ROUTINE_LABELS[t._eventType] || null;
+    const label = EVENT_LABELS[t._eventType] || null;
     if (!label) continue;
     counts[label] = (counts[label] || 0) + 1;
   }
