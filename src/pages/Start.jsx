@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useGame } from "@/lib/gameContext";
 import { Plus, Play, Upload, LogOut, Check, Cloud, Loader2 } from "lucide-react";
+import ScenarioPicker from "@/components/scenarios/ScenarioPicker";
 import FrachtfieberLogo from "@/components/brand/FrachtfieberLogo";
 import FrachtfieberMobileSignet from "@/components/brand/FrachtfieberMobileSignet";
 import { base44 } from "@/api/base44Client";
@@ -13,6 +14,7 @@ export default function StartScreen() {
   const { state, newGame, listSlots, loadSlot, loadAutosaveSlot, autosaveMetas, importGame, busy, showToast, dismissStart, cloudSaves, cloudLoading, loadCloudGame, refreshCloudSaves } = useGame();
   const [slots, setSlots] = useState([]);
   const [showForm, setShowForm] = useState(false);
+  const [showScenarios, setShowScenarios] = useState(false);
   const [names, setNames] = useState({ companyName: "", playerName: "", partnerName: "Mara" });
   const [withOnboarding, setWithOnboarding] = useState(true);
   const [profileId, setProfileId] = useState(DEFAULT_PROFILE_ID);
@@ -20,7 +22,9 @@ export default function StartScreen() {
   const fileRef = useRef(null);
 
   useEffect(() => {
-    listSlots().then(setSlots).catch(() => {});
+    Promise.all([listSlots(false), listSlots(true)]).then(([free, scenarios]) => {
+      setSlots([...free.map(s => ({ ...s, isScenario: false })), ...scenarios.map(s => ({ ...s, isScenario: true }))].sort((a, b) => b.savedAt - a.savedAt));
+    }).catch(() => {});
     refreshCloudSaves();
   }, [listSlots, refreshCloudSaves]);
 
@@ -37,8 +41,8 @@ export default function StartScreen() {
     } catch (e) { showToast(e.message, "error"); }
   }
 
-  async function handleLoad(name) {
-    const r = await loadSlot(name);
+  async function handleLoad(name, isScenario) {
+    const r = await loadSlot(name, isScenario);
     if (!r.ok) showToast(r.error, "error");
   }
 
@@ -94,7 +98,7 @@ export default function StartScreen() {
           <p className="text-muted-foreground mt-3 text-sm max-w-xs mx-auto">Baue deine Spedition auf, führe dein Team und finde deinen eigenen Weg zwischen Geschäft und Privatleben.</p>
         </div>
 
-        {state && !showForm && (
+        {state && !showForm && !showScenarios && (
           <button
             onClick={dismissStart}
             className="w-full mb-4 px-4 py-3.5 rounded-xl bg-lime text-ink font-semibold hover:brightness-110 transition active:scale-[0.98] flex items-center justify-center gap-2 shadow-[0_0_20px_-4px_hsl(var(--lime)/0.4)]"
@@ -103,15 +107,15 @@ export default function StartScreen() {
           </button>
         )}
 
-        {!showForm && (slots.length > 0 || autosaveMetas.some(m => m)) && (
+        {!showForm && !showScenarios && (slots.length > 0 || autosaveMetas.some(m => m)) && (
           <div className="space-y-2 mb-4">
             <h2 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Spielstand laden</h2>
             {slots.map((s) => (
-              <button key={s.name} onClick={() => handleLoad(s.name)}
+              <button key={(s.isScenario ? "scenario:" : "free:") + s.name} onClick={() => handleLoad(s.name, s.isScenario)}
                 className="w-full text-left px-4 py-3 rounded-xl glass border border-white/10 hover:border-lime/30 transition flex items-center justify-between">
                 <div>
                   <div className="font-medium text-foreground">{s.name}</div>
-                  <div className="text-xs text-muted-foreground">{fmt(s.savedAt)}</div>
+                  <div className="text-xs text-muted-foreground">{s.isScenario ? "Szenario" : "Freies Spiel"} · {fmt(s.savedAt)}</div>
                 </div>
                 <Play className="w-4 h-4 text-lime" />
               </button>
@@ -136,7 +140,7 @@ export default function StartScreen() {
           </div>
         )}
 
-        {!showForm && cloudSaves.length > 0 && (
+        {!showForm && !showScenarios && cloudSaves.length > 0 && (
           <div className="space-y-2 mb-4">
             <h2 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground flex items-center gap-1.5">
               <Cloud className="w-3.5 h-3.5" /> Cloud-Spielstände
@@ -160,7 +164,7 @@ export default function StartScreen() {
           </div>
         )}
 
-        {showForm ? (
+        {showScenarios ? <ScenarioPicker onClose={() => setShowScenarios(false)} /> : showForm ? (
           <div className="glass border border-white/15 rounded-2xl p-5 space-y-4">
             <h2 className="font-semibold text-foreground">Neue Spedition gründen</h2>
             <Field label="Firmenname" value={names.companyName} onChange={(v) => setNames({ ...names, companyName: v })} placeholder="Nordlicht Transport GmbH" />
@@ -227,7 +231,7 @@ export default function StartScreen() {
           </button>
         )}
 
-        {!showForm && slots.length === 0 && !autosaveMetas.some(m => m) && (
+        {!showForm && !showScenarios && slots.length === 0 && !autosaveMetas.some(m => m) && (
           <button
             onClick={() => fileRef.current?.click()}
             className="w-full mt-2 px-4 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground transition flex items-center justify-center gap-2"
@@ -235,11 +239,16 @@ export default function StartScreen() {
             <Upload className="w-4 h-4" /> Save-Datei importieren
           </button>
         )}
+        {!showForm && !showScenarios && (
+          <button onClick={() => setShowScenarios(true)} disabled={busy} className="w-full mt-3 px-4 py-3 rounded-xl border border-lime/30 bg-lime/5 hover:bg-lime/10 text-lime font-medium transition disabled:opacity-50">
+            Ein Szenario spielen · 3 Herausforderungen
+          </button>
+        )}
         <input ref={fileRef} type="file" accept="application/json,.json" onChange={handleFile} className="hidden" />
 
-        <p className="text-xs text-muted-foreground/50 mt-6 text-center">
-          Start: Hamburg · {(DIFFICULTY_PROFILES.find(p => p.id === profileId)?.startCapitalCents / 100).toLocaleString("de-DE")} € Firma · {(DIFFICULTY_PROFILES.find(p => p.id === profileId)?.privateCapitalCents / 100).toLocaleString("de-DE")} € Privat · 3 Lkw · 3 Fahrer · 8 Angebote
-        </p>
+        {!showScenarios && <p className="text-xs text-muted-foreground/50 mt-6 text-center">
+          Start: Hamburg · {(DIFFICULTY_PROFILES.find(p => p.id === profileId)?.startCapitalCents / 100).toLocaleString("de-DE")} € Firma · {(DIFFICULTY_PROFILES.find(p => p.id === profileId)?.privateCapitalCents / 100).toLocaleString("de-DE")} € Privat · 3 Lkw · 3 Fahrer
+        </p>}
       </div>
     </div>
   );
