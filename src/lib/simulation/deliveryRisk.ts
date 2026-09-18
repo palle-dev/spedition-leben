@@ -34,6 +34,7 @@ export function getEscalatedDeliveryRisks(state) {
   const issue=issues.get(r.disruptionId);
   if(issue?.status==="measure_running")return false;
   if(["late_eta","overdue"].includes(r.code)){
+   if(r.eta===null)return true;
    const late=Math.max(state.gameTime||0,r.eta??0)-r.deadline;
    return late>ROUTINE_DELAY_MIN;
   }

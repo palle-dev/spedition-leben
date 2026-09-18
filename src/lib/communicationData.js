@@ -1,3 +1,4 @@
+import { getRoutineDelayResolver } from "@/lib/simulation/disruptionEngine";
 import { getEscalatedDeliveryRisks } from "@/lib/simulation/deliveryRisk";
 import { getPendingDecisions } from "@/lib/decisionQueue";
 export function getCommunicationQueue(state) {
@@ -11,7 +12,7 @@ export function getCommunicationQueue(state) {
   const deadline=deadlines.length ? Math.min(...deadlines) : null;
   const urgent=urgentIssueIds.has(d.id) || d.type!=="loading_delay";
   // Routine ramp handling belongs to staff, not the decision inbox.
-  if(d.type==="loading_delay" && d.delayMin<=120 && !urgent)continue;
+  if(d.type==="loading_delay" && d.delayMin<=120 && !urgent && getRoutineDelayResolver(state,d,state.gameTime))continue;
   const driver=state.drivers?.find(p=>p.id===d.driverId);
   const entry={key:"disruption_"+d.id,id:d.id,type:"disruption",title:d.type==="loading_delay" ? "Rückfrage an der Laderampe" : d.type==="personnel_absence" ? "Ein Fahrer fällt aus" : "Unser Lkw braucht Hilfe",
    source:driver?.name || "Leitstelle",portraitId:driver?.portraitId || driver?.portrait_id,description:d.cause,deadline,createdAt:d.createdAtMin};

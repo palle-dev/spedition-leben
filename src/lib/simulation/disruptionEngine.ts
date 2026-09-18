@@ -728,12 +728,16 @@ export function processDisruptions(state, m, log) {
   );
 }
 
+export function getRoutineDelayResolver(state,d,m){
+    const employee=findResolverEmployee(state,d,m);
+    const driver=(state.drivers||[]).find(p=>p.id===d.driverId && isActivelyEmployed(p) && !(p.sickUntil>m) && !["sick","vacation","released"].includes(p.attendance));
+    return employee||driver;
+}
+
 function tryAutoResolve(state, d, m, log) {
   // Routine ramp delays require no management approval or expenditure.
   if(d.type==="loading_delay" && d.delayMin<=120){
-    const employee=findResolverEmployee(state,d,m);
-    const driver=(state.drivers||[]).find(p=>p.id===d.driverId && isActivelyEmployed(p) && !(p.sickUntil>m) && !["sick","vacation","released"].includes(p.attendance));
-    const resolver=employee||driver;
+    const resolver=getRoutineDelayResolver(state,d,m);
     if(resolver){
       if(!d.customerInformed)executeOption(state,d,"inform_customer",{},m,log);
       executeOption(state,d,"accept_delay",{},m,log);

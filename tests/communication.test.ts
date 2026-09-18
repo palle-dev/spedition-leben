@@ -11,7 +11,7 @@ function addDelay(s,remaining=300){
 }
 describe("Telefon und Entscheidungspostfach",()=>{
  it("eskaliert planbare Rückfrage erst bei knapper Spielzeit zum Anruf",()=>{
-  const s=initial();const d=addDelay(s,241);
+  const s=initial();const d=addDelay(s,121);d.delayMin=180;
   expect(getCommunicationQueue(s).emails.some(e=>e.id===d.id)).toBe(true);
   expect(getCommunicationQueue(s).calls).toHaveLength(0);
   s.gameTime+=1;
