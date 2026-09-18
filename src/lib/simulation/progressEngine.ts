@@ -164,6 +164,12 @@ export function migrateState(state) {
     }, 0);
   }
 
+  // Neue Katalogeinträge auch bei bestehenden Spielständen ergänzen; XP erst beim Freischalten.
+  const knownAchievements = new Set(state.achievements.map(a => a.id));
+  for (const def of ACHIEVEMENTS) {
+    if (!knownAchievements.has(def.id)) state.achievements.push({ id: def.id, unlocked: false, unlockedAtMin: null, seen: false });
+  }
+
   // Ziele
   if (!state.goals) state.goals = [];
 

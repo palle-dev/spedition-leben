@@ -15,6 +15,16 @@ function ownedActiveVehicles(state) {
 }
 
 export const ACHIEVEMENTS = [
+  { id: "reliable_five", title: "Fünf Punktlandungen", desc: "5 aufeinanderfolgende pünktliche Lieferungen", category: "zuverlaessigkeit", xp: 75,
+    condition: s => (s.stats?.consecutiveTimely || 0) >= 5,
+    progress: s => ({ current: Math.min(s.stats?.consecutiveTimely || 0, 5), target: 5 }) },
+  { id: "team_first_course", title: "Gemeinsam besser", desc: "Eine Weiterbildung im Team abschließen", category: "unternehmen", xp: 75,
+    condition: s => (s.training?.enrollments || []).some(e => e.status === "completed"),
+    progress: s => ({ current: (s.training?.enrollments || []).some(e => e.status === "completed") ? 1 : 0, target: 1 }) },
+  { id: "promise_first", title: "Zeit, die zählt", desc: "Einen zugesagten persönlichen Termin einhalten", category: "privatleben", xp: 50,
+    condition: s => (s.stats?.promisesKept || 0) >= 1,
+    progress: s => ({ current: Math.min(s.stats?.promisesKept || 0, 1), target: 1 }) },
+
   { id: "biz_first", title: "Erste Lieferung", desc: "1 tatsächlich gelieferter Auftrag", category: "unternehmen", xp: 100,
     condition: (s) => (s.stats?.totalDeliveries || 0) >= 1,
     progress: (s) => ({ current: Math.min(s.stats?.totalDeliveries || 0, 1), target: 1 }) },

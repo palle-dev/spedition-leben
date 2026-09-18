@@ -1,3 +1,4 @@
+import ShortGoals from "@/components/office/ShortGoals";
 import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import OfficeHeader from "@/components/office/OfficeHeader";
@@ -40,6 +41,7 @@ export default function Office() {
 
       {/* Tagesübersicht: Natürliche Aussagen aus Spieldaten */}
       <DailyOverview state={state} />
+      <ShortGoals state={state} />
       <WorldTeaser state={state} />
 
       {/* Aktive Störungen (nur bei vorhandenen Störungen sichtbar) */}
