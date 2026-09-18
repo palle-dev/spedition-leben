@@ -9,6 +9,7 @@
 // die Eigentümerprüfung erfolgt manuell im Filter und im Code.
 
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
+import { isCompleteSnapshot, isWritableRevision } from "../../shared/snapshotValidation.ts";
 
 // Extrahiert Synchron-Metadaten aus dem Spielzustand (read-only).
 // Verändert state nicht — Metadaten werden in separaten Entity-Feldern gespeichert.
@@ -34,11 +35,13 @@ export default async function handleCloudSync(req) {
     const body = await req.json();
     const { command } = body || {};
     const S = base44.asServiceRole.entities.GameState;
+    if (body?.stateId != null && (typeof body.stateId !== "string" || !body.stateId.trim())) {
+      return Response.json({ error: "Ungültige stateId" }, { status: 400 });
+    }
     if (command === "create" || command === "save") {
       const state = body.state;
-      if (!state || typeof state !== "object" || Array.isArray(state) ||
-          !Number.isFinite(state.gameTime) || state.gameTime < 0) {
-        return Response.json({ error: "Ungültiger Spielstand" }, { status: 400 });
+      if (!isCompleteSnapshot(state)) {
+        return Response.json({ error: "Ungültiger oder unvollständiger Spielstand" }, { status: 400 });
       }
     }
 
@@ -126,7 +129,7 @@ export default async function handleCloudSync(req) {
     if (command === "save") {
       const { stateId, state, expected_revision, save_label, save_type } = body;
       if (!stateId || !state) return Response.json({ error: "stateId und state erforderlich" }, { status: 400 });
-      if (!Number.isSafeInteger(expected_revision) || expected_revision < 1) return Response.json({ error: "Gültige expected_revision erforderlich" }, { status: 400 });
+      if (!isWritableRevision(expected_revision)) return Response.json({ error: "Gültige expected_revision erforderlich" }, { status: 400 });
 
       const rec = await S.get(stateId);
       if (!rec || rec.owner_id !== user.id) {

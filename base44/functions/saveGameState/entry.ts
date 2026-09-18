@@ -3,6 +3,7 @@
 // über diese Funktion. Konfliktbehandlung über bedingtes updateMany (Revisionssicherung).
 
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
+import { isCompleteSnapshot, isWritableRevision } from "../../shared/snapshotValidation.ts";
 import { migrateState } from "../../shared/progressEngine.ts";
 
 export default async function handleSaveGameState(req) {
@@ -13,26 +14,32 @@ export default async function handleSaveGameState(req) {
 
     const body = await req.json();
     const { stateId, state, expected_revision } = body || {};
-    if (!stateId || !state) return Response.json({ error: "stateId und state erforderlich" }, { status: 400 });
-    if (expected_revision === undefined) return Response.json({ error: "expected_revision erforderlich" }, { status: 400 });
+    if (typeof stateId !== "string" || !stateId.trim()) return Response.json({ error: "stateId erforderlich" }, { status: 400 });
+    if (!isCompleteSnapshot(state)) return Response.json({ error: "Ungültiger oder unvollständiger Spielstand" }, { status: 400 });
+    if (!isWritableRevision(expected_revision)) return Response.json({ error: "Gültige expected_revision erforderlich" }, { status: 400 });
 
     const S = base44.asServiceRole.entities.GameState;
+    const rec = await S.get(stateId);
+    if (!rec || rec.owner_id !== user.id) return Response.json({ error: "Kein Zugriff auf diesen Spielstand" }, { status: 403 });
+    const partyId = rec.party_id || rec.state?.meta?.partyId;
+    if (partyId && state.meta?.partyId !== partyId) {
+      return Response.json({ error: "Der Spielstand gehört zu einer anderen Partie.", code: "PARTY_MISMATCH" }, { status: 409 });
+    }
     const migrated = migrateState(state);
     const newRev = expected_revision + 1;
     const updateSet = {
       state: migrated,
       revision: newRev,
+      ...(migrated.meta?.partyId ? { party_id: migrated.meta.partyId } : {}),
       last_action_id: "save_" + Date.now(),
       last_result: { ok: true, command: "save" },
       automation_enabled: !!migrated.timeControl?.enabled,
     };
 
-    // Atomares Update ohne vorherigen Lesezugriff – der Filter
-    // (id + owner_id + revision) stellt sicher, dass nur der berechtigte
-    // Nutzer mit der richtigen Revision schreibt. Bei 0 Treffern (Konflikt)
-    // ist ein Lesezugriff nötig, um die aktuelle Revision zu melden.
+    // Der Lesezugriff prüft die Partie; das bedingte Update prüft Eigentümer,
+    // Revision und vorhandene Partiekennung erneut in derselben Schreiboperation.
     const upd = await S.updateMany(
-      { id: stateId, owner_id: user.id, revision: expected_revision },
+      { id: stateId, owner_id: user.id, revision: expected_revision, ...(rec.party_id ? { party_id: rec.party_id } : {}) },
       { $set: updateSet }
     );
 

@@ -5,12 +5,17 @@ import cloud from '../base44/functions/cloudSync/entry';
 import commands from '../base44/functions/gameCommand/entry';
 import tick from '../base44/functions/processAutomationTick/entry';
 
+const snapshot = (gameTime, meta?) => ({
+  gameTime, company: {}, private: {}, vehicles: [], drivers: [], orders: [],
+  ...(meta ? { meta } : {}),
+});
+
 // Diese Tests prüfen Handler-Verträge mit einem Datenbankersatz.
 // Sie belegen keine produktive RLS-Konfiguration oder Datenbank-Atomarität.
 let records, entities;
 beforeEach(() => {
   records = new Map([
-    ['own', { id: 'own', owner_id: 'alice', revision: 3, state: { gameTime: 41135 } }],
+    ['own', { id: 'own', owner_id: 'alice', revision: 3, state: snapshot(41135) }],
     ['foreign', { id: 'foreign', owner_id: 'bob', revision: 3, state: { secret: 'unrelated' } }],
   ]);
   entities = {
@@ -20,7 +25,7 @@ beforeEach(() => {
     delete: vi.fn(async id => records.delete(id)),
     updateMany: vi.fn(async (query, op) => {
       const r = records.get(query.id);
-      if (!r || r.owner_id !== query.owner_id || r.revision !== query.revision) return { updated: 0 };
+      if (!r || !Object.entries(query).every(([key, value]) => r[key] === value)) return { updated: 0 };
       Object.assign(r, op.$set); return { updated: 1 };
     }),
   };
@@ -44,25 +49,25 @@ describe('Cloud-Handler-Verträge', () => {
     expect((await response.json()).saves.map(s => s.id)).toEqual(['own']);
   });
   it.each(['load', 'save', 'delete'])('Fremder Spielstand bleibt für %s gesperrt', async command => {
-    const response = await cloud(req({ command, stateId: 'foreign', expected_revision: 3, state: { gameTime: 5 } }));
+    const response = await cloud(req({ command, stateId: 'foreign', expected_revision: 3, state: snapshot(5) }));
     expect(response.status).toBe(403);
     expect(records.get('foreign').state.secret).toBe('unrelated');
     expect(entities.delete).not.toHaveBeenCalled();
   });
   it('veraltete Revision meldet 409 und verändert den Zustand nicht', async () => {
-    const response = await cloud(req({ command: 'save', stateId: 'own', expected_revision: 2, state: { gameTime: 100 } }));
+    const response = await cloud(req({ command: 'save', stateId: 'own', expected_revision: 2, state: snapshot(100) }));
     expect(response.status).toBe(409);
     expect((await response.json()).current_revision).toBe(3);
     expect(records.get('own').state.gameTime).toBe(41135);
   });
   it('Speichern filtert auf Eigentümer und Revision und zeigt denselben Spieltag', async () => {
-    const response = await cloud(req({ command: 'save', stateId: 'own', expected_revision: 3, state: { gameTime: 41135 } }));
+    const response = await cloud(req({ command: 'save', stateId: 'own', expected_revision: 3, state: snapshot(41135) }));
     expect(response.status).toBe(200);
     expect(entities.updateMany.mock.calls[0][0]).toEqual({ id: 'own', owner_id: 'alice', revision: 3 });
     expect(records.get('own').revision).toBe(4); expect(records.get('own').game_day).toBe(29);
   });
   it.each([null, '3', -1, 1.5])('ungültige Revision %s wird vor dem Schreiben abgewiesen', async revision => {
-    const response = await cloud(req({ command: 'save', stateId: 'own', expected_revision: revision, state: { gameTime: 100 } }));
+    const response = await cloud(req({ command: 'save', stateId: 'own', expected_revision: revision, state: snapshot(100) }));
     expect(response.status).toBe(400); expect(entities.updateMany).not.toHaveBeenCalled();
   });
   it('gleiche newGame-Aktion erzeugt bei sequenzieller Wiederholung kein Duplikat', async () => {
@@ -83,7 +88,7 @@ describe("Cloud-Partiebindung", () => {
   it("verhindert das Überschreiben mit dem Snapshot einer anderen Partie", async () => {
     records.get("own").party_id = "A";
     records.get("own").state.meta = { partyId: "A" };
-    const response = await cloud(req({ command: "save", stateId: "own", expected_revision: 3, state: { gameTime: 100, meta: { partyId: "B" } } }));
+    const response = await cloud(req({ command: "save", stateId: "own", expected_revision: 3, state: snapshot(100, { partyId: "B" }) }));
     expect(response.status).toBe(409);
     expect((await response.json()).code).toBe("PARTY_MISMATCH");
     expect(entities.updateMany).not.toHaveBeenCalled();
@@ -91,12 +96,12 @@ describe("Cloud-Partiebindung", () => {
   });
   it("bindet das atomare Update zusätzlich an die Partiekennung", async () => {
     records.get("own").party_id = "A";
-    const response = await cloud(req({ command: "save", stateId: "own", expected_revision: 3, state: { gameTime: 100, meta: { partyId: "A" } } }));
+    const response = await cloud(req({ command: "save", stateId: "own", expected_revision: 3, state: snapshot(100, { partyId: "A" }) }));
     expect(response.status).toBe(200);
     expect(entities.updateMany.mock.calls[0][0].party_id).toBe("A");
   });
   it("ein verlorenes create-Ergebnis führt beim Wiederholen zum vorhandenen Cloud-Ziel", async () => {
-    const payload = { command: "create", party_id: "A", state: { gameTime: 100, meta: { partyId: "A" } } };
+    const payload = { command: "create", party_id: "A", state: snapshot(100, { partyId: "A" }) };
     const first = await cloud(req(payload));
     const firstBody = await first.json();
     const repeated = await cloud(req(payload));

@@ -1,3 +1,4 @@
+import { isCompleteSnapshot } from "./simulation/snapshotValidation";
 import { migrateApprovals } from "./simulation/delegationEngine";
 
 // Gemeinsame Grenzen für lokale Spielstände und den Import.
@@ -23,11 +24,7 @@ export function readRecoverySave(userId) {
 // Erst validieren, dann eine unabhängige Kopie aktivieren. Alte Speicherdaten
 // werden nicht verändert; ein fehlgeschlagener Import lässt die Partie intakt.
 export function prepareLoadedState(raw) {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw) ||
-      !Number.isFinite(raw.gameTime) || raw.gameTime < 0 ||
-      !raw.company || typeof raw.company !== "object" || Array.isArray(raw.company) ||
-      !raw.private || typeof raw.private !== "object" || Array.isArray(raw.private) ||
-      !["vehicles", "drivers", "orders"].every(key => Array.isArray(raw[key]))) {
+  if (!isCompleteSnapshot(raw)) {
     throw new Error("Der Spielstand ist unvollständig oder hat ein ungültiges Format.");
   }
   const state = structuredClone(raw);
