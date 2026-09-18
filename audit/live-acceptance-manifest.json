@@ -1,0 +1,70 @@
+{
+  "baseline": "f57a43d6458aa790fb3f1de76fc3a343c45cb2a9",
+  "date": "2026-09-18",
+  "tests_passed": 273,
+  "tests_skipped": 0,
+  "test_files": 21,
+  "publication": "pending for supplementary corrections",
+  "files": [
+    {
+      "path": "audit/long-run-state.json",
+      "sha256": "3882b176b9926db6f785641649a7d570ed6a221ba5d9e3b7d19c46984abba1d0"
+    },
+    {
+      "path": "audit/long-run.json",
+      "sha256": "7b68f87611f8a5f50fb096c51cd95b24da6a95e3384324d71dc1d4a740a09d44"
+    },
+    {
+      "path": "audit/real-replay.json",
+      "sha256": "375121661ce406c9009f36ae722c949328474ba15a49ad697b6f7d3bc4cd2de1"
+    },
+    {
+      "path": "base44/shared/achievementCatalog.ts",
+      "sha256": "6933626a0e07d31f7d8c2b4fd202e64c816fb8812efa082de3793b86b6375453"
+    },
+    {
+      "path": "docs/Audit-2026-09-18.md",
+      "sha256": "d4c52702416059a0f64005df766b4dc7e5597132f254818185f1ab5f0347045c"
+    },
+    {
+      "path": "src/components/game/CloudSyncSection.jsx",
+      "sha256": "3e8ec5d0d188165ae793c3381a6400f71f6bb2f42baa973f738835b3810b4bdb"
+    },
+    {
+      "path": "src/components/game/SaveSlotsDialog.jsx",
+      "sha256": "e36aa011c81796a214fa72b9a4b0a08658bde6c4723ec5d1c6b321c01adb5ced"
+    },
+    {
+      "path": "src/components/ui/dialog.jsx",
+      "sha256": "b2f4110e21a529b2c908e7af491d7aa726239d1d6467a3c16bf160d237f54a28"
+    },
+    {
+      "path": "src/lib/achievementCatalog.js",
+      "sha256": "9f846d2f6573215b4e8f6e80697503ae698c0d7e8fc37e68dd4ca2223a8e00cc"
+    },
+    {
+      "path": "src/lib/officeData.js",
+      "sha256": "bf6c28517ad5c8e2a5755f80fccf1be11b8db693b17be7fbdfa7fba67986349e"
+    },
+    {
+      "path": "src/lib/progressEngine.js",
+      "sha256": "bb15e25cd56978dbecec75fea19ce2c3f61e058b3f3bd24dd968aa186f623718"
+    },
+    {
+      "path": "src/lib/simulation/achievementCatalog.ts",
+      "sha256": "6933626a0e07d31f7d8c2b4fd202e64c816fb8812efa082de3793b86b6375453"
+    },
+    {
+      "path": "src/pages/Achievements.jsx",
+      "sha256": "6f2b0666b432fd369d0d5e0d8499d2ccb4b2c02f7bfd028c3018c080890c3134"
+    },
+    {
+      "path": "src/pages/Efficiency.jsx",
+      "sha256": "40aa15d495e3bdf30a1f62f39e1179e9eb6ba7e34593c879ae5cea255318ccaa"
+    },
+    {
+      "path": "tests/live-acceptance.test.ts",
+      "sha256": "74fc45615a3c4016ded679cffbc7030cfaf77543012c9571f0877de0407a291a"
+    }
+  ]
+}
