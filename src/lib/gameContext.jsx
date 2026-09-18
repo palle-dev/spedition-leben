@@ -117,6 +117,7 @@ export function GameProvider({ children }) {
   const [syncMeta, setSyncMeta] = useState(null);
   const [cloudSaves, setCloudSaves] = useState([]);
   const [cloudLoading, setCloudLoading] = useState(false);
+  const cloudListRequest=useRef(0);
   const cloudDirtyRef = useRef(false);
   const dirtyAutosaveRef = useRef(false);
   const [autosaveMetas, setAutosaveMetas] = useState([null, null, null]);
@@ -389,13 +390,14 @@ export function GameProvider({ children }) {
   const refreshCloudSaves = useCallback(async () => {
     const token = sessionToken();
     if (!isCurrentSession(token)) return;
+    const request=++cloudListRequest.current;
     setCloudLoading(true);
     try {
       const res = await listCloudSaves();
-      if (isCurrentSession(token) && res.saves) setCloudSaves(res.saves);
+      if ((isCurrentSession(token) && request===cloudListRequest.current) && res.saves) setCloudSaves(res.saves);
     } catch (error) {
-      if (isCurrentSession(token)) showToast("Cloud-Spielstände konnten nicht geladen werden: " + error.message, "error");
-    } finally { if (isCurrentSession(token)) setCloudLoading(false); }
+      if ((isCurrentSession(token) && request===cloudListRequest.current)) showToast("Cloud-Spielstände konnten nicht geladen werden: " + error.message, "error");
+    } finally { if ((isCurrentSession(token) && request===cloudListRequest.current)) setCloudLoading(false); }
   }, [sessionToken, isCurrentSession, showToast]);
 
   // Ein Ladeweg für Startup, Cloud, Slots, Autosaves und Import.

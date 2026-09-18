@@ -711,7 +711,12 @@ export function processDisruptions(state, m, log) {
     if (d.status === "completed") continue;
 
     if (d.status === "decision_open") {
-      if(d.type==="loading_delay" && !d.customerInformed)executeOption(state,d,"inform_customer",{},m,log);
+      if(d.type==="loading_delay" && !d.customerInformed){
+        const orders=(state.orders||[]).filter(o=>d.orderIds?.includes(o.id));
+        if(orders.length && orders.every(o=>o.phoneCustomerInformed))d.customerInformed=true;
+        else executeOption(state,d,"inform_customer",{},m,log);
+        for(const o of orders)o.phoneCustomerInformed=true;
+      }
       d.options = computeOptions(state, d, m);
       if (DISRUPTION_CONFIG.autoResolve.enabled) {
         tryAutoResolve(state, d, m, log);
@@ -1149,7 +1154,7 @@ export function getDisruptionOverview(state) {
 export function getDisruptionDetail(state, disruptionId) {
   const d = (state.disruptions?.items || []).find(x => x.id === disruptionId);
   if (!d) return null;
-  const options = computeOptions(state, d, state.gameTime);
+  const options = computeOptions(state, d, state.gameTime).filter(o=>o.id!=="inform_customer");
   const tour = d.tourId ? (state.tours || []).find(t => t.id === d.tourId) : null;
   const vehicle = d.vehicleId ? (state.vehicles || []).find(v => v.id === d.vehicleId) : null;
   const driver = d.driverId ? (state.drivers || []).find(dr => dr.id === d.driverId) : null;
