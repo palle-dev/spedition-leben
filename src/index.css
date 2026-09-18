@@ -138,33 +138,41 @@
    Version fehlen — diese Klassen müssen immer im CSS enthalten sein. */
 .shade-office {
   background:
-    linear-gradient(90deg, rgba(7, 14, 15, 0.88), rgba(7, 14, 15, 0.42) 39%, rgba(7, 14, 15, 0.10) 62%, rgba(7, 14, 15, 0.38)),
-    linear-gradient(0deg, #0b1011 1%, rgba(11, 16, 17, 0.94) 14%, transparent 56%, rgba(9, 14, 15, 0.72));
+    linear-gradient(90deg, rgba(7, 14, 15, 0.90), rgba(7, 14, 15, 0.48) 39%, rgba(7, 14, 15, 0.22) 62%, rgba(7, 14, 15, 0.48)),
+    linear-gradient(0deg, #0b1011 1%, rgba(11, 16, 17, 0.95) 14%, rgba(11, 16, 17, 0.12) 56%, rgba(9, 14, 15, 0.78));
 }
 .shade-home {
   background:
-    linear-gradient(90deg, rgba(20, 13, 13, 0.86), rgba(13, 11, 11, 0.35) 45%, rgba(13, 11, 11, 0.15)),
-    linear-gradient(0deg, #100f10 1%, rgba(16, 15, 16, 0.90) 14%, transparent 59%, rgba(10, 10, 10, 0.62));
+    linear-gradient(90deg, rgba(20, 13, 13, 0.88), rgba(13, 11, 11, 0.42) 45%, rgba(13, 11, 11, 0.24)),
+    linear-gradient(0deg, #100f10 1%, rgba(16, 15, 16, 0.92) 14%, rgba(16, 15, 16, 0.10) 59%, rgba(10, 10, 10, 0.68));
 }
 .shade-panel {
   background: linear-gradient(0deg, rgba(11, 16, 17, 0.92) 1%, rgba(11, 16, 17, 0.55) 40%, transparent 80%);
 }
 .glass {
-  background: linear-gradient(135deg, hsl(var(--surface) / 0.55), hsl(var(--surface-2) / 0.45));
-  backdrop-filter: blur(14px) saturate(1.1) !important;
-  -webkit-backdrop-filter: blur(14px) saturate(1.1) !important;
+  background: linear-gradient(135deg, hsl(var(--surface) / 0.72), hsl(var(--surface-2) / 0.62));
+  backdrop-filter: blur(16px) saturate(1.15) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(1.15) !important;
 }
 .glass-coral {
-  background: linear-gradient(135deg, hsl(15 30% 20% / 0.55), hsl(190 21% 14% / 0.45));
-  backdrop-filter: blur(14px) saturate(1.1) !important;
-  -webkit-backdrop-filter: blur(14px) saturate(1.1) !important;
+  background: linear-gradient(135deg, hsl(15 30% 20% / 0.72), hsl(190 21% 14% / 0.62));
+  backdrop-filter: blur(16px) saturate(1.15) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(1.15) !important;
+}
+.glass-strong {
+  background: linear-gradient(135deg, hsl(var(--surface) / 0.88), hsl(var(--surface-2) / 0.82));
+  backdrop-filter: blur(20px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(1.2) !important;
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .glass {
-    background: linear-gradient(135deg, hsl(var(--surface) / 0.92), hsl(var(--surface-2) / 0.88));
+    background: linear-gradient(135deg, hsl(var(--surface) / 0.95), hsl(var(--surface-2) / 0.92));
   }
   .glass-coral {
-    background: linear-gradient(135deg, hsl(15 30% 20% / 0.92), hsl(190 21% 14% / 0.88));
+    background: linear-gradient(135deg, hsl(15 30% 20% / 0.95), hsl(190 21% 14% / 0.92));
+  }
+  .glass-strong {
+    background: linear-gradient(135deg, hsl(var(--surface) / 0.98), hsl(var(--surface-2) / 0.96));
   }
 }
 .text-balance {
