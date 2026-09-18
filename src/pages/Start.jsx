@@ -1,3 +1,4 @@
+import { flushSync } from "react-dom";
 import React, { useState, useEffect, useRef } from "react";
 import { useGame } from "@/lib/gameContext";
 import { Plus, Play, Upload, LogOut, Check, Cloud, Loader2 } from "lucide-react";
@@ -20,6 +21,27 @@ export default function StartScreen() {
   const [profileId, setProfileId] = useState(DEFAULT_PROFILE_ID);
   const [helpSettings, setHelpSettings] = useState({ ...DEFAULT_HELP_SETTINGS });
   const fileRef = useRef(null);
+  const loadLock = useRef(false);
+  const [loadLabel,setLoadLabel]=useState("");
+  const [loadError,setLoadError]=useState("");
+  const [takingLonger,setTakingLonger]=useState(false);
+  useEffect(()=>{
+    if(!loadLabel)return;
+    const timer=setTimeout(()=>setTakingLonger(true),8000);
+    return ()=>clearTimeout(timer);
+  },[loadLabel]);
+  async function runLoad(label,operation){
+    if(loadLock.current || busy)return;
+    loadLock.current=true;
+    flushSync(()=>{setLoadLabel(label);setLoadError("");setTakingLonger(false);});
+    try{
+      // Give the browser a paint before parsing/migrating a large save.
+      await new Promise(resolve=>setTimeout(resolve,40));
+      const result=await operation();
+      if(result?.ok===false || result?.skipped)throw Error(result.error||"Der Ladevorgang wurde unterbrochen. Bitte erneut versuchen.");
+    }catch(error){setLoadError(error.message||"Der Spielstand konnte nicht geladen werden.");}
+    finally{loadLock.current=false;setLoadLabel("");}
+  }
 
   useEffect(() => {
     Promise.all([listSlots(false), listSlots(true)]).then(([free, scenarios]) => {
@@ -41,31 +63,19 @@ export default function StartScreen() {
     } catch (e) { showToast(e.message, "error"); }
   }
 
-  async function handleLoad(name, isScenario) {
-    const r = await loadSlot(name, isScenario);
-    if (!r.ok) showToast(r.error, "error");
+  function handleLoad(name,isScenario){
+    return runLoad(name,()=>loadSlot(name,isScenario));
   }
-
-  async function handleLoadAutosave(index) {
-    const r = await loadAutosaveSlot(index);
-    if (!r.ok) showToast(r.error, "error");
+  function handleLoadAutosave(index){
+    return runLoad("Automatische Sicherung · Slot "+(index+1),()=>loadAutosaveSlot(index));
   }
-
-  async function handleLoadCloud(id) {
-    const r = await loadCloudGame(id);
-    if (!r.ok) showToast(r.error, "error");
+  function handleLoadCloud(id){
+    const entry=cloudSaves.find(s=>s.id===id);
+    return runLoad(entry?.save_label||entry?.company_name||"Cloud-Spielstand",()=>loadCloudGame(id));
   }
-
-  function handleFile(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const r = await importGame(reader.result);
-      if (!r.ok) showToast(r.error, "error");
-    };
-    reader.readAsText(file);
-    e.target.value = "";
+  function handleFile(e){
+    const file=e.target.files?.[0];e.target.value="";
+    if(file)void runLoad(file.name,async()=>importGame(await file.text()));
   }
 
   const fmt = (savedAt) => savedAt
@@ -74,13 +84,21 @@ export default function StartScreen() {
 
   return (
     <div className="relative min-h-screen flex items-center justify-center p-6 overflow-hidden">
+      {loadLabel&&<div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/90 backdrop-blur-sm p-6" role="status" aria-live="polite" aria-atomic="true">
+        <div className="max-w-sm w-full rounded-3xl border border-lime/25 bg-slate-900 p-8 text-center shadow-2xl">
+          <Loader2 className="w-10 h-10 animate-spin motion-reduce:animate-none text-lime mx-auto mb-5" aria-hidden="true"/>
+          <h1 className="text-xl font-semibold text-white">Spielstand wird geladen …</h1>
+          <p className="mt-3 text-sm text-lime break-words">{loadLabel}</p>
+          <p className="mt-4 text-sm text-slate-300">{takingLonger?"Das Laden dauert etwas länger. Dein Spielstand wird weiterhin vorbereitet.":"Deine Spedition wird vorbereitet. Bitte kurz warten."}</p>
+        </div>
+      </div>}
       <div className="fixed inset-0 z-0 overflow-hidden">
         <img src={OFFICE_URL} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
         <div className="absolute inset-0 shade-office" />
       </div>
 
       <button
-        onClick={() => base44.auth.logout("/login")}
+        disabled={!!loadLabel||busy} onClick={() => base44.auth.logout("/login")}
         className="fixed top-4 right-4 z-20 w-9 h-9 grid place-items-center rounded-full border border-white/10 bg-white/5 text-muted-foreground hover:text-coral transition"
         aria-label="Abmelden"
         title="Abmelden"
@@ -88,7 +106,8 @@ export default function StartScreen() {
         <LogOut className="w-4 h-4" />
       </button>
 
-      <div className="relative z-10 max-w-lg w-full">
+      <fieldset disabled={!!loadLabel||busy} aria-busy={!!loadLabel} className="relative z-10 max-w-lg w-full min-w-0">
+        {loadError&&<p role="alert" className="mb-4 rounded-xl border border-red-400/30 bg-red-950 p-4 text-sm text-red-100">{loadError} Du kannst den Spielstand erneut auswählen.</p>}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-5">
             <FrachtfieberMobileSignet size={56} className="sm:hidden" />
@@ -249,7 +268,7 @@ export default function StartScreen() {
         {!showScenarios && <p className="text-xs text-muted-foreground/50 mt-6 text-center">
           Start: Hamburg · {(DIFFICULTY_PROFILES.find(p => p.id === profileId)?.startCapitalCents / 100).toLocaleString("de-DE")} € Firma · {(DIFFICULTY_PROFILES.find(p => p.id === profileId)?.privateCapitalCents / 100).toLocaleString("de-DE")} € Privat · 3 Lkw · 3 Fahrer
         </p>}
-      </div>
+      </fieldset>
     </div>
   );
 }
