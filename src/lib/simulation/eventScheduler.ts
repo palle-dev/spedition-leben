@@ -4,6 +4,7 @@
 import {
   SERVICE_START_MIN, SERVICE_END_MIN, SERVICE_INTERVAL_MIN,
 } from "./gameRules.ts";
+import { getWorldEventTimes } from "./worldEngine.ts";
 import { MONTH_MIN } from "./accountingEngine.ts";
 import { isActivelyEmployed } from "./terminationEngine.ts";
 import { getFinancingDueEvents } from "./financingEngine.ts";
@@ -169,5 +170,6 @@ export function earliestEventAfter(state, t, maxMin) {
   if (state.acquisition) {
     for (const tm of getAcquisitionEventTimes(state, t, maxMin)) cand(tm);
   }
+  for (const tm of getWorldEventTimes(state)) cand(tm);
   return best;
 }
