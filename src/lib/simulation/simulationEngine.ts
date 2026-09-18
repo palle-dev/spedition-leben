@@ -1657,6 +1657,10 @@ export function applyCommand(state, command, params) {
 
     case "confirmTour": {
       ensureNotBlocked(state);
+      if(p.phoneQuote){
+        const plan=buildTourPlan(state,p);
+        if(!plan.ok || plan.totalVariableCostCents!==p.phoneQuote.cost || plan.earliestStartMin!==p.phoneQuote.start || plan.lastDeliveryEndMin!==p.phoneQuote.eta) throw new Error("Der Tourvorschlag hat sich geändert. Bitte die aktuellen Angaben erneut prüfen und bestätigen.");
+      }
       if (isLeasingOverdueBlocked(state, p.vehicleId)) throw new Error("Leasingrückstand: Neue Touren mit diesem Fahrzeug sind gesperrt.");
       const r = doConfirmTour(state, {
         vehicleId: p.vehicleId,
@@ -1667,6 +1671,20 @@ export function applyCommand(state, command, params) {
       });
       result = r;
       break;
+    }
+
+    case "phoneInformCustomer": {
+      ensureNotBlocked(state);
+      const order=state.orders.find(o=>o.id===p.orderId);
+      if(!order || !["angenommen","unterwegs"].includes(order.status))throw new Error("Dieser Auftrag benötigt keine Lieferwarnung mehr.");
+      if(!order.phoneCustomerInformed){
+        deliverMessage(state,{fromId:"system",toId:"player",subject:"Kundeninfo: "+order.customer,
+          body:order.customer+" wurde über das Lieferrisiko informiert. Die Lieferfrist bleibt unverändert. Ein Defekt oder eine Verspätung wird dadurch nicht behoben.",
+          gameTime:state.gameTime,category:"operations",priority:"normal",
+          linkedRefs:{type:"order",id:order.id},dedupKey:"phone_customer:"+order.id});
+        order.phoneCustomerInformed=true;
+      }
+      result={ok:true,informationOnly:true};break;
     }
 
     case "cancelTour": {
