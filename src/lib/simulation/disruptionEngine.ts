@@ -711,6 +711,7 @@ export function processDisruptions(state, m, log) {
     if (d.status === "completed") continue;
 
     if (d.status === "decision_open") {
+      if(d.type==="loading_delay" && !d.customerInformed)executeOption(state,d,"inform_customer",{},m,log);
       d.options = computeOptions(state, d, m);
       if (DISRUPTION_CONFIG.autoResolve.enabled) {
         tryAutoResolve(state, d, m, log);

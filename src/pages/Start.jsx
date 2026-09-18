@@ -159,13 +159,13 @@ export default function StartScreen() {
           </div>
         )}
 
-        {!showForm && !showScenarios && cloudSaves.length > 0 && (
+        {!showForm && !showScenarios && (cloudLoading || cloudSaves.length > 0) && (
           <div className="space-y-2 mb-4">
             <h2 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground flex items-center gap-1.5">
               <Cloud className="w-3.5 h-3.5" /> Cloud-Spielstände
             </h2>
             {cloudLoading && (
-              <div className="flex items-center justify-center py-3"><Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /></div>
+              <div role="status" aria-live="polite" className="flex items-center gap-3 rounded-xl border border-lime/20 bg-slate-950/60 p-4 text-sm"><Loader2 className="w-5 h-5 animate-spin text-lime shrink-0" />Cloud-Spielstände werden geladen …</div>
             )}
             {cloudSaves.map((s) => (
               <button key={s.id} onClick={() => handleLoadCloud(s.id)}

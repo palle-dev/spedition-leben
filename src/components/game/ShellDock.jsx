@@ -68,7 +68,7 @@ export default function ShellDock() {
   async function advanceHour() {
     setAdvancing(true);
     try {
-      const res = await send("advanceTime", { minutes: 60 });
+      const res = await send("advanceTime", { minutes: 60, silentPhoneAdvance: true });
       if (res?.stopped) showToast("Vorlauf abgebrochen – nicht alle Vorgänge verarbeitet.", "error");
       else summarizeEvents(res?.events);
     } catch (e) { showToast(e.message, "error"); }

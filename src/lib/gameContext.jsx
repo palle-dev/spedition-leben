@@ -596,7 +596,7 @@ export function GameProvider({ children }) {
       return;
     }
     try {
-      const data = await executeInWorker(stateRef.current, "advanceTime", { minutes }, (progress) => {
+      const data = await executeInWorker(stateRef.current, "advanceTime", { minutes, silentPhoneAdvance: true }, (progress) => {
         if (isCurrentSession(token)) setBackgroundAdvance(prev => prev ? { ...prev, progress } : prev);
       }, diag);
       if (!isCurrentSession(token)) return;

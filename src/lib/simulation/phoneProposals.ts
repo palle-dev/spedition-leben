@@ -9,7 +9,7 @@ export function getPhoneProposals(state, call) {
  if (call.type !== "delivery_risk") {
   const detail=getDisruptionDetail(state,call.id);
   if(detail?.status!=="decision_open")return [];
-  return detail.options.filter(o=>o.available).map(o=>({...o,command:"resolveDisruption",params:{disruptionId:call.id,optionId:o.id,params:{phoneQuote:{cost:o.costCents,duration:o.estimatedDurationMin,description:o.description}}},informationOnly:o.id==="inform_customer"}));
+  return detail.options.filter(o=>o.available && o.id!=="inform_customer").map(o=>({...o,command:"resolveDisruption",params:{disruptionId:call.id,optionId:o.id,params:{phoneQuote:{cost:o.costCents,duration:o.estimatedDurationMin,description:o.description}}},informationOnly:o.id==="inform_customer"}));
  }
  const order=state.orders.find(o=>o.id===call.orderId);
  if(!order || !["angenommen","unterwegs"].includes(order.status))return [];
@@ -39,8 +39,5 @@ export function getPhoneProposals(state, call) {
    if(proposals.length===2)break;
   }
  }
- if(!order.phoneCustomerInformed && !(state.disruptions?.items||[]).some(d=>d.customerInformed && d.orderIds?.includes(order.id)))proposals.push({id:"customer:"+order.id,label:"Kunden über das Lieferrisiko informieren",
-  description:"Die Leitstelle informiert "+order.customer+" und dokumentiert die Mitteilung. Das ändert weder die Lieferfrist noch mögliche Verspätungsfolgen und behebt keinen Defekt.",
-  costCents:0,estimatedDurationMin:0,informationOnly:true,command:"phoneInformCustomer",params:{orderId:order.id}});
  return proposals;
 }
