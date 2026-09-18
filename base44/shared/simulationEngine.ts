@@ -1,4 +1,4 @@
-import { getDeliveryRisks } from "./deliveryRisk.ts";
+import { getEscalatedDeliveryRisks } from "./deliveryRisk.ts";
 import { migrateWorld, processWorld, handleWorldCommand } from "./worldEngine.ts";
 import { processAssistant, migrateAssistant } from "./assistantEngine.ts";
 import { generateBranchDecisions } from "./branchManagerEngine.ts";
@@ -758,7 +758,7 @@ function advanceTo(state, targetMin, log, reportStart, stopOnDeliveryRisk = fals
   try {
     while (true) {
       if (eventCount >= MAX_EVENTS) { stopped = true; break; }
-      if (stopOnDeliveryRisk && t < targetMin && getDeliveryRisks(state).length) { stopped = true; stopReason = "delivery_at_risk"; break; }
+      if (stopOnDeliveryRisk && t < targetMin && getEscalatedDeliveryRisks(state).length) { stopped = true; stopReason = "delivery_at_risk"; break; }
       if (shouldStopForApproval(state)) { stopped = true; stopReason = "pending_approval"; log.push({ type: "advance_stopped_approval", atMin: t, targetMin, reason: "pending_approval" }); break; }
       const next = earliestEventAfter(state, t, targetMin);
       if (next === null) break;

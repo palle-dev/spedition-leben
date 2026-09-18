@@ -26,3 +26,19 @@ export function getDeliveryRisks(state) {
  }
  return risks.sort((a,b)=>a.deadline-b.deadline||a.id.localeCompare(b.id));
 }
+// Management escalation: routine lateness stays visible in orders, not on the phone.
+export const ROUTINE_DELAY_MIN = 120;
+export function getEscalatedDeliveryRisks(state) {
+ const issues=new Map((state.disruptions?.items||[]).map(d=>[d.id,d]));
+ return getDeliveryRisks(state).filter(r=>{
+  const issue=issues.get(r.disruptionId);
+  if(issue?.status==="measure_running")return false;
+  if(["late_eta","overdue"].includes(r.code)){
+   const late=Math.max(state.gameTime||0,r.eta??0)-r.deadline;
+   return late>ROUTINE_DELAY_MIN;
+  }
+  return true;
+ });
+}
+
+

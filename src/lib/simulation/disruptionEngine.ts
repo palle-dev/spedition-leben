@@ -729,6 +729,20 @@ export function processDisruptions(state, m, log) {
 }
 
 function tryAutoResolve(state, d, m, log) {
+  // Routine ramp delays require no management approval or expenditure.
+  if(d.type==="loading_delay" && d.delayMin<=120){
+    const employee=findResolverEmployee(state,d,m);
+    const driver=(state.drivers||[]).find(p=>p.id===d.driverId && isActivelyEmployed(p) && !(p.sickUntil>m) && !["sick","vacation","released"].includes(p.attendance));
+    const resolver=employee||driver;
+    if(resolver){
+      if(!d.customerInformed)executeOption(state,d,"inform_customer",{},m,log);
+      executeOption(state,d,"accept_delay",{},m,log);
+      d.autoResolved=true;d.autoResolvedBy=resolver.name;
+      d.history.push({type:"auto_resolved",atMin:m,by:resolver.name,option:"accept_delay"});
+      log.push({type:"disruption_auto_resolved",disruption:d.id,by:resolver.name,option:"accept_delay",atMin:m});
+      return;
+    }
+  }
   const freeOption = d.options.find(o =>
     o.available && o.costCents === 0 && !o.requiresApproval &&
     ["replace_vehicle", "replace_driver", "replan_tour", "replan_followup"].includes(o.id)
