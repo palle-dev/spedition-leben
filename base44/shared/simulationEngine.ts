@@ -501,6 +501,7 @@ function processEventsAt(state, m, log) {
     if (a.status === "pending" && a.decisionDeadline === m) {
       a.status = "missed";
       state.private.relationship = clamp(state.private.relationship - 5, 0, 100);
+      pushEvent(state, { type: "personal_appointment_missed", gameTime: m, details: { appointmentId: a.id }, dedupKey: "personal_missed:" + a.id });
       log.push({ type: "invitation_missed", appointment: a.id });
     } else if (a.status === "accepted" && a.startMin === m) {
       if (a.type === "invitation_ersatz") {
@@ -511,6 +512,7 @@ function processEventsAt(state, m, log) {
         } else {
           a.status = "missed";
           state.private.relationship = clamp(state.private.relationship - 5, 0, 100);
+          pushEvent(state, { type: "personal_appointment_missed", gameTime: m, details: { appointmentId: a.id }, dedupKey: "personal_missed:" + a.id });
           log.push({ type: "ersatz_missed", appointment: a.id });
         }
       } else {
@@ -546,6 +548,10 @@ function processEventsAt(state, m, log) {
         }
         a.effectsApplied = true;
       }
+      if (a.type !== "conversation" && a.type !== "scenario_timeoff") pushEvent(state, {
+        type: "personal_appointment_done", gameTime: m, isSystem: true,
+        details: { appointmentId: a.id }, dedupKey: "personal_done:" + a.id,
+      });
       log.push({ type: "appointment_done", appointment: a.id });
     }
   }

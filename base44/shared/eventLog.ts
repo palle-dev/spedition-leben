@@ -3,6 +3,8 @@
 // Ereignisse überleben Neuladen, Verbindungsabbruch und Offline-Zeit.
 // Deduplizierung über dedupKey verhindert doppelte Zustellung.
 
+import { recordExperienceEvent } from "./experienceRecap.ts";
+
 const MAX_EVENTS = 500; // Begrenzung für Speichereffizienz (reduziert von 2000)
 
 export function initEvents(state) {
@@ -71,6 +73,7 @@ export function pushEvent(state, {
     createdAtMin: state.gameTime,
   };
   state.events.push(ev);
+  recordExperienceEvent(state, ev);
 
   // Begrenzung: älteste Ereignisse entfernen, aber nie die letzten 200
   if (state.events.length > MAX_EVENTS) {

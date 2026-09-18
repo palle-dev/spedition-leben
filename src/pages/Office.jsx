@@ -1,3 +1,4 @@
+import DayRecap from "@/components/office/DayRecap";
 import LivingOffice from "@/components/office/LivingOffice";
 import ShortGoals from "@/components/office/ShortGoals";
 import React, { useState } from "react";
@@ -42,6 +43,7 @@ export default function Office() {
 
       {/* Tagesübersicht: Natürliche Aussagen aus Spieldaten */}
       <LivingOffice state={state} />
+      <DayRecap key={state.meta?.partyId} state={state} />
       <DailyOverview state={state} />
       <ShortGoals state={state} />
       <WorldTeaser state={state} />
