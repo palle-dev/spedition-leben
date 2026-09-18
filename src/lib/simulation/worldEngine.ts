@@ -36,7 +36,7 @@ function effect(state, run, e: any = {}) {
     const d = state.drivers.find(p => p.id === run.actorId && activeDriver(p));
     if (d) {
       d.satisfaction = clamp((d.satisfaction ?? 70) + e.driver);
-      d.satisfactionReasons = [...(d.satisfactionReasons || []), { reason: "Spielwelt: " + run.actorName, delta: e.driver, day: Math.floor(state.gameTime / WORLD_DAY) + 1 }].slice(-20);
+      d.satisfactionReasons = [...(d.satisfactionReasons || []), { reason: "Spielwelt: " + run.actorName, delta: e.driver, atMin: state.gameTime }].slice(-20);
     }
   }
   if (e.friend) {
@@ -48,6 +48,7 @@ function effect(state, run, e: any = {}) {
 function startWorld(state) {
   migrateWorld(state);
   if (state.world.active) return { ok: true, alreadyApplied: true };
+  if (state.scenario?.status === "active") throw new Error("Die Spielwelt beginnt nach dem Szenario, sobald du im freien Spiel weitermachst.");
   state.world = {
     version: 1, active: true, startedAtMin: state.gameTime, seed: 7319501, sequence: 0,
     nextEconomyMin: state.gameTime + WORLD_DAY, nextTenderMin: state.gameTime,
@@ -331,10 +332,17 @@ export function getWorldEventTimes(state) {
 }
 export function handleWorldCommand(state, command, p) {
   if (command === "startWorld") return startWorld(state);
-  if (!["chooseWorldStory", "bidWorldTender", "withdrawWorldBid"].includes(command)) return null;
+  if (!["chooseWorldStory", "bidWorldTender", "withdrawWorldBid", "cancelWorldAppointment"].includes(command)) return null;
   if (!state.world?.active) throw new Error("Betritt zuerst die Spielwelt.");
   if (command === "chooseWorldStory") return chooseStory(state, p);
   if (command === "bidWorldTender") return bid(state, p);
+  if (command === "cancelWorldAppointment") {
+    const run = state.world.stories[p.storyId];
+    const ap = state.appointments.find(a => a.id === run?.appointmentId);
+    if (!run || run.stage !== p.stage || run.status !== "appointment" || ap?.status !== "accepted") throw new Error("Dieser geplante Termin kann nicht mehr abgesagt werden.");
+    ap.status = "cancelled";
+    return { ok: true };
+  }
   const t = state.world.tenders.find(t => t.id === p.tenderId);
   if (!t || t.status !== "open" || state.gameTime >= t.closeMin) throw new Error("Das Gebot kann nicht mehr zurückgezogen werden.");
   t.bid = null;

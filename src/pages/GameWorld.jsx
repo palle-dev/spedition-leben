@@ -23,7 +23,7 @@ export default function GameWorld() {
     setPending(true);
     try {
       await send(command, params);
-      showToast(command === "chooseWorldStory" ? "Deine Entscheidung ist Teil der Geschichte." : command === "bidWorldTender" ? "Gebot gespeichert. Du kannst es bis zum Zuschlag ändern." : command === "withdrawWorldBid" ? "Gebot zurückgezogen." : "Willkommen am Kai.", "success");
+      showToast(command === "chooseWorldStory" ? "Deine Entscheidung ist Teil der Geschichte." : command === "bidWorldTender" ? "Gebot gespeichert. Du kannst es bis zum Zuschlag ändern." : command === "withdrawWorldBid" ? "Gebot zurückgezogen." : command === "cancelWorldAppointment" ? "Termin abgesagt. Die Geschichte berücksichtigt deine Absage." : "Willkommen am Kai.", "success");
     } catch (error) { showToast(error.message, "error"); }
     finally { setPending(false); }
   }
@@ -47,7 +47,8 @@ export default function GameWorld() {
         {[{ Icon: Truck, title: "Echte Konkurrenz", text: "Gebote, begrenzte Reserven und gewonnene Transporte, die du selbst disponierst." }, { Icon: BookOpen, title: "Zusammenhängende Geschichten", text: "Vier Hauptkapitel und drei persönliche Geschichten mit späteren Folgen." }, { Icon: Heart, title: "Eine Welt mit Gedächtnis", text: "Die Weltchronik verbindet deine Entscheidungen mit dem, was daraus entsteht." }].map(({ Icon, title, text }) => <div key={title} className="space-y-2"><Icon className="w-6 h-6 text-sky-200" /><h2 className="font-medium">{title}</h2><p className="text-sm text-muted-foreground leading-relaxed">{text}</p></div>)}
       </div>
       <p className="text-sm text-muted-foreground">Der Einstieg ist kostenlos. Geschichten und Ausschreibungen beginnen ab deiner jetzigen Spielzeit. Geschichten warten auf dich; Gebotsfristen laufen mit der Spielzeit weiter.</p>
-      <button disabled={disabled} className={button + " bg-sky-300/10 text-sky-100 inline-flex items-center gap-2"} onClick={() => act("startWorld")}>{pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />} Spielwelt betreten</button>
+      {state.scenario?.status === "active" && <p className="text-sm text-sky-200">Die Spielwelt beginnt nach dem Szenario, sobald du im freien Spiel weitermachst.</p>}
+      <button disabled={disabled || state.scenario?.status === "active"} className={button + " bg-sky-300/10 text-sky-100 inline-flex items-center gap-2"} onClick={() => act("startWorld")}>{pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />} Spielwelt betreten</button>
     </section> : <>
       <div className="grid grid-cols-3 gap-2 sm:gap-4">
         {[["Verlässlichkeit", w.reputation.trust, "/ 100"], ["Qualitätsvorsprung", w.reputation.quality, "/ 20"], ["Verhandlungsvorsprung", w.reputation.price, "/ 20"]].map(([label, value, max]) => <div key={label} className={card + " p-3 sm:p-5"}><p className="text-[10px] sm:text-xs text-muted-foreground break-words">{label}</p><p className="mt-2 text-xl sm:text-3xl font-semibold tabular-nums">{value} <span className="text-xs text-muted-foreground font-normal">{max}</span></p></div>)}
@@ -76,7 +77,7 @@ export default function GameWorld() {
                   {reason && <p className="text-xs text-coral">{reason}</p>}
                   <button disabled={disabled || !!reason} className={button + " text-left text-sky-100"} onClick={() => act("chooseWorldStory", { storyId: run.id, stage: run.stage, choiceId: choice.id })}>So entscheide ich <ArrowRight className="w-3 h-3 inline ml-1" /></button>
                 </div>;
-              })}</div> : <div className="rounded-xl bg-sky-300/5 border border-sky-300/10 p-4 space-y-2"><p className="text-sm text-sky-100 flex items-center gap-2"><Clock className="w-4 h-4" />{run.status === "appointment" && ap ? "Im Kalender: " + when(ap.startMin) + "–20:00" : "Die Geschichte geht weiter ab " + when(run.dueMin)}</p><p className="text-xs text-muted-foreground">Deine Wahl: {run.pending?.cause?.choice}. Die Spielzeit muss bis dahin fortschreiten.</p>{run.status === "appointment" && <Link to="/zuhause" className="text-xs text-sky-200 underline underline-offset-4">Zum Privatleben</Link>}</div>}
+              })}</div> : <div className="rounded-xl bg-sky-300/5 border border-sky-300/10 p-4 space-y-2"><p className="text-sm text-sky-100 flex items-center gap-2"><Clock className="w-4 h-4" />{run.status === "appointment" && ap ? "Im Kalender: " + when(ap.startMin) + "–20:00" : "Die Geschichte geht weiter ab " + when(run.dueMin)}</p><p className="text-xs text-muted-foreground">Deine Wahl: {run.pending?.cause?.choice}. Die Spielzeit muss bis dahin fortschreiten.</p>{run.status === "appointment" && <div className="flex flex-wrap gap-4"><Link to="/zuhause" className="text-xs text-sky-200 underline underline-offset-4">Zum Privatleben</Link><button disabled={disabled || ap?.status !== "accepted"} className="text-xs text-muted-foreground underline underline-offset-4 disabled:opacity-40" onClick={() => act("cancelWorldAppointment", { storyId: run.id, stage: run.stage })}>Termin absagen · Kosten werden nicht erstattet</button></div>}</div>}
             </>}
           </article>;
         })}

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { applyCommand, createInitialState } from "../src/lib/simulation/simulationEngine";
 import { applyCommand as serverCommand } from "../base44/shared/simulationEngine";
 import { migrateWorld, processWorld, handleWorldCommand, worldAppointmentSlot, worldBidReason } from "../src/lib/simulation/worldEngine";
-import { WORLD_STORIES, worldScene } from "../src/lib/simulation/worldCatalog";
+import { worldScene } from "../src/lib/simulation/worldCatalog";
 import { prepareLoadedState } from "../src/lib/saveSafety";
 import { getAccountBalance } from "../src/lib/simulation/accountingEngine";
 
@@ -151,8 +151,8 @@ describe("Spielwelt: dauerhafte Geschichten und Wettbewerb", () => {
   it("cancelling a promised meeting suppresses its positive delayed effect", () => {
     const s = fresh(); advance(s, 3 * 1440); choose(s, "home", "evening");
     const run = s.world.stories.home, ap = s.appointments.find(a => a.id === run.appointmentId);
-    ap.status = "cancelled";
-    processWorld(s, s.gameTime);
+    applyCommand(s, "cancelWorldAppointment", { storyId: "home", stage: run.stage });
+    expect(ap.status).toBe("cancelled");
     expect(run.pending.effect).toEqual({ relationship: -3 });
     expect(run.status).toBe("waiting");
   });
@@ -220,7 +220,7 @@ describe("Spielwelt: dauerhafte Geschichten und Wettbewerb", () => {
     advance(b, 2880);
     expect(b.world.rivals.reduce((n, r) => n + r.completed, 0)).toBe(2);
   });
-  it("prevents excessive bids and excludes unsuitable truck bodies", () => {
+  it("prevents excessive bids and rechecks the fleet before awarding", () => {
     const s = fresh();
     s.vehicles = [s.vehicles[0]]; s.drivers = [s.drivers[0]];
     applyCommand(s, "bidWorldTender", { tenderId: s.world.tenders[0].id, bidId: "lean" });

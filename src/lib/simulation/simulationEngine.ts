@@ -2438,7 +2438,7 @@ export function applyCommand(state, command, params) {
     }
 
     default: {
-      if (["startWorld", "chooseWorldStory", "bidWorldTender", "withdrawWorldBid"].includes(command)) ensureNotBlocked(state);
+      if (["startWorld", "chooseWorldStory", "bidWorldTender", "withdrawWorldBid", "cancelWorldAppointment"].includes(command)) ensureNotBlocked(state);
       const worldResult = handleWorldCommand(state, command, p);
       if (worldResult !== null) { result = worldResult; break; }
       const dgResult = handleDgCommand(state, command, p);
