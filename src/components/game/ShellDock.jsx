@@ -109,7 +109,7 @@ export default function ShellDock() {
     done: true,
     error: !!backgroundAdvance.error || !!backgroundAdvance.result.stopped,
     status: backgroundAdvance.error ? "Fehler: " + backgroundAdvance.error
-      : backgroundAdvance.result.stopped ? "Abgebrochen – nicht alle Vorgänge verarbeitet"
+      : backgroundAdvance.result.stopped ? (backgroundAdvance.result.stopReason === "delivery_at_risk" ? "Lieferung in Gefahr – Vorlauf pausiert. Bitte Telefon prüfen." : "Abgebrochen – nicht alle Vorgänge verarbeitet")
       : "Abgeschlossen",
   } : null;
 

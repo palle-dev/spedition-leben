@@ -1,3 +1,4 @@
+import { getDeliveryRisks } from "./deliveryRisk.ts";
 import { migrateWorld, processWorld, handleWorldCommand } from "./worldEngine.ts";
 import { processAssistant, migrateAssistant } from "./assistantEngine.ts";
 import { generateBranchDecisions } from "./branchManagerEngine.ts";
@@ -731,7 +732,7 @@ function processEventsAt(state, m, log) {
     state.scenario.pendingEvaluation = true;
   }
 }
-function advanceTo(state, targetMin, log, reportStart) {
+function advanceTo(state, targetMin, log, reportStart, stopOnDeliveryRisk = false) {
   // Flag für processDispatcher: während eines Vorlaufs (reportStart definiert)
   // wird die Skip-Cache-Schwelle von 10 auf 60 Min angehoben — der Context-Key
   // erfasst alle handlungsrelevanten Änderungen, sodass 15-Min-Ticks mit
@@ -757,6 +758,7 @@ function advanceTo(state, targetMin, log, reportStart) {
   try {
     while (true) {
       if (eventCount >= MAX_EVENTS) { stopped = true; break; }
+      if (stopOnDeliveryRisk && t < targetMin && getDeliveryRisks(state).length) { stopped = true; stopReason = "delivery_at_risk"; break; }
       if (shouldStopForApproval(state)) { stopped = true; stopReason = "pending_approval"; log.push({ type: "advance_stopped_approval", atMin: t, targetMin, reason: "pending_approval" }); break; }
       const next = earliestEventAfter(state, t, targetMin);
       if (next === null) break;
@@ -1575,7 +1577,7 @@ export function applyCommand(state, command, params) {
       // Ein einzelner advanceTo-Aufruf mit ausreichend CPU-Budget (45s) schließt
       // den Vorlauf in einem Durchlauf ab. Die frühere äußere while-Schleife
       // (guard < 60) hat bei CPU-Budget-Abbrüchen bis zu 60×8s = 8 Min blockiert.
-      advanceTo(state, target, log, startMin);
+      advanceTo(state, target, log, startMin, p.stopOnDeliveryRisk === true);
       // Statistik direkt aus dem vollen Log (vor Trimming) ableiten.
       // delivery-Events tragen branchId und paymentCents direkt im Log,
       // tour_deployment_started-Events tragen branchId und atMin.

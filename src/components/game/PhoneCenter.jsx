@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import { getCommunicationQueue, deadlineLabel } from "@/lib/communicationData";
 import { getDisruptionDetail } from "@/lib/simulation/disruptionEngine";
-import { formatEuro } from "@/lib/gameData";
+import { formatEuro, formatGameTime } from "@/lib/gameData";
 import { startPhoneRinging } from "@/lib/phoneRinging";
 import { playPhoneSound, stopPhoneSound, useSoundEnabled, useSoundVolume, usePhoneAudioStatus, phoneRingUrl, setSoundEnabled } from "@/lib/experienceSound";
 import Portrait from "@/components/ui/Portrait";
@@ -42,7 +42,14 @@ export default function PhoneCenter() {
  const detail=useMemo(()=>selected?.demo ? {
   status:"decision_open", cause:"Hier ist die Leitstelle. Das ist ein Testanruf. Du kannst annehmen und auflegen; deine Spedition bleibt unverändert.",
   orders:[],options:[{id:"demo_done",label:"Verstanden – Verbindung steht",description:"Testgespräch beenden",costCents:0,estimatedDurationMin:0,available:true}]
- } : selected ? getDisruptionDetail(state,selected.id) : null,[state,selected]);
+ } : selected?.type==="delivery_risk" ? (() => {
+ const risk=queue.calls.find(c=>c.id===selected.id);
+ if(!risk)return {status:"completed",completionSummary:"Diese Liefergefährdung besteht im aktuellen Spielstand nicht mehr.",orders:[],options:[]};
+ return {status:"decision_open",cause: risk.customer+": "+risk.fromCity+" → "+risk.toCity+". "+risk.description+(risk.eta!==null?" Geplante Ankunft: "+formatGameTime(risk.eta)+".":""),
+ orders:[{status:"angenommen",deliveryDeadlineMin:risk.deadline}],
+ options:[{id:"risk_dispatch",label:"Disposition öffnen",description:"Fahrzeug, Fahrer und Tour prüfen und neu disponieren.",available:true},{id:"risk_orders",label:"Auftrag prüfen",description:"Lieferfrist und Auftragsstatus ansehen.",available:true},
+ ...(risk.disruptionId?[{id:"risk_measure",label:"Maßnahmen zur Störung",description:"Reparatur, Ersatz oder andere verfügbare Maßnahmen prüfen.",available:true}]:[])]};
+ })() : selected ? getDisruptionDetail(state,selected.id) : null,[state,selected,queue.calls]);
  function testCall(){
   setError("");setPlayerStatus("");
   void setSoundEnabled(true,{preview:false});
@@ -54,6 +61,11 @@ export default function PhoneCenter() {
  const answer=call=>{setSelected(call);setShowList(false);setError("");};
  async function choose(id){
   if(selected?.demo){stopPhoneSound("test");setSelected(null);return;}
+  if(selected?.type==="delivery_risk"){
+   if(blocked)return;
+   if(id==="risk_measure"){const risk=queue.calls.find(c=>c.id===selected.id);if(risk?.disruptionId)setSelected({...selected,id:risk.disruptionId,type:"disruption"});return;}
+   defer();navigate(id==="risk_orders"?"/auftraege":"/disposition");return;
+  }
   if(lock.current || blocked || !detail || detail.status!=="decision_open")return;
   lock.current=true;setSending(true);setError("");
   try { const result=await send("resolveDisruption",{disruptionId:selected.id,optionId:id});
@@ -104,7 +116,7 @@ export default function PhoneCenter() {
  <p className="text-xs text-slate-400">Was soll das Team tun? Jede Antwort löst die angezeigte Maßnahme aus.</p>
  <div className="space-y-2">{detail.options.map(option=><button key={option.id} disabled={blocked||!option.available} onClick={()=>choose(option.id)} className="w-full text-left rounded-2xl p-4 bg-white/5 border border-white/10 hover:border-cyan-300/50 hover:bg-cyan-400/10 transition disabled:opacity-40 disabled:cursor-not-allowed">
  <span className="font-medium text-sm">{option.label}</span><span className="block text-xs text-slate-300 mt-1">{option.description}</span>
- <span className="block text-xs text-cyan-200 mt-2">{formatEuro(option.costCents||0)} · {option.estimatedDurationMin||0} Min{option.isEstimate?" · geschätzt":""}</span>
+ {selected?.type!=="delivery_risk"&&<span className="block text-xs text-cyan-200 mt-2">{formatEuro(option.costCents||0)} · {option.estimatedDurationMin||0} Min{option.isEstimate?" · geschätzt":""}</span>}
  {!option.available&&<span className="block text-xs text-amber-200 mt-1">{option.unavailableReason}</span>}</button>)}</div></>}
  {detail.status!=="decision_open"&&<p className="text-xs text-emerald-300">Entscheidung übernommen. Den Verlauf findest du im Postfach.</p>}
  </>}
