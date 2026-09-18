@@ -1,3 +1,4 @@
+import { deliverMessage } from "./mailEngine.ts";
 import { nextRandom } from "./randomEngine.ts";
 // Filialleiter-Engine für FERNWERK.
 // Filialleiter (branch_manager) können für Filialen eingestellt werden.
@@ -107,6 +108,13 @@ export function generateBranchDecisions(state: any): any {
       applyDecision(state, decision);
     } else {
       state.branchDecisions.push(decision);
+      deliverMessage(state, {
+        fromId: mgr.id, toId: "player", subject: decision.title || "Bitte um Freigabe",
+        body: (decision.description || "Bitte prüfe diese Maßnahme.") + "\n\nDie Antwortmöglichkeiten findest du im Entscheidungsbereich des Postfachs.",
+        gameTime: state.gameTime, category: "operations", priority: "normal",
+        linkedRefs: { type: "branch_decision", id: decision.id },
+        dedupKey: "branch_request:" + decision.id,
+      });
     }
   }
 
@@ -412,12 +420,12 @@ function applyDecision(state: any, decision: any) {
       },
       dedupKey: "branch_dispatch_opt:" + decision.id,
     });
-    return;
+    return true;
   }
   if (decision.type === "hire_driver") {
     const branch = state.branches.find((b: any) => b.id === decision.branchId);
-    if (!branch) return;
-    if (state.company.accountCents < decision.costCents) return;
+    if (!branch) return false;
+    if (state.company.accountCents < decision.costCents) return false;
     addBooking(state, state.gameTime, "Einstellung: Filialleiter – Fahrer", -decision.costCents, "company", "bm_hire");
     const portraitIdx = (state.drivers || []).length % PORTRAIT_IDS.length;
     state.drivers.push({
@@ -430,12 +438,12 @@ function applyDecision(state: any, decision: any) {
       consecutiveLowSatisfactionDays: 0,
       workMinutesSinceRest: 0, driveMinutesSinceBreak: 0,
     });
-    return;
+    return true;
   }
   if (decision.type === "accept_order") {
-    if (!decision.revenueCents) return;
+    if (!decision.revenueCents) return false;
     const branch = state.branches.find((b: any) => b.id === decision.branchId);
-    if (!branch) return;
+    if (!branch) return false;
     // Echten Auftrag erstellen — muss disponiert und geliefert werden
     const destCities = CITIES.filter((c: string) => c !== branch.city);
     const toCity = destCities[Math.floor(nextRandom(state) * destCities.length)];
@@ -457,34 +465,34 @@ function applyDecision(state: any, decision: any) {
       deliveryDeadlineMin: state.gameTime + 2880,
       history: [{ type: "accepted", min: state.gameTime, actor: decision.managerId, auto: true }],
     });
-    return;
+    return true;
   }
   if (decision.type === "maintenance") {
-    if (state.company.accountCents < decision.costCents) return;
+    if (state.company.accountCents < decision.costCents) return false;
     addBooking(state, state.gameTime, "Wartung: Filialleiter – Inspektion", -decision.costCents, "company", "bm_maint");
     const vehicles = (state.vehicles || []).filter(
       (v: any) => v.branchId === decision.branchId && v.status !== "sold" && v.status !== "archived"
     );
     for (const v of vehicles) v.condition = Math.min(100, (v.condition || 70) + 15);
-    return;
+    return true;
   }
   if (decision.type === "cost_optimization") {
-    if (state.company.accountCents < decision.costCents) return;
+    if (state.company.accountCents < decision.costCents) return false;
     addBooking(state, state.gameTime, "Filialleiter: Prozessoptimierung", -decision.costCents, "company", "bm_costopt");
     const branch = state.branches.find((b: any) => b.id === decision.branchId);
     if (branch) {
       branch.costPerDayCents = Math.max(1000, (branch.costPerDayCents || 5000) - decision.savingPerDayCents);
     }
-    return;
+    return true;
   }
   if (decision.type === "staff_training") {
-    if (!decision.personId || !decision.courseId) return;
+    if (!decision.personId || !decision.courseId) return false;
     const found = findPerson(state, decision.personId);
-    if (!found || !isActivelyEmployed(found.person)) return;
-    if (isPersonInTraining(state, decision.personId)) return;
+    if (!found || !isActivelyEmployed(found.person)) return false;
+    if (isPersonInTraining(state, decision.personId)) return false;
     const course = COURSE_CATALOG.find((c: any) => c.id === decision.courseId);
-    if (!course) return;
-    if (state.company.accountCents < course.feeCents) return;
+    if (!course) return false;
+    if (state.company.accountCents < course.feeCents) return false;
     try {
       bookCourse(state, decision.personId, decision.courseId, {});
       pushEvent(state, {
@@ -501,14 +509,14 @@ function applyDecision(state: any, decision: any) {
         dedupKey: "branch_training:" + decision.id,
       });
     } catch (e: any) {
-      // Buchung fehlgeschlagen – still überspringen
+      return false; // Anfrage bleibt offen, wenn die Buchung nicht möglich ist.
     }
-    return;
+    return true;
   }
   if (decision.type === "buy_vehicle") {
     const branch = state.branches.find((b: any) => b.id === decision.branchId);
-    if (!branch) return;
-    if (state.company.accountCents < VEHICLE_PRICE) return;
+    if (!branch) return false;
+    if (state.company.accountCents < VEHICLE_PRICE) return false;
     addBooking(state, state.gameTime, "Fahrzeugkauf: Filialleiter", -VEHICLE_PRICE, "company", "bm_vehicle");
     const v = {
       id: uid(state, "v"), branchId: branch.id, type: STANDARD_TRUCK.type,
@@ -530,7 +538,7 @@ function applyDecision(state: any, decision: any) {
       details: { vehicleId: v.id, branchName: branch.name, costCents: VEHICLE_PRICE },
       dedupKey: "branch_vehicle:" + decision.id,
     });
-    return;
+    return true;
   }
   if (decision.type === "build_workshop_slot") {
     try {
@@ -545,17 +553,17 @@ function applyDecision(state: any, decision: any) {
         },
         dedupKey: "branch_workshop:" + decision.id,
       });
-    } catch (e: any) { /* unzureichendes Konto — still überspringen */ }
-    return;
+    } catch (e: any) { return false; }
+    return true;
   }
   if (decision.type === "hire_employee") {
     const role = decision.targetRole;
-    if (!role) return;
+    if (!role) return false;
     const roleDef = PERSONNEL_ROLES[role];
-    if (!roleDef) return;
+    if (!roleDef) return false;
     const branch = state.branches.find((b: any) => b.id === decision.branchId);
-    if (!branch) return;
-    if (state.company.accountCents < roleDef.hireFeeCents) return;
+    if (!branch) return false;
+    if (state.company.accountCents < roleDef.hireFeeCents) return false;
     addBooking(state, state.gameTime, "Einstellung: " + roleDef.label, -roleDef.hireFeeCents, "company", "bm_hire_emp");
     const portraitIdx = (state.employees || []).length % PORTRAIT_IDS.length;
     const emp = {
@@ -586,8 +594,9 @@ function applyDecision(state: any, decision: any) {
       },
       dedupKey: "branch_hire:" + decision.id,
     });
-    return;
+    return true;
   }
+  return false;
 }
 
 // ---------- Befehle ----------
@@ -598,9 +607,19 @@ export function approveBranchDecision(state: any, decisionId: string) {
     (d: any) => d.id === decisionId && d.status === "pending"
   );
   if (!decision) throw new Error("Entscheidung nicht gefunden oder bereits bearbeitet.");
-  decision.status = "approved";
-  decision.resolvedAt = state.gameTime;
-  applyDecision(state, decision);
+  // Vor Freigabe auf einer Kopie prüfen: fehlgeschlagene Maßnahmen bleiben offen.
+  const draft = structuredClone(state);
+  const draftDecision = draft.branchDecisions.find((d: any) => d.id === decisionId);
+  if (!applyDecision(draft, draftDecision)) throw new Error("Die Maßnahme ist aktuell nicht ausführbar. Bitte Geldmittel, Personal und Standort prüfen.");
+  draftDecision.status = "approved";
+  draftDecision.resolvedAt = draft.gameTime;
+  deliverMessage(draft, {
+    fromId: "player", toId: decision.managerId || "system", subject: "Freigabe: " + decision.title,
+    body: "Freigabe erteilt. Die Maßnahme wurde ausgeführt.",
+    gameTime: draft.gameTime, category: "operations",
+    linkedRefs: { type: "branch_decision", id: decisionId }, dedupKey: "branch_reply:" + decisionId,
+  });
+  Object.assign(state, draft);
   return { ok: true, decisionId, effect: decision.type };
 }
 
@@ -612,6 +631,12 @@ export function rejectBranchDecision(state: any, decisionId: string) {
   if (!decision) throw new Error("Entscheidung nicht gefunden oder bereits bearbeitet.");
   decision.status = "rejected";
   decision.resolvedAt = state.gameTime;
+  deliverMessage(state, {
+    fromId: "player", toId: decision.managerId || "system", subject: "Antwort: " + decision.title,
+    body: "Diese Maßnahme wurde nicht freigegeben.",
+    gameTime: state.gameTime, category: "operations",
+    linkedRefs: { type: "branch_decision", id: decisionId }, dedupKey: "branch_reply:" + decisionId,
+  });
   return { ok: true, decisionId };
 }
 

@@ -464,6 +464,14 @@ function createDisruption(state, opts) {
   };
   disruption.options = computeOptions(state, disruption, state.gameTime);
   state.disruptions.items.push(disruption);
+  deliverMessage(state, {
+    fromId: opts.driverId || "system", toId: "player",
+    subject: "Rückfrage aus dem Betrieb",
+    body: opts.cause + "\n\nBitte entscheide über die Maßnahme. Dringende Einsätze erreichst du am Telefon, planbare Rückfragen im Entscheidungsbereich des Postfachs. Lieferfristen laufen mit der Spielzeit weiter.",
+    gameTime: state.gameTime, category: "operations", priority: "normal",
+    linkedRefs: { type: "disruption", id: disruption.id },
+    dedupKey: "disruption_request:" + disruption.id,
+  });
 
   pushEvent(state, {
     type: "disruption_created",
@@ -1084,6 +1092,15 @@ export function resolveDisruption(state, disruptionId, optionId, params) {
   const result = executeOption(state, d, optionId, params || {}, state.gameTime, log);
   d.chosenOptionId = optionId;
   d.chosenAtMin = state.gameTime;
+  deliverMessage(state, {
+    fromId: "system", toId: "player", subject: "Gesprächsnotiz: " + refreshed.label,
+    body: (result.informationOnly ? "Der Kunde wurde informiert. Die Lieferfrist bleibt unverändert." : d.completionSummary || "Maßnahme beauftragt: " + refreshed.label) +
+      "\n\nKosten der gewählten Maßnahme: " + ((result.costCents || 0) / 100).toFixed(2) + " EUR." +
+      (d.nextProcessMin && d.status === "measure_running" ? "\nDie Maßnahme läuft bis Spielminute " + d.nextProcessMin + "." : ""),
+    gameTime: state.gameTime, category: "operations", priority: "normal",
+    linkedRefs: { type: "disruption", id: d.id },
+    dedupKey: "disruption_note:" + d.id + ":" + optionId,
+  });
   return { ok: true, ...result, disruptionId, events: log };
 }
 

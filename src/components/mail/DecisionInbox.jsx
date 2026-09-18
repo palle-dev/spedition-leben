@@ -10,7 +10,7 @@ export default function DecisionInbox() {
  const lock=useRef(false);
  const current=entries.find(e=>e.key===selected);
  async function respond(action){
-  if(lock.current||busy||backgroundAdvance||!current)return;
+  if(lock.current||busy||backgroundAdvance?.active||!current)return;
   lock.current=true;setSending(true);setError("");
   try{
    const params={...action.params};
@@ -32,7 +32,7 @@ export default function DecisionInbox() {
  {e.type==="vacation_request"&&<><p className="text-xs text-amber-200">Vor der Genehmigung die Personaldeckung prüfen. Bestehende Einsätze werden dadurch nicht automatisch umgeplant.</p>
  {(e.meta.conflicts||[]).length>0&&<p className="text-xs text-amber-200">{e.meta.conflicts.length} bekannte Überschneidungen im Urlaubszeitraum.</p>}
  <label className="block text-xs text-muted-foreground">Begründung bei Ablehnung (optional)<textarea value={reason} onChange={event=>setReason(event.target.value)} maxLength={500} rows={2} className="block w-full rounded-lg bg-white/5 border border-white/15 p-2 mt-1"/></label></>}
- <div className="flex flex-wrap gap-2">{e.actions.map(a=><button key={a.command} disabled={busy||!!backgroundAdvance||sending} onClick={()=>respond(a)} className={"rounded-lg px-4 py-2 text-xs font-medium border disabled:opacity-40 "+(a.kind==="approve"?"bg-lime text-ink border-lime":"bg-white/5 border-white/15")}>{sending?"Wird übermittelt…":a.label}</button>)}</div>
+ <div className="flex flex-wrap gap-2">{e.actions.map(a=><button key={a.command} disabled={busy||!!backgroundAdvance?.active||sending} onClick={()=>respond(a)} className={"rounded-lg px-4 py-2 text-xs font-medium border disabled:opacity-40 "+(a.kind==="approve"?"bg-lime text-ink border-lime":"bg-white/5 border-white/15")}>{sending?"Wird übermittelt…":a.label}</button>)}</div>
  {error&&<p role="alert" className="text-xs text-red-300">{error}</p>}
  </div>}
  </div>)}

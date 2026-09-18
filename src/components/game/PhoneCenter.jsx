@@ -26,7 +26,7 @@ export default function PhoneCenter() {
  },[ids]); // eslint-disable-line react-hooks/exhaustive-deps
  const incoming=queue.calls.find(c=>!later.includes(c.id));
  const detail=useMemo(()=>selected?getDisruptionDetail(state,selected.id):null,[state,selected]);
- const blocked=busy || !!backgroundAdvance || sending;
+ const blocked=busy || !!backgroundAdvance?.active || sending;
  const defer=()=>{if(selected)setLater(prev=>[...new Set([...prev,selected.id])]);setSelected(null);setError("");};
  const answer=call=>{setSelected(call);setShowList(false);setError("");};
  async function choose(id){
