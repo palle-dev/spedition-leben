@@ -1,8 +1,10 @@
 // @vitest-environment happy-dom
+import {playPhoneSound} from "@/lib/experienceSound";
 import React, {act} from "react";
 import {createRoot} from "react-dom/client";
 import {describe,it,expect,vi,beforeEach,afterEach} from "vitest";
 const fixture=vi.hoisted(()=>({game:{} as any,calls:[] as any[]}));
+vi.mock("@/lib/experienceSound",()=>({useSoundEnabled:()=>true,useSoundVolume:()=>.65,usePhoneAudioStatus:()=>"",phoneRingUrl:"test.wav",getSoundVolume:()=>.65,setSoundEnabled:vi.fn(),playPhoneSound:vi.fn(),stopPhoneSound:vi.fn()}));
 vi.mock("@/lib/gameContext",()=>({useGame:()=>fixture.game}));
 vi.mock("react-router-dom",()=>({useNavigate:()=>vi.fn(),useLocation:()=>({pathname:"/"})}));
 vi.mock("@/api/base44Client",()=>({base44:{auth:{logout:vi.fn()}}}));
@@ -65,4 +67,17 @@ describe("Laden, Büro und Telefon",()=>{
  await act(async()=>button("Annehmen").click());expect(document.body.textContent).toContain("FRACHTFIEBER · Direkte Leitung");
  expect(fixture.game.pauseAutomation).not.toHaveBeenCalled();
  });
+});
+
+it("zeigt das Abrufen der Cloud-Liste auch bei anfangs leerer Liste an",async()=>{
+ fixture.game.cloudLoading=true;await render(Start);expect(document.body.textContent).toContain("Cloud-Spielstände werden geladen");
+ fixture.game.cloudLoading=false;await render(Start);expect(document.body.textContent).not.toContain("Cloud-Spielstände werden geladen");
+});
+it("zeigt Vorlaufanrufe als verpasst und klingelt nach Abschluss oder erneutem Rendern nicht",async()=>{
+ fixture.calls=[{id:"risk_1",type:"delivery_risk",orderId:"1",source:"Leitstelle",title:"Lieferung in Gefahr"}];
+ fixture.game.state={orders:[],vehicles:[],drivers:[],disruptions:{items:[]},gameTime:90,missedPhoneCalls:[{...fixture.calls[0],missedAtMin:60}]};
+ vi.mocked(playPhoneSound).mockClear();await render(Phone);await render(Phone);
+ expect(playPhoneSound).not.toHaveBeenCalled();
+ await act(async()=>{(document.querySelector('button[aria-label*="Telefon öffnen"]') as HTMLButtonElement).click();});
+ expect(document.body.textContent).toContain("Verpasster Anruf");expect(document.body.textContent).toContain("Rückruf offen");
 });
