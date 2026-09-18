@@ -26,7 +26,11 @@ describe("Telefon und Entscheidungspostfach",()=>{
  it("offene Rückrufe überleben Laden, erledigte verschwinden",()=>{
   const s=initial();const d=addDelay(s,30);
   expect(getCommunicationQueue(JSON.parse(JSON.stringify(s))).calls[0].id).toBe(d.id);
-  d.status="completed";expect(getCommunicationQueue(s).calls).toHaveLength(0);
+  d.status="completed";
+  expect(getCommunicationQueue(s).calls.some(c=>c.id===d.id)).toBe(false);
+  expect(getCommunicationQueue(s).calls.some(c=>c.type==="delivery_risk")).toBe(true);
+  s.orders[0].status="geliefert";
+  expect(getCommunicationQueue(s).calls).toHaveLength(0);
  });
  it("ordnet echte Fristen und zeigt keine Echtzeit-Countdowns",()=>{
   expect(deadlineLabel(95,60)).toContain("35min Spielzeit");

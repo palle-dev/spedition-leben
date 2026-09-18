@@ -29,7 +29,7 @@ export default function PhoneCenter() {
  useEffect(()=>{
   if(incoming && automationEnabled && !busy && !backgroundAdvance?.active) void pauseAutomation(true,"delivery_at_risk");
  },[incoming?.id,automationEnabled,busy,backgroundAdvance?.active,pauseAutomation]);
- const canRing=soundReady && !selected && !overlay && !backgroundAdvance?.active && !busy;
+ const canRing=soundReady && !selected && !overlay && !backgroundAdvance?.active;
  useEffect(()=>{
   if (!incoming || !canRing || document.hidden) return;
   for(const id of ringCounts.current.keys())if(!queue.calls.some(c=>c.id===id))ringCounts.current.delete(id);
@@ -116,7 +116,7 @@ export default function PhoneCenter() {
  <div className="rounded-2xl rounded-tl-sm bg-white/5 border border-white/10 p-4"><p className="text-sm leading-relaxed">{detail.status==="completed"?detail.completionSummary:detail.status==="measure_running"?"Die Maßnahme läuft. Wir melden uns nach Abschluss wieder.":detail.cause}</p></div>
  {detail.status==="decision_open"&&<>
  <p className="flex items-center gap-2 text-xs text-amber-200"><Clock className="w-4 h-4"/>{deadlineLabel(detail.orders.filter(o=>["angenommen","unterwegs"].includes(o.status)&&Number.isFinite(o.deliveryDeadlineMin)).reduce((min,o)=>min===null?o.deliveryDeadlineMin:Math.min(min,o.deliveryDeadlineMin),null),state.gameTime)}</p>
- <p className="text-xs text-slate-400">Was soll das Team tun? Jede Antwort löst die angezeigte Maßnahme aus.</p>
+ <p className="text-xs text-slate-400">{selected?.type==="delivery_risk" ? "Prüfe den betroffenen Auftrag und die verfügbaren Ressourcen. Die Warnung allein löst das Problem nicht." : "Was soll das Team tun? Jede Antwort löst die angezeigte Maßnahme aus."}</p>
  <div className="space-y-2">{detail.options.map(option=><button key={option.id} disabled={blocked||!option.available} onClick={()=>choose(option.id)} className="w-full text-left rounded-2xl p-4 bg-white/5 border border-white/10 hover:border-cyan-300/50 hover:bg-cyan-400/10 transition disabled:opacity-40 disabled:cursor-not-allowed">
  <span className="font-medium text-sm">{option.label}</span><span className="block text-xs text-slate-300 mt-1">{option.description}</span>
  {selected?.type!=="delivery_risk"&&<span className="block text-xs text-cyan-200 mt-2">{formatEuro(option.costCents||0)} · {option.estimatedDurationMin||0} Min{option.isEstimate?" · geschätzt":""}</span>}
