@@ -1,3 +1,4 @@
+import OfficeAudioControls from "./OfficeAudioControls";
 import React, { useState } from "react";
 import { useSoundEnabled, setSoundEnabled, useSoundVolume, useSoundStatus, setSoundVolume, testExperienceSound } from "@/lib/experienceSound";
 export default function SoundSettings() {
@@ -8,6 +9,7 @@ export default function SoundSettings() {
   try { await testExperienceSound(); } finally { setTesting(false); }
  }
  return <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+ <OfficeAudioControls />
  <div className="flex items-center justify-between gap-3"><span className="text-sm font-medium">Funk & Erfolgsklänge</span>
  <button type="button" role="switch" aria-label="Spielton" aria-checked={enabled} onClick={() => setSoundEnabled(!enabled)} className="rounded-lg border border-lime/30 px-3 py-1 text-sm text-lime">{enabled ? "An" : "Aus"}</button></div>
  <label className="block text-xs text-muted-foreground">Lautstärke · {Math.round(volume * 100)}%

@@ -1,3 +1,5 @@
+import OfficeAudioControls from "./OfficeAudioControls";
+import { setOfficeDucked } from "@/lib/officeAudio";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Phone, PhoneIncoming, PhoneOff, Clock, Mail } from "lucide-react";
@@ -22,6 +24,7 @@ export default function PhoneCenter() {
  const phoneAudioStatus=usePhoneAudioStatus(), soundVolume=useSoundVolume();
  const [playerStatus,setPlayerStatus]=useState("");
  const incoming=queue.calls.find(c=>!later.includes(c.id));
+ useEffect(()=>{setOfficeDucked(!!incoming||!!selected);return()=>setOfficeDucked(false);},[!!incoming,!!selected]);
  const recent=(state.disruptions?.items||[]).filter(d=>d.status==="completed").slice(-5).reverse();
  const canRing=soundReady && !selected && !overlay && !backgroundAdvance?.active && !busy;
  useEffect(()=>{
@@ -68,6 +71,7 @@ export default function PhoneCenter() {
  <div className="flex gap-2 mt-3"><button disabled={blocked} onClick={()=>answer(incoming)} className="flex-1 rounded-xl bg-emerald-400 text-slate-950 py-2 text-xs font-semibold disabled:opacity-50">Annehmen</button><button onClick={()=>setLater(prev=>[...new Set([...prev,incoming.id])])} className="rounded-xl bg-white/10 text-white px-3 text-xs">Später</button></div></div>}
  {showList && <div className="border-t border-white/10 p-2 max-h-64 overflow-y-auto">{queue.calls.length===0?<p className="p-2 text-xs text-slate-400">Keine offenen Rückrufe.</p>:queue.calls.map(c=><button key={c.id} disabled={blocked} onClick={()=>answer(c)} className="w-full text-left rounded-xl hover:bg-white/10 p-3 disabled:opacity-50"><p className="text-xs font-medium text-white">{c.source} · {c.title}</p><p className="text-[10px] text-amber-200 mt-1">{deadlineLabel(c.deadline,state.gameTime)}</p></button>)}</div>}
  {showList && <div className="border-t border-white/10 px-3 py-3 space-y-2">
+ <OfficeAudioControls compact />
  <button disabled={blocked} onClick={testCall} className="w-full rounded-lg border border-cyan-300/30 py-2 text-xs text-cyan-100 disabled:opacity-40">Testanruf starten · Ton aktivieren</button>
  <p className="text-[10px] text-slate-400">Anrufe entstehen bei offenen dringenden Einsätzen. Automatisch gelöste Anliegen bleiben im Verlauf sichtbar.</p>
  {recent.length>0&&<details className="text-xs text-slate-300"><summary className="cursor-pointer">Letzte erledigte Anliegen ({recent.length})</summary>{recent.map(d=><div key={d.id} className="mt-2 border-t border-white/10 pt-2"><p>{d.cause}</p><p className="text-[10px] text-emerald-200">{d.autoResolved ? "Vom Team erledigt" : "Erledigt"}{d.autoResolvedBy ? " · "+d.autoResolvedBy : ""}</p></div>)}</details>}
