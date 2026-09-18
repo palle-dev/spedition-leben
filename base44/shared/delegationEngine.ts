@@ -123,10 +123,39 @@ export function migrateDelegation(state) {
   resetDailySpendIfNeeded(state);
 }
 
-function maintenanceApprovalKey(req) {
-  const data = req.actionData;
-  if (req.type !== "maintenance" || !data?.vehicleId || !data?.branchId || (data.type && data.type !== "standard")) return null;
-  return JSON.stringify(["maintenance", data.vehicleId, data.branchId, data.type || "standard"]);
+function approvalActionKey(req) {
+  const data = req.actionData || {};
+  if (req.type === "maintenance" && data.vehicleId && data.branchId && (!data.type || data.type === "standard")) {
+    return JSON.stringify(["maintenance", data.vehicleId, data.branchId, data.type || "standard"]);
+  }
+  if (data.type === "partner_booking") return JSON.stringify(["partner_booking", data.orderId, data.partnerId]);
+  if (data.type === "site_expansion") return JSON.stringify(["site_expansion", data.branchId, data.expansionType, data.slots ?? 1]);
+  if (data.vehicleId && data.driverId && Array.isArray(data.orderIds)) {
+    return JSON.stringify(["tour", data.vehicleId, data.driverId, data.orderIds, data.desiredEndCity || null, data.latestReturnMin || null]);
+  }
+  return null;
+}
+
+function approvalFingerprint(req, key) {
+  return JSON.stringify([key, req.costCents || 0, req.employeeId || null, req.urgency || "medium", req.violatedRule || ""]);
+}
+
+// Ablehnungen bleiben unabhängig von der gekürzten Anzeige-Historie erhalten.
+// Erledigte/entfernte Vorgänge geben den Eintrag wieder frei.
+function rejectionStillRelevant(state, req) {
+  const data = req.actionData || {};
+  if (req.type === "maintenance") {
+    const vehicle = (state.vehicles || []).find(v => v.id === data.vehicleId);
+    return !!vehicle && !["sold", "archived"].includes(vehicle.status) &&
+      vehicle.condition < (state.workshop?.automationProfile?.routineThreshold ?? 60) &&
+      !(state.workshop?.maintenanceOrders || []).some(o => o.vehicleId === data.vehicleId &&
+        ["planned", "waiting", "in_progress", "interrupted"].includes(o.status));
+  }
+  if (data.type === "site_expansion") return (state.branches || []).some(b => b.id === data.branchId && b.status === "active") &&
+    !(state.siteExpansion?.projects || []).some(p => p.branchId === data.branchId && p.status === "active");
+  const ids = data.orderIds || [data.orderId];
+  return ids.length > 0 && ids.every(id => (state.orders || []).some(o => o.id === id &&
+    ["offered", "angenommen"].includes(o.status) && !o.externalTransportId && !o.reservedByTourId));
 }
 
 export function migrateApprovals(state) {
@@ -138,19 +167,22 @@ export function migrateApprovals(state) {
       resolved: [],
     };
   }
-  // Alte Zeitstempel-Keys können mehrere identische Wartungen enthalten.
-  // Nur gleiche Fahrzeuge, Standorte, Wartungsarten und Beträge zusammenführen.
+  if (!state.approvals.rejections) state.approvals.rejections = {};
+  for (const [key, req] of Object.entries(state.approvals.rejections) as [string, any][]) {
+    if (!rejectionStillRelevant(state, req)) delete state.approvals.rejections[key];
+  }
+  // Alte Zeitstempel-Keys normalisieren; unterschiedliche Beträge getrennt lassen.
   const seen = new Set();
   for (const req of state.approvals.pending) {
     if (req.status !== "pending") continue;
-    const key = maintenanceApprovalKey(req);
+    const key = approvalActionKey(req);
     if (!key) continue;
     req.dedupKey = key;
     const identity = JSON.stringify([key, req.costCents]);
     if (!seen.has(identity)) { seen.add(identity); continue; }
     req.status = "superseded";
     req.resolvedAtMin = state.gameTime;
-    req.supersedeReason = "Identische Wartungsanfrage bereits vorhanden";
+    req.supersedeReason = "Identische Freigabeanfrage bereits vorhanden";
     moveResolved(state, req);
   }
   state.delegation.stats.pendingApprovals = state.approvals.pending.filter(a => a.status === "pending").length;
@@ -234,10 +266,15 @@ export function recordSpend(state, employeeId, amountCents, branchId) {
 // für denselben unveränderten Vorgang.
 export function createApprovalRequest(state, opts) {
   if (!state.approvals) migrateApprovals(state);
-  const dedupKey = maintenanceApprovalKey(opts) || opts.dedupKey || (opts.type + ":" + (opts.actionData?.dedupId || opts.employeeId));
+  const dedupKey = approvalActionKey(opts) || opts.dedupKey || (opts.type + ":" + (opts.actionData?.dedupId || opts.employeeId));
   // Bestehende pending-Anfrage für denselben Vorgang finden
   const existing = state.approvals.pending.find(a => a.dedupKey === dedupKey && a.status === "pending");
-  if (existing) return { request: existing, isNew: false };
+  if (existing) return { request: existing, isNew: false, rejected: false };
+  const rejected = state.approvals.rejections?.[dedupKey];
+  if (rejected?.rejectionFingerprint === approvalFingerprint(opts, dedupKey)) {
+    return { request: rejected, isNew: false, rejected: true };
+  }
+  if (rejected) delete state.approvals.rejections[dedupKey];
 
   const request = {
     id: "apr_" + (state.idCounter = (state.idCounter || 100) + 1),
@@ -256,7 +293,7 @@ export function createApprovalRequest(state, opts) {
     violatedRule: opts.violatedRule || "",
     alternatives: opts.alternatives || [],
     urgency: opts.urgency || "medium",
-    deadlineMin: opts.deadlineMin || null,
+    deadlineMin: opts.deadlineMin ?? null,
     createdAtMin: state.gameTime,
     actionData: opts.actionData || {},
     status: "pending",
@@ -271,7 +308,7 @@ export function createApprovalRequest(state, opts) {
     details: { title: request.title, costCents: request.costCents, violatedRule: request.violatedRule, urgency: request.urgency },
     dedupKey: "approval:" + request.id,
   });
-  return { request, isNew: true };
+  return { request, isNew: true, rejected: false };
 }
 
 // Freigabe einer Anfrage — prüft erneut, ob die Aktion noch möglich ist.
@@ -299,6 +336,7 @@ export function approveApproval(state, requestId, executeAction = null) {
     moveResolved(state, req);
     return execution;
   }
+  if (execution.ok === false) throw new Error(execution.error || "Aktion konnte nicht ausgeführt werden.");
   req.status = "approved";
   req.resolvedAtMin = state.gameTime;
   moveResolved(state, req);
@@ -311,6 +349,11 @@ export function rejectApproval(state, requestId) {
   if (!req) throw new Error("Freigabe nicht gefunden oder bereits bearbeitet.");
   req.status = "rejected";
   req.resolvedAtMin = state.gameTime;
+  const key = approvalActionKey(req);
+  if (key) {
+    if (!state.approvals.rejections) state.approvals.rejections = {};
+    state.approvals.rejections[key] = { ...req, rejectionFingerprint: approvalFingerprint(req, key) };
+  }
   moveResolved(state, req);
   return { ok: true, requestId };
 }
@@ -335,7 +378,7 @@ export function expireApprovals(state) {
   let expired = 0;
   for (const req of state.approvals.pending) {
     if (req.status !== "pending") continue;
-    if (req.deadlineMin && m > req.deadlineMin) {
+    if (req.deadlineMin != null && m > req.deadlineMin) {
       req.status = "expired";
       req.resolvedAtMin = m;
       expired++;

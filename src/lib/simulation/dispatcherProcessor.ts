@@ -269,14 +269,14 @@ export function processDispatcher(state, emp, m, log) {
     }
 
     // Budget-Prüfung: Kraftstoff + Maut für diese Tour
-    const tourFuelCents = sug.plan.fuelCents || 0;
-    const tourTollCents = sug.plan.tollCents || 0;
+    const tourFuelCents = sug.plan.totalFuelCents || 0;
+    const tourTollCents = sug.plan.totalTollCents || 0;
     const tourCostCents = tourFuelCents + tourTollCents;
     const authCheck = checkSpendAuthority(state, emp.id, tourCostCents, { branchId: emp.assignedBranchId || emp.branchId });
     if (!authCheck.allowed) {
       vehicleFailReasons.set(sug.vehicleId, "Freigabe ausstehend: " + authCheck.reason);
       // Freigabe anfordern wenn Kosten über Befugnis
-      if (authCheck.violatedRule === "maxSpendPerAction" || authCheck.violatedRule === "dailyBudget") {
+      if (["maxSpendPerAction", "dailyBudget", "role_authority"].includes(authCheck.violatedRule)) {
         createApprovalRequest(state, {
           employeeId: emp.id, employeeName: emp.name, employeeRole: emp.role,
           branchId: emp.assignedBranchId || emp.branchId,
@@ -285,8 +285,8 @@ export function processDispatcher(state, emp, m, log) {
           reasoning: authCheck.reason,
           costCents: tourCostCents, violatedRule: authCheck.violatedRule,
           urgency: "medium", deadlineMin: null,
-          actionData: { vehicleId: sug.vehicleId, driverId: sug.driverId, orderIds: sug.orderIds },
-          dedupKey: "tour_spend:" + emp.id + ":" + state.gameTime + ":" + sug.vehicleId,
+          actionData: { type: "tour", vehicleId: sug.vehicleId, driverId: sug.driverId, orderIds: sug.orderIds,
+            desiredEndCity: sug.plan.desiredEndCity || null, latestReturnMin: sug.plan.latestReturnMin || null },
         });
       }
       continue;

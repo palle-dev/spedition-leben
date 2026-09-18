@@ -1,3 +1,5 @@
+import { migrateApprovals } from "./simulation/delegationEngine";
+
 // Gemeinsame Grenzen für lokale Spielstände und den Import.
 export const MAX_SAVE_BYTES = 50 * 1024 * 1024;
 
@@ -44,5 +46,7 @@ export function prepareLoadedState(raw) {
       claim: { owner: null, expiresAt: 0, generation: 0 },
     };
   }
+  // Freigaben vor der ersten Anzeige normalisieren, auch ohne Spielbefehl.
+  migrateApprovals(state);
   return state;
 }

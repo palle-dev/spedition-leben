@@ -264,9 +264,17 @@ export function previewPartnerBooking(state, { orderId, partnerId }) {
     return { ok: false, error: "Angebot ist abgelaufen. Bitte erneut anfragen." };
   }
 
+  if (offer.earliestStartMin < state.gameTime) {
+    return { ok: false, error: "Die angebotene Startzeit ist verstrichen. Bitte aktuelle Angebote anfragen." };
+  }
+
   // Auftrag noch vergebbar?
   if (!canBeExternallyDispatched(state, order)) {
     return { ok: false, error: "Auftrag kann nicht mehr extern vergeben werden." };
+  }
+
+  if (!allowsExternalFulfillment(state, order)) {
+    return { ok: false, error: "Kunde/Vertrag verlangt Eigenleistung. Externe Vergabe nicht zulässig." };
   }
 
   // Kontingent prüfen
@@ -325,10 +333,11 @@ export function bookPartnerTransport(state, { orderId, partnerId, employeeId }) 
   if (employeeId) {
     const emp = (state.employees || []).find(e => e.id === employeeId)
       || (state.drivers || []).find(d => d.id === employeeId);
+    if (!emp || emp.employmentStatus !== "employed") throw new Error("Mitarbeiter nicht aktiv beschäftigt.");
     if (emp) {
       // Rolle-Befugnis: darf diese Rolle überhaupt Fremdvergaben tätigen?
       const roleAuth = ROLE_AUTHORITY[emp.role] || ROLE_AUTHORITY.driver;
-      if (roleAuth.canDispatchExternally === false) {
+      if (roleAuth.canDispatchExternally !== true) {
         throw new Error("Rolle \"" + emp.role + "\" hat keine Befugnis für Fremdvergaben.");
       }
       const authCheck = checkSpendAuthority(state, employeeId, preview.priceCents, {
@@ -360,7 +369,8 @@ export function bookPartnerTransport(state, { orderId, partnerId, employeeId }) 
             auto: false,
           });
         }
-        throw new Error("Fremdvergabe erfordert Freigabe: " + authCheck.reason);
+        return { ok: false, requiresApproval: true, approvalRejected: !!approval.rejected,
+          requestId: approval.request.id, reason: authCheck.reason };
       }
       // Ausgabe verbuchen
       recordSpend(state, employeeId, preview.priceCents, emp.assignedBranchId || emp.branchId);

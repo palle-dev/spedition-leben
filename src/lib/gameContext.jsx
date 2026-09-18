@@ -495,6 +495,9 @@ export function GameProvider({ children }) {
   }, [assertWritable, loadCloudGame, sessionToken, isCurrentSession]);
 
   const processResult = useCallback(async (newState, result, command) => {
+    if (result?.requiresApproval) showToast(result.approvalRejected
+      ? "Diese unveränderte Anfrage wurde bereits abgelehnt."
+      : "Freigabe angefordert – unter Führung & Delegation prüfen.", "info");
     // Lieferungen werden nur gebucht (in der Engine) und als Toast angezeigt —
     // kein modales Overlay mehr. Toast erfolgt über processNewEvents → eventToToast.
     const newAchs = (newState.achievements || []).filter(a => a.unlocked && !prevAchievementsRef.current.has(a.id));
@@ -507,7 +510,7 @@ export function GameProvider({ children }) {
     prevAchievementsRef.current = new Set((newState.achievements || []).filter(a => a.unlocked).map(a => a.id));
     if (command === "startTransport" && result?.fuelCents != null) setOverlay({ type: "transportStart", data: { fuelCents: result.fuelCents, tollCents: result.tollCents, endMin: result.endMin } });
     if (command === "answerInvitation" && result?.choice) setOverlay({ type: "invitation", data: { choice: result.choice, relationship: newState.private.relationship, happiness: newState.private.happiness, stress: newState.private.stress } });
-  }, []);
+  }, [showToast]);
 
   // ---- Befehl lokal ausführen (kein Netzwerk) ----
   const send = useCallback(async (command, params, onProgress) => {

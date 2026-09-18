@@ -7,7 +7,7 @@ import {
   approveApproval, rejectApproval, expireApprovals,
   PRESETS,
 } from "./delegationEngine.ts";
-import { createApprovedMaintenanceOrder } from "./workshopEngine.ts";
+import { executeApprovedAction } from "./approvalActions.ts";
 
 export function handleDelegationCommand(state, command, p) {
   switch (command) {
@@ -28,9 +28,7 @@ export function handleDelegationCommand(state, command, p) {
     }
 
     case "approveApproval": {
-      return approveApproval(state, p.requestId, req => req.type === "maintenance"
-        ? createApprovedMaintenanceOrder(state, req)
-        : null);
+      return approveApproval(state, p.requestId, req => executeApprovedAction(state, req));
     }
 
     case "rejectApproval": {

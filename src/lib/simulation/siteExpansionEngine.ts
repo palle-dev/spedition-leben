@@ -362,12 +362,13 @@ export function startExpansion(state, { branchId, type, slots = 1, employeeId })
   // Befugnisprüfung (Delegation) wenn durch Mitarbeiter beauftragt
   if (employeeId) {
     const emp = (state.employees || []).find(e => e.id === employeeId);
+    if (!emp || emp.employmentStatus !== "employed") throw new Error("Mitarbeiter nicht aktiv beschäftigt.");
     if (emp) {
       const authCheck = checkSpendAuthority(state, employeeId, preview.costCents, {
         branchId: emp.assignedBranchId || emp.branchId,
       });
       if (!authCheck.allowed) {
-        createApprovalRequest(state, {
+        const approval = createApprovalRequest(state, {
           employeeId, employeeName: emp.name, employeeRole: emp.role,
           branchId: emp.assignedBranchId || emp.branchId,
           type: "spend",
@@ -379,7 +380,8 @@ export function startExpansion(state, { branchId, type, slots = 1, employeeId })
           urgency: "medium",
           actionData: { type: "site_expansion", branchId, expansionType: type, slots, dedupId: `${branchId}:${type}:${state.gameTime}` },
         });
-        throw new Error("Ausbau erfordert Freigabe: " + authCheck.reason);
+        return { ok: false, requiresApproval: true, approvalRejected: !!approval.rejected,
+          requestId: approval.request.id, reason: authCheck.reason };
       }
       recordSpend(state, employeeId, preview.costCents, emp.assignedBranchId || emp.branchId);
     }
