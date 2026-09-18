@@ -2457,6 +2457,7 @@ export function applyCommand(state, command, params) {
       const disruptionResult = handleDisruptionCommand(state, command, p); if (disruptionResult !== null) { result = disruptionResult; break; }
       const vehicleMarketResult = handleVehicleMarketCommand(state, command, p); if (vehicleMarketResult !== null) { result = vehicleMarketResult; break; }
       const planningResult = handlePlanningCommand(state, command, p); if (planningResult !== null) { result = planningResult; break; } const partnerResult = handlePartnerCommand(state, command, p); if (partnerResult !== null) { result = partnerResult; break; }
+      if (command === "startSiteExpansion") ensureNotBlocked(state);
       const expansionResult = handleSiteExpansionCommand(state, command, p); if (expansionResult !== null) { result = expansionResult; break; }
       throw new Error("Unbekannter Befehl: " + command);
     }
