@@ -39,7 +39,7 @@ export function getPhoneProposals(state, call) {
    if(proposals.length===2)break;
   }
  }
- if(!order.phoneCustomerInformed)proposals.push({id:"customer:"+order.id,label:"Kunden über das Lieferrisiko informieren",
+ if(!order.phoneCustomerInformed && !(state.disruptions?.items||[]).some(d=>d.customerInformed && d.orderIds?.includes(order.id)))proposals.push({id:"customer:"+order.id,label:"Kunden über das Lieferrisiko informieren",
   description:"Die Leitstelle informiert "+order.customer+" und dokumentiert die Mitteilung. Das ändert weder die Lieferfrist noch mögliche Verspätungsfolgen und behebt keinen Defekt.",
   costCents:0,estimatedDurationMin:0,informationOnly:true,command:"phoneInformCustomer",params:{orderId:order.id}});
  return proposals;
