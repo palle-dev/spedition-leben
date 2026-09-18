@@ -6,7 +6,8 @@ import { useGame } from "@/lib/gameContext";
 import { getCommunicationQueue, deadlineLabel } from "@/lib/communicationData";
 import { getDisruptionDetail } from "@/lib/simulation/disruptionEngine";
 import { formatEuro } from "@/lib/gameData";
-import { playExperienceSound } from "@/lib/experienceSound";
+import { startPhoneRinging } from "@/lib/phoneRinging";
+import { playExperienceSound, useSoundReady, setSoundEnabled } from "@/lib/experienceSound";
 import Portrait from "@/components/ui/Portrait";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
@@ -16,20 +17,33 @@ export default function PhoneCenter() {
  const queue=useMemo(()=>getCommunicationQueue(state),[state]);
  const [selected,setSelected]=useState(null),[showList,setShowList]=useState(false),[later,setLater]=useState([]);
  const [sending,setSending]=useState(false),[error,setError]=useState("");
- const lock=useRef(false), seen=useRef(null);
- const ids=queue.calls.map(c=>c.id).join("|");
- useEffect(()=>{
-  const current=new Set(queue.calls.map(c=>c.id));
-  if(seen.current && [...current].some(id=>!seen.current.has(id))) playExperienceSound("alert");
-  seen.current=current;
-  setLater(prev=>prev.filter(id=>current.has(id)));
- },[ids]); // eslint-disable-line react-hooks/exhaustive-deps
+ const lock=useRef(false);
+ const soundReady=useSoundReady();
  const incoming=queue.calls.find(c=>!later.includes(c.id));
- const detail=useMemo(()=>selected?getDisruptionDetail(state,selected.id):null,[state,selected]);
+ const recent=(state.disruptions?.items||[]).filter(d=>d.status==="completed").slice(-5).reverse();
+ const canRing=soundReady && !selected && !overlay && !backgroundAdvance?.active && !busy;
+ useEffect(()=>{
+  if (!incoming || !canRing || document.hidden) return;
+  const stop=startPhoneRinging(()=>playExperienceSound("phone"));
+  const onVisibility=()=>{if(document.hidden)stop();};
+  document.addEventListener("visibilitychange",onVisibility);
+  return ()=>{stop();document.removeEventListener("visibilitychange",onVisibility);};
+ },[incoming?.id,canRing]);
+ const detail=useMemo(()=>selected?.demo ? {
+  status:"decision_open", cause:"Hier ist die Leitstelle. Das ist ein Testanruf. Du kannst annehmen und auflegen; deine Spedition bleibt unverändert.",
+  orders:[],options:[{id:"demo_done",label:"Verstanden – Verbindung steht",description:"Testgespräch beenden",costCents:0,estimatedDurationMin:0,available:true}]
+ } : selected ? getDisruptionDetail(state,selected.id) : null,[state,selected]);
+ async function testCall(){
+  setError("");
+  await setSoundEnabled(true);
+  setSelected({id:"demo",demo:true,source:"Leitstelle · Testanruf",title:"Verbindungstest"});
+  playExperienceSound("phone",{force:true});
+ }
  const blocked=busy || !!backgroundAdvance?.active || sending;
- const defer=()=>{if(selected)setLater(prev=>[...new Set([...prev,selected.id])]);setSelected(null);setError("");};
+ const defer=()=>{if(selected && !selected.demo)setLater(prev=>[...new Set([...prev.filter(id=>queue.calls.some(c=>c.id===id)),selected.id])]);setSelected(null);setError("");};
  const answer=call=>{setSelected(call);setShowList(false);setError("");};
  async function choose(id){
+  if(selected?.demo){setSelected(null);return;}
   if(lock.current || blocked || !detail || detail.status!=="decision_open")return;
   lock.current=true;setSending(true);setError("");
   try { const result=await send("resolveDisruption",{disruptionId:selected.id,optionId:id});
@@ -46,6 +60,11 @@ export default function PhoneCenter() {
  <div className="flex items-center gap-3"><motion.div animate={motionEnabled&&!reduced?{rotate:[0,-12,12,0]}:{rotate:0}} transition={{duration:.5,repeat:2}}><PhoneIncoming className="text-emerald-300 w-6 h-6"/></motion.div><div><p className="text-sm font-semibold text-white">{incoming.source}</p><p className="text-xs text-slate-300">{incoming.title}</p></div></div>
  <div className="flex gap-2 mt-3"><button disabled={blocked} onClick={()=>answer(incoming)} className="flex-1 rounded-xl bg-emerald-400 text-slate-950 py-2 text-xs font-semibold disabled:opacity-50">Annehmen</button><button onClick={()=>setLater(prev=>[...new Set([...prev,incoming.id])])} className="rounded-xl bg-white/10 text-white px-3 text-xs">Später</button></div></div>}
  {showList && <div className="border-t border-white/10 p-2 max-h-64 overflow-y-auto">{queue.calls.length===0?<p className="p-2 text-xs text-slate-400">Keine offenen Rückrufe.</p>:queue.calls.map(c=><button key={c.id} disabled={blocked} onClick={()=>answer(c)} className="w-full text-left rounded-xl hover:bg-white/10 p-3 disabled:opacity-50"><p className="text-xs font-medium text-white">{c.source} · {c.title}</p><p className="text-[10px] text-amber-200 mt-1">{deadlineLabel(c.deadline,state.gameTime)}</p></button>)}</div>}
+ {showList && <div className="border-t border-white/10 px-3 py-3 space-y-2">
+ <button disabled={blocked} onClick={testCall} className="w-full rounded-lg border border-cyan-300/30 py-2 text-xs text-cyan-100 disabled:opacity-40">Testanruf starten · Ton aktivieren</button>
+ <p className="text-[10px] text-slate-400">Anrufe entstehen bei offenen dringenden Einsätzen. Automatisch gelöste Anliegen bleiben im Verlauf sichtbar.</p>
+ {recent.length>0&&<details className="text-xs text-slate-300"><summary className="cursor-pointer">Letzte erledigte Anliegen ({recent.length})</summary>{recent.map(d=><div key={d.id} className="mt-2 border-t border-white/10 pt-2"><p>{d.cause}</p><p className="text-[10px] text-emerald-200">{d.autoResolved ? "Vom Team erledigt" : "Erledigt"}{d.autoResolvedBy ? " · "+d.autoResolvedBy : ""}</p></div>)}</details>}
+ </div>}
  </div></div>
  <Dialog open={!!selected} onOpenChange={open=>{if(!open&&!sending)defer();}}>
  <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto rounded-3xl border-cyan-300/20 bg-slate-950 text-slate-100 p-0 gap-0">

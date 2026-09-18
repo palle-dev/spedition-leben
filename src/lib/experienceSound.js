@@ -6,11 +6,12 @@ try {
  const saved = globalThis.localStorage?.getItem("frachtfieber.volume");
  if (saved !== null && saved !== undefined && Number.isFinite(Number(saved))) volume = Math.min(1, Math.max(.1, Number(saved)));
 } catch { /* Storage may be unavailable. */ }
-let context, lastPlayed = -Infinity, status = "Noch nicht aktiviert";
+let context, lastPlayed = -Infinity, lastPhonePlayed = -Infinity, status = "Noch nicht aktiviert";
 const listeners = new Set(), voices = new Set();
 const subscribe = cb => { listeners.add(cb); return () => listeners.delete(cb); };
 const notify = () => listeners.forEach(cb => cb());
 const updateStatus = text => { if (status !== text) { status = text; notify(); } };
+export function useSoundReady() { return useSyncExternalStore(subscribe, () => !!enabled && context?.state === "running", () => false); }
 export function useSoundEnabled() { return useSyncExternalStore(subscribe, () => enabled, () => false); }
 export function useSoundVolume() { return useSyncExternalStore(subscribe, () => volume, () => .65); }
 export function useSoundStatus() { return useSyncExternalStore(subscribe, () => status, () => "Noch nicht aktiviert"); }
@@ -59,10 +60,10 @@ export async function testExperienceSound() {
 }
 export function playExperienceSound(kind, { force = false } = {}) {
  if (!enabled || !context || context.state !== "running" || globalThis.document?.hidden) return false;
- if (!force && performance.now() - lastPlayed < 2500) return false;
+ if (!force && performance.now() - (kind === "phone" ? lastPhonePlayed : lastPlayed) < 2500) return false;
  try {
   const now = context.currentTime;
-  const tones = kind === "alert" ? [660, 880, 660, 880] : [660, 880];
+  const tones = (kind === "alert" || kind === "phone") ? [660, 880, 660, 880] : [660, 880];
   tones.forEach((frequency, i) => {
    const oscillator = context.createOscillator(), gain = context.createGain();
    const start = now + i * .22;
@@ -75,7 +76,8 @@ export function playExperienceSound(kind, { force = false } = {}) {
    oscillator.onended = () => { voices.delete(oscillator); oscillator.disconnect(); gain.disconnect(); };
    oscillator.start(start); oscillator.stop(start + .32);
   });
-  lastPlayed = performance.now();
+  if (kind === "phone") lastPhonePlayed = performance.now();
+  else lastPlayed = performance.now();
   updateStatus(kind === "test" ? "Testton ausgegeben – falls stumm: Browser-Tab, Lautstärke und Ausgabegerät prüfen." : "Audio bereit");
   return true;
  } catch { updateStatus("Ton konnte nicht ausgegeben werden. Bitte Testton erneut versuchen."); return false; }
