@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import { getLocationAnalysis, formatEuro } from "@/lib/networkData";
 import { CITY_GEO } from "@/lib/geoData";
-import { Building2, Users, Package, Truck, Check, X, AlertTriangle, MapPin } from "lucide-react";
+import { Building2, Package, Truck, Check, X, AlertTriangle, MapPin } from "lucide-react";
 
 // Standortanalyse: Zeigt tatsächliche Daten für eine Stadt als möglichen Filialstandort.
 // Verändert keinen Zustand — die Eröffnung erfolgt über den bestehenden Filialprozess.

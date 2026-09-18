@@ -14,7 +14,7 @@ import DriverWorkBudget from "./DriverWorkBudget";
 import DispatcherPanel from "./DispatcherPanel";
 import DispatchLiveLog from "./DispatchLiveLog";
 import LocationOverviewTab from "./LocationOverviewTab";
-import { Truck, Users, Package, ArrowRight, Play, AlertTriangle, Route, X, Headset, Activity, MapPin } from "lucide-react";
+import { Truck, Users, Package, Play, AlertTriangle, Route, Headset, Activity, MapPin } from "lucide-react";
 
 // Vier gleichrangige Bereiche: Aufträge, Touren, Flotte, Disponenten.
 // Tour-Planung und Assistent sind in den fachlichen Kontext integriert.

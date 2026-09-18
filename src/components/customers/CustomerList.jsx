@@ -1,6 +1,5 @@
 import React from "react";
-import { useGame } from "@/lib/gameContext";
-import { getTrustLabel, getTrustColor, getRelationStatusLabel, formatEuro, formatDay } from "@/lib/customerData";
+import { getTrustColor, formatEuro } from "@/lib/customerData";
 import { Search, Star, FileText, TrendingUp, MapPin } from "lucide-react";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 

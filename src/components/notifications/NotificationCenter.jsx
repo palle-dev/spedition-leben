@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { EASE } from "@/lib/motion";
 import { Bell, X, Check, Calendar, Truck, Package, Info } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { formatGameTime } from "@/lib/gameData";
 import Portrait from "@/components/ui/Portrait";
 
 const ICONS = {

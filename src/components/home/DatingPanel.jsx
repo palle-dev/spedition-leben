@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { useGame } from "@/lib/gameContext";
 import { formatGameTime, formatEuro } from "@/lib/gameData";
 import { motion } from "framer-motion";
 import { EASE } from "@/lib/motion";
-import { Heart, X, Check, Coffee, Users, Sparkles, Loader2, Star, Frown, TrendingUp } from "lucide-react";
+import { Heart, X, Coffee, Users, Sparkles, Loader2, Star, Frown, TrendingUp } from "lucide-react";
 import Portrait from "@/components/ui/Portrait";
 
 export default function DatingPanel({ state, send, showToast }) {

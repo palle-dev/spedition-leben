@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
-import { formatEuro, transportStatusLabel, transportStatusColor, getAllPartnersWithStats, getTransportForOrder } from "@/lib/partnerData";
+import { formatEuro, transportStatusLabel, transportStatusColor, getAllPartnersWithStats } from "@/lib/partnerData";
 import { Building2, Truck, Clock, X, TrendingUp, Wallet, ArrowRight, MapPin } from "lucide-react";
 import PartnerOfferDialog from "@/components/partners/PartnerOfferDialog";
 

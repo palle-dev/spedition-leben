@@ -1,6 +1,6 @@
 import React from "react";
 import { vehicleDisplayName, driverDisplayName } from "@/lib/displayHelpers";
-import { formatGameTime, formatEuro } from "@/lib/gameData";
+import { formatGameTime } from "@/lib/gameData";
 import { Route, ArrowRight, CheckCircle2, Clock, Circle } from "lucide-react";
 
 // Zeigt aktive Tour-Ketten mit ihren Einsatz-Status an.

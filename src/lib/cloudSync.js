@@ -16,8 +16,15 @@ import { base44 } from "@/api/base44Client";
 // ---- Backend-Aufrufe ----
 
 async function invokeCloudSync(payload) {
-  const res = await base44.functions.invoke("cloudSync", payload);
-  return res.data;
+  try {
+    const res = await base44.functions.invoke("cloudSync", payload);
+    return res.data;
+  } catch (error) {
+    const status = error.response?.status || error.status;
+    const data = error.response?.data || error.data;
+    if (status === 409 && data?.conflict) return data;
+    throw new Error(data?.error || error.message || "Cloud-Speicherung fehlgeschlagen.");
+  }
 }
 
 export async function listCloudSaves() {

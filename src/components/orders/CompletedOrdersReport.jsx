@@ -5,7 +5,6 @@ import {
   Package, Flame, MapPin, Route as RouteIcon, Calendar, Wallet, Gauge, FileText, History,
 } from "lucide-react";
 import { formatEuro, formatGameTime, CITIES, getDistance } from "@/lib/gameData";
-import StatusBadge from "@/components/ui/StatusBadge";
 import Drawer from "@/components/ui/Drawer";
 import CompletedOrderDetail from "@/components/orders/CompletedOrderDetail";
 

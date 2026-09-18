@@ -1,8 +1,8 @@
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { useGame } from "@/lib/gameContext";
 import { getReturnLoadSuggestions, formatEuro, formatDuration } from "@/lib/networkData";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
-import { ArrowRight, Package, Truck, AlertTriangle, Clock, Check, Loader2 } from "lucide-react";
+import { ArrowRight, Package, AlertTriangle, Check, Loader2 } from "lucide-react";
 import { CITY_GEO } from "@/lib/geoData";
 import { formatGameTime } from "@/lib/gameData";
 

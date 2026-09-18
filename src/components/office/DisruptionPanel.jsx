@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useGame } from "@/lib/gameContext";
-import { AlertTriangle, Wrench, Clock, UserX, ChevronRight, CheckCircle2, Loader2, Zap } from "lucide-react";
+import { AlertTriangle, Wrench, Clock, UserX, ChevronRight, Loader2, Zap } from "lucide-react";
 import DisruptionDialog from "@/components/office/DisruptionDialog";
 
 // Merkt sich, welche Störungen bereits auto-geöffnet wurden (Session-Scope).

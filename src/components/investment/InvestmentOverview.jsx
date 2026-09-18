@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { getDepotSummary, getMarketStatus, formatCents, formatPct } from "@/lib/investmentData";
-import { Building2, User, TrendingUp, TrendingDown, Wallet, CircleDot } from "lucide-react";
+import { Building2, User, CircleDot } from "lucide-react";
 
 // Übersicht beider Depots mit Kennzahlen und Marktstatus.
 export default function InvestmentOverview({ state }) {

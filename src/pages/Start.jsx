@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useGame } from "@/lib/gameContext";
-import { Plus, Play, Upload, FolderOpen, LogOut, Check, Cloud, Loader2 } from "lucide-react";
+import { Plus, Play, Upload, LogOut, Check, Cloud, Loader2 } from "lucide-react";
 import FernwerkLogo from "@/components/brand/FernwerkLogo";
 import { base44 } from "@/api/base44Client";
 import { DIFFICULTY_PROFILES, DEFAULT_PROFILE_ID } from "@/lib/simulation/difficultyProfiles";

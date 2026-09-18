@@ -13,7 +13,7 @@ import UsedVehicleMarket from "@/components/fleet/UsedVehicleMarket";
 import VehicleAnalysis from "@/components/fleet/VehicleAnalysis";
 import BranchSelector from "@/components/branches/BranchSelector";
 import MoveResourceDialog from "@/components/branches/MoveResourceDialog";
-import { Wrench, Plus, Truck, MapPin, Gauge, FileText, TrendingUp, FileCheck, Settings, Flame, Store, BarChart3, ArrowRightLeft } from "lucide-react";
+import { Wrench, Plus, Truck, MapPin, Gauge, FileText, TrendingUp, FileCheck, Flame, Store, BarChart3, ArrowRightLeft } from "lucide-react";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
 import PageHint from "@/components/help/PageHint";
 

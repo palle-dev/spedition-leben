@@ -1,12 +1,11 @@
 import React, { useState } from "react";
-import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime, dayOf } from "@/lib/gameData";
-import { BASIC_ACTIVITIES, getActivityOptions } from "@/lib/purchaseData";
+import { getActivityOptions } from "@/lib/purchaseData";
 import Drawer from "@/components/ui/Drawer";
 import {
   Footprints, BookOpen, Heart, UtensilsCrossed, Music, Plane,
   Coffee, Bike, Dumbbell, Film, Car, Trees, Ship, Play, Ticket,
-  Clock, Wallet, X, Sparkles,
+  Clock, Sparkles,
 } from "lucide-react";
 
 const ACTIVITY_ICONS = {

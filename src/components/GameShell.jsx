@@ -24,11 +24,36 @@ export default function GameShell() {
 }
 
 function GameShellContent() {
-  const { state, loading, showStart, toast, motionEnabled, overlay, dismissOverlay, toasts, dismissToast, connectionState } = useGame();
+  const { state, loading, showStart, toast, motionEnabled, overlay, dismissOverlay, toasts, dismissToast, connectionState, hasLock, localSaveError, save, exportGame } = useGame();
   const location = useLocation();
 
+  if (!hasLock) return (
+    <div className="min-h-screen bg-ink text-foreground grid place-items-center p-6">
+      <div className="max-w-lg space-y-4" role="alert">
+        <h1 className="text-xl font-semibold">Spiel in einem anderen Tab geöffnet</h1>
+        <p>Bitte den anderen Spiel-Tab schließen und diese Seite neu laden. Falls kein anderer Tab geöffnet ist, prüfe die Speicherfreigabe Deines Browsers.</p>
+        <button className="rounded-lg bg-lime px-4 py-2 text-ink" onClick={() => window.location.reload()}>Neu laden</button>
+      </div>
+    </div>
+  );
   if (loading) return <LoadingScreen />;
-  if (showStart || !state) return <StartScreen />;
+  const downloadBackup = () => {
+    const data = exportGame();
+    if (!data) return;
+    const url = URL.createObjectURL(new Blob([data], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url; link.download = "Fernwerk_Sicherung_" + Date.now() + ".json"; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const storageWarning = localSaveError && (
+    <div className="relative z-30 bg-red-950 text-red-100 border-b border-red-400/40 px-4 py-3 text-sm flex flex-wrap items-center gap-3 shrink-0" role="alert">
+      <AlertTriangle className="w-4 h-4 shrink-0" />
+      <span className="flex-1">{localSaveError}</span>
+      {state && <button className="underline font-semibold" onClick={save}>Erneut speichern</button>}
+      {state && <button className="underline font-semibold" onClick={downloadBackup}>Sicherung herunterladen</button>}
+    </div>
+  );
+  if (showStart || !state) return <>{storageWarning}<StartScreen />{toast && <ToastView toast={toast} />}</>;
 
   const SCENE_MAP = {
     "/zuhause": "home",
@@ -48,6 +73,7 @@ function GameShellContent() {
         <SceneBackground scene={scene} motionEnabled={motionEnabled} />
         <div className="relative z-10 flex flex-col h-full min-h-0">
           <ShellHeader />
+          {storageWarning}
           {connectionState === "reconnecting" && (
             <div className="relative z-20 bg-amber-500/10 border-b border-amber-500/30 px-4 lg:px-12 py-1.5 text-xs text-amber-300 flex items-center gap-2 shrink-0">
               <WifiOff className="w-3.5 h-3.5 shrink-0 animate-pulse" />

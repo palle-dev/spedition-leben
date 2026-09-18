@@ -1,5 +1,5 @@
 import React from "react";
-import { Building2, Users, Package, Truck, Route, BarChart3, Filter, X } from "lucide-react";
+import { Building2, Users, Package, Truck, Route, Filter } from "lucide-react";
 
 // Ebenen-Steuerung und Filter für die Netzkarte.
 export default function NetworkLayerControl({

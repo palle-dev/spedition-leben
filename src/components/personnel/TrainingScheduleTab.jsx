@@ -2,9 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatGameTime } from "@/lib/gameData";
 import { roleLabel } from "@/lib/displayHelpers";
-import { getCourseById, enrollmentStatusLabel, apprenticeshipStatusLabel } from "@/lib/trainingData";
+import { enrollmentStatusLabel, apprenticeshipStatusLabel } from "@/lib/trainingData";
 import Portrait from "@/components/ui/Portrait";
-import { Calendar, Clock, BookOpen, GraduationCap } from "lucide-react";
+import { Calendar, BookOpen, GraduationCap } from "lucide-react";
 
 // Termine-Tab: zeigt den Ausbildungskalender mit allen geplanten Blöcken.
 export default function TrainingScheduleTab() {

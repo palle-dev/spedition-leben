@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
-import { formatEuro, formatGameTime, dayOf } from "@/lib/gameData";
+import { formatEuro, formatGameTime } from "@/lib/gameData";
 import { satisfactionLevel, formatDelta, causeTypeLabel, causeTypeColor, causeTypeBg, ACTION_INFO } from "@/lib/satisfactionData";
-import Portrait from "@/components/ui/Portrait";
 import { Wallet, TrendingUp, Gift, MessageCircle, HeartHandshake, Clock, CheckCircle, AlertCircle, ChevronRight, History } from "lucide-react";
 
 // Zufriedenheits-Detailansicht mit Ursachen, Historie und Maßnahmen.

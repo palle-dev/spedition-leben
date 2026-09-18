@@ -2,7 +2,7 @@ import React, { useMemo, useState, useCallback } from "react";
 import { useGame } from "@/lib/gameContext";
 import { compareLocations, formatEuro } from "@/lib/networkData";
 import { CITY_GEO } from "@/lib/geoData";
-import { Check, X, Plus, MapPin, TrendingUp, Award } from "lucide-react";
+import { Check, X, Plus, MapPin, Award } from "lucide-react";
 
 // Standortvergleich: Vergleicht bis zu drei Städte mit einheitlichen Kriterien.
 // Verändert keinen Zustand.

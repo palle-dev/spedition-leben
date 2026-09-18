@@ -1,9 +1,7 @@
 import React, { useState, useMemo } from "react";
-import { useGame } from "@/lib/gameContext";
 import { formatEuro } from "@/lib/gameData";
-import { getVehicleProfile } from "@/lib/gameData";
-import { ownershipLabel, getVehicleBookValue } from "@/lib/financingData";
-import { Truck, Gauge, TrendingUp, AlertCircle, Wrench, Fuel, Route, Package, Lightbulb, ArrowRightCircle } from "lucide-react";
+import { ownershipLabel } from "@/lib/financingData";
+import { Truck, TrendingUp, AlertCircle, Fuel, Package, Lightbulb } from "lucide-react";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
 
 // Betriebskostenanalyse und Ersatzhinweise für den Fuhrpark.

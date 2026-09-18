@@ -2,7 +2,6 @@ import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro } from "@/lib/gameData";
 import { ALL_CITIES, BRANCH_OPEN_FEE, BRANCH_MIN_GAME_DAY, BRANCH_MIN_CAPITAL_RATIO, CITY_LATLON } from "@/lib/branchData";
-import { CITY_GEO } from "@/lib/geoData";
 import BranchPlanningMap from "./BranchPlanningMap";
 import { Building2, MapPin, Plus, Check, AlertCircle, Wallet, Ruler, Crown } from "lucide-react";
 

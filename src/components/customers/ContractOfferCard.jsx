@@ -1,7 +1,7 @@
 import React from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatDay, formatClock, CONTRACT_DURATION_DAYS, CONTRACT_DISCOUNT } from "@/lib/customerData";
-import { MapPin, Clock, Truck, Wallet, AlertTriangle, CheckCircle2, FileText } from "lucide-react";
+import { MapPin, Clock, Truck, AlertTriangle, CheckCircle2, FileText } from "lucide-react";
 
 export default function ContractOfferCard({ contract, capacity, onAccept, onDismiss }) {
   const { state } = useGame();

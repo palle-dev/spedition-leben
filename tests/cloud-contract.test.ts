@@ -78,3 +78,36 @@ describe('Cloud-Handler-Verträge', () => {
     expect(response.status).toBe(409);
   });
 });
+
+describe("Cloud-Partiebindung", () => {
+  it("verhindert das Überschreiben mit dem Snapshot einer anderen Partie", async () => {
+    records.get("own").party_id = "A";
+    records.get("own").state.meta = { partyId: "A" };
+    const response = await cloud(req({ command: "save", stateId: "own", expected_revision: 3, state: { gameTime: 100, meta: { partyId: "B" } } }));
+    expect(response.status).toBe(409);
+    expect((await response.json()).code).toBe("PARTY_MISMATCH");
+    expect(entities.updateMany).not.toHaveBeenCalled();
+    expect(records.get("own").state.gameTime).toBe(41135);
+  });
+  it("bindet das atomare Update zusätzlich an die Partiekennung", async () => {
+    records.get("own").party_id = "A";
+    const response = await cloud(req({ command: "save", stateId: "own", expected_revision: 3, state: { gameTime: 100, meta: { partyId: "A" } } }));
+    expect(response.status).toBe(200);
+    expect(entities.updateMany.mock.calls[0][0].party_id).toBe("A");
+  });
+  it("ein verlorenes create-Ergebnis führt beim Wiederholen zum vorhandenen Cloud-Ziel", async () => {
+    const payload = { command: "create", party_id: "A", state: { gameTime: 100, meta: { partyId: "A" } } };
+    const first = await cloud(req(payload));
+    const firstBody = await first.json();
+    const repeated = await cloud(req(payload));
+    expect(first.status).toBe(200);
+    expect(repeated.status).toBe(409);
+    expect((await repeated.json()).stateId).toBe(firstBody.stateId);
+    expect(entities.create).toHaveBeenCalledTimes(1);
+  });
+  it.each([null, [], "state", { gameTime: -1 }])("weist fehlerhafte Snapshots ab", async state => {
+    const response = await cloud(req({ command: "create", party_id: "A", state }));
+    expect(response.status).toBe(400);
+    expect(entities.create).not.toHaveBeenCalled();
+  });
+});

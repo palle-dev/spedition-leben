@@ -9,7 +9,7 @@ import CompletedOrdersReport from "@/components/orders/CompletedOrdersReport";
 import PartnerOfferDialog from "@/components/partners/PartnerOfferDialog";
 import { getTransportForOrder, transportStatusLabel, transportStatusColor } from "@/lib/partnerData";
 import PageHint from "@/components/help/PageHint";
-import { Check, X, MapPin, ArrowRight, Clock, Route as RouteIcon, Truck, TrendingUp, Calendar, Package, Layers, Loader2, Filter, SlidersHorizontal, Building2 } from "lucide-react";
+import { X, Route as RouteIcon, Truck, TrendingUp, Calendar, Package, Layers, Loader2, Filter, SlidersHorizontal, Building2 } from "lucide-react";
 
 // Ermittelt die zuständige Filiale für einen Abholort (nächste aktive Filiale).
 function nearestBranchFor(state, fromCity) {

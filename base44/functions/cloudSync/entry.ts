@@ -34,6 +34,13 @@ export default async function (req) {
     const body = await req.json();
     const { command } = body || {};
     const S = base44.asServiceRole.entities.GameState;
+    if (command === "create" || command === "save") {
+      const state = body.state;
+      if (!state || typeof state !== "object" || Array.isArray(state) ||
+          !Number.isFinite(state.gameTime) || state.gameTime < 0) {
+        return Response.json({ error: "Ungültiger Spielstand" }, { status: 400 });
+      }
+    }
 
     // ---- Cloud-Spielstände auflisten ----
     if (command === "list") {
@@ -87,7 +94,17 @@ export default async function (req) {
     if (command === "create") {
       const { state, party_id, save_label, save_type } = body;
       if (!state) return Response.json({ error: "state erforderlich" }, { status: 400 });
-      if (!party_id) return Response.json({ error: "party_id erforderlich" }, { status: 400 });
+      if (typeof party_id !== "string" || !party_id || state.meta?.partyId !== party_id) {
+        return Response.json({ error: "Partiekennung fehlt oder passt nicht zum Spielstand" }, { status: 400 });
+      }
+      // Eine wiederholte Anlage darf eine bestehende Partie nicht still ersetzen.
+      const existing = await S.filter({ owner_id: user.id, party_id }, "-cloud_saved_at", 1);
+      if (existing?.length) {
+        return Response.json({
+          error: "Diese Partie existiert bereits in der Cloud", conflict: true,
+          stateId: existing[0].id, current_revision: existing[0].revision,
+        }, { status: 409 });
+      }
       const meta = extractMeta(state);
       const rec = await S.create({
         state,
@@ -111,6 +128,17 @@ export default async function (req) {
       if (!stateId || !state) return Response.json({ error: "stateId und state erforderlich" }, { status: 400 });
       if (!Number.isSafeInteger(expected_revision) || expected_revision < 1) return Response.json({ error: "Gültige expected_revision erforderlich" }, { status: 400 });
 
+      const rec = await S.get(stateId);
+      if (!rec || rec.owner_id !== user.id) {
+        return Response.json({ error: "Kein Zugriff auf diesen Spielstand" }, { status: 403 });
+      }
+      const partyId = rec.party_id || rec.state?.meta?.partyId;
+      if (partyId && state.meta?.partyId !== partyId) {
+        return Response.json({
+          error: "Der Spielstand gehört zu einer anderen Partie. Bitte die passende Partie neu laden.",
+          code: "PARTY_MISMATCH",
+        }, { status: 409 });
+      }
       const meta = extractMeta(state);
       const newRev = expected_revision + 1;
       const updateSet = {
@@ -122,6 +150,7 @@ export default async function (req) {
         last_result: { ok: true, command: "cloudSync_save" },
         automation_enabled: false,
       };
+      if (state.meta?.partyId) updateSet.party_id = state.meta.partyId;
       // save_label nur überschreiben wenn explizit angegeben —
       // verhindert dass Auto-Sync den Namen eines manuellen Speicherpunkts löscht.
       if (save_label) updateSet.save_label = save_label;
@@ -131,7 +160,7 @@ export default async function (req) {
       // updateMany führt die Prüfung und Schreibung in einer Operation aus —
       // keine getrennte Lese- dann Schreiboperation.
       const upd = await S.updateMany(
-        { id: stateId, owner_id: user.id, revision: expected_revision },
+        { id: stateId, owner_id: user.id, revision: expected_revision, ...(rec.party_id ? { party_id: rec.party_id } : {}) },
         { $set: updateSet }
       );
 

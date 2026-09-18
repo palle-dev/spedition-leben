@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { saveCurrent, loadCurrent, saveAutosave, loadAutosave, getAllAutosaveMetas, listManualSlots, saveManualSlot, loadManualSlot, deleteManualSlot, deleteAutosave, exportSave, importSave, getSyncMeta, setSyncMeta as persistSyncMeta, clearSyncMeta, hasUnassignedSaves, claimUnassignedSaves } from "@/lib/persistence";
+import { saveCurrent, loadCurrent, saveAutosave, loadAutosave, getAllAutosaveMetas, listManualSlots, saveManualSlot, loadManualSlot, deleteManualSlot, exportSave, importSave, getSyncMeta, setSyncMeta as persistSyncMeta } from "@/lib/persistence";
 import { acquireLock, refreshLock, releaseLock, LOCK_REFRESH } from "@/lib/tabLock";
+import { writeRecoverySave, prepareLoadedState } from "@/lib/saveSafety";
 import { eventToToast } from "@/lib/eventNotifications";
 import { getUnseenEventCount } from "@/lib/eventLogClient";
 import { useAuth } from "@/lib/AuthContext";
@@ -72,7 +73,7 @@ export function useDisplayGameTime() {
   return useContext(DisplayGameTimeContext);
 }
 
-const LS_STATE = "spedition_leben_state";
+// Wiederherstellungsdaten werden ausschließlich benutzerbezogen gespeichert.
 
 export function GameProvider({ children }) {
   const [state, setState] = useState(null);
@@ -109,7 +110,6 @@ export function GameProvider({ children }) {
   const hasLockRef = useRef(true);
   const { user: authUser } = useAuth();
   const userIdRef = useRef(null);
-  const prevUserIdRef = useRef(null);
   const autosaveIndexRef = useRef(0);
   const cloudSyncQueueRef = useRef(null);
   const syncMetaRef = useRef(null);
@@ -117,12 +117,51 @@ export function GameProvider({ children }) {
   const [cloudSaves, setCloudSaves] = useState([]);
   const [cloudLoading, setCloudLoading] = useState(false);
   const cloudDirtyRef = useRef(false);
-  const cloudUploadCounterRef = useRef(0);
   const dirtyAutosaveRef = useRef(false);
   const [autosaveMetas, setAutosaveMetas] = useState([null, null, null]);
   const [backgroundAdvance, setBackgroundAdvance] = useState(null);
   const backgroundAdvanceRef = useRef(false);
   const diagRef = useRef(null);
+  const sessionGenerationRef = useRef(0);
+  const changingStateRef = useRef(false);
+  const activeUserRef = useRef(authUser?.id);
+  activeUserRef.current = authUser?.id;
+  const localSaveQueueRef = useRef(Promise.resolve());
+  const changeVersionRef = useRef(0);
+  const lockRequiresReloadRef = useRef(false);
+  const [localSaveError, setLocalSaveError] = useState(null);
+
+  const sessionToken = useCallback(() => ({
+    userId: userIdRef.current, generation: sessionGenerationRef.current,
+  }), []);
+  const isCurrentSession = useCallback((token) =>
+    !!token.userId && token.userId === userIdRef.current &&
+    token.userId === activeUserRef.current &&
+    token.generation === sessionGenerationRef.current, []);
+
+  const assertWritable = useCallback(() => {
+    let writable = false;
+    try { writable = !lockRequiresReloadRef.current && refreshLock(); } catch { /* Speicher blockiert. */ }
+    if (!writable) {
+      hasLockRef.current = false;
+      lockRequiresReloadRef.current = true;
+      setHasLock(false);
+      throw new Error("Dieses Spiel ist in einem anderen Tab geöffnet oder der Browserspeicher ist gesperrt. Bitte den anderen Tab schließen und diese Seite neu laden.");
+    }
+    hasLockRef.current = true;
+    return true;
+  }, []);
+
+  const beginStateChange = useCallback(() => {
+    assertWritable();
+    if (!userIdRef.current || userIdRef.current !== activeUserRef.current) throw new Error("Bitte erneut anmelden.");
+    sessionGenerationRef.current++;
+    changingStateRef.current = true;
+    setAutomationEnabled(false);
+    userWantsAutomationRef.current = false;
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    return sessionToken();
+  }, [assertWritable, sessionToken]);
 
   useEffect(() => {
     document.body.classList.toggle("no-motion", !motionEnabled);
@@ -168,15 +207,40 @@ export function GameProvider({ children }) {
 
   // Sofortiges Speichern (für kritische Operationen: newGame, loadSlot, beforeunload).
   const saveNow = useCallback(async (s) => {
-    try { localStorage.setItem(LS_STATE, JSON.stringify(s)); } catch (e) {}
-    if (!hasLockRef.current) return;
-    try { await saveCurrent(userIdRef.current, s); } catch (e) {}
-    dirtyAutosaveRef.current = true;
-    cloudDirtyRef.current = true;
-  }, []);
+    const token = sessionToken();
+    const version = changeVersionRef.current;
+    if (!s || changingStateRef.current || !isCurrentSession(token)) return { skipped: true };
+    const snapshot = structuredClone(s);
+    const partyId = snapshot.meta?.partyId;
+    const meta = syncMetaRef.current?.partyId === partyId ? { ...syncMetaRef.current } : null;
+    const task = async () => {
+      if (!isCurrentSession(token) || stateRef.current?.meta?.partyId !== partyId) return { skipped: true };
+      try { assertWritable(); } catch (error) { return { ok: false, error: error.message }; }
+      const savedAt = Date.now();
+      let recoveryError = null, databaseError = null;
+      try { writeRecoverySave(token.userId, snapshot, savedAt); } catch (error) { recoveryError = error; }
+      try { await saveCurrent(token.userId, snapshot, meta, savedAt); } catch (error) { databaseError = error; }
+      if (!isCurrentSession(token)) return { skipped: true };
+      if (databaseError) {
+        dirtySaveRef.current = true;
+        setLocalSaveError(recoveryError
+          ? "Spielstand konnte nicht lokal gespeichert werden. Bitte Speicherplatz freigeben und den Spielstand exportieren."
+          : "Nur die lokale Sicherheitskopie wurde gespeichert. Die Speicherung wird erneut versucht.");
+      } else {
+        if (changeVersionRef.current === version) dirtySaveRef.current = false;
+        setLocalSaveError(null);
+      }
+      dirtyAutosaveRef.current = true;
+      return { ok: !databaseError || !recoveryError, degraded: !!databaseError };
+    };
+    const pending = localSaveQueueRef.current.then(task, task);
+    localSaveQueueRef.current = pending.then(() => {}, () => {});
+    return pending;
+  }, [sessionToken, isCurrentSession, assertWritable]);
 
   // Markiert den Zustand als geändert — Speicherung erfolgt debounced (alle 3 s).
   const markDirty = useCallback(() => {
+    changeVersionRef.current++;
     dirtySaveRef.current = true;
     cloudDirtyRef.current = true;
   }, []);
@@ -193,14 +257,14 @@ export function GameProvider({ children }) {
     const updated = typeof updater === "function" ? updater(current) : { ...current, ...updater };
     syncMetaRef.current = updated;
     setSyncMeta(updated);
-    // Sync-Meta in IndexedDB persistieren — überlebt Seitenneuladungen.
-    // Ohne dies geht die cloudId verloren und es wird jedes Mal ein neuer
-    // Cloud-Datensatz angelegt statt der bestehende aktualisiert.
-    if (userIdRef.current) {
-      persistSyncMeta(userIdRef.current, updated).catch(() => {});
+    const token = sessionToken();
+    if (isCurrentSession(token) && hasLockRef.current && !lockRequiresReloadRef.current && updated.partyId) {
+      persistSyncMeta(token.userId, updated).catch(() => {
+        if (isCurrentSession(token)) setLocalSaveError("Die Cloud-Zuordnung konnte lokal nicht gespeichert werden. Bitte den Browserspeicher prüfen.");
+      });
     }
     return updated;
-  }, []);
+  }, [sessionToken, isCurrentSession]);
 
   // Stellt sicher, dass der Zustand eine partyId hat (generiert falls fehlt).
   const ensurePartyId = useCallback((s) => {
@@ -216,22 +280,24 @@ export function GameProvider({ children }) {
   const processNewEvents = useCallback((newState) => {
     const events = newState.events || [];
     if (isInitialLoadRef.current) {
-      for (const ev of events) { seenEventIdsRef.current.add(ev.id); if (ev.seq > lastEventSeqRef.current) lastEventSeqRef.current = ev.seq; }
+      seenEventIdsRef.current = new Set(events.map(event => event.id));
+      lastEventSeqRef.current = events.reduce((max, event) => Math.max(max, event.seq || 0), 0);
       isInitialLoadRef.current = false;
     } else {
-      // Events sind sortiert (seq aufsteigend) — vom Ende iterieren bis
-      // der letzte verarbeitete seq erreicht ist. O(k) statt O(n).
+      const previousSeq = lastEventSeqRef.current;
+      let latestSeq = previousSeq;
       const newToasts = [];
       for (let i = events.length - 1; i >= 0; i--) {
-        const ev = events[i];
-        if (ev.seq <= lastEventSeqRef.current) break;
-        if (seenEventIdsRef.current.has(ev.id)) { if (ev.seq > lastEventSeqRef.current) lastEventSeqRef.current = ev.seq; continue; }
-        const t = eventToToast(ev);
-        if (t) newToasts.unshift(t);
-        seenEventIdsRef.current.add(ev.id);
-        if (ev.seq > lastEventSeqRef.current) lastEventSeqRef.current = ev.seq;
+        const event = events[i];
+        if (event.seq <= previousSeq) break;
+        latestSeq = Math.max(latestSeq, event.seq || 0);
+        if (seenEventIdsRef.current.has(event.id)) continue;
+        const toast = eventToToast(event);
+        if (toast) newToasts.unshift(toast);
+        seenEventIdsRef.current.add(event.id);
       }
-      if (newToasts.length > 0) setToasts(prev => [...prev, ...newToasts].slice(-20));
+      lastEventSeqRef.current = latestSeq;
+      if (newToasts.length) setToasts(previous => [...previous, ...newToasts].slice(-20));
     }
     setUnseenCount(getUnseenEventCount(newState));
   }, []);
@@ -239,205 +305,194 @@ export function GameProvider({ children }) {
   // Cloud-Upload eines vollständigen, konsistenten Speicherpunkts.
   // Verwendet die Queue — nur ein Upload gleichzeitig, verspätete Antworten
   // werden verworfen. localBaseRevision wird nur nach Bestätigung aktualisiert.
-  const uploadToCloud = useCallback(async (s, saveLabel, saveType) => {
-    if (!userIdRef.current || !s) return { skipped: true };
-    const partyId = s.meta?.partyId;
-    if (!partyId) return { skipped: true };
-    const meta = syncMetaRef.current || makeSyncMeta(partyId, null, 0, "idle", null, null);
-
-    updateSyncMeta({ status: "uploading", lastError: null });
-
-    try {
-      const task = async () => {
-        if (!meta.cloudId) {
-          // Erster Upload: Cloud-Datensatz erstellen
-          const res = await createCloudSave(s, partyId, saveLabel, saveType || "new");
-          if (res.error) throw new Error(res.error);
-          return { cloudId: res.stateId, revision: res.revision, isNew: true };
+  const uploadToCloud = useCallback(async (s, saveLabel, saveType, options = {}) => {
+    const token = sessionToken();
+    const partyId = s?.meta?.partyId;
+    if (!partyId || !isCurrentSession(token) || changingStateRef.current) return { skipped: true };
+    const snapshot = structuredClone(s);
+    const stillCurrent = () => isCurrentSession(token) &&
+      !changingStateRef.current && stateRef.current?.meta?.partyId === partyId;
+    // Die Queue-Aufgabe umfasst auch die Übernahme der bestätigten Revision.
+    // Erst danach darf die nächste Aufgabe ihre Metadaten lesen.
+    return cloudSyncQueueRef.current.enqueue(async () => {
+      if (!stillCurrent()) return { skipped: true };
+      try {
+        assertWritable();
+        const meta = syncMetaRef.current;
+        if (meta?.partyId !== partyId) throw new Error("Spielstand und Cloud-Zuordnung passen nicht zusammen. Bitte den Spielstand neu laden.");
+        if (meta.status === "conflict" && !options.resolveConflict) return { conflict: true };
+        if (!navigator.onLine) {
+          updateSyncMeta({ status: "offline", lastError: null });
+          return { skipped: true };
         }
-        // Bestehenden Datensatz mit Revisionsprüfung aktualisieren
-        const res = await saveCloudSave(meta.cloudId, s, meta.localBaseRevision, saveLabel, saveType || "auto");
-        if (res.error) {
-          if (res.conflict) {
-            return { conflict: true, currentRevision: res.current_revision, cloudMeta: res.cloud_meta };
-          }
-          throw new Error(res.error);
+        const version = changeVersionRef.current;
+        updateSyncMeta({ status: "uploading", lastError: null });
+        let expectedRevision = meta.localBaseRevision;
+        if (options.resolveConflict && meta.cloudId) {
+          const latest = await loadCloudSave(meta.cloudId);
+          if (!stillCurrent()) return { skipped: true };
+          expectedRevision = latest.revision;
         }
-        return { cloudId: meta.cloudId, revision: res.revision, isNew: false };
-      };
-
-      const result = await cloudSyncQueueRef.current.enqueue(task);
-      if (result.stale) return { skipped: true };
-
-      if (result.conflict) {
-        updateSyncMeta({ status: "conflict", lastError: "Cloud-Stand wurde auf einem anderen Gerät geändert" });
-        return { conflict: true, currentRevision: result.currentRevision, cloudMeta: result.cloudMeta };
+        if (!stillCurrent()) return { skipped: true };
+        const res = meta.cloudId
+          ? await saveCloudSave(meta.cloudId, snapshot, expectedRevision, saveLabel, saveType || "auto")
+          : await createCloudSave(snapshot, partyId, saveLabel, saveType || "new");
+        if (!stillCurrent()) return { skipped: true };
+        assertWritable();
+        if (res.conflict) {
+          updateSyncMeta({ status: "conflict", cloudId: res.stateId || meta.cloudId, lastError: res.error || "Cloud-Stand wurde geändert" });
+          return { conflict: true, currentRevision: res.current_revision, cloudMeta: res.cloud_meta };
+        }
+        if (res.error) throw new Error(res.error);
+        updateSyncMeta({
+          partyId, cloudId: res.stateId || meta.cloudId, localBaseRevision: res.revision,
+          status: "synced", lastCloudSyncAt: Date.now(), lastError: null,
+        });
+        if (changeVersionRef.current === version && stateRef.current === s) cloudDirtyRef.current = false;
+        return { ok: true, revision: res.revision };
+      } catch (error) {
+        if (!stillCurrent()) return { skipped: true };
+        cloudDirtyRef.current = true;
+        const offline = !navigator.onLine || /Network|Failed to fetch/.test(error.message || "");
+        updateSyncMeta({ status: offline ? "offline" : "error", lastError: error.message });
+        return { ok: false, error: error.message };
       }
-
-      // Erfolg: localBaseRevision und cloudId aktualisieren
-      updateSyncMeta({
-        partyId,
-        cloudId: result.cloudId,
-        localBaseRevision: result.revision,
-        status: "synced",
-        lastCloudSyncAt: Date.now(),
-        lastError: null,
-      });
-      return { ok: true, revision: result.revision };
-    } catch (e) {
-      const isOffline = e.message?.includes("Network") || e.message?.includes("Failed to fetch") || !navigator.onLine;
-      updateSyncMeta({ status: isOffline ? "offline" : "error", lastError: e.message });
-      return { error: e.message };
-    }
-  }, [updateSyncMeta]);
+    });
+  }, [sessionToken, isCurrentSession, assertWritable, updateSyncMeta]);
 
   // Cloud-Spielstände auflisten (für geräteübergreifendes Fortsetzen)
   const refreshCloudSaves = useCallback(async () => {
-    if (!userIdRef.current) return;
+    const token = sessionToken();
+    if (!isCurrentSession(token)) return;
     setCloudLoading(true);
     try {
       const res = await listCloudSaves();
-      if (res.saves) setCloudSaves(res.saves);
-    } catch (e) {
-      // Offline oder Fehler — still, lokale Partie bleibt nutzbar
-    } finally {
-      setCloudLoading(false);
+      if (isCurrentSession(token) && res.saves) setCloudSaves(res.saves);
+    } catch (error) {
+      if (isCurrentSession(token)) showToast("Cloud-Spielstände konnten nicht geladen werden: " + error.message, "error");
+    } finally { if (isCurrentSession(token)) setCloudLoading(false); }
+  }, [sessionToken, isCurrentSession, showToast]);
+
+  // Ein Ladeweg für Startup, Cloud, Slots, Autosaves und Import.
+  const activateState = useCallback(async (raw, token, providedMeta = null, keepStart = false) => {
+    const loaded = prepareLoadedState(raw);
+    if (providedMeta?.partyId) loaded.meta.partyId = providedMeta.partyId;
+    ensurePartyId(loaded);
+    let savedMeta = providedMeta;
+    if (!savedMeta) {
+      try { savedMeta = await getSyncMeta(token.userId, loaded.meta.partyId); } catch { /* Sichere neue Cloud-Zuordnung. */ }
     }
-  }, []);
+    if (!isCurrentSession(token)) return { skipped: true };
+    const newMeta = savedMeta?.partyId === loaded.meta.partyId
+      ? { ...savedMeta, status: savedMeta.status === "conflict" ? "conflict" : "idle" }
+      : makeSyncMeta(loaded.meta.partyId, null, 0, "idle", null, null);
+    if (providedMeta) newMeta.status = "synced";
+    syncMetaRef.current = newMeta;
+    setSyncMeta(newMeta);
+    stateRef.current = loaded;
+    setState(loaded);
+    setShowStart(keepStart);
+    changingStateRef.current = false;
+    setAutomationEnabled(false);
+    userWantsAutomationRef.current = false;
+    lastSyncGameTimeRef.current = loaded.gameTime;
+    lastSyncRealMsRef.current = Date.now();
+    isInitialLoadRef.current = true;
+    seenEventIdsRef.current = new Set();
+    lastEventSeqRef.current = 0;
+    setToasts([]);
+    setOverlay(null);
+    setBackgroundAdvance(null);
+    pendingAchievementsRef.current = [];
+    prevAchievementsRef.current = new Set(loaded.achievements.filter(a => a.unlocked).map(a => a.id));
+    processNewEvents(loaded);
+    changeVersionRef.current++;
+    dirtySaveRef.current = true;
+    cloudDirtyRef.current = !providedMeta;
+    if (hasLockRef.current && !lockRequiresReloadRef.current) await saveNow(loaded);
+    try {
+      const metas = await getAllAutosaveMetas(token.userId, !!loaded.scenario);
+      if (isCurrentSession(token)) setAutosaveMetas(metas);
+    } catch { /* Speicherfehler wird beim Speichern angezeigt. */ }
+    return { ok: true };
+  }, [ensurePartyId, isCurrentSession, processNewEvents, saveNow]);
 
   // Cloud-Spielstand laden (geräteübergreifendes Fortsetzen)
   const loadCloudGame = useCallback(async (cloudId) => {
+    let token;
     setBusy(true);
     try {
+      token = beginStateChange();
       const res = await loadCloudSave(cloudId);
+      if (!isCurrentSession(token)) return { skipped: true };
       if (res.error) throw new Error(res.error);
-      const loaded = res.state;
-      ensurePartyId(loaded);
-      // Sync-Meta aus der Cloud-Antwort übernehmen
-      const newMeta = makeSyncMeta(
-        loaded.meta?.partyId || res.party_id,
-        cloudId,
-        res.revision,
-        "synced",
-        Date.now(),
-        null
-      );
-      syncMetaRef.current = newMeta;
-      setSyncMeta(newMeta);
-      if (userIdRef.current) persistSyncMeta(userIdRef.current, newMeta).catch(() => {});
-
-      stateRef.current = loaded; setState(loaded);
-      setShowStart(false);
-      saveNow(loaded);
-      // Cloud-Dirty-Flag zurücksetzen — der geladene Stand ist bereits
-      // mit der Cloud synchron, kein Auto-Upload nötig.
-      cloudDirtyRef.current = false;
-      setAutomationEnabled(false);
-      lastSyncGameTimeRef.current = loaded.gameTime || 0;
-      lastSyncRealMsRef.current = Date.now();
-      prevAchievementsRef.current = new Set((loaded.achievements || []).filter(a => a.unlocked).map(a => a.id));
-      processNewEvents(loaded);
-      return { ok: true };
-    } catch (e) {
-      showToast(e.message, "error");
-      return { ok: false, error: e.message };
-    } finally { setBusy(false); }
-  }, [ensurePartyId, saveNow, processNewEvents, showToast]);
+      const meta = makeSyncMeta(res.party_id || res.state?.meta?.partyId || generatePartyId(),
+        cloudId, res.revision, "synced", Date.now(), null);
+      return await activateState(res.state, token, meta);
+    } catch (error) {
+      if (!token || isCurrentSession(token)) showToast(error.message, "error");
+      return { ok: false, error: error.message };
+    } finally {
+      if (!token || isCurrentSession(token)) { changingStateRef.current = false; setBusy(false); }
+    }
+  }, [beginStateChange, isCurrentSession, activateState, showToast]);
 
   // Cloud-Spielstand löschen
   const deleteCloudGame = useCallback(async (cloudId) => {
+    const token = sessionToken();
     try {
-      await deleteCloudSave(cloudId);
-      setCloudSaves(prev => prev.filter(s => s.id !== cloudId));
-      return { ok: true };
-    } catch (e) {
-      return { ok: false, error: e.message };
-    }
-  }, []);
+      assertWritable();
+      // Mit Uploads serialisieren, damit kein gelöschtes Ziel bestätigt wird.
+      return await cloudSyncQueueRef.current.enqueue(async () => {
+        if (!isCurrentSession(token)) return { skipped: true };
+        assertWritable();
+        await deleteCloudSave(cloudId);
+        if (!isCurrentSession(token)) return { skipped: true };
+        setCloudSaves(previous => previous.filter(save => save.id !== cloudId));
+        if (syncMetaRef.current?.cloudId === cloudId) {
+          updateSyncMeta({ cloudId: null, localBaseRevision: 0, status: "idle", lastCloudSyncAt: null });
+          cloudDirtyRef.current = false;
+        }
+        return { ok: true };
+      });
+    } catch (error) { return { ok: false, error: error.message }; }
+  }, [sessionToken, isCurrentSession, assertWritable, updateSyncMeta]);
 
   // Konflikt auflösen: beide Fassungen behalten (lokale als neue Partie in Cloud)
   const resolveConflictKeepBoth = useCallback(async () => {
-    if (!stateRef.current) return;
-    const localState = stateRef.current;
-    const oldPartyId = localState.meta?.partyId;
-    // Neue partyId für die lokale Fassung — sie wird zu einer eigenen Partie
-    const newPartyId = generatePartyId();
-    localState.meta = localState.meta || {};
-    localState.meta.partyId = newPartyId;
-    localState.meta.forkedFrom = oldPartyId;
-    localState.meta.forkedAt = Date.now();
-    // Neue Cloud-Aufzeichnung für die lokale Fassung erstellen
-    const newMeta = makeSyncMeta(newPartyId, null, 0, "idle", null, null);
-    syncMetaRef.current = newMeta;
-    setSyncMeta(newMeta);
-    if (userIdRef.current) persistSyncMeta(userIdRef.current, newMeta).catch(() => {});
-    saveNow(localState);
-    await uploadToCloud(localState, "Konflikt-Kopie (lokal)", "conflict_backup");
-    return { ok: true };
-  }, [saveNow, uploadToCloud]);
+    if (!stateRef.current) return { ok: false, error: "Kein Spielstand" };
+    let token;
+    try {
+      token = beginStateChange();
+      const copy = structuredClone(stateRef.current);
+      copy.meta = { ...copy.meta, partyId: generatePartyId(), forkedFrom: copy.meta?.partyId, forkedAt: Date.now() };
+      const result = await activateState(copy, token);
+      if (!result.ok) return result;
+      return await uploadToCloud(stateRef.current, "Konflikt-Kopie (lokal)", "conflict_backup");
+    } catch (error) { return { ok: false, error: error.message }; }
+    finally { if (token && isCurrentSession(token)) changingStateRef.current = false; }
+  }, [beginStateChange, activateState, uploadToCloud, isCurrentSession]);
 
   // Konflikt auflösen: mit lokaler Fassung fortsetzen (Cloud überschreiben)
   const resolveConflictKeepLocal = useCallback(async () => {
-    if (!stateRef.current) return;
-    const meta = syncMetaRef.current;
-    if (!meta?.cloudId) return;
-    try {
-      // Aktuelle Cloud-Revision laden, dann mit dieser Revision überschreiben.
-      // localBaseRevision ist nach einem Konflikt veraltet (niedriger als Cloud),
-      // daher muss die aktuelle Cloud-Revision als expected_revision verwendet werden.
-      const res = await loadCloudSave(meta.cloudId);
-      if (res.error) throw new Error(res.error);
-      const r = await saveCloudSave(meta.cloudId, stateRef.current, res.revision, "Konflikt-Auflösung (lokal gewählt)", "manual");
-      if (r.error) {
-        if (r.conflict) {
-          updateSyncMeta({ status: "conflict", localBaseRevision: r.current_revision, lastError: "Cloud-Stand hat sich erneut geändert" });
-          return { ok: false, error: "Cloud-Stand hat sich erneut geändert — bitte erneut prüfen" };
-        }
-        throw new Error(r.error);
-      }
-      updateSyncMeta({
-        cloudId: meta.cloudId,
-        localBaseRevision: r.revision,
-        status: "synced",
-        lastCloudSyncAt: Date.now(),
-        lastError: null,
-      });
-      return { ok: true };
-    } catch (e) {
-      showToast(e.message, "error");
-      return { ok: false, error: e.message };
-    }
-  }, [updateSyncMeta, showToast]);
+    if (!stateRef.current) return { ok: false, error: "Kein Spielstand" };
+    return await uploadToCloud(stateRef.current, "Konflikt-Auflösung (lokal gewählt)", "manual", { resolveConflict: true });
+  }, [uploadToCloud]);
 
   // Konflikt auflösen: mit Cloud-Fassung fortsetzen (lokal überschreiben)
   const resolveConflictKeepCloud = useCallback(async () => {
-    const meta = syncMetaRef.current;
-    if (!meta?.cloudId) return;
+    const token = sessionToken();
     try {
-      // Aktuelle lokale Fassung als Backup sichern
-      if (stateRef.current && userIdRef.current) {
-        const backupName = "Backup_vor_Cloud_" + new Date().toLocaleString("de-DE").replace(/[.,\s]/g, "_");
-        await saveManualSlot(userIdRef.current, backupName, stateRef.current);
+      assertWritable();
+      const cloudId = syncMetaRef.current?.cloudId;
+      if (!cloudId) return { ok: false, error: "Kein Cloud-Spielstand" };
+      if (stateRef.current) {
+        await saveManualSlot(userIdRef.current, "Backup_vor_Cloud_" + Date.now(), structuredClone(stateRef.current));
       }
-      const res = await loadCloudSave(meta.cloudId);
-      if (res.error) throw new Error(res.error);
-      const loaded = res.state;
-      ensurePartyId(loaded);
-      const newMeta = makeSyncMeta(loaded.meta?.partyId, meta.cloudId, res.revision, "synced", Date.now(), null);
-      syncMetaRef.current = newMeta;
-      setSyncMeta(newMeta);
-      if (userIdRef.current) persistSyncMeta(userIdRef.current, newMeta).catch(() => {});
-
-      stateRef.current = loaded; setState(loaded);
-      saveNow(loaded);
-      cloudDirtyRef.current = false;
-      processNewEvents(loaded);
-      return { ok: true };
-    } catch (e) {
-      showToast(e.message, "error");
-      return { ok: false, error: e.message };
-    }
-  }, [ensurePartyId, saveNow, processNewEvents, showToast]);
+      if (!isCurrentSession(token)) return { skipped: true };
+      return await loadCloudGame(cloudId);
+    } catch (error) { return { ok: false, error: error.message }; }
+  }, [assertWritable, loadCloudGame, sessionToken, isCurrentSession]);
 
   const processResult = useCallback(async (newState, result, command) => {
     // Lieferungen werden nur gebucht (in der Engine) und als Toast angezeigt —
@@ -456,13 +511,19 @@ export function GameProvider({ children }) {
 
   // ---- Befehl lokal ausführen (kein Netzwerk) ----
   const send = useCallback(async (command, params, onProgress) => {
+    const token = sessionToken();
+    if (changingStateRef.current) throw new Error("Spielstand wird gerade geladen.");
     while (syncInFlightRef.current || backgroundAdvanceRef.current || sendInFlightRef.current) {
       await new Promise(resolve => setTimeout(resolve, 50));
     }
+    if (!isCurrentSession(token)) throw new Error("Spielstand wurde inzwischen gewechselt.");
+    assertWritable();
     if (!stateRef.current) throw new Error("Kein Spielstand geladen");
     setBusy(true); sendInFlightRef.current = true;
     try {
       const data = await executeInWorker(stateRef.current, command, params || {}, onProgress);
+      if (!isCurrentSession(token)) throw new Error("Spielstand wurde inzwischen gewechselt.");
+      assertWritable();
       if (!data) throw new Error("Simulations-Worker hat keine Antwort gesendet.");
       if (data.error) throw new Error(data.error);
       const newState = data.state; const result = data.result;
@@ -474,14 +535,16 @@ export function GameProvider({ children }) {
     } catch (e) {
       showToast(e.message, "error");
       throw e;
-    } finally { setBusy(false); sendInFlightRef.current = false; }
-  }, [markDirty, processNewEvents, processResult, showToast]);
+    } finally { if (isCurrentSession(token)) setBusy(false); sendInFlightRef.current = false; }
+  }, [markDirty, processNewEvents, processResult, showToast, sessionToken, isCurrentSession, assertWritable]);
 
   // ---- Tagesvorlauf im Hintergrund (nicht-blockierend) ----
   // Der Tagesvorlauf läuft im Worker, während der Spieler weiter navigieren
   // und Menüs nutzen kann. send() wird blockiert, bis der Vorlauf fertig ist.
   const startBackgroundAdvance = useCallback(async (minutes, diag) => {
-    if (backgroundAdvanceRef.current) return;
+    if (backgroundAdvanceRef.current || changingStateRef.current) return;
+    const token = sessionToken();
+    try { assertWritable(); } catch (error) { showToast(error.message, "error"); return; }
     const tClick = performance.now();
     // bgRef VOR der Warteschleife setzen: verhindert, dass der Nutzer
     // erneut klickt (Button wird sofort disabled) und dass syncAutomation
@@ -499,15 +562,17 @@ export function GameProvider({ children }) {
       await new Promise(resolve => setTimeout(resolve, 50));
     }
     const tWaitEnd = performance.now();
-    if (!stateRef.current) {
+    if (!stateRef.current || !isCurrentSession(token)) {
       backgroundAdvanceRef.current = false;
       setBackgroundAdvance({ active: false, progress: null, result: null });
       return;
     }
     try {
       const data = await executeInWorker(stateRef.current, "advanceTime", { minutes }, (progress) => {
-        setBackgroundAdvance(prev => prev ? { ...prev, progress } : prev);
+        if (isCurrentSession(token)) setBackgroundAdvance(prev => prev ? { ...prev, progress } : prev);
       }, diag);
+      if (!isCurrentSession(token)) return;
+      assertWritable();
       const tRecv = performance.now();
       if (!data) throw new Error("Simulations-Worker hat keine Antwort gesendet.");
       if (data.error) throw new Error(data.error);
@@ -530,26 +595,31 @@ export function GameProvider({ children }) {
     } finally {
       backgroundAdvanceRef.current = false;
     }
-  }, [markDirty, processNewEvents, processResult, showToast]);
+  }, [markDirty, processNewEvents, processResult, showToast, sessionToken, isCurrentSession, assertWritable]);
 
   // ---- Zeitautomatik (lokal) ----
   const syncAutomation = useCallback(async () => {
-    if (!stateRef.current || syncInFlightRef.current || sendInFlightRef.current || backgroundAdvanceRef.current) return;
+    if (!stateRef.current || changingStateRef.current || syncInFlightRef.current || sendInFlightRef.current || backgroundAdvanceRef.current) return;
+    const token = sessionToken();
     syncInFlightRef.current = true;
     try {
+      assertWritable();
       const data = await executeInWorker(stateRef.current, "syncAutomation", {});
-      if (!data) throw new Error("Simulations-Worker hat keine Antwort gesendet.");
-      if (data.error) throw new Error(data.error);
-      const newState = data.state;
-      stateRef.current = newState; setState(newState);
+      if (!isCurrentSession(token)) return;
+      assertWritable();
+      if (!data || data.error) throw new Error(data?.error || "Simulations-Worker antwortet nicht.");
+      stateRef.current = data.state; setState(data.state);
       markDirty();
-      processNewEvents(newState);
-      lastSyncGameTimeRef.current = newState.gameTime;
+      processNewEvents(data.state);
+      lastSyncGameTimeRef.current = data.state.gameTime;
       lastSyncRealMsRef.current = Date.now();
-    } catch (e) {
-      // Automatik-Fehler werden nicht angezeigt
+    } catch (error) {
+      if (isCurrentSession(token)) {
+        setAutomationEnabled(false);
+        showToast("Zeitautomatik pausiert: " + error.message, "error");
+      }
     } finally { syncInFlightRef.current = false; }
-  }, [markDirty, processNewEvents]);
+  }, [markDirty, processNewEvents, sessionToken, isCurrentSession, assertWritable, showToast]);
 
   const enableAutomation = useCallback(async (silent = false) => {
     if (!stateRef.current) return;
@@ -595,191 +665,140 @@ export function GameProvider({ children }) {
 
   useEffect(() => {
     const onBeforeUnload = () => {
-      if (stateRef.current) {
-        saveNow(stateRef.current);
-        if (hasLockRef.current) {
-          saveAutosave(userIdRef.current, autosaveIndexRef.current, stateRef.current).catch(() => {});
-          // Best-Effort Cloud-Upload beim Schließen (kann asynchron nicht awaited werden)
-          if (navigator.onLine && syncMetaRef.current?.cloudId) {
-            uploadToCloud(stateRef.current, null, "auto").catch(() => {});
-          }
-          releaseLock();
-        }
-      }
+      if (!stateRef.current || changingStateRef.current || !hasLockRef.current || lockRequiresReloadRef.current) return;
+      try {
+        assertWritable();
+        // Synchroner, benutzergetrennter Fallback vor dem Schließen.
+        writeRecoverySave(userIdRef.current, stateRef.current);
+      } catch { /* Der persistente Fehlerhinweis ist während der Sitzung sichtbar. */ }
+      saveNow(stateRef.current);
+      releaseLock();
     };
+    const onHidden = () => { if (document.hidden && stateRef.current) saveNow(stateRef.current); };
     window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [saveNow, uploadToCloud]);
+    document.addEventListener("visibilitychange", onHidden);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      document.removeEventListener("visibilitychange", onHidden);
+    };
+  }, [saveNow, assertWritable]);
 
-  // ---- Online/Offline-Event-Handling ----
-  // Bei Wiederherstellung der Verbindung: Cloud-Revision prüfen,
-  // nicht einfach Cloud überschreiben. Bei Konflikt Status setzen.
   useEffect(() => {
-    const onOnline = () => {
-      // Cloud-Spielstände neu laden und Sync prüfen
+    const onOnline = async () => {
       refreshCloudSaves();
-      if (stateRef.current && syncMetaRef.current?.cloudId) {
-        // Cloud-Revision prüfen vor erneutem Upload
-        loadCloudSave(syncMetaRef.current.cloudId).then(res => {
-          if (!res.error && res.revision > syncMetaRef.current.localBaseRevision) {
-            updateSyncMeta({ status: "conflict", lastError: "Cloud-Stand ist nach Offline-Phase geändert worden" });
-          } else if (!res.error) {
-            // Cloud ist gleich oder älter — lokalen Stand hochladen
-            uploadToCloud(stateRef.current, null, "auto");
-          }
-        }).catch(() => {
-          updateSyncMeta({ status: "offline", lastError: null });
-        });
-      }
+      if (!hasLockRef.current || lockRequiresReloadRef.current) return;
+      if (stateRef.current && cloudDirtyRef.current) await uploadToCloud(stateRef.current, null, "auto");
     };
-    const onOffline = () => {
-      updateSyncMeta({ status: "offline", lastError: null });
-    };
+    const onOffline = () => updateSyncMeta({ status: "offline", lastError: null });
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
-    return () => {
-      window.removeEventListener("online", onOnline);
-      window.removeEventListener("offline", onOffline);
-    };
+    return () => { window.removeEventListener("online", onOnline); window.removeEventListener("offline", onOffline); };
   }, [uploadToCloud, refreshCloudSaves, updateSyncMeta]);
 
-  // ---- Rotierende Autosaves (alle 60 s bei Änderung) ----
+  // Rotierende Sicherungen behalten die Änderungsmarkierung bis zum Erfolg.
   useEffect(() => {
     const timer = setInterval(async () => {
-      if (!dirtyAutosaveRef.current || !stateRef.current || !hasLockRef.current) return;
-      dirtyAutosaveRef.current = false;
-      const idx = autosaveIndexRef.current;
+      if (!dirtyAutosaveRef.current || !stateRef.current || !hasLockRef.current || changingStateRef.current) return;
+      const token = sessionToken();
+      const version = changeVersionRef.current;
+      const snapshot = structuredClone(stateRef.current);
+      const index = autosaveIndexRef.current;
       try {
-        await saveAutosave(userIdRef.current, idx, stateRef.current);
-        autosaveIndexRef.current = (idx + 1) % 3;
-        setAutosaveMetas(await getAllAutosaveMetas(userIdRef.current, !!stateRef.current?.scenario));
-      } catch (e) {}
+        assertWritable();
+        await saveAutosave(token.userId, index, snapshot);
+        if (!isCurrentSession(token)) return;
+        if (changeVersionRef.current === version) dirtyAutosaveRef.current = false;
+        autosaveIndexRef.current = (index + 1) % 3;
+        const metas = await getAllAutosaveMetas(token.userId, !!snapshot.scenario);
+        if (isCurrentSession(token)) setAutosaveMetas(metas);
+      } catch {
+        if (isCurrentSession(token)) setLocalSaveError("Automatische Sicherung fehlgeschlagen. Bitte den Spielstand exportieren und den Browserspeicher prüfen.");
+      }
     }, 60000);
     return () => clearInterval(timer);
-  }, []);
+  }, [sessionToken, isCurrentSession, assertWritable]);
 
-  // ---- Debounced Speicherung (alle 3 s bei Änderung) ----
-  // Verhindert localStorage/IndexedDB-I/O auf jeden Befehl. Der Zustand wird
-  // nur geschrieben, wenn er sich geändert hat, höchstens alle 3 Sekunden.
   useEffect(() => {
-    const timer = setInterval(async () => {
-      if (!dirtySaveRef.current || !stateRef.current) return;
-      dirtySaveRef.current = false;
-      const s = stateRef.current;
-      try { localStorage.setItem(LS_STATE, JSON.stringify(s)); } catch (e) {}
-      if (hasLockRef.current) { try { await saveCurrent(userIdRef.current, s); } catch (e) {} }
-      dirtyAutosaveRef.current = true;
+    const timer = setInterval(() => {
+      if (dirtySaveRef.current && stateRef.current && hasLockRef.current && !changingStateRef.current) saveNow(stateRef.current);
     }, 3000);
     return () => clearInterval(timer);
-  }, []);
+  }, [saveNow]);
 
-  // ---- Cloud-Synchronisation (alle 3 Min bei Änderung) ----
-  // Begrenzt automatische Uploads: nicht bei jeder Spielminute, sondern
-  // nur bei geänderten Speicherpunkten. Manuelle Speichern und wichtige
-  // Aktionen triggern sofortige Uploads über uploadToCloud direkt.
   useEffect(() => {
     const timer = setInterval(async () => {
-      if (!cloudDirtyRef.current || !stateRef.current || !userIdRef.current) return;
-      // Nur hochladen wenn online
-      if (!navigator.onLine) return;
-      cloudDirtyRef.current = false;
-      cloudUploadCounterRef.current++;
-      // Alle 3 Min hochladen (entspricht jedem 3. Debounced-Save-Zyklus-Check)
+      if (!cloudDirtyRef.current || !stateRef.current || !hasLockRef.current || changingStateRef.current ||
+          !navigator.onLine || syncMetaRef.current?.status === "conflict") return;
       await uploadToCloud(stateRef.current, null, "auto");
-    }, 180000); // 3 Minuten
+    }, 180000);
     return () => clearInterval(timer);
   }, [uploadToCloud]);
 
-  // ---- Tab-Schreibsperre über localStorage ----
   useEffect(() => {
-    const acquired = acquireLock();
+    let acquired = false;
+    try { acquired = acquireLock(); } catch { /* Gesperrter Speicher erlaubt keine sichere Schreibsperre. */ }
     hasLockRef.current = acquired;
+    lockRequiresReloadRef.current = !acquired;
     setHasLock(acquired);
     const heartbeat = setInterval(() => {
-      if (hasLockRef.current) refreshLock();
-      else {
-        const got = acquireLock();
-        if (got) { hasLockRef.current = true; setHasLock(true); }
+      if (!hasLockRef.current) return;
+      let retained = false;
+      try { retained = refreshLock(); } catch { /* Sperre verloren. */ }
+      if (!retained) {
+        hasLockRef.current = false;
+        lockRequiresReloadRef.current = true;
+        sessionGenerationRef.current++;
+        setHasLock(false);
+        setAutomationEnabled(false);
+        userWantsAutomationRef.current = false;
       }
     }, LOCK_REFRESH);
-    return () => { clearInterval(heartbeat); releaseLock(); };
+    return () => { clearInterval(heartbeat); try { releaseLock(); } catch { /* Speicher nicht verfügbar. */ } };
   }, []);
 
-  // ---- Benutzer-Wechsel und Startup ----
-  // Setzt userIdRef und behandet Benutzerwechsel: alte Sync-Anfragen und
-  // verspätete Antworten dürfen nicht der neuen Sitzung zugeordnet werden.
+  // Jede Anmeldung erhält eine eigene Generation; Antworten alter Sitzungen
+  // dürfen weder den neuen Zustand noch seine Cloud-Zuordnung verändern.
   useEffect(() => {
-    const newUserId = authUser?.id || null;
-    if (prevUserIdRef.current && prevUserIdRef.current !== newUserId) {
-      // Benutzerwechsel: alle Cloud-Sync-States zurücksetzen
-      syncMetaRef.current = null;
-      setSyncMeta(null);
-      setCloudSaves([]);
-      cloudDirtyRef.current = false;
-      // State zurücksetzen — neue Sitzung lädt eigene Spielstände
-      stateRef.current = null; setState(null);
-      setShowStart(true);
-    }
-    userIdRef.current = newUserId;
-    prevUserIdRef.current = newUserId;
-  }, [authUser]);
-
-  // ---- Startup: IndexedDB laden (benutzergetrennt) ----
-  useEffect(() => {
-    if (!authUser) return;
+    const uid = authUser?.id;
+    sessionGenerationRef.current++;
+    userIdRef.current = uid || null;
+    changingStateRef.current = true;
+    const token = sessionToken();
+    stateRef.current = null;
+    syncMetaRef.current = null;
+    setState(null); setSyncMeta(null); setCloudSaves([]);
+    setCloudLoading(false); setShowStart(true); setLoading(true);
+    setLocalSaveError(null);
+    setAutomationEnabled(false);
+    cloudDirtyRef.current = false; dirtySaveRef.current = false;
+    dirtyAutosaveRef.current = false;
+    if (!uid) { setLoading(false); return; }
     (async () => {
-      const uid = authUser.id;
-      let localState = null;
-      try { localState = await loadCurrent(uid); } catch (e) {}
-      if (!localState) {
-        const savedState = localStorage.getItem(LS_STATE);
-        if (savedState) { try { localState = JSON.parse(savedState); } catch (e) {} }
-      }
-
-      // Sync-Metadaten laden
       try {
-        const savedSyncMeta = await getSyncMeta(uid);
-        if (savedSyncMeta) {
-          syncMetaRef.current = savedSyncMeta;
-          setSyncMeta(savedSyncMeta);
-        }
-      } catch (e) {}
-
-      // Cloud-Spielstände auflisten (im Hintergrund)
-      refreshCloudSaves();
-
-      if (localState) {
-        ensurePartyId(localState);
-        stateRef.current = localState; setState(localState);
-        saveNow(localState);
-        setAutomationEnabled(!!localState.timeControl?.enabled);
-        lastSyncGameTimeRef.current = localState.gameTime || 0;
-        lastSyncRealMsRef.current = Date.now();
-        prevAchievementsRef.current = new Set((localState.achievements || []).filter(a => a.unlocked).map(a => a.id));
-        processNewEvents(localState);
-        if (localState.timeControl?.enabled) {
-          const paused = await executeInWorker(stateRef.current, "pauseAutomation", { reason: "loaded" });
-          if (paused && !paused.error) {
-            stateRef.current = paused.state; setState(paused.state); saveNow(paused.state);
+        const loaded = await loadCurrent(uid);
+        if (!isCurrentSession(token)) return;
+        if (loaded) {
+          await activateState(loaded, token, null, true);
+          if (!isCurrentSession(token)) return;
+          const meta = syncMetaRef.current;
+          if (navigator.onLine && meta?.cloudId) {
+            try {
+              const remote = await loadCloudSave(meta.cloudId);
+              if (isCurrentSession(token) && remote.revision > meta.localBaseRevision) {
+                updateSyncMeta({ status: "conflict", lastError: "Cloud-Stand ist neuer als der lokale Stand" });
+              }
+            } catch { /* Lokales Spiel bleibt bei fehlender Verbindung verfügbar. */ }
           }
-          setAutomationEnabled(false);
         }
-        userWantsAutomationRef.current = false;
-        // Nach Startup Cloud-Sync prüfen (wenn online)
-        if (navigator.onLine && syncMetaRef.current?.cloudId) {
-          try {
-            const res = await loadCloudSave(syncMetaRef.current.cloudId);
-            if (!res.error && res.revision > syncMetaRef.current.localBaseRevision) {
-              // Cloud ist neuer — Konflikt melden
-              updateSyncMeta({ status: "conflict", lastError: "Cloud-Stand ist neuer als der lokale Stand" });
-            }
-          } catch (e) {}
-        }
+        if (isCurrentSession(token)) refreshCloudSaves();
+      } catch (error) {
+        if (isCurrentSession(token)) setLocalSaveError("Spielstand konnte nicht geladen werden: " + error.message);
+      } finally {
+        if (isCurrentSession(token)) { changingStateRef.current = false; setLoading(false); }
       }
-      try { setAutosaveMetas(await getAllAutosaveMetas(uid, !!localState?.scenario)); } catch (e) {}
-      setLoading(false);
     })();
-  }, [authUser, processNewEvents, saveNow, ensurePartyId, refreshCloudSaves, updateSyncMeta]);
+    return () => { sessionGenerationRef.current++; changingStateRef.current = true; };
+  }, [authUser?.id, sessionToken, isCurrentSession, activateState, refreshCloudSaves, updateSyncMeta]);
 
   const markAllEventsSeen = useCallback(async () => {
     if (!stateRef.current) return;
@@ -787,90 +806,55 @@ export function GameProvider({ children }) {
   }, [send]);
 
   const newGame = useCallback(async (names) => {
+    let token;
     setBusy(true);
     try {
+      token = beginStateChange();
       const data = await executeInWorker(null, "newGame", names || {});
+      if (!isCurrentSession(token)) return { skipped: true };
       if (data.error) throw new Error(data.error);
-      const newState = data.state;
-      ensurePartyId(newState);
-      // Sync-Meta für neue Partie initialisieren
-      const newMeta = makeSyncMeta(newState.meta.partyId, null, 0, "idle", null, null);
-      syncMetaRef.current = newMeta;
-      setSyncMeta(newMeta);
-      if (userIdRef.current) persistSyncMeta(userIdRef.current, newMeta).catch(() => {});
-      stateRef.current = newState; setState(newState);
-      setShowStart(false);
-      saveNow(newState);
-      setAutomationEnabled(!!newState.timeControl?.enabled);
-      lastSyncGameTimeRef.current = newState.gameTime || 0;
-      lastSyncRealMsRef.current = Date.now();
-      prevAchievementsRef.current = new Set((newState.achievements || []).filter(a => a.unlocked).map(a => a.id));
-      processNewEvents(newState);
-      // Neue Partie sofort in die Cloud hochladen
-      if (navigator.onLine) {
-        uploadToCloud(newState, newState.company?.name || "Neue Partie", "new");
+      const result = await activateState(data.state, token);
+      if (result.ok && isCurrentSession(token) && navigator.onLine) {
+        uploadToCloud(stateRef.current, stateRef.current.company?.name || "Neue Partie", "new");
       }
-      return { ok: true };
-    } catch (e) {
-      showToast(e.message, "error");
-      throw e;
-    } finally { setBusy(false); }
-  }, [saveNow, processNewEvents, showToast, ensurePartyId, uploadToCloud]);
+      return result;
+    } catch (error) { showToast(error.message, "error"); throw error; }
+    finally { if (!token || isCurrentSession(token)) { changingStateRef.current = false; setBusy(false); } }
+  }, [beginStateChange, isCurrentSession, activateState, uploadToCloud, showToast]);
 
   // Neues Szenario-Spiel starten
   const newScenarioGame = useCallback(async (scenarioId, names) => {
+    let token;
     setBusy(true);
     try {
+      token = beginStateChange();
       const data = await executeInWorker(null, "newScenarioGame", { scenarioId, names: names || {} });
+      if (!isCurrentSession(token)) return { skipped: true };
       if (data.error) throw new Error(data.error);
-      const newState = data.state;
-      ensurePartyId(newState);
-      const newMeta = makeSyncMeta(newState.meta.partyId, null, 0, "idle", null, null);
-      syncMetaRef.current = newMeta;
-      setSyncMeta(newMeta);
-      if (userIdRef.current) persistSyncMeta(userIdRef.current, newMeta).catch(() => {});
-      stateRef.current = newState; setState(newState);
-      setShowStart(false);
-      saveNow(newState);
-      setAutomationEnabled(false);
-      lastSyncGameTimeRef.current = newState.gameTime || 0;
-      lastSyncRealMsRef.current = Date.now();
-      prevAchievementsRef.current = new Set((newState.achievements || []).filter(a => a.unlocked).map(a => a.id));
-      processNewEvents(newState);
-      return { ok: true };
-    } catch (e) {
-      showToast(e.message, "error");
-      throw e;
-    } finally { setBusy(false); }
-  }, [saveNow, processNewEvents, showToast, ensurePartyId]);
+      return await activateState(data.state, token);
+    } catch (error) { showToast(error.message, "error"); throw error; }
+    finally { if (!token || isCurrentSession(token)) { changingStateRef.current = false; setBusy(false); } }
+  }, [beginStateChange, isCurrentSession, activateState, showToast]);
 
   // Szenario als freies Spiel fortsetzen
   const continueScenarioAsFreePlay = useCallback(async () => {
-    if (!stateRef.current) return;
     try {
-      const data = await executeInWorker(stateRef.current, "continueScenarioAsFreePlay", {});
-      if (data.error) throw new Error(data.error);
-      const newState = data.state;
-      // Alten Szenario-Current löschen, neuen freien Current speichern
-      const { clearScenarioCurrent } = await import("@/lib/persistence");
-      await clearScenarioCurrent(userIdRef.current);
-      stateRef.current = newState; setState(newState);
-      saveNow(newState);
+      await send("continueScenarioAsFreePlay", {});
+      await saveNow(stateRef.current);
       showToast("Szenario abgeschlossen — das Spiel wird als freie Partie fortgesetzt.", "success");
-    } catch (e) {
-      showToast(e.message, "error");
-    }
-  }, [saveNow, showToast]);
+    } catch (error) { showToast(error.message, "error"); }
+  }, [send, saveNow, showToast]);
 
   const reload = useCallback(async () => {
-    let loaded = null;
-    try { loaded = await loadCurrent(userIdRef.current); } catch (e) {}
-    if (!loaded) {
-      const savedState = localStorage.getItem(LS_STATE);
-      if (savedState) { try { loaded = JSON.parse(savedState); } catch (e) {} }
-    }
-    if (loaded) { stateRef.current = loaded; setState(loaded); processNewEvents(loaded); }
-  }, [processNewEvents]);
+    let token;
+    try {
+      token = beginStateChange();
+      const loaded = await loadCurrent(token.userId);
+      if (loaded) return await activateState(loaded, token);
+      return { ok: false, error: "Kein Spielstand gefunden." };
+    } catch (error) { showToast(error.message, "error"); return { ok: false, error: error.message }; }
+    finally { if (token && isCurrentSession(token)) changingStateRef.current = false; }
+  }, [beginStateChange, activateState, isCurrentSession, showToast]);
 
   // ---- Export / Import / Manuelle Slots ----
   const exportGame = useCallback(() => {
@@ -879,73 +863,54 @@ export function GameProvider({ children }) {
   }, []);
 
   const importGame = useCallback(async (exportStr) => {
+    let token;
     try {
+      // Ein ungültiger Import soll nicht einmal die laufende Partie pausieren.
       const imported = importSave(exportStr);
-      // Import wird als eigene Partie angelegt: neue partyId, keine
-      // fremde Benutzerzuordnung oder Cloud-Schreibberechtigung übernehmen.
-      ensurePartyId(imported);
-      imported.meta = imported.meta || {};
-      imported.meta.cloudId = null;
-      imported.meta.importedAt = Date.now();
-      const newMeta = makeSyncMeta(imported.meta.partyId, null, 0, "idle", null, null);
-      syncMetaRef.current = newMeta;
-      setSyncMeta(newMeta);
-      if (userIdRef.current) persistSyncMeta(userIdRef.current, newMeta).catch(() => {});
-      stateRef.current = imported; setState(imported);
-      setShowStart(false);
-      saveNow(imported);
-      return { ok: true };
-    } catch (e) {
-      return { ok: false, error: e.message };
-    }
-  }, [saveNow, ensurePartyId]);
+      token = beginStateChange();
+      return await activateState(imported, token);
+    } catch (error) { return { ok: false, error: error.message }; }
+    finally { if (token && isCurrentSession(token)) changingStateRef.current = false; }
+  }, [beginStateChange, activateState, isCurrentSession]);
 
   const saveSlot = useCallback(async (name) => {
     if (!stateRef.current) return { ok: false, error: "Kein Spielstand" };
+    const token = sessionToken();
+    const snapshot = stateRef.current;
     try {
-      await saveManualSlot(userIdRef.current, name, stateRef.current);
-      // Manueller Speicherpunkt → Cloud-Sync mit Slot-Namen als Label.
-      // Aktualisiert den bestehenden Cloud-Datensatz (keine Duplikate).
-      if (navigator.onLine && userIdRef.current) {
-        try {
-          await uploadToCloud(stateRef.current, name, "manual");
-          refreshCloudSaves();
-        } catch (e) { /* lokaler Speicher erfolgreich — Cloud-Fehler nicht blockierend */ }
+      assertWritable();
+      await saveManualSlot(token.userId, name, structuredClone(snapshot));
+      if (!isCurrentSession(token)) return { skipped: true };
+      if (navigator.onLine) {
+        const result = await uploadToCloud(snapshot, name, "manual");
+        if (result.error || result.conflict) showToast("Lokal gespeichert. Die Cloud-Sicherung ist noch offen.", "info");
+        if (isCurrentSession(token)) refreshCloudSaves();
       }
       return { ok: true };
-    } catch (e) { return { ok: false, error: e.message }; }
-  }, [uploadToCloud, refreshCloudSaves]);
+    } catch (error) {
+      if (isCurrentSession(token)) setLocalSaveError("Manueller Speicherpunkt konnte nicht gespeichert werden: " + error.message);
+      return { ok: false, error: error.message };
+    }
+  }, [sessionToken, isCurrentSession, assertWritable, uploadToCloud, refreshCloudSaves, showToast]);
 
   const loadSlot = useCallback(async (name) => {
+    let token;
     try {
-      const isScenario = !!stateRef.current?.scenario;
-      const loaded = await loadManualSlot(userIdRef.current, name, isScenario);
-      if (!loaded) return { ok: false, error: "Slot nicht gefunden" };
-      ensurePartyId(loaded);
-      // Sync-Meta für geladenen Slot: cloudId nur beibehalten wenn gleiche Partie.
-      // Bei anderer Partie cloudId zurücksetzen — sonst würde der Auto-Sync
-      // den Cloud-Datensatz der falschen Partie überschreiben.
-      const sameParty = loaded.meta?.partyId === syncMetaRef.current?.partyId;
-      const loadedMeta = makeSyncMeta(
-        loaded.meta?.partyId,
-        sameParty ? syncMetaRef.current?.cloudId : null,
-        sameParty ? (syncMetaRef.current?.localBaseRevision || 0) : 0,
-        "idle", null, null
-      );
-      syncMetaRef.current = loadedMeta;
-      setSyncMeta(loadedMeta);
-      if (userIdRef.current) persistSyncMeta(userIdRef.current, loadedMeta).catch(() => {});
-      stateRef.current = loaded; setState(loaded);
-      setShowStart(false);
-      saveNow(loaded);
-      return { ok: true };
-    } catch (e) { return { ok: false, error: e.message }; }
-  }, [saveNow, ensurePartyId]);
+      token = beginStateChange();
+      const loaded = await loadManualSlot(token.userId, name, !!stateRef.current?.scenario);
+      if (!loaded) throw new Error("Slot nicht gefunden");
+      return await activateState(loaded, token);
+    } catch (error) { return { ok: false, error: error.message }; }
+    finally { if (token && isCurrentSession(token)) changingStateRef.current = false; }
+  }, [beginStateChange, activateState, isCurrentSession]);
 
   const deleteSlot = useCallback(async (name) => {
-    try { await deleteManualSlot(userIdRef.current, name, !!stateRef.current?.scenario); return { ok: true }; }
-    catch (e) { return { ok: false, error: e.message }; }
-  }, []);
+    try {
+      assertWritable();
+      await deleteManualSlot(userIdRef.current, name, !!stateRef.current?.scenario);
+      return { ok: true };
+    } catch (error) { return { ok: false, error: error.message }; }
+  }, [assertWritable]);
 
   const listSlots = useCallback(async () => {
     try { return await listManualSlots(userIdRef.current, !!stateRef.current?.scenario); }
@@ -953,17 +918,15 @@ export function GameProvider({ children }) {
   }, []);
 
   const loadAutosaveSlot = useCallback(async (index) => {
+    let token;
     try {
-      const isScenario = !!stateRef.current?.scenario;
-      const loaded = await loadAutosave(userIdRef.current, index, isScenario);
-      if (!loaded) return { ok: false, error: "Autosave-Slot leer" };
-      ensurePartyId(loaded);
-      stateRef.current = loaded; setState(loaded);
-      setShowStart(false);
-      saveNow(loaded);
-      return { ok: true };
-    } catch (e) { return { ok: false, error: e.message }; }
-  }, [saveNow, ensurePartyId]);
+      token = beginStateChange();
+      const loaded = await loadAutosave(token.userId, index, !!stateRef.current?.scenario);
+      if (!loaded) throw new Error("Autosave-Slot leer");
+      return await activateState(loaded, token);
+    } catch (error) { return { ok: false, error: error.message }; }
+    finally { if (token && isCurrentSession(token)) changingStateRef.current = false; }
+  }, [beginStateChange, activateState, isCurrentSession]);
 
   const dismissBackgroundAdvanceResult = useCallback(() => {
     setBackgroundAdvance(null);
@@ -1048,11 +1011,11 @@ export function GameProvider({ children }) {
     state, loading, busy, toast,
     motionEnabled, overlay,
     automationEnabled, automationBusy,
-    dirty: false, save: async () => {}, saving: false,
+    dirty: !!localSaveError, save: async () => stateRef.current ? saveNow(stateRef.current) : null, saving: false,
     toasts, unseenCount,
     showStart,
     connectionState: "connected",
-    hasLock, autosaveMetas,
+    hasLock, autosaveMetas, localSaveError,
     backgroundAdvance,
     syncMeta, cloudSaves, cloudLoading,
   }), [
@@ -1061,7 +1024,7 @@ export function GameProvider({ children }) {
     automationEnabled, automationBusy,
     toasts, unseenCount,
     showStart,
-    hasLock, autosaveMetas,
+    hasLock, autosaveMetas, localSaveError, saveNow,
     backgroundAdvance,
     syncMeta, cloudSaves, cloudLoading,
   ]);

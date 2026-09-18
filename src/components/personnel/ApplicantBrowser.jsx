@@ -2,12 +2,12 @@ import React, { useState, useMemo, useCallback } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime, PERSONNEL_ROLES } from "@/lib/gameData";
 import { roleLabel } from "@/lib/displayHelpers";
-import { ROLE_LABELS, paginate, totalPages } from "@/lib/personnelMarketData";
+import { paginate, totalPages } from "@/lib/personnelMarketData";
 import ApplicantCard from "@/components/personnel/ApplicantCard";
 import BranchSelector from "@/components/branches/BranchSelector";
 import Drawer from "@/components/ui/Drawer";
 import Portrait from "@/components/ui/Portrait";
-import { Search, RotateCcw, Briefcase, ChevronLeft, ChevronRight, Truck, Headset, Sparkles, Wrench, Building2, Calculator, Users, Star, UserPlus, MapPin, Clock } from "lucide-react";
+import { Search, RotateCcw, Briefcase, ChevronLeft, ChevronRight, Truck, Headset, Sparkles, Wrench, Building2, Calculator, Users, UserPlus, MapPin, Clock } from "lucide-react";
 
 const ROLE_ICON = {
   driver: Truck, dispatcher: Headset, dispatcher_senior: Headset,

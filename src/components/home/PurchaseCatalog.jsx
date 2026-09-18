@@ -1,11 +1,10 @@
 import React, { useState } from "react";
-import { useGame } from "@/lib/gameContext";
-import { formatEuro, formatGameTime, dayOf } from "@/lib/gameData";
-import { PURCHASE_CATALOG, CATEGORY_LABELS, getCatalogEntry, getResalePrice } from "@/lib/purchaseData";
+import { formatEuro } from "@/lib/gameData";
+import { PURCHASE_CATALOG, CATEGORY_LABELS, getCatalogEntry } from "@/lib/purchaseData";
 import Drawer from "@/components/ui/Drawer";
 import {
-  Sofa, Watch, Palette, Car, Ship, Home, Check, X, Tag,
-  Sparkles, TrendingDown, Wallet, Clock, ChevronRight,
+  Sofa, Watch, Palette, Car, Ship, Home, Check, Tag,
+  Sparkles, Wallet,
 } from "lucide-react";
 
 const CAT_ICONS = {

@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime } from "@/lib/gameData";
-import Portrait from "@/components/ui/Portrait";
 import { Check, X, Building2, TrendingUp, Wrench, Users, Lightbulb, GraduationCap, Loader2, Truck, Hammer, UserPlus } from "lucide-react";
 
 const DECISION_ICON = {

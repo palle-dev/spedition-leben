@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { EASE } from "@/lib/motion";
-import { Check, Calendar, Truck, Package, Info, ChevronDown } from "lucide-react";
+import { Check, Calendar, Truck, Package, Info } from "lucide-react";
 import { formatGameTime } from "@/lib/gameData";
 import { eventToLogLabel, DISPATCH_LOG_TYPES } from "@/lib/eventNotifications";
 import Portrait from "@/components/ui/Portrait";

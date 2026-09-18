@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { EASE } from "@/lib/motion";
 import { Check, Calendar, Truck, Package, Info, X, Bell, Briefcase } from "lucide-react";

@@ -1,14 +1,12 @@
-import React, { useState, useMemo } from "react";
-import { useGame } from "@/lib/gameContext";
+import React, { useState } from "react";
 import { formatEuro, formatGameTime } from "@/lib/gameData";
 import {
-  WORKSHOP_SLOT_PRICE, INTERNAL_MAINT_PARTS, ORDER_STATUS_LABELS, ORDER_STATUS_COLORS,
-  formatWorkHours, computeEstimatedEnd,
+  WORKSHOP_SLOT_PRICE, INTERNAL_MAINT_PARTS, ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, computeEstimatedEnd,
 } from "@/lib/workshopData";
 import Drawer from "@/components/ui/Drawer";
 import {
-  Wrench, Plus, Settings, Clock, AlertTriangle, Check, X,
-  Truck, MapPin, Gauge, User, Zap, Power, RotateCcw,
+  Wrench, Plus, Settings, Clock, AlertTriangle, Check,
+  Truck, MapPin, User, Zap,
 } from "lucide-react";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
 

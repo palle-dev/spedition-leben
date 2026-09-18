@@ -6,8 +6,7 @@ import {
   getViolatedRuleLabel, formatCents,
 } from "@/lib/delegationData";
 import {
-  Shield, CheckCircle2, XCircle, Clock, TrendingUp, Wallet,
-  Users, AlertTriangle, ChevronDown, ChevronUp, Building2, Settings, ArrowRight,
+  Shield, CheckCircle2, XCircle, Clock, TrendingUp, Wallet, AlertTriangle, ChevronDown, ChevronUp, Building2, Settings, ArrowRight,
 } from "lucide-react";
 
 // Führung & Delegation — zentrale Steuerung der Mitarbeiter-Automatik.

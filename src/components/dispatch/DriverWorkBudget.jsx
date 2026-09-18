@@ -1,5 +1,5 @@
 import React from "react";
-import { WORK_BUDGET_MIN, DRIVE_BUDGET_MIN, REST_MIN } from "@/lib/gameData";
+import { WORK_BUDGET_MIN, DRIVE_BUDGET_MIN } from "@/lib/gameData";
 import { driverDisplayName } from "@/lib/displayHelpers";
 import { formatGameTime } from "@/lib/gameData";
 import { Clock, Coffee, Moon, Gauge } from "lucide-react";

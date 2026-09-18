@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { CITY_GEO } from "@/lib/geoData";
-import { AlertTriangle, MapPin } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 const MAP_STYLE = "https://tiles.openfreemap.org/styles/dark";
 const MAP_CENTER = [10.2, 51.0];

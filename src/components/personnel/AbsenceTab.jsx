@@ -1,12 +1,11 @@
 import React, { useState, useMemo } from "react";
-import { useGame } from "@/lib/gameContext";
-import { formatGameTime, formatEuro, dayOf } from "@/lib/gameData";
-import { roleLabel, employmentStatusLabel, attendanceLabel } from "@/lib/displayHelpers";
+import { formatGameTime, dayOf } from "@/lib/gameData";
+import { roleLabel } from "@/lib/displayHelpers";
 import Portrait from "@/components/ui/Portrait";
 import Drawer from "@/components/ui/Drawer";
-import { ABSENCE_TYPE_LABELS, ABSENCE_COLORS, VACATION_MAX_UNUSED } from "@/lib/absenceData";
+import { ABSENCE_TYPE_LABELS, ABSENCE_COLORS } from "@/lib/absenceData";
 import {
-  Calendar, Plane, Heart, Moon, UserX, Check, X, AlertCircle, Clock,
+  Calendar, Plane, Heart, UserX, Check, X, AlertCircle, Clock,
   ChevronLeft, ChevronRight, Send, RotateCcw, Stethoscope,
 } from "lucide-react";
 

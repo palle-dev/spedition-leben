@@ -1,5 +1,5 @@
 import React from "react";
-import { formatEuro, formatGameTime } from "@/lib/gameData";
+import { formatEuro } from "@/lib/gameData";
 import { roleLabel } from "@/lib/displayHelpers";
 import { capacityLabel, profileLabel, applicantExpiryStatus, availabilityLabel } from "@/lib/personnelMarketData";
 import Portrait from "@/components/ui/Portrait";

@@ -1,9 +1,8 @@
 import React, { useState } from "react";
-import { useGame } from "@/lib/gameContext";
 import { formatEuro } from "@/lib/gameData";
 import { GOAL_TEMPLATES } from "@/lib/achievementCatalog";
 import Drawer from "@/components/ui/Drawer";
-import { Target, Plus, X, TrendingUp, Check, ChevronRight } from "lucide-react";
+import { Target, Plus, X, Check, ChevronRight } from "lucide-react";
 
 export default function GoalsPanel({ state, send, showToast }) {
   const [showCatalog, setShowCatalog] = useState(false);

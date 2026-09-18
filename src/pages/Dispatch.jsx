@@ -10,7 +10,6 @@ import { useHeaderSlot } from "@/lib/headerSlot";
 import DispatchToolbar from "@/components/dispatch/DispatchToolbar";
 import RouteDetailOverlay from "@/components/dispatch/RouteDetailOverlay";
 import AutoOptimizePanel from "@/components/dispatch/AutoOptimizePanel";
-import MapLegend from "@/components/dispatch/MapLegend";
 import PartnerOverview from "@/components/partners/PartnerOverview";
 
 export default function Dispatch() {

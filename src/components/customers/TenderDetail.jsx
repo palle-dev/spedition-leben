@@ -3,7 +3,7 @@ import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatDay, formatClock } from "@/lib/customerData";
 import NegotiationPanel from "./NegotiationPanel";
 import {
-  ArrowLeft, MapPin, Package, Clock, FileText, Gavel, TrendingUp,
+  ArrowLeft, MapPin, FileText, Gavel, TrendingUp,
   CheckCircle2, AlertTriangle, Info, Calculator, Shield, Award
 } from "lucide-react";
 

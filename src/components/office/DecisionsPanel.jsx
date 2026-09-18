@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getDecisions } from "@/lib/officeData";
-import { AlertTriangle, ArrowRight, CheckCircle2, Clock, CircleAlert } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock, CircleAlert } from "lucide-react";
 
 // Priorisierte Aktionsliste mit klarer visueller Gewichtung.
 // Jede Entscheidung ist eine eigenständige Karte mit Aktion-Button.

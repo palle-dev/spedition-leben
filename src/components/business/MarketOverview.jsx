@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useGame } from "@/lib/gameContext";
 import { Link } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { EASE } from "@/lib/motion";
 import { REGIONS, REGION_LABELS } from "@/lib/simulation/marketDynamicsEngine";
 import { MapPin, Zap, AlertTriangle, Package, TrendingUp, TrendingDown, Calendar, Bell, Info, ChevronRight } from "lucide-react";

@@ -7,7 +7,7 @@ import TrainingScheduleTab from "@/components/personnel/TrainingScheduleTab";
 import TrainingOverviewTab from "@/components/personnel/TrainingOverviewTab";
 import KpiDashboardTab from "@/components/personnel/KpiDashboardTab";
 import CareerPathTab from "@/components/personnel/CareerPathTab";
-import { GraduationCap, BookOpen, Users, Award, Calendar, BarChart, TrendingUp, Map } from "lucide-react";
+import { GraduationCap, BookOpen, Award, Calendar, BarChart, TrendingUp, Map } from "lucide-react";
 
 // Hauptbereich „Entwicklung" in der Personal-Verwaltung.
 // Bietet Tabs für Übersicht, Weiterbildungen, Ausbildung, Qualifikationen und Termine.

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { formatGameTime, formatEuro } from "@/lib/gameData";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { EASE } from "@/lib/motion";
-import { BookOpen, Clock, Check, X, Users, Heart, Calendar, AlertCircle } from "lucide-react";
+import { BookOpen, Clock, Users, Heart, Calendar } from "lucide-react";
 import StoryStatusOverview from "@/components/home/StoryStatusOverview";
 
 // Zeigt aktive Geschichten mit Entscheidungen und anstehende Versprechen.

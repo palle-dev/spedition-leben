@@ -2,7 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import { formatGameTime, dayOf } from "@/lib/gameData";
-import { MapPin, Pause, Play, Wifi, WifiOff, ChevronRight } from "lucide-react";
+import { MapPin, Pause, Play, Wifi, WifiOff } from "lucide-react";
 
 // Kompakte, professionelle Kopfzeile: Firmenidentität, Spieltag/Uhrzeit,
 // Automatikstatus und Zeitraum-Filter in klarer Hierarchie.

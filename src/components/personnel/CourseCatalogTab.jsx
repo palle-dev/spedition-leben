@@ -2,10 +2,10 @@ import React, { useState, useEffect } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime } from "@/lib/gameData";
 import { roleLabel } from "@/lib/displayHelpers";
-import { COURSE_CATALOG, getCourseById, targetRoleLabel, requirementLabel, enrollmentStatusLabel } from "@/lib/trainingData";
+import { COURSE_CATALOG, getCourseById, targetRoleLabel, enrollmentStatusLabel } from "@/lib/trainingData";
 import Portrait from "@/components/ui/Portrait";
 import Drawer from "@/components/ui/Drawer";
-import { BookOpen, Clock, Euro, Check, X, AlertCircle, ChevronRight, GraduationCap } from "lucide-react";
+import { Clock, Euro, Check, AlertCircle, ChevronRight } from "lucide-react";
 
 // Weiterbildungen-Tab: Kurskatalog mit Buchungsfunktion.
 export default function CourseCatalogTab() {

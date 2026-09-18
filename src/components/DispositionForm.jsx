@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
-import { CITIES, getDistance, driveMinutes, fuelEur, tollEur, formatEuro, formatGameTime, LOAD_MIN, UNLOAD_MIN, MAX_DUTY_MIN } from "@/lib/gameData";
-import { Truck, Users, Play, ArrowRight, AlertTriangle, MapPin, Clock, Package } from "lucide-react";
+import { getDistance, driveMinutes, fuelEur, tollEur, formatEuro, formatGameTime, LOAD_MIN, UNLOAD_MIN, MAX_DUTY_MIN } from "@/lib/gameData";
+import { Truck, Users, Play, ArrowRight, AlertTriangle, MapPin, Package } from "lucide-react";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
 
 // Dispositionsformular für die seitliche Disposition.

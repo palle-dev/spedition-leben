@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime } from "@/lib/gameData";
 import { vehicleDisplayName } from "@/lib/displayHelpers";

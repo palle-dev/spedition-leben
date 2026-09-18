@@ -1,11 +1,7 @@
 import React, { useState } from "react";
-import { useGame } from "@/lib/gameContext";
-import { formatEuro, formatGameTime } from "@/lib/gameData";
 import { REWARDS, REWARD_SLOTS, SLOT_LABELS, getRewardById } from "@/lib/rewardData";
-import Drawer from "@/components/ui/Drawer";
 import {
-  Award, Ticket, Palette, BookHeart, DoorOpen, Car, Frame,
-  Check, Lock, Gift, Sparkles, X, ChevronRight,
+  Award, Ticket, Palette, BookHeart, DoorOpen, Car, Frame, Lock, Gift, X,
 } from "lucide-react";
 
 const TYPE_ICONS = {

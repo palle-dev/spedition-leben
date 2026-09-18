@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatEuro } from "@/lib/gameData";
-import { Crown, Building2, MapPin, Truck, Users, Headset, ArrowRight, Wrench } from "lucide-react";
+import { Crown, Building2, MapPin, Truck, Users, Headset, ArrowRight } from "lucide-react";
 
 // Kompakte Filial-Übersicht für die Büro-Seite.
 // Zeigt pro aktiver Filiale: Flotte, Fahrer, Dispo, Auslastung, Umsatz, Marge.

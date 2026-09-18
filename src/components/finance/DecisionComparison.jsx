@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Calculator, GitCompare, X, Info } from "lucide-react";
+import { Calculator, X, Info } from "lucide-react";
 import { computeLiquidityForecast, getDecisionImpact } from "@/lib/simulation/liquidityForecastEngine";
 import { VEHICLE_CATALOG_LIST } from "@/lib/simulation/gameRules";
 import { LEASING_OFFERS } from "@/lib/simulation/financingEngine";

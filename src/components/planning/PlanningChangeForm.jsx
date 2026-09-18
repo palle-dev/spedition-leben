@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { X, ArrowRight, AlertTriangle, CheckCircle, Clock, MapPin, Truck, User } from "lucide-react";
+import { X, ArrowRight, AlertTriangle, CheckCircle, Clock, Truck, User } from "lucide-react";
 import { useGame } from "@/lib/gameContext";
 import { formatPlanningTime } from "@/lib/planningData";
 

@@ -1,8 +1,7 @@
 import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { CUSTOMER_PROFILES } from "@/lib/simulation/gameRules";
-import {
-  TRUST_START, STAMMKUNDE_MIN_TRANSPORTS, STAMMKUNDE_MIN_TRUST,
+import { STAMMKUNDE_MIN_TRANSPORTS, STAMMKUNDE_MIN_TRUST,
   CONTRACT_DURATION_DAYS,
 } from "@/lib/simulation/customerEngine";
 import { getTrustLabel, getTrustColor, formatEuro } from "@/lib/customerData";

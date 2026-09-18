@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useGame } from "@/lib/gameContext";
 import { formatGameTime, formatEuro } from "@/lib/gameData";
-import { X, Wrench, Clock, UserX, CheckCircle2, AlertCircle, Zap, Info, Truck, User, FileText } from "lucide-react";
+import { X, Wrench, Clock, UserX, CheckCircle2, Zap, Info, Truck, User, FileText } from "lucide-react";
 
 const TYPE_CONFIG = {
   technical_defect: { icon: Wrench, label: "Technischer Defekt" },

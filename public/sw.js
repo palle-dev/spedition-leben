@@ -1,54 +1,48 @@
-// Service Worker für FERNWERK — ermöglicht Offline-Neustart.
-// Cache-first für Assets, Network-first für Navigation, Runtime-Caching aller GET-Requests.
+// Offline-Cache ausschließlich für App-Dokumente und statische Dateien.
+const CACHE = "fernwerk-v2";
 
-const CACHE = "fernwerk-v1";
-
-self.addEventListener("install", (e) => {
+self.addEventListener("install", (event) => {
   self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then((c) => c.add("/")));
+  event.waitUntil(caches.open(CACHE).then(cache => cache.add("/")));
 });
 
-self.addEventListener("activate", (e) => {
-  e.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  );
+self.addEventListener("activate", (event) => {
+  event.waitUntil(caches.keys().then(keys =>
+    Promise.all(keys.filter(key => key.startsWith("fernwerk-") && key !== CACHE)
+      .map(key => caches.delete(key)))
+  ).then(() => self.clients.claim()));
 });
 
-self.addEventListener("fetch", (e) => {
-  const req = e.request;
-  if (req.method !== "GET") return;
+self.addEventListener("fetch", (event) => {
+  const request = event.request;
+  if (request.method !== "GET") return;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin ||
+      /^\/api(?:\/|$)/i.test(url.pathname) ||
+      /^\/(?:login|register|forgot-password|reset-password|oauth|auth)(?:\/|$)/i.test(url.pathname) ||
+      request.headers.has("Authorization") ||
+      [...url.searchParams.keys()].some(key => /token|code|session/i.test(key))) return;
 
-  const url = new URL(req.url);
-  // Nur Same-Origin cachen (keine externen APIs/CDNs blockieren)
-  if (url.origin !== self.location.origin) return;
-
-  // Navigation: Network-first, Fallback auf Cache (Offline-Neustart)
-  if (req.mode === "navigate") {
-    e.respondWith(
-      fetch(req)
-        .then((res) => {
-          const clone = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, clone));
-          return res;
-        })
-        .catch(() => caches.match(req).then((r) => r || caches.match("/")))
-    );
+  const remember = (response) => {
+    if (response.ok && response.type !== "opaque" && !response.redirected) {
+      const copy = response.clone();
+      event.waitUntil(caches.open(CACHE).then(cache => cache.put(request, copy)).catch(() => {}));
+    }
+    return response;
+  };
+  if (request.mode === "navigate") {
+    // Dokumente mit Query-Parametern können sitzungsbezogen sein.
+    if (url.search) return;
+    event.respondWith(fetch(request).then(remember).catch(async () => {
+      const cache = await caches.open(CACHE);
+      return await cache.match(request) || await cache.match("/") || Response.error();
+    }));
     return;
   }
-
-  // Statische Assets: Cache-first, Network-Fallback mit Runtime-Caching
-  e.respondWith(
-    caches.match(req).then((cached) => {
-      if (cached) return cached;
-      return fetch(req).then((res) => {
-        if (res && res.ok) {
-          const clone = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, clone));
-        }
-        return res;
-      }).catch(() => cached);
-    })
-  );
+  const isAsset = url.pathname.startsWith("/assets/") ||
+    /^\/(?:favicon\.(?:ico|png|svg)|manifest\.json|icons\/[^/]+\.(?:png|svg|webp))$/.test(url.pathname);
+  if (!isAsset) return;
+  event.respondWith(caches.open(CACHE).then(async cache =>
+    await cache.match(request) || fetch(request).then(remember)
+  ));
 });

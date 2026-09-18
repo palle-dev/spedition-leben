@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import { vehicleDisplayName, driverDisplayName } from "@/lib/displayHelpers";
 import { formatEuro, getDistance, fuelEur, tollEur, driveMinutes } from "@/lib/gameData";
-import { Package, Play, CheckCircle, AlertTriangle, Truck, ArrowLeft, Zap } from "lucide-react";
+import { Play, CheckCircle, AlertTriangle, Truck, ArrowLeft, Zap } from "lucide-react";
 
 // Mehrfach-Zuweisung: mehrere angenommene Aufträge gleichzeitig
 // ausgewählten Fahrern+Lkw zuweisen, um die Disposition bei hoher

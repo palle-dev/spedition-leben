@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatGameTime, dayOf } from "@/lib/gameData";
 import Drawer from "@/components/ui/Drawer";
-import { Plane, Stethoscope, Clock, Check, Send, X, AlertCircle, Calendar } from "lucide-react";
+import { Plane, Stethoscope, Clock, Send } from "lucide-react";
 
 const DAY_MIN = 1440;
 

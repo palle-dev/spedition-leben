@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getPersonalAppointments, getNextReachableGoal } from "@/lib/dailyOverviewData";
 import { formatGameTime, dayOf } from "@/lib/gameData";
-import { Heart, Target, Clock, ArrowRight, Check } from "lucide-react";
+import { Heart, Target, Clock, ArrowRight } from "lucide-react";
 
 // Persönliche Termine und nächstes erreichbares Ziel.
 // Kompakte Ansicht für die Büro-Tagesübersicht.

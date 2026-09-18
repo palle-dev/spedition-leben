@@ -1,7 +1,6 @@
 import React from "react";
-import { useGame } from "@/lib/gameContext";
-import { formatEuro, formatDay } from "@/lib/customerData";
-import { FileText, Clock, MapPin, Package, TrendingUp, ArrowLeft, Gavel, CheckCircle2, XCircle } from "lucide-react";
+import { formatDay } from "@/lib/customerData";
+import { FileText, Clock, MapPin, Package, CheckCircle2, XCircle } from "lucide-react";
 
 export default function TenderList({ tenders, onSelect }) {
   if (!tenders || tenders.length === 0) {

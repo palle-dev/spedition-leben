@@ -5,14 +5,10 @@ const LOCK_KEY = "fernwerk_lock";
 const LOCK_TTL = 5000;     // Lock verfällt nach 5 s ohne Heartbeat
 const LOCK_REFRESH = 2000; // Heartbeat alle 2 s
 
-export function getTabId() {
-  let id = sessionStorage.getItem("fernwerk_tab_id");
-  if (!id) {
-    id = "tab_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
-    sessionStorage.setItem("fernwerk_tab_id", id);
-  }
-  return id;
-}
+// Pro Dokument neu: duplizierte Tabs kopieren sessionStorage und brauchen
+// trotzdem unterschiedliche Sperren.
+const tabId = "tab_" + (globalThis.crypto?.randomUUID?.() || Date.now() + "_" + Math.random());
+export function getTabId() { return tabId; }
 
 function readLock() {
   const raw = localStorage.getItem(LOCK_KEY);
@@ -35,7 +31,7 @@ export function acquireLock() {
   return true;
 }
 
-// Erneuert den Lock, wenn dieser Tab ihn hält. Versucht ggf. erneut zu erwerben.
+// Erneuert ausschließlich die noch von diesem Dokument gehaltene Sperre.
 export function refreshLock() {
   const tabId = getTabId();
   const lock = readLock();
@@ -43,11 +39,8 @@ export function refreshLock() {
     writeLock(tabId);
     return true;
   }
-  // Lock ist frei oder abgelaufen — versuchen zu erwerben
-  if (!lock || Date.now() - lock.timestamp >= LOCK_TTL) {
-    writeLock(tabId);
-    return true;
-  }
+  // Eine bestehende Sitzung darf eine zwischenzeitlich verlorene Sperre
+  // nicht wieder übernehmen: ihr Spielstand könnte inzwischen veraltet sein.
   return false;
 }
 

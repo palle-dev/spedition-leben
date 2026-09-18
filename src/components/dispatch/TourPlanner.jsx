@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useGame } from "@/lib/gameContext";
-import { vehicleDisplayName, driverDisplayName } from "@/lib/displayHelpers";
+import { vehicleDisplayName } from "@/lib/displayHelpers";
 import { formatGameTime, formatEuro, CITIES } from "@/lib/gameData";
 import { buildTourPlan, findReturnLoads } from "@/lib/tourEngine";
 import { buildTourRouteGeoJSON } from "@/lib/geoData";
-import { ArrowLeft, ArrowRight, ArrowDown, Truck, Users, Package, MapPin, Clock, Fuel, CreditCard, CheckCircle2, AlertTriangle, Search, Plus, Route } from "lucide-react";
+import { ArrowLeft, ArrowRight, Truck, Clock, Fuel, CreditCard, CheckCircle2, AlertTriangle, Search, Route } from "lucide-react";
 
 export default function TourPlanner({ primaryOrderId, routeData, onBack, onConfirmed, onPlanRoute }) {
   const { state, send, showToast } = useGame();

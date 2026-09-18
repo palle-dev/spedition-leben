@@ -1,3 +1,5 @@
+import { readRecoverySave, MAX_SAVE_BYTES, prepareLoadedState } from "./saveSafety";
+
 // IndexedDB-Persistenz für FERNWERK.
 // Verwaltet: aktueller Spielstand, drei rotierende Autosaves, manuelle Slots,
 // Export/Import mit Prüfsumme, Version und Größenprüfung.
@@ -19,7 +21,7 @@ function openDB() {
       if (!db.objectStoreNames.contains(STORE_KV)) db.createObjectStore(STORE_KV);
     };
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onerror = () => { dbPromise = null; reject(req.error); };
   });
   return dbPromise;
 }
@@ -31,6 +33,7 @@ async function idbPut(key, value) {
     tx.objectStore(STORE_KV).put(value, key);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error("Speichern wurde abgebrochen."));
   });
 }
 
@@ -51,6 +54,7 @@ async function idbDelete(key) {
     tx.objectStore(STORE_KV).delete(key);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error("Speichern wurde abgebrochen."));
   });
 }
 
@@ -83,16 +87,43 @@ function fullKey(userId, key) {
 
 // ---- Aktueller Spielstand ----
 
-export async function saveCurrent(userId, state) {
-  const prefix = nsPrefix(state);
-  await idbPut(fullKey(userId, prefix + "current"), { state, savedAt: Date.now() });
+export async function saveCurrent(userId, state, syncMeta = null, savedAt = Date.now()) {
+  if (!userId) throw new Error("Zum Speichern bitte anmelden.");
+  const db = await openDB();
+  const record = { state, savedAt };
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_KV, "readwrite");
+    const store = tx.objectStore(STORE_KV);
+    store.put(record, fullKey(userId, nsPrefix(state) + "current"));
+    // Zustand und aktive Auswahl werden in derselben Transaktion geschrieben.
+    store.put(record, fullKey(userId, "active_current"));
+    if (syncMeta?.partyId && syncMeta.partyId === state.meta?.partyId) {
+      store.put(syncMeta, fullKey(userId, "sync_meta_" + syncMeta.partyId));
+    }
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error("Speichern wurde abgebrochen."));
+  });
 }
 
 export async function loadCurrent(userId) {
-  // Zuerst Szenario-Current versuchen, dann freies Current
-  let v = await idbGet(fullKey(userId, "scenario_current"));
-  if (!v) v = await idbGet(fullKey(userId, "current"));
-  return v ? v.state : null;
+  if (!userId) return null;
+  let recovery = null;
+  try { recovery = readRecoverySave(userId); } catch { /* IndexedDB kann weiterhin funktionieren. */ }
+  try {
+    let current = await idbGet(fullKey(userId, "active_current"));
+    if (!current) {
+      const candidates = await Promise.all([
+        idbGet(fullKey(userId, "scenario_current")), idbGet(fullKey(userId, "current")),
+      ]);
+      current = candidates.filter(Boolean).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0))[0];
+    }
+    if (recovery && (!current || recovery.savedAt > (current.savedAt || 0))) return recovery.state;
+    return current?.state || null;
+  } catch (error) {
+    if (recovery) return recovery.state;
+    throw error;
+  }
 }
 
 export async function loadCurrentFree(userId) {
@@ -170,13 +201,16 @@ export async function listManualSlots(userId, isScenario) {
 // Ein Upload darf Spielzeit, Zufallszustand oder Spielregeln nicht verändern —
 // daher werden Sync-Metadaten vollständig separat gespeichert.
 
-export async function getSyncMeta(userId) {
-  const v = await idbGet(fullKey(userId, "sync_meta"));
-  return v || null;
+export async function getSyncMeta(userId, partyId) {
+  if (!userId || !partyId) return null;
+  const v = await idbGet(fullKey(userId, "sync_meta_" + partyId)) ||
+    await idbGet(fullKey(userId, "sync_meta"));
+  return v?.partyId === partyId ? v : null;
 }
 
 export async function setSyncMeta(userId, meta) {
-  await idbPut(fullKey(userId, "sync_meta"), meta);
+  if (!userId || !meta?.partyId) return;
+  await idbPut(fullKey(userId, "sync_meta_" + meta.partyId), meta);
 }
 
 export async function clearSyncMeta(userId) {
@@ -244,6 +278,9 @@ export function exportSave(state) {
 }
 
 export function importSave(exportStr) {
+  if (typeof exportStr !== "string" || new Blob([exportStr]).size > MAX_SAVE_BYTES) {
+    throw new Error("Die Spielstand-Datei ist zu groß (maximal 50 MB).");
+  }
   let parsed;
   try { parsed = JSON.parse(exportStr); }
   catch (e) { throw new Error("Ungültiges Save-Format — keine gültige JSON-Datei"); }
@@ -262,11 +299,12 @@ export function importSave(exportStr) {
   }
   // Import wird als eigene Partie angelegt: fremde partyId/cloudId/Benutzerzuordnung
   // werden NICHT übernommen. Der Import erhält eine neue partyId beim Speichern.
-  const imported = parsed.state;
-  if (imported.meta) {
-    imported.meta.cloudId = null;
-    imported.meta.importedAt = Date.now();
-  }
+  const imported = prepareLoadedState(parsed.state);
+  delete imported.meta.partyId;
+  delete imported.meta.ownerId;
+  delete imported.meta.owner_id;
+  imported.meta.cloudId = null;
+  imported.meta.importedAt = Date.now();
   return imported;
 }
 

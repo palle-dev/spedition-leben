@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { formatEuro, formatDayLabel, directionClass, sourceIcon, certaintyLabel, certaintyClass } from "@/lib/forecastData";
+import { formatEuro, directionClass, sourceIcon, certaintyLabel, certaintyClass } from "@/lib/forecastData";
 
 // Tagesübersicht mit aufklappbarer Detailansicht der Zahlungen.
 export default function ForecastTable({ forecast }) {

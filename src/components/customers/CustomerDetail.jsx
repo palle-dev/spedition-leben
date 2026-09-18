@@ -4,7 +4,7 @@ import { getTrustLabel, getTrustColor, formatEuro, formatDay, TRUST_START, STAMM
 import ContractOfferCard from "./ContractOfferCard";
 import ContractView from "./ContractView";
 import OutreachPanel from "./OutreachPanel";
-import { Star, MapPin, Phone, TrendingUp, Clock, ArrowLeft, Package } from "lucide-react";
+import { Star, MapPin, Phone, TrendingUp, ArrowLeft, Package } from "lucide-react";
 
 export default function CustomerDetail({ customerId, onBack }) {
   const { state, send } = useGame();

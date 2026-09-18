@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
-import { formatGameTime, formatEuro, getDistance, fuelEur, tollEur, driveMinutes, CITIES, checkBodyTypeCompatibility, getVehicleBodyType } from "@/lib/gameData";
+import { formatEuro, getDistance, fuelEur, tollEur, driveMinutes, CITIES, checkBodyTypeCompatibility, getVehicleBodyType } from "@/lib/gameData";
 import { Package, Play, Route, ArrowRight, Truck, MapPin, Clock, TrendingUp, AlertTriangle, Filter, X, ChevronDown, Info, Building2 } from "lucide-react";
 import { getOrderObstacles, summarizeObstacles } from "@/lib/dispatchObstacles";
 import PartnerOfferDialog from "@/components/partners/PartnerOfferDialog";

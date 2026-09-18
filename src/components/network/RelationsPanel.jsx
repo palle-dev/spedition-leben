@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import { getRelationStats, formatEuro } from "@/lib/networkData";
-import { ArrowRight, TrendingUp, Clock, AlertTriangle, RotateCcw, X } from "lucide-react";
+import { ArrowRight, Clock, AlertTriangle, RotateCcw, X } from "lucide-react";
 
 // Relationsanalyse: Zeigt wirtschaftliche Kennzahlen pro Richtung (fromCity → toCity).
 // Unterscheidet Auftragsrelationen von Fahrzeugbewegungen (Leerfahrten).

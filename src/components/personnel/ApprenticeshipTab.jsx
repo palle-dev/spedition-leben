@@ -5,7 +5,7 @@ import { roleLabel } from "@/lib/displayHelpers";
 import { APPRENTICE_ROLES, apprenticeshipStatusLabel, APPRENTICE_ADMISSION_FEE, APPRENTICE_THEORY_FEE, APPRENTICE_COMPLETION_FEE, APPRENTICE_TRAINING_WAGE, APPRENTICE_THEORY_HOURS, APPRENTICE_PRACTICE_HOURS, APPRENTICE_MIN_DAYS } from "@/lib/trainingData";
 import Portrait from "@/components/ui/Portrait";
 import Drawer from "@/components/ui/Drawer";
-import { GraduationCap, Clock, Euro, Check, AlertCircle, Users, HeartHandshake, X } from "lucide-react";
+import { GraduationCap, AlertCircle, HeartHandshake, X } from "lucide-react";
 
 // Ausbildung-Tab: Nachwuchsausbildung verwalten.
 export default function ApprenticeshipTab() {

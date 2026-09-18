@@ -1,13 +1,11 @@
 import React, { useState, useMemo } from "react";
-import { useGame } from "@/lib/gameContext";
-import { formatGameTime, formatEuro, dayOf, CITIES, getDistance } from "@/lib/gameData";
+import { formatGameTime, formatEuro, CITIES, getDistance } from "@/lib/gameData";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
-import Portrait from "@/components/ui/Portrait";
 import Drawer from "@/components/ui/Drawer";
-import { SERVICE_PROVIDERS, SERVICE_TYPE_LABELS, CLEANING_PRICE_PER_UNIT, TOWING_BASE_CENTS, TOWING_PER_KM_CENTS, TOWING_APPROACH_MIN, TOWING_SPEED, TOWING_HANDOVER_MIN, BLOCK_DURATION_MIN, countPersonsAtCity, computeCleaningNeedFront } from "@/lib/absenceData";
+import { SERVICE_TYPE_LABELS, CLEANING_PRICE_PER_UNIT, TOWING_BASE_CENTS, TOWING_PER_KM_CENTS, TOWING_APPROACH_MIN, TOWING_SPEED, TOWING_HANDOVER_MIN, countPersonsAtCity, computeCleaningNeedFront } from "@/lib/absenceData";
 import {
   Sparkles, Wrench, Truck, Users, Headset, Calculator, X, Check, Clock,
-  Calendar, MapPin, Euro, AlertCircle, Phone, Package,
+  Calendar, Euro, AlertCircle, Package,
 } from "lucide-react";
 
 const DAY_MIN = 1440;

@@ -7,10 +7,10 @@ import {
   getEfficiencyKPIs, getEfficiencyActionItems,
 } from "@/lib/efficiencyData";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import {
-  Gauge, Truck, Users, Route, Clock, AlertTriangle, ChevronRight, Package, Timer, TrendingDown,
+  Gauge, Route, AlertTriangle, ChevronRight, Package, TrendingDown,
 } from "lucide-react";
 
 const PERIODS = [

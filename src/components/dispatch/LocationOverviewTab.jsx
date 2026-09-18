@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
-import { vehicleDisplayName, driverDisplayName, roleLabel } from "@/lib/displayHelpers";
+import { vehicleDisplayName, driverDisplayName } from "@/lib/displayHelpers";
 import Portrait from "@/components/ui/Portrait";
 import {
   Truck, Users, Headset, Wrench, Sparkles, Calculator, MapPin,
-  AlertTriangle, Building2, Crown, Check,
+  AlertTriangle, Building2, Crown,
 } from "lucide-react";
 
 // Standort-Filter-Ansicht für den Dispo-Bereich.

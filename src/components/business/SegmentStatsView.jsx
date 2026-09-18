@@ -1,9 +1,8 @@
 import React from "react";
-import { useGame } from "@/lib/gameContext";
 import { formatEuro } from "@/lib/gameData";
 import { motion } from "framer-motion";
 import { EASE } from "@/lib/motion";
-import { MapPin, Zap, AlertTriangle, Package, TrendingUp, Clock, Fuel, DollarSign } from "lucide-react";
+import { MapPin, Zap, AlertTriangle, Package, Fuel } from "lucide-react";
 
 const SEGMENT_META = {
   regional: { label: "Regional", icon: MapPin, color: "text-invest-cyan", barColor: "hsl(192 100% 71%)" },

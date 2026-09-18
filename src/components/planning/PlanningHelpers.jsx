@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from "react";
-import { Search, Wrench, AlertTriangle, X, CheckCircle, Clock, MapPin } from "lucide-react";
+import React, { useState } from "react";
+import { Search, Wrench, AlertTriangle, X, CheckCircle, Clock } from "lucide-react";
 import { useGame } from "@/lib/gameContext";
 import { formatPlanningTime } from "@/lib/planningData";
 

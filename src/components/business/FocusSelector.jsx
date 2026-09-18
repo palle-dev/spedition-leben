@@ -1,5 +1,4 @@
 import React from "react";
-import { useGame } from "@/lib/gameContext";
 import { BUSINESS_FOCI } from "@/lib/simulation/businessFocusEngine";
 import { motion } from "framer-motion";
 import { EASE } from "@/lib/motion";

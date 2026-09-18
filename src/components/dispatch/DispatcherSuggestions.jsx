@@ -3,7 +3,7 @@ import { useGame } from "@/lib/gameContext";
 import { vehicleDisplayName, driverDisplayName, roleLabel } from "@/lib/displayHelpers";
 import { formatGameTime, formatEuro } from "@/lib/gameData";
 import Portrait from "@/components/ui/Portrait";
-import { Check, X, Truck, Route, ArrowRight, Clock, Headset } from "lucide-react";
+import { Check, X, Truck, ArrowRight, Headset } from "lucide-react";
 
 // Zeigt alle ausstehenden Disponenten-Vorschläge mit Bestätigen/Ablehnen.
 export default function DispatcherSuggestions() {

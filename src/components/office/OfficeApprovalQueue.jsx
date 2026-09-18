@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, CheckCircle2, XCircle, ArrowRight, Clock, Settings } from "lucide-react";
+import { AlertTriangle, CheckCircle2, XCircle, ArrowRight, Settings } from "lucide-react";
 import { useGame } from "@/lib/gameContext";
 import { getUrgencyColor, getViolatedRuleLabel, getApprovalExplanation, formatCents } from "@/lib/delegationData";
 

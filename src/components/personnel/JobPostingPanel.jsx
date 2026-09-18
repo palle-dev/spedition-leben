@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
-import { formatGameTime, PERSONNEL_ROLES } from "@/lib/gameData";
+import { formatGameTime } from "@/lib/gameData";
 import { roleLabel } from "@/lib/displayHelpers";
 import Drawer from "@/components/ui/Drawer";
-import { Briefcase, MapPin, Plus, X, Check, Clock, Users } from "lucide-react";
+import { Plus, X, Check, Clock, Users } from "lucide-react";
 
 const ROLE_OPTIONS = [
   { id: "driver", label: "Fahrer" },

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
-import { formatEuro, formatGameTime, PERSONNEL_ROLES, ROLE_LABELS } from "@/lib/gameData";
-import { roleLabel, satisfactionLabel, attendanceLabel, workModeLabel, vehicleDisplayName, employmentStatusLabel } from "@/lib/displayHelpers";
+import { formatEuro, formatGameTime, PERSONNEL_ROLES } from "@/lib/gameData";
+import { roleLabel, attendanceLabel, workModeLabel, employmentStatusLabel } from "@/lib/displayHelpers";
 import Portrait from "@/components/ui/Portrait";
 import Drawer from "@/components/ui/Drawer";
 import DispatcherSetup from "@/components/personnel/DispatcherSetup";
@@ -18,7 +18,7 @@ import PersonTrainingSection from "@/components/personnel/PersonTrainingSection"
 import PersonAbsenceSection from "@/components/personnel/PersonAbsenceSection";
 import AssistantConfig from "@/components/journal/AssistantConfig";
 import PageHint from "@/components/help/PageHint";
-import { UserPlus, Users, MapPin, Clock, Truck, Headset, Sparkles, Wrench, Calculator, Settings, Building2, Check, X, AlertCircle, Briefcase, LogOut, RotateCcw, HeartHandshake, GraduationCap, Search, Calendar } from "lucide-react";
+import { UserPlus, Users, MapPin, Clock, Truck, Headset, Sparkles, Wrench, Calculator, Settings, Building2, AlertCircle, Briefcase, LogOut, HeartHandshake, GraduationCap, Calendar } from "lucide-react";
 
 const ROLE_ICON = {
   driver: Truck, dispatcher: Headset, dispatcher_senior: Headset,

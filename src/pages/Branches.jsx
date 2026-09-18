@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
-import { formatEuro, formatGameTime } from "@/lib/gameData";
+import { formatEuro } from "@/lib/gameData";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
 import BranchCard from "@/components/branches/BranchCard";
 import BranchMapLibre from "@/components/branches/BranchMapLibre";

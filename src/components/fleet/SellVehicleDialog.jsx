@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { X, TrendingUp, TrendingDown, Truck, MapPin, Gauge, Clock, Package, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useGame } from "@/lib/gameContext";
-import { formatEuro, formatGameTime, computeMarketValue, computeDealerOffer } from "@/lib/gameData";
-import { getVehicleBookValue, computeEquity } from "@/lib/financingData";
+import { formatEuro, formatGameTime } from "@/lib/gameData";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
 
 // Verkaufsvorschau und Abwicklung für eigene Lkw (Auftrag 21).

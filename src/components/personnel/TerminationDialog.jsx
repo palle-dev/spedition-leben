@@ -3,7 +3,7 @@ import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime } from "@/lib/gameData";
 import { roleLabel } from "@/lib/displayHelpers";
 import Portrait from "@/components/ui/Portrait";
-import { AlertCircle, LogOut, Clock, Euro, Truck, Headset, FileText, Check, X, RotateCcw } from "lucide-react";
+import { AlertCircle, LogOut, Clock, Euro, Truck, Headset, FileText, RotateCcw } from "lucide-react";
 
 export default function TerminationDialog({ personId, personName, kind, onClose }) {
   const { state, send, showToast } = useGame();

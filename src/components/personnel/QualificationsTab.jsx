@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatGameTime } from "@/lib/gameData";
 import { roleLabel } from "@/lib/displayHelpers";
 import { qualTypeLabel, qualStatusLabel } from "@/lib/trainingData";
 import Portrait from "@/components/ui/Portrait";
-import { Award, CheckCircle, AlertCircle, Clock } from "lucide-react";
 
 // Qualifikationen-Tab: zeigt alle Qualifikationen des Teams.
 export default function QualificationsTab() {

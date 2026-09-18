@@ -2,7 +2,6 @@ import React from "react";
 import { useGame } from "@/lib/gameContext";
 import { getScenarioProgress } from "@/lib/scenarios/scenarioEngine";
 import { Clock, Target, AlertTriangle, CheckCircle2, XCircle, Calendar, Activity } from "lucide-react";
-import { formatGameTime } from "@/lib/gameData";
 
 // Szenario-Fortschritts-Panel für das Büro.
 // Zeigt verbleibende Zeit, Ziele, Verpflichtungen und Risiken.

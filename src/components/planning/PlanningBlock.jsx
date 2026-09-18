@@ -1,5 +1,4 @@
 import React from "react";
-import { BLOCK_TYPES } from "@/lib/planningData";
 
 // Ein einzelner Planungsblock in der Zeitachse.
 // Unterscheidung nicht allein über Farben — zusätzlich über Symbole

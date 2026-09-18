@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { useGame } from "@/lib/gameContext";
 import { formatGameTime } from "@/lib/gameData";
 import { motion } from "framer-motion";
 import { EASE } from "@/lib/motion";

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
 import { X, Search, ChevronDown } from "lucide-react";
-import { HELP_TOPICS, PAGE_HINTS } from "@/lib/helpContent";
+import { HELP_TOPICS } from "@/lib/helpContent";
 import { Compass, Package, Map, Truck, Users, Wallet, Home, Sparkles, LineChart, Building2, Mail, Trophy, BarChart3, UserCircle, Shield, Briefcase, Network } from "lucide-react";
 
 const ICONS = { Compass, Package, Map, Truck, Users, Wallet, Home, Sparkles, LineChart, Building2, Mail, Trophy, BarChart3, UserCircle, Shield, Briefcase, Network };

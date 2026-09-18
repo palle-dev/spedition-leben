@@ -1,5 +1,4 @@
 import React from "react";
-import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatDay, CONTRACT_DURATION_DAYS } from "@/lib/customerData";
 import { FileText, Clock, Truck, Wallet, TrendingUp, AlertTriangle, XCircle, CheckCircle2 } from "lucide-react";
 

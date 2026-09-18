@@ -1,8 +1,8 @@
 import React from "react";
 import { useGame } from "@/lib/gameContext";
-import { formatEuro, formatDay, formatClock } from "@/lib/customerData";
+import { formatEuro, formatDay } from "@/lib/customerData";
 import {
-  Gavel, Check, X, ArrowRight, Clock, AlertTriangle, Info, Shield, CheckCircle2
+  Gavel, Check, X, ArrowRight, Clock, AlertTriangle, Shield, CheckCircle2
 } from "lucide-react";
 
 export default function NegotiationPanel({ tenderId, onCheckCapacity, capacityCheck }) {

@@ -1,5 +1,5 @@
 import React from "react";
-import { Building2, Users, Package, Truck, Route, TrendingUp } from "lucide-react";
+import { Building2, Users, Package, Truck, Route } from "lucide-react";
 
 // Legende für die Netzkarte mit unterscheidbaren Symbolen (Form + Farbe).
 export default function NetworkMapLegend({ layers }) {

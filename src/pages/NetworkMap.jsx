@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
 import { useHeaderSlot } from "@/lib/headerSlot";
-import { loadRouteGeometries, CITY_GEO } from "@/lib/geoData";
-import { dayOf, clockOf, formatGameTime } from "@/lib/gameData";
+import { loadRouteGeometries } from "@/lib/geoData";
+import { dayOf, clockOf } from "@/lib/gameData";
 import NetworkMapView from "@/components/network/NetworkMapView";
 import NetworkMapLegend from "@/components/network/NetworkMapLegend";
 import NetworkLayerControl from "@/components/network/NetworkLayerControl";
@@ -11,7 +11,7 @@ import ReturnLoadPanel from "@/components/network/ReturnLoadPanel";
 import LocationAnalysisPanel from "@/components/network/LocationAnalysisPanel";
 import LocationComparisonPanel from "@/components/network/LocationComparisonPanel";
 import PageHint from "@/components/help/PageHint";
-import { Network, TrendingUp, Package, MapPin, GitCompare, Layers, Home, Truck } from "lucide-react";
+import { Network, TrendingUp, Package, MapPin, GitCompare, Home } from "lucide-react";
 
 export default function NetworkMap() {
   const { state, backgroundAdvance, send, showToast } = useGame();

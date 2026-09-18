@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime } from "@/lib/gameData";
-import { getVehicleProfile } from "@/lib/gameData";
-import { Truck, ShoppingCart, Clock, Gauge, Wrench, TrendingUp, AlertCircle } from "lucide-react";
+import { Truck, ShoppingCart, Clock, Gauge, Wrench, TrendingUp } from "lucide-react";
 
 // Gebrauchtfahrzeugmarkt — zeigt verfügbare Gebrauchtangebote und ermöglicht den Kauf.
 export default function UsedVehicleMarket({ state, send, showToast, branches }) {

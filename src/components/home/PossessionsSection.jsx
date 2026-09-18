@@ -1,11 +1,9 @@
 import React, { useState } from "react";
-import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime, dayOf } from "@/lib/gameData";
 import { getCatalogEntry, getResalePrice, CATEGORY_LABELS } from "@/lib/purchaseData";
 import Drawer from "@/components/ui/Drawer";
 import {
-  Sofa, Watch, Palette, Car, Ship, Home, Tag, Check, X,
-  Sparkles, Wallet, TrendingDown, Clock, Play,
+  Sofa, Watch, Palette, Car, Ship, Home, Tag, Wallet, TrendingDown, Play,
 } from "lucide-react";
 
 const CAT_ICONS = {
