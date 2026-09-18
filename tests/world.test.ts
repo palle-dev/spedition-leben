@@ -248,3 +248,48 @@ describe("Spielwelt: dauerhafte Geschichten und Wettbewerb", () => {
     expect(s.world.rivals.every(r => r.cashCents >= 0 && r.jobs.length <= r.fleet)).toBe(true);
   });
 });
+
+describe("Spielwelt: bestehende Spielaktionen", () => {
+  it("retains binding world awards when clearing ordinary open orders", () => {
+    const s = fresh(), t = s.world.tenders[0];
+    applyCommand(s, "bidWorldTender", { tenderId: t.id, bidId: "lean" });
+    advance(s, 1440);
+    applyCommand(s, "clearOpenOrders", {});
+    expect(s.orders.find(o => o.id === t.orderId)?.status).toBe("angenommen");
+    applyCommand(s, "cancelOrder", { orderId: t.orderId });
+    expect(t.outcome).toBe("failed");
+  });
+  it("keeps a personal story attached when the same partner is renamed", () => {
+    const s = fresh(); advance(s, 3 * 1440);
+    const actorId = s.world.stories.home.actorId;
+    applyCommand(s, "setNames", { partnerName: "Neuer Anzeigename" });
+    expect(s.world.stories.home.status).toBe("decision");
+    expect(s.world.stories.home.actorId).toBe(actorId);
+    expect(s.world.stories.home.actorName).toBe("Neuer Anzeigename");
+  });
+  it("keeps a running scenario isolated from the additional economy", () => {
+    const s: any = createInitialState({}).state;
+    s.scenario = { status: "active" };
+    expect(() => handleWorldCommand(s, "startWorld", {})).toThrow(/Szenario/);
+    expect(s.world.active).toBe(false);
+  });
+  it("completes the corporate, driver, home and friend paths with actual appointments", () => {
+    const s = fresh();
+    choose(s, "harbor", "help"); advance(s, 2880);
+    choose(s, "harbor", "quality"); choose(s, "driver", "honest"); advance(s, 2880);
+    choose(s, "harbor", "protect"); choose(s, "driver", "recognize"); choose(s, "home", "evening");
+    const ap1 = s.appointments.find(a => a.id === s.world.stories.home.appointmentId);
+    advance(s, ap1.endMin - s.gameTime + 2880);
+    choose(s, "harbor", "corporate"); choose(s, "home", "repeat");
+    const ap2 = s.appointments.find(a => a.id === s.world.stories.home.appointmentId);
+    advance(s, ap2.endMin - s.gameTime + 2880);
+    choose(s, "friend", "time");
+    const ap3 = s.appointments.find(a => a.id === s.world.stories.friend.appointmentId);
+    advance(s, ap3.endMin - s.gameTime + 2880);
+    choose(s, "friend", "network"); advance(s, 2880);
+    expect(Object.values(s.world.stories).every((run: any) => run.status === "done")).toBe(true);
+    expect(s.world.identity).toBe("Neue Wege mit HanseCargo");
+    expect(s.world.stories.home.decisions).toHaveLength(2);
+    expect(s.world.stories.friend.decisions).toHaveLength(2);
+  });
+});

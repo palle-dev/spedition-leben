@@ -863,7 +863,7 @@ export function applyCommand(state, command, params) {
       // Behalte: unterwegs/abgeschlossen/storniert/abgelaufen + bereits disponierte Aufträge.
       state.orders = state.orders.filter(o => {
         if (o.status !== "offered" && o.status !== "angenommen") return true;
-        if (o.status === "angenommen" && busyOrderIds.has(o.id)) return true;
+        if (o.status === "angenommen" && (busyOrderIds.has(o.id) || o.worldTenderId)) return true;
         return false;
       });
       const removed = before - state.orders.length;

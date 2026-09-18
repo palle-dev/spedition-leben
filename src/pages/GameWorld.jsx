@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Anchor, ArrowRight, BookOpen, Check, Clock, Compass, Flag, Heart, Loader2, Truck } from "lucide-react";
 import { useGame } from "@/lib/gameContext";
 import { WORLD_STORIES, WORLD_BIDS, worldScene } from "@/lib/simulation/worldCatalog";
@@ -13,7 +13,9 @@ const outcomeLabels = { delivered: "Pünktlich geliefert", late: "Verspätet gel
 
 export default function GameWorld() {
   const { state, send, showToast, busy, backgroundAdvance } = useGame();
-  const [tab, setTab] = useState("stories");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = ["stories", "competition", "chronicle"].includes(searchParams.get("view")) ? searchParams.get("view") : "stories";
+  const setTab = value => setSearchParams({ view: value });
   const [pending, setPending] = useState(false);
   const w = state?.world;
   const blocked = state?.appointments?.some(a => a.status === "active" && a.type !== "scenario_timeoff");

@@ -6,7 +6,7 @@ import { WORLD_DAY, WORLD_RIVALS, WORLD_STORIES, WORLD_BIDS, worldScene } from "
 const clamp = (v, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
 const activeDriver = d => isActivelyEmployed(d) && !d.isTempStaff;
 const hasPartner = state => !!state.private.partnerName && !["single", "separated", "divorced"].includes(state.private.relationshipStatus);
-const partnerKey = state => String(state.private.partnerId || "partner_existing") + ":" + state.private.partnerName;
+const partnerKey = state => String(state.private.partnerId || "partner_existing");
 
 // Old saves acquire no running deadlines, costs or historical events.
 export function migrateWorld(state) {
@@ -150,6 +150,8 @@ function processStories(state, m) {
       run.pending = null;
       continue;
     }
+    if (run.id === "home") run.actorName = state.private.partnerName;
+    if (run.id === "driver") run.actorName = state.drivers.find(d => d.id === run.actorId).name;
     if (run.status === "appointment") {
       const ap = state.appointments.find(a => a.id === run.appointmentId);
       if (ap && ["accepted", "active"].includes(ap.status) && m < ap.endMin) continue;
