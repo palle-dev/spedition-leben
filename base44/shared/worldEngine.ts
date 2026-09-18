@@ -1,0 +1,341 @@
+import { addBooking } from "./accountingEngine.ts";
+import { getDistance } from "./gameRules.ts";
+import { isActivelyEmployed } from "./terminationEngine.ts";
+import { WORLD_DAY, WORLD_RIVALS, WORLD_STORIES, WORLD_BIDS, worldScene } from "./worldCatalog.ts";
+
+const clamp = (v, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
+const activeDriver = d => isActivelyEmployed(d) && !d.isTempStaff;
+const hasPartner = state => !!state.private.partnerName && !["single", "separated", "divorced"].includes(state.private.relationshipStatus);
+const partnerKey = state => String(state.private.partnerId || "partner_existing") + ":" + state.private.partnerName;
+
+// Old saves acquire no running deadlines, costs or historical events.
+export function migrateWorld(state) {
+  if (!state.world) state.world = { version: 1, active: false };
+}
+function rng(w) {
+  w.seed = (Math.imul(w.seed, 1664525) + 1013904223) >>> 0;
+  return w.seed / 4294967296;
+}
+function note(state, title, text, cause = null, kind = "world") {
+  const w = state.world;
+  const item = { id: "world_event_" + (++w.sequence), atMin: state.gameTime, title, text, cause, kind };
+  w.chronicle.push(item);
+  if (w.chronicle.length > 180) w.chronicle.splice(0, w.chronicle.length - 180);
+  return item.id;
+}
+function effect(state, run, e = {}) {
+  const w = state.world;
+  for (const key of ["trust", "quality", "price"]) if (e[key]) w.reputation[key] = clamp(w.reputation[key] + e[key], 0, key === "trust" ? 100 : 20);
+  for (const [id, delta] of Object.entries(e.relations || {})) {
+    const rival = w.rivals.find(r => r.id === id);
+    if (rival) rival.relationship = clamp(rival.relationship + Number(delta));
+  }
+  for (const key of ["stress", "happiness"]) if (e[key]) state.private[key] = clamp((state.private[key] || 0) + e[key]);
+  if (e.relationship && hasPartner(state) && run?.actorId === partnerKey(state)) state.private.relationship = clamp(state.private.relationship + e.relationship);
+  if (e.driver && run?.actorId) {
+    const d = state.drivers.find(p => p.id === run.actorId && activeDriver(p));
+    if (d) {
+      d.satisfaction = clamp((d.satisfaction ?? 70) + e.driver);
+      d.satisfactionReasons = [...(d.satisfactionReasons || []), { reason: "Spielwelt: " + run.actorName, delta: e.driver, day: Math.floor(state.gameTime / WORLD_DAY) + 1 }].slice(-20);
+    }
+  }
+  if (e.friend) {
+    w.friend.quality = clamp(w.friend.quality + e.friend);
+    state.stats.friendshipQualities = state.stats.friendshipQualities || {};
+    state.stats.friendshipQualities[w.friend.id] = w.friend.quality;
+  }
+}
+function startWorld(state) {
+  migrateWorld(state);
+  if (state.world.active) return { ok: true, alreadyApplied: true };
+  state.world = {
+    version: 1, active: true, startedAtMin: state.gameTime, seed: 7319501, sequence: 0,
+    nextEconomyMin: state.gameTime + WORLD_DAY, nextTenderMin: state.gameTime,
+    reputation: { trust: 70, quality: 0, price: 0 }, identity: null,
+    rivals: WORLD_RIVALS.map(r => ({ ...r, relationship: 45, jobs: [], wins: 0, completed: 0, lastDayNetCents: 0 })),
+    friend: { id: "world_jens", name: "Jens", quality: state.stats.friendshipQualities?.world_jens ?? 35 },
+    stories: Object.fromEntries(WORLD_STORIES.map(s => [s.id, {
+      id: s.id, stage: 0, status: "locked", availableAtMin: state.gameTime + s.unlockDays * WORLD_DAY,
+      decisions: [], actorId: null, actorName: null, pending: null, dueMin: null,
+    }])),
+    tenders: [], chronicle: [],
+  };
+  note(state, "Willkommen am Kai", "Hansen & Tochter, NordSprint und HanseCargo konkurrieren mit dir um regionale Transporte. Geschichten warten auf deine Entscheidung; nur Ausschreibungen haben feste Gebotsfristen.");
+  processWorld(state, state.gameTime);
+  return { ok: true };
+}
+function unlockStories(state, m) {
+  const w = state.world;
+  for (const run of Object.values(w.stories) as any[]) {
+    if (run.status !== "locked" || run.availableAtMin > m) continue;
+    if (run.id === "driver") {
+      const d = state.drivers.filter(activeDriver).sort((a, b) => (a.employedDay || 0) - (b.employedDay || 0) || String(a.id).localeCompare(String(b.id)))[0];
+      if (!d) continue;
+      run.actorId = d.id; run.actorName = d.name;
+    }
+    if (run.id === "home") {
+      if (!hasPartner(state)) continue;
+      run.actorId = partnerKey(state); run.actorName = state.private.partnerName;
+    }
+    run.status = "decision";
+    note(state, worldScene(state, run).title, WORLD_STORIES.find(s => s.id === run.id).subtitle, null, "story");
+  }
+}
+function actorPresent(state, run) {
+  if (run.id === "driver") return state.drivers.some(d => d.id === run.actorId && activeDriver(d));
+  if (run.id === "home") return hasPartner(state) && run.actorId === partnerKey(state);
+  return true;
+}
+export function worldAppointmentSlot(state) {
+  const first = Math.floor(state.gameTime / WORLD_DAY) * WORLD_DAY + WORLD_DAY + 18 * 60;
+  for (let day = 0; day < 14; day++) {
+    const startMin = first + day * WORLD_DAY, endMin = startMin + 120;
+    if (!(state.appointments || []).some(a => ["pending", "accepted", "active"].includes(a.status) && a.startMin < endMin && a.endMin > startMin)) return { startMin, endMin };
+  }
+  return null;
+}
+export function worldChoiceReason(state, run, choice) {
+  if (!actorPresent(state, run)) return "Die beteiligte Person ist nicht mehr verfügbar.";
+  if (choice.requiresHansen && state.world.rivals.find(r => r.id === "hansen").relationship < choice.requiresHansen) return "Hansen vertraut dir noch nicht genug (mindestens " + choice.requiresHansen + ").";
+  if (choice.costCents > state[choice.account].accountCents) return choice.account === "private" ? "Das Privatkonto reicht dafür nicht." : "Das Firmenkonto reicht dafür nicht.";
+  if (choice.appointment && !worldAppointmentSlot(state)) return "In den kommenden 14 Tagen ist kein gemeinsamer Abend frei.";
+  return null;
+}
+function chooseStory(state, p) {
+  const run = state.world.stories[p.storyId];
+  if (!run || !Number.isInteger(p.stage)) throw new Error("Geschichte oder Kapitel fehlt.");
+  const previous = run.decisions.find(d => d.stage === p.stage);
+  if (previous) {
+    if (previous.choiceId === p.choiceId) return { ok: true, alreadyApplied: true };
+    throw new Error("Dieses Kapitel ist bereits entschieden.");
+  }
+  if (run.status !== "decision" || run.stage !== p.stage) throw new Error("Dieses Kapitel wartet derzeit nicht auf eine Entscheidung.");
+  const scene = worldScene(state, run);
+  const choice = scene.choices.find(c => c.id === p.choiceId);
+  if (!choice) throw new Error("Diese Entscheidung gibt es nicht.");
+  const reason = worldChoiceReason(state, run, choice);
+  if (reason) throw new Error(reason);
+  const slot = choice.appointment ? worldAppointmentSlot(state) : null;
+  const refId = "world_story_" + run.id + "_" + run.stage;
+  if (choice.costCents) addBooking(state, state.gameTime, "Spielwelt: " + scene.title, -choice.costCents, choice.account, refId);
+  effect(state, run, choice.effect);
+  const cause = { storyId: run.id, stage: run.stage, title: scene.title, choice: choice.label };
+  const eventId = note(state, choice.label, choice.detail, cause, "decision");
+  run.decisions.push({ stage: run.stage, choiceId: choice.id, atMin: state.gameTime, eventId });
+  run.pending = { ...choice.delayed, cause };
+  if (slot) {
+    run.appointmentId = refId + "_appointment";
+    state.appointments.push({
+      id: run.appointmentId, type: "world_story", text: run.id === "home" ? "Gemeinsamer Abend mit " + run.actorName : "Mit Jens am alten Anleger",
+      ...slot, appearMin: state.gameTime, decisionDeadline: slot.startMin, status: "accepted",
+      costCents: 0, costApplied: true, effectsApplied: false, worldStoryId: run.id,
+    });
+    run.status = "appointment"; run.dueMin = slot.endMin;
+  } else {
+    run.status = "waiting"; run.dueMin = state.gameTime + 2 * WORLD_DAY;
+  }
+  return { ok: true, appointmentId: run.appointmentId || null };
+}
+function processStories(state, m) {
+  const w = state.world;
+  unlockStories(state, m);
+  for (const run of Object.values(w.stories) as any[]) {
+    if (run.status === "locked" || run.status === "done") continue;
+    if (!actorPresent(state, run)) {
+      const ap = state.appointments.find(a => a.id === run.appointmentId);
+      if (ap && ["accepted", "active"].includes(ap.status)) ap.status = "cancelled";
+      run.status = "done"; run.dueMin = null; run.ending = "Die Wege haben sich getrennt. Die bisherigen Entscheidungen bleiben in der Chronik.";
+      note(state, "Eine Geschichte endet anders", run.actorName + " ist nicht mehr Teil dieser Konstellation. Es entstehen keine weiteren Folgen oder Termine.", run.pending?.cause, "story");
+      run.pending = null;
+      continue;
+    }
+    if (run.status === "appointment") {
+      const ap = state.appointments.find(a => a.id === run.appointmentId);
+      if (ap && ["accepted", "active"].includes(ap.status) && m < ap.endMin) continue;
+      // Normal scheduler marks the calendar entry done before this hook.
+      if (ap?.status === "done") {
+        effect(state, run, run.id === "home" ? { relationship: 8, stress: -8 } : { friend: 12, stress: -6 });
+        state.stats.promisesKept = (state.stats.promisesKept || 0) + 1;
+        note(state, "Zeit, die du dir genommen hast", ap.text + ". Der Termin hat stattgefunden.", run.pending.cause, "consequence");
+      } else {
+        run.pending = { cause: run.pending.cause, text: "Der versprochene Termin hat nicht stattgefunden. Die positive Nachwirkung entfällt.", effect: run.id === "home" ? { relationship: -3 } : { friend: -3 } };
+      }
+      run.status = "waiting"; run.dueMin = m + 2 * WORLD_DAY;
+    }
+    if (run.status === "waiting" && run.dueMin <= m) {
+      effect(state, run, run.pending.effect);
+      note(state, "Was daraus geworden ist", run.pending.text, run.pending.cause, "consequence");
+      if (run.pending.identity) w.identity = run.pending.identity;
+      run.stage++; run.pending = null; run.dueMin = null;
+      if (run.stage >= WORLD_STORIES.find(s => s.id === run.id).chapters) {
+        run.status = "done";
+        run.ending = run.id === "harbor" ? w.identity : "Abgeschlossen – eure Entscheidungen bleiben Teil der Spielwelt.";
+      } else {
+        run.status = "decision";
+        note(state, worldScene(state, run).title, "Das nächste Kapitel ist bereit. Du entscheidest, wann du es angehst.", null, "story");
+      }
+    }
+  }
+}
+function tenderScore(percent, reliability, quality = 0, price = 0) {
+  return Math.round((clamp(130 - percent, 0, 70) * 0.65 + reliability * 0.35 + quality * 0.6 + price * 0.6) * 100) / 100;
+}
+function makeTenderBatch(state, m) {
+  const w = state.world;
+  const batch = Math.floor((m - w.startedAtMin) / (3 * WORLD_DAY));
+  const origin = state.branches.find(b => b.status !== "closed")?.city || "Hamburg";
+  const destinations = ["Bremen", "Kiel", "Hannover", "Lübeck", "Rostock"];
+  for (let i = 0; i < 2; i++) {
+    let toCity = destinations[(batch * 2 + i) % destinations.length];
+    if (toCity === origin) toCity = "Hamburg" === origin ? "Berlin" : "Hamburg";
+    const baseCents = 45000 + getDistance(origin, toCity) * 300;
+    const costCents = Math.round(baseCents * 0.64);
+    const t = {
+      id: "world_tender_" + batch + "_" + i, title: ["Versorgung am Kai", "Handel zwischen den Deichen"][i],
+      customer: ["Kontor am Anleger", "Deichland Handel"][i], fromCity: origin, toCity, tons: 6 + 2 * i,
+      cargo: "Stückgut", baseCents, costCents, publishedAtMin: m, closeMin: m + WORLD_DAY,
+      deliveryDeadlineMin: m + 5 * WORLD_DAY, status: "open", bid: null, winnerId: null, orderId: null,
+      offers: w.rivals.filter(r => r.cashCents >= costCents && r.jobs.length < r.fleet).map(r => {
+        const percent = r.pricePercent + Math.floor(rng(w) * 7) - 3;
+        return { rivalId: r.id, percent, paymentCents: Math.round(baseCents * percent / 100), score: tenderScore(percent, r.reliability) };
+      }),
+    };
+    w.tenders.push(t);
+  }
+  // Keep all unfinished awards, and a bounded recent result history.
+  const protectedIds = new Set(w.tenders.filter(t => t.status === "open" || (t.orderId && !t.outcome)).map(t => t.id));
+  const recent = new Set(w.tenders.slice(-24).map(t => t.id));
+  w.tenders = w.tenders.filter(t => protectedIds.has(t.id) || recent.has(t.id));
+  w.nextTenderMin = m + 3 * WORLD_DAY;
+}
+function playerCapacity(state) {
+  const vehicles = state.vehicles.filter(v => !["sold", "archived"].includes(v.status) && v.capacityTons >= 8 && v.condition >= 20).length;
+  const drivers = state.drivers.filter(activeDriver).length;
+  return Math.min(vehicles, drivers);
+}
+export function worldBidReason(state, tender) {
+  if (tender.status !== "open" || state.gameTime >= tender.closeMin) return "Die Gebotsfrist ist abgelaufen.";
+  const booked = state.world.tenders.filter(t => t.id !== tender.id && ((t.status === "open" && t.bid) || (t.orderId && !t.outcome))).length;
+  if (booked >= playerCapacity(state)) return "Für weitere Spielwelt-Gebote fehlen eigene Fahrer oder geeignete Lkw (mindestens 8 t).";
+  return null;
+}
+function bid(state, p) {
+  const t = state.world.tenders.find(t => t.id === p.tenderId);
+  if (!t) throw new Error("Ausschreibung nicht gefunden.");
+  const offer = WORLD_BIDS.find(b => b.id === p.bidId);
+  if (!offer) throw new Error("Unbekannte Kalkulation.");
+  const reason = worldBidReason(state, t);
+  if (reason) throw new Error(reason);
+  if (t.bid?.id === offer.id) return { ok: true, alreadyApplied: true };
+  t.bid = { id: offer.id, percent: offer.percent, paymentCents: Math.round(t.baseCents * offer.percent / 100), atMin: state.gameTime };
+  return { ok: true };
+}
+function award(state, t, m) {
+  const w = state.world;
+  const offers = t.offers.filter(o => {
+    const r = w.rivals.find(r => r.id === o.rivalId);
+    return r.cashCents >= t.costCents && r.jobs.length < r.fleet;
+  }).map(o => ({ ...o, id: o.rivalId }));
+  if (t.bid && playerCapacity(state) > 0) offers.push({
+    ...t.bid, id: "player", score: tenderScore(t.bid.percent, w.reputation.trust, w.reputation.quality, w.reputation.price),
+  });
+  offers.sort((a, b) => b.score - a.score || a.paymentCents - b.paymentCents || a.id.localeCompare(b.id));
+  const winner = offers[0];
+  t.status = "resolved"; t.winnerId = winner?.id || null;
+  t.results = offers.map(o => ({ id: o.id, score: o.score, paymentCents: o.paymentCents }));
+  if (!winner) { t.outcome = "unassigned"; return; }
+  if (winner.id === "player") {
+    const id = t.id + "_order";
+    state.orders.push({
+      id, worldTenderId: t.id, customer: t.customer, fromCity: t.fromCity, toCity: t.toCity, cargo: t.cargo, tons: t.tons,
+      paymentCents: t.bid.paymentCents, acceptDeadlineMin: m, deliveryDeadlineMin: t.deliveryDeadlineMin,
+      status: "angenommen", acceptedAtMin: m, startedAtMin: null, deliveredAtMin: null, paidCents: null,
+      offerType: "normal", customerId: null, shipmentId: null, earliestPickupMin: m,
+      latestLoadStartMin: t.deliveryDeadlineMin - 12 * 60, publishedAtMin: m,
+      paymentTermsDays: 0, paymentDueMin: null, relationFactor: 1, feasible: true, source: "world",
+      acceptedById: "player", acceptedByName: state.private.playerName, plannedById: null, plannedByName: null,
+      history: [{ type: "accepted", min: m, actor: "player", actorName: state.private.playerName }],
+    });
+    t.orderId = id;
+    note(state, "Zuschlag: " + t.title, t.fromCity + " → " + t.toCity + ". Der verbindliche Auftrag wartet in der Disposition. Dein Gebot und dein Ruf haben den Zuschlag bestimmt.", null, "competition");
+  } else {
+    const rival = w.rivals.find(r => r.id === winner.id);
+    rival.cashCents -= t.costCents;
+    rival.jobs.push({ tenderId: t.id, endMin: m + 2 * WORLD_DAY, paymentCents: winner.paymentCents });
+    rival.wins++;
+    t.outcome = "rival";
+    note(state, rival.name + " erhält den Zuschlag", t.title + ": " + (t.bid ? "Dein Angebot lag in der Gesamtwertung zurück." : "Du hast kein Angebot abgegeben.") + " Eine Transportkapazität und die Durchführungskosten sind beim Konkurrenten gebunden.", null, "competition");
+  }
+}
+function economy(state, m) {
+  for (const r of state.world.rivals) {
+    const before = r.cashCents;
+    const free = Math.max(0, r.fleet - r.jobs.length);
+    // Other regional work: finite trucks and prefinancing, with recorded daily net.
+    const regularLoads = Math.min(free, Math.floor(r.cashCents / 14000));
+    r.cashCents -= regularLoads * 14000;
+    r.cashCents += regularLoads * (r.id === "nordsprint" ? 20000 : 23000);
+    r.cashCents = Math.max(0, r.cashCents - r.fleet * 5500);
+    r.lastDayNetCents = r.cashCents - before;
+    if (r.cashCents > 750000 + r.fleet * 1500000 && r.fleet < 8) {
+      r.cashCents -= 3000000; r.fleet++;
+      note(state, r.name + " erweitert die Flotte", "Ein weiterer Lkw bindet 30.000 € der eigenen Reserve. Die Konkurrenz kann künftig eine zusätzliche Ausschreibung bedienen.", null, "competition");
+    }
+    if (r.cashCents < 14000 && !r.warned) {
+      r.warned = true;
+      note(state, r.name + " muss kürzertreten", "Die Reserve reicht nicht für neue Transporte. Laufende Aufträge werden noch abgewickelt.", null, "competition");
+    }
+    if (r.cashCents >= 14000) r.warned = false;
+  }
+  state.world.nextEconomyMin = m + WORLD_DAY;
+}
+function observeOrders(state) {
+  const w = state.world;
+  for (const t of w.tenders) {
+    if (!t.orderId || t.outcome) continue;
+    const order = state.orders.find(o => o.id === t.orderId);
+    if (!order) continue;
+    if (order.status === "geliefert") {
+      const onTime = order.deliveredAtMin <= order.deliveryDeadlineMin;
+      t.outcome = onTime ? "delivered" : "late";
+      effect(state, null, { trust: onTime ? 3 : -3 });
+      note(state, onTime ? "Ein Versprechen gehalten" : "Später als versprochen", t.customer + ": " + (onTime ? "Die Lieferung stärkt deine Verlässlichkeit (+3)." : "Die verspätete Lieferung kostet Verlässlichkeit (−3).") + " Das beeinflusst künftige Zuschläge.", { title: t.title, choice: "Dein verbindliches Angebot" }, "consequence");
+    } else if (["storniert", "failed", "expired"].includes(order.status)) {
+      t.outcome = "failed"; effect(state, null, { trust: -5 });
+      note(state, "Ein Auftrag bleibt unerfüllt", t.customer + ": Verlässlichkeit −5. Die normalen Auftragsregeln gelten weiterhin.", { title: t.title, choice: "Dein verbindliches Angebot" }, "consequence");
+    }
+  }
+}
+export function processWorld(state, m) {
+  if (!state.world?.active) return;
+  const w = state.world;
+  observeOrders(state);
+  processStories(state, m);
+  for (const r of w.rivals) {
+    for (const job of r.jobs.filter(j => j.endMin <= m)) { r.cashCents += job.paymentCents; r.completed++; }
+    r.jobs = r.jobs.filter(j => j.endMin > m);
+  }
+  if (w.nextEconomyMin <= m) economy(state, m);
+  for (const t of w.tenders) if (t.status === "open" && t.closeMin <= m) award(state, t, m);
+  if (w.nextTenderMin <= m) makeTenderBatch(state, m);
+}
+export function getWorldEventTimes(state) {
+  if (!state.world?.active) return [];
+  const w = state.world;
+  return [w.nextEconomyMin, w.nextTenderMin,
+    ...w.tenders.filter(t => t.status === "open").map(t => t.closeMin),
+    ...w.rivals.flatMap(r => r.jobs.map(j => j.endMin)),
+    ...(Object.values(w.stories) as any[]).flatMap(r => r.status === "locked" ? [r.availableAtMin] : r.dueMin != null ? [r.dueMin] : []),
+  ];
+}
+export function handleWorldCommand(state, command, p) {
+  if (command === "startWorld") return startWorld(state);
+  if (!["chooseWorldStory", "bidWorldTender", "withdrawWorldBid"].includes(command)) return null;
+  if (!state.world?.active) throw new Error("Betritt zuerst die Spielwelt.");
+  if (command === "chooseWorldStory") return chooseStory(state, p);
+  if (command === "bidWorldTender") return bid(state, p);
+  const t = state.world.tenders.find(t => t.id === p.tenderId);
+  if (!t || t.status !== "open" || state.gameTime >= t.closeMin) throw new Error("Das Gebot kann nicht mehr zurückgezogen werden.");
+  t.bid = null;
+  return { ok: true };
+}
