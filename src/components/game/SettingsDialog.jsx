@@ -1,4 +1,5 @@
 import React from "react";
+import SoundSettings from "./SoundSettings";
 import { createPortal } from "react-dom";
 import { X, Settings, Check, Mail, Heart } from "lucide-react";
 import { useGame } from "@/lib/gameContext";
@@ -30,6 +31,7 @@ export default function SettingsDialog({ open, onClose }) {
         </div>
 
         <div className="p-5 space-y-5">
+          <SoundSettings />
           <button disabled={busy} onClick={async () => { await openStartScreen(); onClose(); }} className="w-full px-4 py-3 rounded-xl bg-lime/10 border border-lime/30 text-lime font-medium disabled:opacity-50">Spielstart & Szenarien öffnen</button>
           {/* Schwierigkeitsprofil */}
           <div>

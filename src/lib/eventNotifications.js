@@ -154,7 +154,7 @@ export function eventToToast(ev) {
         id: ev.id,
         kind: "success",
         icon: "package",
-        title: "Lieferung abgeschlossen",
+        title: d.onTime ? "Punktlandung! Fracht angekommen." : "Fracht angekommen – mit Verspätung",
         body: `${d.customer || "—"}: ${d.fromCity || "—"} → ${d.toCity || "—"} ${d.onTime ? "rechtzeitig" : "verspätet"} geliefert. ${formatEuro(d.paymentCents || 0)}.`,
         action: { label: "Details", targetType: "order", targetId: ev.orderIds?.[0] },
         duration: 6000,

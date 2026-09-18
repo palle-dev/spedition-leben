@@ -70,7 +70,7 @@ function GameShellContent() {
   return (
     <MotionConfig reducedMotion={motionEnabled ? "user" : "always"}>
       <div className="relative h-[100dvh] flex flex-col overflow-hidden">
-        <SceneBackground scene={scene} motionEnabled={motionEnabled} />
+        <SceneBackground scene={scene} motionEnabled={motionEnabled} gameTime={state.gameTime} />
         <div className="relative z-10 flex flex-col h-full min-h-0">
           <ShellHeader />
           {storageWarning}

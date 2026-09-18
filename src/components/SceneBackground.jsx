@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { officeAtmosphere } from "@/lib/officeAtmosphere";
 import { EASE } from "@/lib/motion";
 
 // Szenen-Konfiguration: jedes Spielgebiet hat sein eigenes cineastisches Hintergrundbild.
@@ -42,7 +43,7 @@ const SCENES = {
 // Atmosphärischer Hintergrund: cineastische Szenen mit Überblendung,
 // Schattierung für Lesbarkeit, subtiler Parallaxe auf Desktop und
 // sauberem Fallback bei Asset-Fehlern. Nur besuchte Szenen werden geladen.
-export default function SceneBackground({ scene, motionEnabled }) {
+export default function SceneBackground({ scene, motionEnabled, gameTime }) {
   const config = SCENES[scene] || SCENES.office;
   const [visited, setVisited] = useState(() => new Set([scene]));
   const [failed, setFailed] = useState(() => new Set());
@@ -113,6 +114,7 @@ export default function SceneBackground({ scene, motionEnabled }) {
       {/* Schattierung für Lesbarkeit (aktive Szene) */}
       <div className={`absolute inset-0 pointer-events-none transition-opacity duration-700 ${config.shade}`} />
 
+      <div className="absolute inset-0 pointer-events-none" style={{ background: officeAtmosphere(gameTime).color }} />
       {/* Atmosphärisches Glühen */}
       <div
         className="absolute -right-52 -top-64 w-[700px] h-[700px] rounded-full pointer-events-none"

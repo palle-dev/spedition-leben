@@ -1,3 +1,4 @@
+import { playExperienceSound } from "@/lib/experienceSound";
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { saveCurrent, loadCurrent, saveAutosave, loadAutosave, getAllAutosaveMetas, listManualSlots, saveManualSlot, loadManualSlot, deleteManualSlot, exportSave, importSave, getSyncMeta, setSyncMeta as persistSyncMeta } from "@/lib/persistence";
 import { acquireLock, refreshLock, releaseLock, LOCK_REFRESH } from "@/lib/tabLock";
@@ -304,6 +305,7 @@ export function GameProvider({ children }) {
       // (typisch bei Zeitvorläufen) werden Routine-Meldungen zu einer
       // einzigen Zusammenfassung gebündelt. Kritische Ereignisse
       // (Fehler, Beziehungen, Belohnungen) erscheinen weiterhin einzeln.
+      if (newToasts.length) playExperienceSound(newToasts.some(t => t.kind === "error") ? "alert" : "success");
       if (newToasts.length <= 2) {
         if (newToasts.length) setToasts(previous => [...previous, ...newToasts].slice(-6));
       } else {
