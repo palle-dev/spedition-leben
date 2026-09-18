@@ -1,3 +1,4 @@
+import PhoneCenter from "@/components/game/PhoneCenter";
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
@@ -40,7 +41,7 @@ export default function ShellHeader() {
   }, [menuOpen]);
 
   return (
-    <header className="relative z-20 flex items-center gap-2 lg:gap-3 px-4 lg:px-6 h-14 lg:h-16 border-b border-white/10 bg-ink/95 shrink-0">
+    <header className="relative z-20 flex flex-wrap items-center gap-2 lg:gap-3 px-3 lg:px-6 py-2 min-h-14 lg:min-h-16 border-b border-white/10 bg-ink/95 shrink-0">
       {/* Marke */}
       <button onClick={() => navigate("/")} className="flex items-center gap-2.5 shrink-0" aria-label="FRACHTFIEBER – zum Büro">
         <FrachtfieberMobileSignet size={28} className="lg:hidden" />
@@ -86,6 +87,7 @@ export default function ShellHeader() {
             <span className="hidden sm:inline">Speichern</span>
           </button>
         )}
+        <PhoneCenter key={state.meta?.partyId}/>
         {/* Mobile: Mail + Menü-Button */}
         <button
           onClick={() => setMailOpen(true)}

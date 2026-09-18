@@ -28,9 +28,7 @@ export default function PhoneCenter() {
  const incoming=queue.calls.find(c=>!later.includes(c.id));
  useEffect(()=>{setOfficeDucked(!!incoming||!!selected);return()=>setOfficeDucked(false);},[!!incoming,!!selected]);
  const recent=(state.disruptions?.items||[]).filter(d=>d.status==="completed").slice(-5).reverse();
- useEffect(()=>{
-  if(incoming && automationEnabled && !busy && !backgroundAdvance?.active) void pauseAutomation(true,"delivery_at_risk");
- },[incoming?.id,automationEnabled,busy,backgroundAdvance?.active,pauseAutomation]);
+
  const canRing=soundReady && !selected && !overlay && !backgroundAdvance?.active;
  useEffect(()=>{
   if (!incoming || !canRing || document.hidden) return;
@@ -55,7 +53,7 @@ export default function PhoneCenter() {
  options:[]};
  })() : selected ? getDisruptionDetail(state,selected.id) : null,[state,selected,queue.calls]);
  function testCall(){
-  setError("");setPlayerStatus("");
+  setError("");setPlayerStatus("");setShowList(false);
   void setSoundEnabled(true,{preview:false});
   void playPhoneSound("test");
   setSelected({id:"demo",demo:true,source:"Leitstelle · Testanruf",title:"Verbindungstest"});
@@ -76,11 +74,16 @@ export default function PhoneCenter() {
   return result;
  }
  return <>
- <div className="fixed right-3 top-20 z-30 w-64 sm:w-80 pointer-events-none">
- <div className="pointer-events-auto rounded-2xl border border-cyan-200/20 bg-slate-950/95 shadow-xl backdrop-blur-xl overflow-hidden">
- <div className="flex items-center justify-between px-3 py-2">
- <button onClick={()=>setShowList(v=>!v)} aria-expanded={showList} className="text-xs flex items-center gap-2 text-cyan-100"><Phone className="w-4 h-4"/> Telefon · {queue.calls.length} offen</button>
- <button aria-label="Entscheidungen im Postfach öffnen" onClick={()=>navigate("/postfach")} className="text-xs flex items-center gap-1 text-slate-300"><Mail className="w-4 h-4"/>{queue.emails.length}</button></div>
+ <button onClick={()=>setShowList(true)} aria-label={incoming?"Eingehender Anruf – Telefon öffnen":`Telefon öffnen · ${queue.calls.length} offene Anliegen`} title="Telefon"
+ className={`relative w-9 h-9 grid place-items-center rounded-full border shrink-0 ${incoming?"border-emerald-300 bg-emerald-400/15 text-emerald-200":"border-white/10 bg-white/5 text-muted-foreground hover:text-lime"}`}>
+ <Phone className="w-4 h-4"/>
+ {queue.calls.length>0&&<span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-emerald-300 text-slate-950 text-[9px] font-bold">{queue.calls.length>9?"9+":queue.calls.length}</span>}
+ </button>
+ <Dialog open={showList&&!selected} onOpenChange={setShowList}>
+ <DialogContent className="max-w-md max-h-[85dvh] overflow-y-auto rounded-2xl border-cyan-200/20 bg-slate-950 text-white p-4">
+ <DialogTitle>Telefon · {queue.calls.length} offen</DialogTitle>
+ <DialogDescription className="text-slate-400">Anrufe und Rückrufe deiner Leitstelle. Die laufende Spielzeit läuft auch während des Gesprächs weiter.</DialogDescription>
+ <button onClick={()=>{setShowList(false);navigate("/postfach");}} className="text-xs flex items-center gap-2 text-slate-300"><Mail className="w-4 h-4"/>Postfach · {queue.emails.length} Entscheidungen</button>
  {incoming && !selected && !overlay && <div className="border-t border-white/10 p-3">
  <div className="flex items-center gap-3"><motion.div animate={motionEnabled&&!reduced?{rotate:[0,-12,12,0]}:{rotate:0}} transition={{duration:.5,repeat:2}}><PhoneIncoming className="text-emerald-300 w-6 h-6"/></motion.div><div><p className="text-sm font-semibold text-white">{incoming.source}</p><p className="text-xs text-slate-300">{incoming.title}</p></div></div>
  <div className="flex gap-2 mt-3"><button disabled={blocked} onClick={()=>answer(incoming)} className="flex-1 rounded-xl bg-emerald-400 text-slate-950 py-2 text-xs font-semibold disabled:opacity-50">Annehmen</button><button onClick={()=>setLater(prev=>[...new Set([...prev,incoming.id])])} className="rounded-xl bg-white/10 text-white px-3 text-xs">Später</button></div></div>}
@@ -91,7 +94,7 @@ export default function PhoneCenter() {
  <p className="text-[10px] text-slate-400">Anrufe entstehen bei offenen dringenden Einsätzen. Automatisch gelöste Anliegen bleiben im Verlauf sichtbar.</p>
  {recent.length>0&&<details className="text-xs text-slate-300"><summary className="cursor-pointer">Letzte erledigte Anliegen ({recent.length})</summary>{recent.map(d=><div key={d.id} className="mt-2 border-t border-white/10 pt-2"><p>{d.cause}</p><p className="text-[10px] text-emerald-200">{d.autoResolved ? "Vom Team erledigt" : "Erledigt"}{d.autoResolvedBy ? " · "+d.autoResolvedBy : ""}</p></div>)}</details>}
  </div>}
- </div></div>
+ </DialogContent></Dialog>
  <Dialog open={!!selected} onOpenChange={open=>{if(!open&&!sending)defer();}}>
  <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto rounded-3xl border-cyan-300/20 bg-slate-950 text-slate-100 p-0 gap-0">
  <div className="relative overflow-hidden px-6 pt-8 pb-6 bg-gradient-to-br from-cyan-950 via-slate-900 to-emerald-950">

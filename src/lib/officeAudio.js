@@ -1,3 +1,4 @@
+import { getSoundVolume } from "@/lib/experienceSound";
 import { useSyncExternalStore } from "react";
 import officeUrl from "@/assets/office-yard.wav?url";
 let wanted=false, volume=.55, player, ducked=false, status="Büroklänge sind aus";
@@ -9,8 +10,8 @@ const setStatus=s=>{if(status!==s){status=s;notify();}};
 export function useOfficeAudio(){return useSyncExternalStore(subscribe,()=>status,()=>"Büroklänge sind aus");}
 export function useOfficeVolume(){return useSyncExternalStore(subscribe,()=>volume,()=>.55);}
 export function wantsOfficeAudio(){return wanted;}
-export function setOfficeVolume(value){volume=Math.max(.1,Math.min(1,Number(value)||.1));try{localStorage.setItem("frachtfieber.ambienceVolume",String(volume));}catch{/*optional*/}if(player)player.volume=volume*(ducked?.25:1);notify();}
-export function setOfficeDucked(value){ducked=!!value;if(player)player.volume=volume*(ducked?.25:1);}
+export function setOfficeVolume(value){volume=Math.max(.1,Math.min(1,Number(value)||.1));try{localStorage.setItem("frachtfieber.ambienceVolume",String(volume));}catch{/*optional*/}if(player)player.volume=volume*getSoundVolume()*.08*(ducked?.25:1);notify();}
+export function setOfficeDucked(value){ducked=!!value;if(player)player.volume=volume*getSoundVolume()*.08*(ducked?.25:1);}
 export function stopOfficeAudio(disable=false){
  if(disable){wanted=false;try{localStorage.setItem("frachtfieber.ambience","off");}catch{/*optional*/}}
  if(player){const old=player;player=null;old.pause();}
@@ -21,7 +22,7 @@ export function startOfficeAudio(){
  wanted=true;try{localStorage.setItem("frachtfieber.ambience","on");}catch{/*optional*/}
  if(player&&!player.paused)return Promise.resolve(true);
  try{
-  const audio=new Audio(officeUrl);player=audio;audio.loop=true;audio.volume=volume*(ducked?.25:1);audio.preload="auto";
+  const audio=new Audio(officeUrl);player=audio;audio.loop=true;audio.volume=volume*getSoundVolume()*.08*(ducked?.25:1);audio.preload="auto";
   audio.onplaying=()=>{if(player===audio)setStatus("Büro & Betriebshof laufen");};
   audio.onerror=()=>{if(player===audio)setStatus("Audiodatei konnte nicht geladen werden");};
   const playing=audio.play();setStatus("Büroklänge werden gestartet…");
@@ -30,3 +31,5 @@ export function startOfficeAudio(){
   });
  }catch{setStatus("Audiowiedergabe nicht verfügbar");return Promise.resolve(false);}
 }
+export function refreshOfficeVolume(){if(player)player.volume=volume*getSoundVolume()*.08*(ducked?.25:1);}
+

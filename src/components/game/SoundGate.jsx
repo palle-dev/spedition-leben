@@ -1,8 +1,9 @@
 import { useEffect } from "react";
-import { unlockExperienceSound,useSoundEnabled,stopPhoneSound } from "@/lib/experienceSound";
-import { wantsOfficeAudio,startOfficeAudio,stopOfficeAudio } from "@/lib/officeAudio";
+import { unlockExperienceSound,useSoundVolume,useSoundEnabled,stopPhoneSound } from "@/lib/experienceSound";
+import { refreshOfficeVolume,wantsOfficeAudio,startOfficeAudio,stopOfficeAudio } from "@/lib/officeAudio";
 export default function SoundGate(){
- const enabled=useSoundEnabled();
+ const enabled=useSoundEnabled(),volume=useSoundVolume();
+ useEffect(()=>{refreshOfficeVolume();},[volume]);
  useEffect(()=>{
   if(!enabled){stopOfficeAudio();return;}
   const unlock=()=>{void unlockExperienceSound();if(wantsOfficeAudio())void startOfficeAudio();};

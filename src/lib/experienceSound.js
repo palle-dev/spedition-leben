@@ -126,3 +126,5 @@ export function playPhoneSound(channel = "ring") {
 }
 export { phoneRingUrl };
 
+export function getSoundVolume(){return volume;}
+
