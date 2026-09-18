@@ -1,3 +1,4 @@
+import LivingOffice from "@/components/office/LivingOffice";
 import ShortGoals from "@/components/office/ShortGoals";
 import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
@@ -40,6 +41,7 @@ export default function Office() {
       <OfficeHeader state={state} period={period} setPeriod={setPeriod} />
 
       {/* Tagesübersicht: Natürliche Aussagen aus Spieldaten */}
+      <LivingOffice state={state} />
       <DailyOverview state={state} />
       <ShortGoals state={state} />
       <WorldTeaser state={state} />

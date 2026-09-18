@@ -161,6 +161,14 @@ export function eventToToast(ev) {
         eventSeq: ev.seq,
       };
 
+    case "expansion_completed":
+      return { id: ev.id, kind: "success", icon: "truck", title: "Dein Unternehmen wächst!",
+        body: `${d.expansionLabel || "Ausbau"} in ${d.branchName || "deinem Standort"} fertiggestellt.`,
+        action: { label: "Standort ansehen", targetType: "branches" }, duration: 7000, eventSeq: ev.seq };
+    case "course_completed":
+      return { id: ev.id, kind: "success", icon: "check", title: "Gemeinsam besser!",
+        body: `${ev.personName || "Dein Team"} hat ${d.courseLabel || "die Weiterbildung"} abgeschlossen.`,
+        action: { label: "Personal ansehen", targetType: "personnel" }, duration: 7000, eventSeq: ev.seq };
     case "order_failed":
       return {
         id: ev.id,

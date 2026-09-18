@@ -66,6 +66,10 @@ export default function ToastStack({ toasts, onDismiss }) {
     if (toast.action?.targetType === "order") navigate("/auftraege");
     else if (toast.action?.targetType === "dispatch") navigate("/disposition");
     else if (toast.action?.targetType === "home") navigate("/zuhause");
+    else if (toast.action?.targetType === "branches") navigate("/filialen");
+    else if (toast.action?.targetType === "personnel") navigate("/personal");
+    else if (toast.action?.targetType === "orders") navigate("/auftraege");
+    else if (toast.action?.targetType === "fleet") navigate("/fuhrpark");
     onDismiss(toast.id);
   };
 
