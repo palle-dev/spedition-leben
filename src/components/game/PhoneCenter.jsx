@@ -1,3 +1,5 @@
+import PhoneConversation from "./PhoneConversation";
+import { getPhoneProposals } from "@/lib/simulation/phoneProposals";
 import OfficeAudioControls from "./OfficeAudioControls";
 import { setOfficeDucked } from "@/lib/officeAudio";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -7,7 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import { getCommunicationQueue, deadlineLabel } from "@/lib/communicationData";
 import { getDisruptionDetail } from "@/lib/simulation/disruptionEngine";
-import { formatEuro, formatGameTime } from "@/lib/gameData";
+import { formatGameTime } from "@/lib/gameData";
 import { startPhoneRinging } from "@/lib/phoneRinging";
 import { playPhoneSound, stopPhoneSound, useSoundEnabled, useSoundVolume, usePhoneAudioStatus, phoneRingUrl, setSoundEnabled } from "@/lib/experienceSound";
 import Portrait from "@/components/ui/Portrait";
@@ -19,7 +21,7 @@ export default function PhoneCenter() {
  const queue=useMemo(()=>getCommunicationQueue(state),[state]);
  const [selected,setSelected]=useState(null),[showList,setShowList]=useState(false),[later,setLater]=useState([]);
  const [sending,setSending]=useState(false),[error,setError]=useState("");
- const lock=useRef(false), ringCounts=useRef(new Map());
+ const ringCounts=useRef(new Map());
  const soundReady=useSoundEnabled();
  const phoneAudioStatus=usePhoneAudioStatus(), soundVolume=useSoundVolume();
  const [playerStatus,setPlayerStatus]=useState("");
@@ -50,8 +52,7 @@ export default function PhoneCenter() {
  if(!risk)return {status:"completed",completionSummary:"Diese Liefergefährdung besteht im aktuellen Spielstand nicht mehr.",orders:[],options:[]};
  return {status:"decision_open",cause: risk.customer+": "+risk.fromCity+" → "+risk.toCity+". "+risk.description+(risk.eta!==null?" Geplante Ankunft: "+formatGameTime(risk.eta)+".":""),
  orders:[{status:"angenommen",deliveryDeadlineMin:risk.deadline}],
- options:[{id:"risk_dispatch",label:"Disposition öffnen",description:"Fahrzeug, Fahrer und Tour prüfen und neu disponieren.",available:true},{id:"risk_orders",label:"Auftrag prüfen",description:"Lieferfrist und Auftragsstatus ansehen.",available:true},
- ...(risk.disruptionId?[{id:"risk_measure",label:"Maßnahmen zur Störung",description:"Reparatur, Ersatz oder andere verfügbare Maßnahmen prüfen.",available:true}]:[])]};
+ options:[]};
  })() : selected ? getDisruptionDetail(state,selected.id) : null,[state,selected,queue.calls]);
  function testCall(){
   setError("");setPlayerStatus("");
@@ -62,18 +63,17 @@ export default function PhoneCenter() {
  const blocked=busy || !!backgroundAdvance?.active || sending;
  const defer=()=>{stopPhoneSound("test");if(selected && !selected.demo)setLater(prev=>[...new Set([...prev.filter(id=>queue.calls.some(c=>c.id===id)),selected.id])]);setSelected(null);setError("");};
  const answer=call=>{setSelected(call);setShowList(false);setError("");};
- async function choose(id){
-  if(selected?.demo){stopPhoneSound("test");setSelected(null);return;}
-  if(selected?.type==="delivery_risk"){
-   if(blocked)return;
-   if(id==="risk_measure"){const risk=queue.calls.find(c=>c.id===selected.id);if(risk?.disruptionId)setSelected({...selected,id:risk.disruptionId,type:"disruption"});return;}
-   defer();navigate(id==="risk_orders"?"/auftraege":"/disposition");return;
+ const proposals=useMemo(()=>{
+  if(!selected || selected.demo)return [];
+  if(selected.type!=="delivery_risk" && detail?.status!=="decision_open"){
+   const orderId=detail?.orderIds?.[0];
+   return orderId?getPhoneProposals(state,{type:"delivery_risk",orderId}).filter(p=>p.informationOnly):[];
   }
-  if(lock.current || blocked || !detail || detail.status!=="decision_open")return;
-  lock.current=true;setSending(true);setError("");
-  try { const result=await send("resolveDisruption",{disruptionId:selected.id,optionId:id});
-   if(!result?.ok)throw Error(result?.error || "Die Entscheidung konnte nicht ausgeführt werden.");
-  }catch(e){setError(e.message);}finally{lock.current=false;setSending(false);}
+  return getPhoneProposals(state,selected);
+ },[state,selected,detail]);
+ async function confirmProposal(option){
+  const result=await send(option.command,option.params);
+  return result;
  }
  return <>
  <div className="fixed right-3 top-20 z-30 w-64 sm:w-80 pointer-events-none">
@@ -116,13 +116,10 @@ export default function PhoneCenter() {
  <div className="rounded-2xl rounded-tl-sm bg-white/5 border border-white/10 p-4"><p className="text-sm leading-relaxed">{detail.status==="completed"?detail.completionSummary:detail.status==="measure_running"?"Die Maßnahme läuft. Wir melden uns nach Abschluss wieder.":detail.cause}</p></div>
  {detail.status==="decision_open"&&<>
  <p className="flex items-center gap-2 text-xs text-amber-200"><Clock className="w-4 h-4"/>{deadlineLabel(detail.orders.filter(o=>["angenommen","unterwegs"].includes(o.status)&&Number.isFinite(o.deliveryDeadlineMin)).reduce((min,o)=>min===null?o.deliveryDeadlineMin:Math.min(min,o.deliveryDeadlineMin),null),state.gameTime)}</p>
- <p className="text-xs text-slate-400">{selected?.type==="delivery_risk" ? "Prüfe den betroffenen Auftrag und die verfügbaren Ressourcen. Die Warnung allein löst das Problem nicht." : "Was soll das Team tun? Jede Antwort löst die angezeigte Maßnahme aus."}</p>
- <div className="space-y-2">{detail.options.map(option=><button key={option.id} disabled={blocked||!option.available} onClick={()=>choose(option.id)} className="w-full text-left rounded-2xl p-4 bg-white/5 border border-white/10 hover:border-cyan-300/50 hover:bg-cyan-400/10 transition disabled:opacity-40 disabled:cursor-not-allowed">
- <span className="font-medium text-sm">{option.label}</span><span className="block text-xs text-slate-300 mt-1">{option.description}</span>
- {selected?.type!=="delivery_risk"&&<span className="block text-xs text-cyan-200 mt-2">{formatEuro(option.costCents||0)} · {option.estimatedDurationMin||0} Min{option.isEstimate?" · geschätzt":""}</span>}
- {!option.available&&<span className="block text-xs text-amber-200 mt-1">{option.unavailableReason}</span>}</button>)}</div></>}
+ </>}
  {detail.status!=="decision_open"&&<p className="text-xs text-emerald-300">Entscheidung übernommen. Den Verlauf findest du im Postfach.</p>}
  </>}
+ {selected&&!selected.demo&&<PhoneConversation key={selected.id} proposals={proposals} blocked={busy||!!backgroundAdvance?.active} onConfirm={confirmProposal} onBusy={setSending}/>}
  {error&&<p role="alert" className="text-sm text-red-300">{error}</p>}
  {automationEnabled&&<button disabled={blocked} onClick={()=>pauseAutomation()} className="text-xs underline text-amber-200">Spielzeit läuft automatisch · jetzt pausieren</button>}
  <button disabled={sending} onClick={defer} className="flex items-center justify-center gap-2 w-full rounded-xl bg-rose-500/15 border border-rose-400/20 text-rose-200 py-3 text-sm"><PhoneOff className="w-4 h-4"/>{detail?.status==="decision_open"?"Auflegen · später zurückrufen":"Gespräch beenden"}</button>
