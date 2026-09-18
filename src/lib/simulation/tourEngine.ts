@@ -371,6 +371,10 @@ export function buildTourPlan(state, opts) {
 
     const lastDeliveryEnd = deployments.length > 0 ? deployments[deployments.length - 1].endMin : planStart;
     const tourEndMin = returnDeployment ? returnDeployment.endMin : lastDeliveryEnd;
+    if ((Number.isFinite(vehicle.rentalReturnMin) && tourEndMin > vehicle.rentalReturnMin) ||
+        (driver.isTempStaff && Number.isFinite(driver.tempReturnMin) && tourEndMin > driver.tempReturnMin)) {
+      return { ok: false as const, error: "Tour endet nach Ablauf der Miete oder Personalvertretung." };
+    }
     let driverFreeMin = t;
     if (counters.workMin >= WORK_BUDGET_MIN) driverFreeMin = t + REST_MIN;
     if (latestReturnMin && tourEndMin > latestReturnMin) {
@@ -868,6 +872,7 @@ export function processTours(state, m, log) {
     // Fahrzeug muss frei sein (vorheriger Einsatz abgeschlossen + Erholung vorbei)
     if (vehicle.status !== "free" && vehicle.status !== "resting") continue;
     if (driver.status !== "free" && driver.status !== "resting") continue;
+    if (Number.isFinite(vehicle.rentalReturnMin) && vehicle.rentalReturnMin <= m) continue;
     if (driver.restUntil && driver.restUntil > m) continue;
     if (!isPersonAvailable(state, driver.id, m) || driver.attendance === "released" || isPersonInTraining(state, driver.id, m)) continue;
     if (driver.locationCity !== vehicle.locationCity) {

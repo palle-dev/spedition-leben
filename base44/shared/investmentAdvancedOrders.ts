@@ -1,7 +1,7 @@
 // Erweiterte Order-Typen für Investment: Stop, Stop-Limit, Trailing-Stop, OCO.
 // Auftrag 34 – I07, I08, I09.
 
-import { ALL_INSTRUMENT_DEFS, roundQty, computeFee, getFreeSettlement, getDepot } from "./investmentEngine.ts";
+import { ALL_INSTRUMENT_DEFS, roundQty, computeFee, getFreeSettlement, getDepot, validateInvestmentOrder, trimInvestmentOrders } from "./investmentEngine.ts";
 
 // ---------- Stop-Order-Logik ----------
 // Prüft, ob eine Stop-Schwelle ausgelöst wird.
@@ -70,6 +70,7 @@ export function placeAdvancedOrder(state, p) {
 
   const def = ALL_INSTRUMENT_DEFS.find(d => d.id === p.instrumentId);
   const isCrypto = def.type === "crypto";
+  validateInvestmentOrder(state, p, ["stop", "stop_limit", "trailing_stop"]);
   const side = p.side;
   const orderType = p.orderType; // "stop" | "stop_limit" | "trailing_stop"
 
@@ -104,7 +105,7 @@ export function placeAdvancedOrder(state, p) {
     const available = pos ? pos.availableQty : 0;
     if (available < qty) throw new Error(`Freie Menge reicht nicht aus (verfügbar: ${available}).`);
     reservedQty = qty;
-    if (pos) pos.availableQty -= qty;
+    // Reserve only after OCO and price validation.
   } else {
     // Buy stop: Reserve wie bei Market-Order
     const refPrice = inst.currentQuote.ask;
@@ -112,6 +113,7 @@ export function placeAdvancedOrder(state, p) {
     const maxGross = Math.round(qty * maxPrice);
     const maxFee = computeFee(def.type, maxGross);
     reservedCents = maxGross + maxFee;
+    if (!Number.isSafeInteger(reservedCents) || reservedCents <= 0) throw new Error("Ungültiger Reservebetrag.");
     const free = getFreeSettlement(state, p.depotId);
     if (free < reservedCents) throw new Error(`Freie Depotliquidität reicht nicht aus (benötigt: ${(reservedCents / 100).toFixed(2)} €, verfügbar: ${(free / 100).toFixed(2)} €).`);
   }
@@ -126,6 +128,7 @@ export function placeAdvancedOrder(state, p) {
     partner.ocoPartnerId = null; // wird unten gesetzt
   }
 
+  if (side === "sell") depot.positions[p.instrumentId].availableQty -= qty;
   const order = {
     id: uid(state, "io"),
     depotId: p.depotId,
@@ -159,6 +162,7 @@ export function placeAdvancedOrder(state, p) {
   }
 
   depot.orders.push(order);
+  trimInvestmentOrders(depot);
   return { ok: true, order };
 }
 

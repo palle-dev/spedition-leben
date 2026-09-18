@@ -56,10 +56,10 @@ export default function Fleet() {
       <div className="flex items-end justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl lg:text-3xl font-medium tracking-tight">Fuhrpark</h1>
-          <p className="text-sm text-muted-foreground mt-1">{activeVehicles.length} einsatzfähige Lkw: {ownedCount} eigene, {leasedCount} geleast</p>
+          <p className="text-sm text-muted-foreground mt-1">{activeVehicles.length} einsatzfähige Lkw: {ownedCount} eigene, {leasedCount} geleast{activeVehicles.some(v => v.ownership_type === "rental" || v.ownership_type === "rented") && `, ${activeVehicles.filter(v => v.ownership_type === "rental" || v.ownership_type === "rented").length} gemietet`}</p>
         </div>
-        <div className="flex gap-2">
-          <div className="flex rounded-lg overflow-hidden border border-white/10">
+        <div className="flex flex-wrap gap-2 min-w-0 max-w-full">
+          <div className="flex max-w-full rounded-lg overflow-x-auto border border-white/10 [&>button]:shrink-0">
             <button onClick={() => setTab("fleet")} className={`px-3 py-2.5 text-sm font-medium transition ${tab === "fleet" ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"}`}>Flotte</button>
             <button onClick={() => setTab("workshop")} className={`px-3 py-2.5 text-sm font-medium transition flex items-center gap-1.5 ${tab === "workshop" ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
               <Wrench className="w-3.5 h-3.5" /> Werkstatt
@@ -107,7 +107,7 @@ export default function Fleet() {
               const profile = getVehicleProfile(v);
               const body = getVehicleBodyType(v);
               const isLeased = (v.ownership_type || "owned") === "leased";
-              const isOwned = !isLeased;
+              const isOwned = (v.ownership_type || "owned") === "owned";
               const bookValue = isOwned ? getVehicleBookValue(state, v.id) : 0;
               const dealerOffer = isOwned ? computeDealerOffer(v, state.gameTime) : 0;
               const hasValidOffer = v.saleOffer && v.saleOffer.validUntilMin >= state.gameTime;
@@ -127,8 +127,8 @@ export default function Fleet() {
                     <Info icon={Gauge} label="Zustand" value={`${v.condition}/100`} />
                   </div>
                   <div className="text-xs text-muted-foreground mt-2">
-                    {isLeased
-                      ? `Geleast · km ${(v.odometerKm || 0).toLocaleString("de-DE")}`
+                    {!isOwned
+                      ? `${ownershipLabel(v)} · km ${(v.odometerKm || 0).toLocaleString("de-DE")}`
                       : `Buchwert ${formatEuro(bookValue)} · Markt ${formatEuro(dealerOffer)}`} · {profile.capacityTons} t · {profile.consumptionPer100km} L/100km
                   </div>
                   {(() => {
@@ -152,7 +152,8 @@ export default function Fleet() {
                     );
                   })()}
                   {trip && <div className="text-xs text-amber-300 mt-1">Unterwegs bis {formatGameTime(trip.endMin)}</div>}
-                  {v.status === "maintenance" && <div className="text-xs text-sky-300 mt-1">Wartung bis {formatGameTime(v.maintenanceUntil)}</div>}
+                  {v.status === "maintenance" && <div className="text-xs text-sky-300 mt-1">{Number.isFinite(v.maintenanceUntil) ? "Wartung bis " + formatGameTime(v.maintenanceUntil) : "Werkstattwartung läuft"}</div>}
+                  {v.status === "towing" && <div className="text-xs text-sky-300 mt-1">Abschleppdienst gebucht</div>}
                   {hasValidOffer && <div className="text-xs text-lime mt-1">Angebot: {formatEuro(v.saleOffer.priceCents)} bis {formatGameTime(v.saleOffer.validUntilMin)}</div>}
                   <div className="mt-3 flex gap-2">
                     <button onClick={() => maintain(v)} disabled={!canMaint || busyId === v.id || state.company.accountCents < (stressed ? Math.round(profile.maintenanceCostCents * 1.25) : profile.maintenanceCostCents)}

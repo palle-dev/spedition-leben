@@ -118,6 +118,8 @@ export function earliestEventAfter(state, t, maxMin) {
       if (c.status === "active" || c.status === "planned") cand(c.endMin);
     }
   }
+  for (const v of (state.vehicles || [])) if (v.status !== "archived" && Number.isFinite(v.rentalReturnMin)) cand(v.rentalReturnMin);
+  for (const p of [...(state.drivers || []), ...(state.employees || [])]) if (p.isTempStaff && p.employmentStatus !== "left" && Number.isFinite(p.tempReturnMin)) cand(p.tempReturnMin);
   // Krankheitsenden (Auftrag 25) – nur bei aktiven Krankmeldungen
   if ((state.absences?.sicknesses || []).length > 0) {
     for (const s of state.absences.sicknesses) { if (s.status === "active") cand(s.expectedEndMin); }

@@ -5,16 +5,15 @@ import { dayOf, clockOf, formatGameTime } from "@/lib/simulation/gameRules";
 
 // Formatiert Cent-Beträge als Euro.
 export function formatEuro(cents) {
-  const sign = cents < 0 ? "-" : "";
-  const abs = Math.abs(cents);
-  return sign + (abs / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " €";
+  if (!Number.isFinite(cents)) return "—";
+  return (cents / 100).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 }
 
 // Formatiert Cent-Beträge kompakt (k€).
 export function formatKEuro(cents) {
   const sign = cents < 0 ? "-" : "";
   const abs = Math.abs(cents);
-  if (abs >= 100000) return sign + (abs / 100000).toFixed(1) + " k€";
+  if (abs >= 100000) return sign + (abs / 100000).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " k€";
   return sign + (abs / 100).toFixed(0) + " €";
 }
 

@@ -21,7 +21,7 @@ export default function OrdersTable({ state, depotId }) {
 
   const statusLabel = (s) => ({
     open: "Offen", partially_filled: "Teilweise", filled: "Ausgeführt",
-    cancelled: "Storniert", expired: "Abgelaufen", rejected: "Abgelehnt",
+    cancelled: "Storniert", expired: "Abgelaufen", rejected: "Abgelehnt", pending_stop: "Stop vorgemerkt", active_stop: "Stop ausgelöst",
   })[s] || s;
 
   const statusColor = (s) => ({
@@ -47,19 +47,21 @@ export default function OrdersTable({ state, depotId }) {
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-medium truncate">{o.instrumentName}</span>
                     <span className="text-[10px] text-muted-foreground/60 uppercase">{o.side === "buy" ? "Kauf" : "Verkauf"}</span>
-                    <span className="text-[10px] text-muted-foreground/60 uppercase">{o.orderType}</span>
+                    <span className="text-[10px] text-muted-foreground/60 uppercase">{({ market: "Markt", limit: "Limit", stop: "Stop", stop_limit: "Stop-Limit", trailing_stop: "Trailing-Stop" })[o.orderType] || o.orderType}</span>
                   </div>
                   <div className="text-[10px] text-muted-foreground/60 tabular-nums mt-0.5">
                     {formatQty(o.filledQty, o.instrumentType)}/{formatQty(o.qty, o.instrumentType)} ·
                     {o.limitCents ? ` Limit ${formatPricePlain(o.limitCents)} €` : " Markt"}
                     {o.feeCents > 0 && ` · Gebühr ${formatCents(o.feeCents)}`}
+                    {o.rejectReason && <div className="text-amber-300 mt-1">{o.rejectReason}</div>}
                   </div>
                 </div>
                 <div className="text-right shrink-0">
                   <div className={`text-[10px] font-medium ${statusColor(o.status)}`}>{statusLabel(o.status)}</div>
                 </div>
-                {(o.status === "open" || o.status === "partially_filled") && (
+                {(["open", "partially_filled", "pending_stop", "active_stop"].includes(o.status)) && (
                   <button
+                    aria-label={"Order für " + o.instrumentName + " stornieren"}
                     onClick={() => cancel(o.id)}
                     disabled={cancelling === o.id}
                     className="w-7 h-7 grid place-items-center rounded-md bg-white/5 text-muted-foreground hover:text-red-300 transition disabled:opacity-40 shrink-0"

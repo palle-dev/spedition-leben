@@ -132,7 +132,7 @@ export default function FleetSummary({ state }) {
         {orders.unassigned > 0 && (
           <button onClick={() => navigate("/disposition")}
             className="w-full mt-2 flex items-center justify-center gap-1.5 text-[11px] text-amber-300 bg-amber-500/5 border border-amber-400/15 rounded-lg py-1.5 hover:bg-amber-500/10 transition">
-            <AlertTriangle className="w-3 h-3" /> {orders.unassigned} angenommene Auftrag{orders.unassigned > 1 ? "e" : ""} nicht disponiert – jetzt planen
+            <AlertTriangle className="w-3 h-3" /> {orders.unassigned} {orders.unassigned > 1 ? "angenommene Aufträge" : "angenommener Auftrag"} nicht disponiert – jetzt planen
           </button>
         )}
       </div>

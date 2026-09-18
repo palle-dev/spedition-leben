@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { formatGameTime, formatEuro, CITIES, getDistance } from "@/lib/gameData";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
 import Drawer from "@/components/ui/Drawer";
-import { SERVICE_TYPE_LABELS, CLEANING_PRICE_PER_UNIT, TOWING_BASE_CENTS, TOWING_PER_KM_CENTS, TOWING_APPROACH_MIN, TOWING_SPEED, TOWING_HANDOVER_MIN, countPersonsAtCity, computeCleaningNeedFront } from "@/lib/absenceData";
+import { SERVICE_PROVIDERS, SERVICE_TYPE_LABELS, CLEANING_PRICE_PER_UNIT, TOWING_BASE_CENTS, TOWING_PER_KM_CENTS, TOWING_APPROACH_MIN, TOWING_SPEED, TOWING_HANDOVER_MIN, countPersonsAtCity, computeCleaningNeedFront } from "@/lib/absenceData";
 import {
   Sparkles, Wrench, Truck, Users, Headset, Calculator, X, Check, Clock,
   Calendar, Euro, AlertCircle, Package,
@@ -232,8 +232,8 @@ function ContractDetails({ contract, state }) {
       </div>
       <div className="grid grid-cols-2 gap-2 text-xs">
         <DetailRow label="Beginn" value={formatGameTime(contract.startMin)} />
-        <DetailRow label="Ende" value={formatGameTime(contract.endMin)} />
-        <DetailRow label="Kosten" value={formatEuro(cost)} />
+        <DetailRow label="Ende" value={Number.isFinite(contract.endMin ?? contract.handoverMin) ? formatGameTime(contract.endMin ?? contract.handoverMin) : "Noch offen"} />
+        <DetailRow label={contract.paymentDueCents > 0 ? "Zahlung bei Beginn" : "Kosten"} value={formatEuro(cost)} />
         {contract.units && <DetailRow label="Einheiten" value={contract.units} />}
         {contract.blocks && <DetailRow label="Blöcke" value={contract.blocks} />}
         {contract.distanceKm && <DetailRow label="Distanz" value={`${contract.distanceKm} km`} />}
@@ -312,7 +312,7 @@ function CleaningBooking({ state, send, showToast, onClose }) {
       </div>
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={recurring} onChange={e => setRecurring(e.target.checked)} className="accent-lime" />
-        Wiederkehrend (alle 7 Tage)
+        Wiederkehrend (alle 7 Tage; Folgetermine werden bei Beginn berechnet)
       </label>
       <div className="p-3 rounded-lg glass border border-white/10 text-xs space-y-1">
         <div className="flex justify-between"><span className="text-muted-foreground">Erster Termin</span><span>{formatGameTime(startMin)}</span></div>
@@ -366,7 +366,7 @@ function TowingBooking({ state, send, showToast, onClose }) {
   const [vehicleId, setVehicleId] = useState("");
   const [targetCity, setTargetCity] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const vehicles = (state.vehicles || []).filter(v => v.status === "free" || v.status === "on_trip");
+  const vehicles = (state.vehicles || []).filter(v => v.status === "free" && SERVICE_PROVIDERS.some(p => p.type === "towing" && p.homeCity === v.locationCity) && !(state.tours || []).some(t => t.vehicleId === v.id && ["active", "planned"].includes(t.status)));
   const vehicle = vehicles.find(v => v.id === vehicleId);
   const dist = vehicle && targetCity ? getDistance(vehicle.locationCity, targetCity) : 0;
   const cost = TOWING_BASE_CENTS + dist * TOWING_PER_KM_CENTS;
@@ -425,10 +425,8 @@ function TempStaffBooking({ type, state, send, showToast, onClose }) {
   const blockRate = isDriver ? 18000 : 26000;
   const totalCost = provision + blocks * blockRate;
 
-  const candidates = [
-    ...(state.drivers || []).filter(d => d.employmentStatus === "employed").map(d => ({ ...d, kind: "driver" })),
-    ...(state.employees || []).filter(e => e.employmentStatus === "employed" && (isDriver ? e.role === undefined : (e.role === "dispatcher" || e.role === "dispatcher_senior"))).map(e => ({ ...e, kind: "employee" })),
-  ];
+  const candidates = (isDriver ? (state.drivers || []) : (state.employees || []).filter(e => e.role === "dispatcher" || e.role === "dispatcher_senior"))
+    .filter(p => p.employmentStatus === "employed" && !p.isTempStaff);
 
   async function submit() {
     setSubmitting(true);

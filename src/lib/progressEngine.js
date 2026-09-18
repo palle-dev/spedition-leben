@@ -1,12 +1,17 @@
 // Clientseitige Fortschritts-Engine für FERNWERK.
 // Spiegelt base44/shared/progressEngine.ts für Darstellung und Vorschau.
 
+import { getVehicleBookValue } from "@/lib/simulation/accountingEngine";
 import { ACHIEVEMENTS, XP_LEVELS, COMPANY_STAGES, GOAL_TEMPLATES } from "@/lib/achievementCatalog.js";
 
 export function computeCompanyValue(state) {
-  const vehicleValue = (state.vehicles || []).reduce((s, v) => s + (v.bookValueCents || 0), 0);
+  const vehicleValue = (state.vehicles || [])
+    .filter(v => (v.ownership_type || "owned") === "owned" && v.status !== "archived" && v.status !== "sold")
+    .reduce((s, v) => s + getVehicleBookValue(state, v.id), 0);
   const openCompanyCosts = (state.openCosts || []).filter(o => o.account === "company").reduce((s, o) => s + o.amountCents, 0);
-  return (state.company?.accountCents || 0) + vehicleValue - openCompanyCosts;
+  const loanDebt = (state.loans || []).filter(l => l.status === "active")
+    .reduce((s, l) => s + (l.remainingPrincipalCents || 0) + (l.accruedInterestCents || 0) + (l.overdueInterestCents || 0) + (l.overduePrincipalCents || 0), 0);
+  return (state.company?.accountCents || 0) + vehicleValue - openCompanyCosts - loanDebt;
 }
 
 export function computePrivateNetWorth(state) {
@@ -36,7 +41,7 @@ export function getDevelopmentStage(companyValueCents) {
 }
 
 export function getStatValue(state, key) {
-  if (key === "vehicleCount") return (state.vehicles || []).length;
+  if (key === "vehicleCount") return (state.vehicles || []).filter(v => (v.ownership_type || "owned") === "owned" && v.status !== "archived" && v.status !== "sold").length;
   if (key === "companyValue") return computeCompanyValue(state);
   if (key === "privateNetWorth") return computePrivateNetWorth(state);
   return (state.stats && state.stats[key]) || 0;

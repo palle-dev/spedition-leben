@@ -16,7 +16,10 @@ export function createSavingsPlan(state, p) {
   const depot = getDepot(state, p.depotId);
   if (!depot) throw new Error("Depot nicht gefunden.");
   const inst = state.investment.market.instruments[p.instrumentId];
-  if (!inst) throw new Error("Instrument nicht gefunden.");
+  if (!inst || !inst.tradeable) throw new Error("Instrument nicht handelbar.");
+  if (!Number.isSafeInteger(p.amountCents) || p.amountCents <= 0) throw new Error("Sparrate muss eine positive ganze Centzahl sein.");
+  if (!["daily", "weekly"].includes(p.rhythm)) throw new Error("Ungültiger Sparplanrhythmus.");
+  if (p.nextExecuteMin != null && (!Number.isSafeInteger(p.nextExecuteMin) || p.nextExecuteMin < state.gameTime)) throw new Error("Ungültiger Ausführungstermin.");
 
   const plan = {
     id: uid(state, "sp"),
@@ -24,7 +27,7 @@ export function createSavingsPlan(state, p) {
     instrumentId: p.instrumentId,
     amountCents: p.amountCents,
     rhythm: p.rhythm, // "daily" | "weekly"
-    nextExecuteMin: p.nextExecuteMin || state.gameTime + 1440,
+    nextExecuteMin: p.nextExecuteMin ?? state.gameTime + 1440,
     status: "active",
     createdAtMin: state.gameTime,
     lastExecuteMin: null,
@@ -34,7 +37,7 @@ export function createSavingsPlan(state, p) {
   };
 
   depot.savingsPlans = depot.savingsPlans || [];
-  if (depot.savingsPlans.length >= SAVINGS_PLANS_MAX) throw new Error("Maximale Anzahl Sparpläne erreicht.");
+  if (depot.savingsPlans.filter(s => s.status !== "cancelled").length >= SAVINGS_PLANS_MAX) throw new Error("Maximale Anzahl Sparpläne erreicht.");
   depot.savingsPlans.push(plan);
   return { ok: true, plan };
 }
@@ -54,6 +57,7 @@ export function pauseSavingsPlan(state, p) {
   if (!depot) throw new Error("Depot nicht gefunden.");
   const plan = (depot.savingsPlans || []).find(s => s.id === p.planId);
   if (!plan) throw new Error("Sparplan nicht gefunden.");
+  if (plan.status === "cancelled") throw new Error("Gekündigter Sparplan kann nicht pausiert werden.");
   plan.status = "paused";
   return { ok: true };
 }
@@ -63,6 +67,7 @@ export function resumeSavingsPlan(state, p) {
   if (!depot) throw new Error("Depot nicht gefunden.");
   const plan = (depot.savingsPlans || []).find(s => s.id === p.planId);
   if (!plan) throw new Error("Sparplan nicht gefunden.");
+  if (plan.status === "cancelled") throw new Error("Gekündigter Sparplan kann nicht fortgesetzt werden.");
   plan.status = "active";
   return { ok: true };
 }
@@ -75,6 +80,9 @@ export function processSavingsPlans(state, min, log) {
     const plans = depot.savingsPlans || [];
     for (const plan of plans) {
       if (plan.status !== "active") continue;
+      if (!Number.isSafeInteger(plan.amountCents) || plan.amountCents <= 0 || !["daily", "weekly"].includes(plan.rhythm) || !Number.isSafeInteger(plan.nextExecuteMin)) {
+        plan.status = "paused"; plan.lastResult = { ok: false, reason: "Ungültige Sparplandaten – bitte neu anlegen" }; continue;
+      }
       if (plan.nextExecuteMin > min) continue;
 
       plan.lastExecuteMin = min;
@@ -104,6 +112,10 @@ export function processSavingsPlans(state, min, log) {
         continue;
       }
 
+      if (!inst.tradeable || (depotId === "company" && ((state.openCosts || []).some(o => o.account === "company" && o.amountCents > 0) || (state.accounting?.openItems || []).some(o => o.remainingCents > 0)))) {
+        plan.lastResult = { ok: false, reason: "Handel gesperrt oder betriebliche Kosten offen" };
+        plan.skippedCount++; continue;
+      }
       // Freie Liquidität prüfen
       const free = getFreeSettlement(state, depotId);
       if (free < plan.amountCents) {
@@ -115,16 +127,20 @@ export function processSavingsPlans(state, min, log) {
 
       // Kauf ausführen
       const ask = inst.currentQuote.ask;
-      if (ask <= 0) {
+      if (!Number.isFinite(ask) || ask <= 0) {
         plan.lastResult = { ok: false, reason: "Keine gültige Quote" };
         plan.skippedCount++;
         continue;
       }
 
-      // Menge berechnen (mit Sicherheitsmarge)
-      const feeRate = isStock ? 0.001 : 0.0025;
-      const safeBudget = Math.floor(plan.amountCents * 0.99);
-      const qty = roundQty(safeBudget / (ask * (1 + feeRate)), def.type);
+      // Find an affordable gross amount including the actual minimum fee.
+      let low = 0, high = plan.amountCents;
+      while (low < high) {
+        const mid = low + Math.ceil((high - low) / 2);
+        if (mid + computeFee(def.type, mid) <= plan.amountCents) low = mid;
+        else high = mid - 1;
+      }
+      const qty = roundQty(low / ask, def.type);
       if (qty <= 0) {
         plan.lastResult = { ok: false, reason: "Menge zu klein" };
         plan.skippedCount++;
@@ -135,7 +151,7 @@ export function processSavingsPlans(state, min, log) {
       const feeCents = computeFee(def.type, grossCents);
       const totalCost = grossCents + feeCents;
 
-      if (totalCost > depot.settlementCents) {
+      if (!Number.isSafeInteger(totalCost) || totalCost <= 0 || totalCost > free || totalCost > plan.amountCents) {
         plan.lastResult = { ok: false, reason: "Unzureichende Liquidität" };
         plan.skippedCount++;
         continue;

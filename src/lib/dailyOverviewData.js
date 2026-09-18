@@ -489,7 +489,7 @@ export function getDailyStatements(state) {
   if (pendingApprovals.length > 0) {
     statements.push({
       icon: "alert",
-      text: `${pendingApprovals.length} Freigabe${pendingApprovals.length > 1 ? "n" : ""} warten auf dich.`,
+      text: `${pendingApprovals.length} Freigabe${pendingApprovals.length > 1 ? "n warten" : " wartet"} auf dich.`,
       priority: "high",
       link: "/geschaeftsmodelle",
     });
@@ -501,8 +501,8 @@ export function getDailyStatements(state) {
     statements.push({
       icon: "truck",
       text: overdue > 0
-        ? `${overdue} angenommene Auftrag${overdue > 1 ? "e" : ""} ist überfällig.`
-        : `${unassigned.length} angenommene Auftrag${unassigned.length > 1 ? "e" : ""} ${unassigned.length > 1 ? "werden" : "wird"} heute fällig.`,
+        ? `${overdue} ${overdue > 1 ? "angenommene Aufträge sind" : "angenommener Auftrag ist"} überfällig.`
+        : `${unassigned.length} ${unassigned.length > 1 ? "angenommene Aufträge" : "angenommener Auftrag"} ${unassigned.length > 1 ? "werden" : "wird"} heute fällig.`,
       priority: "high",
       link: "/disposition",
     });

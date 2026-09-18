@@ -16,7 +16,7 @@ export function formatQty(qty, type) {
 
 export function formatPct(pct) {
   const sign = pct >= 0 ? "+" : "";
-  return sign + pct.toFixed(2) + " %";
+  return sign + pct.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " %";
 }
 
 export function formatCents(cents) {

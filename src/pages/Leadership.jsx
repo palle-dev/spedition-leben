@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
+import { ROLE_LABELS } from "@/lib/gameData";
 import { useNavigate } from "react-router-dom";
 import {
   PRESETS, getRuleLabel, getApprovalModeLabel, getUrgencyColor,
@@ -279,8 +280,8 @@ export default function Leadership() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-xs ${getUrgencyColor(req.urgency)}`}>● {req.urgency}</span>
-                      <span className="text-xs text-muted-foreground">{req.employeeName} ({req.employeeRole})</span>
+                      <span className={`text-xs ${getUrgencyColor(req.urgency)}`}>● {({ low: "Niedrig", medium: "Mittel", high: "Hoch", urgent: "Dringend", critical: "Kritisch" })[req.urgency] || req.urgency}</span>
+                      <span className="text-xs text-muted-foreground">{req.employeeName} ({ROLE_LABELS[req.employeeRole] || req.employeeRole})</span>
                       {req.branchName && <span className="text-xs text-muted-foreground">· {req.branchName}</span>}
                     </div>
                     <div className="font-medium text-sm">{req.title}</div>

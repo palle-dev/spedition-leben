@@ -4,7 +4,7 @@ import { getBalanceSheet, getAccountBalance, postJournal } from '@/lib/simulatio
 import { executeCommand } from '@/lib/simulationAdapter';
 import fs from 'node:fs';
 
-it('35 Betriebstage mit Personal, Disposition und Monatswechsel erhalten Buchungsinvarianten', async () => {
+it('120 Betriebstage mit Personal, Disposition und Monatswechsel erhalten Buchungsinvarianten', async () => {
   let s = createInitialState({ companyName: 'Langzeittest', playerName: 'Test', partnerName: 'Test' }).state;
   postJournal(s, { text: 'Testkapital', lines: [{ account: '1000', debit: 50000000 }, { account: '2020', credit: 50000000 }] });
   for (const role of ['dispatcher', 'dispatcher', 'mechanic', 'accountant', 'assistant', 'branch_manager']) {
@@ -12,9 +12,10 @@ it('35 Betriebstage mit Personal, Disposition und Monatswechsel erhalten Buchung
     applyCommand(s, 'hireEmployee', { applicantId: a.id });
   }
   for (const e of s.employees.filter(e => e.role === 'dispatcher')) applyCommand(s, 'setupDispatcher', { employeeId: e.id, workMode: 'autonomous' });
+  applyCommand(s, 'applyDelegationPreset', { presetId: 'daily_relief' });
   applyCommand(s, 'buildWorkshopSlot', { branchId: 'b1' });
   const rows = [];
-  for (let day = 1; day <= 35; day++) {
+  for (let day = 1; day <= 120; day++) {
     const t0 = performance.now();
     const r = await executeCommand(s, 'advanceTime', { minutes: 1440 });
     if (r.error) throw new Error(`Tag ${day}: ${r.error}`);
@@ -28,7 +29,9 @@ it('35 Betriebstage mit Personal, Disposition und Monatswechsel erhalten Buchung
     rows.push({ day, elapsedMs: performance.now() - t0, gameTime: s.gameTime, cashCents: s.company.accountCents,
       delivered: s.stats.totalDeliveries, orders: s.orders.length, journal: s.accounting.journal.length, stateBytes: Buffer.byteLength(JSON.stringify(s)) });
   }
+  fs.mkdirSync('audit', { recursive: true }); fs.writeFileSync('audit/long-run-state.json', JSON.stringify(s));
   fs.mkdirSync('audit', { recursive: true }); fs.writeFileSync('audit/long-run.json', JSON.stringify(rows, null, 2));
+  expect(s.stats.totalDeliveries).toBeGreaterThan(20);
   expect(s.accounting.periods.some(p => p.month === 1)).toBe(true);
   expect(s.accounting.journal.some(e => e.type === 'opening')).toBe(true);
 }, 120000);

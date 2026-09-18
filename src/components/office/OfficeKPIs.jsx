@@ -49,7 +49,7 @@ export default function OfficeKPIs({ state, period }) {
         { label: "Aktiv unterwegs", value: `${orders.active}`, tone: "default" },
         { label: "Unzugewiesen", value: `${orders.unassigned}`, tone: orders.unassigned > 0 ? "amber" : "muted" },
       ],
-      alert: orders.unassigned > 0 ? `${orders.unassigned} Auftrag${orders.unassigned > 1 ? "e" : ""} wartet auf Disposition` : null,
+      alert: orders.unassigned > 0 ? `${orders.unassigned} ${orders.unassigned > 1 ? "Aufträge warten" : "Auftrag wartet"} auf Disposition` : null,
       to: "/auftraege",
     },
     {

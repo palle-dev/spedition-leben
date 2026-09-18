@@ -1,0 +1,170 @@
+[
+  {
+    "path": "src/components/investment/InvestmentOverview.jsx",
+    "sha256": "2c4165b23de423fb3ba6e8381f5047c2cd00bebdd0817050c63b9d656c8047e4"
+  },
+  {
+    "path": "src/components/investment/OrdersTable.jsx",
+    "sha256": "cddcedbb7396e2a6b9d9121ef42c8abc0cc3fefbc1da0a74d6bc9ccacbed9afd"
+  },
+  {
+    "path": "src/components/home/GoalsPanel.jsx",
+    "sha256": "15b02756702842cfc2c2a04afb1107658a27f35e7a74f6e76001f1f45851264e"
+  },
+  {
+    "path": "src/components/home/RewardsSection.jsx",
+    "sha256": "b88f9f90cd1ceaf8ba8a8e89995510aca588bc0d45cbcb44481e7bdd31eb3ae1"
+  },
+  {
+    "path": "src/components/personnel/ServicesTab.jsx",
+    "sha256": "1098514df1cd2ba1532706d5bc410ed28b8cf8339dab4bd0fa6dd7f119412793"
+  },
+  {
+    "path": "src/components/fleet/DgSection.jsx",
+    "sha256": "a5ab2dc8c45748713e3dbed377a94847154d7e1671d305b18767f69bb0c85bd2"
+  },
+  {
+    "path": "src/components/office/OfficeKPIs.jsx",
+    "sha256": "8dcc92a40416ddffedecf1beaf3eab3ec9c5f741bb83954ae521c08e44a0c41b"
+  },
+  {
+    "path": "src/components/office/FleetSummary.jsx",
+    "sha256": "0ab714528a87837c7b73e5c0a117761c471e6b748a11ed3972708caadb79edb2"
+  },
+  {
+    "path": "src/components/game/SettingsDialog.jsx",
+    "sha256": "9ec44dbcd8b6066a44de85600afeda52652c67fb11ac7bf7b8f7f24c7478c1ee"
+  },
+  {
+    "path": "src/components/game/WorldSwitch.jsx",
+    "sha256": "9975d4c12906e1ff1de87670393b66649c6687335c7be2a901baaa8871f2593e"
+  },
+  {
+    "path": "src/pages/Fleet.jsx",
+    "sha256": "e0b4b367324d05a83450afa0ac9eb7563b20374d5be35afa58251427de2bd1c4"
+  },
+  {
+    "path": "src/pages/Leadership.jsx",
+    "sha256": "88a5e769402dec632e4505cd8c2835a02d0f1857c3c0a9c53327d0402870ef80"
+  },
+  {
+    "path": "src/lib/dailyOverviewData.js",
+    "sha256": "2a48e89291bc5b3f47bad100ec2ba25517d0388c77915edcbb9588f8e4b305d4"
+  },
+  {
+    "path": "src/lib/financingData.js",
+    "sha256": "dd028c400a5cc8a9c808d7b81bab4806e353ba2f86ed4ec33e6629a868f53430"
+  },
+  {
+    "path": "src/lib/progressEngine.js",
+    "sha256": "a379c41ff98d60eea26ce2d86ec3d450f2896737780e0ef554e528eceda00394"
+  },
+  {
+    "path": "src/lib/investmentData.js",
+    "sha256": "3b067d0d61abf80bc0747416a2024523eddb158afbc38dc9358bdb616abc2289"
+  },
+  {
+    "path": "src/lib/forecastData.js",
+    "sha256": "3d832a689784928a884770fa8a93c6cf7c3ae1412233434d9c8ed8d368f8727b"
+  },
+  {
+    "path": "src/lib/simulation/investmentEngine.ts",
+    "sha256": "1acbef7ff92cbd8cc1cdb52b62671c47993d815f68511c19c4e35de60393c446"
+  },
+  {
+    "path": "src/lib/simulation/absenceEngine.ts",
+    "sha256": "c772ffd0b15b2af7f58b862a669e630d67d711526628e53e83ffa5683389946b"
+  },
+  {
+    "path": "src/lib/simulation/investmentSavings.ts",
+    "sha256": "c7535ebc691ca04c5d6e637df0f296be410935d015c821430b6f094c2ca8060a"
+  },
+  {
+    "path": "src/lib/simulation/dispatcherProcessor.ts",
+    "sha256": "c316c0fadc029e718390122ccc7783e07bd06866283d4e2ee94d739348e15c10"
+  },
+  {
+    "path": "src/lib/simulation/liquidityForecastEngine.ts",
+    "sha256": "ee400a2c330f4904593d6afa6abd9c087bff97bc881ff57664658a486fce0923"
+  },
+  {
+    "path": "src/lib/simulation/progressEngine.ts",
+    "sha256": "46bdd8f90a71efb4c56e715ca314acbe4332e8cc8a631ab76d7cd14e43cfeeeb"
+  },
+  {
+    "path": "src/lib/simulation/simulationEngine.ts",
+    "sha256": "94aed632621bfa64a9fe6af9cbc45f295dd2a3ceb26aa05416413c3e625ac4e3"
+  },
+  {
+    "path": "src/lib/simulation/serviceEngine.ts",
+    "sha256": "1041058c45064c4e078125cf92c2e5e218c008f508dbfcc7cace11e81008e47a"
+  },
+  {
+    "path": "src/lib/simulation/investmentAdvancedOrders.ts",
+    "sha256": "be87c1cfa2e473d0e81f313c187c3c72ae6e09b08446d4c710fef438fca751c9"
+  },
+  {
+    "path": "src/lib/simulation/tourEngine.ts",
+    "sha256": "800924b7523411df98dc71122a5b1be92d01d9c4ea78d1dcf92ce78cf8df355e"
+  },
+  {
+    "path": "src/lib/simulation/eventScheduler.ts",
+    "sha256": "231be93f68df41b79804e62b0139d63bd5079727f6a918b172405d703451f270"
+  },
+  {
+    "path": "base44/shared/investmentAdvancedOrders.ts",
+    "sha256": "be87c1cfa2e473d0e81f313c187c3c72ae6e09b08446d4c710fef438fca751c9"
+  },
+  {
+    "path": "base44/shared/absenceEngine.ts",
+    "sha256": "c772ffd0b15b2af7f58b862a669e630d67d711526628e53e83ffa5683389946b"
+  },
+  {
+    "path": "base44/shared/simulationEngine.ts",
+    "sha256": "94aed632621bfa64a9fe6af9cbc45f295dd2a3ceb26aa05416413c3e625ac4e3"
+  },
+  {
+    "path": "base44/shared/investmentEngine.ts",
+    "sha256": "1acbef7ff92cbd8cc1cdb52b62671c47993d815f68511c19c4e35de60393c446"
+  },
+  {
+    "path": "base44/shared/tourEngine.ts",
+    "sha256": "800924b7523411df98dc71122a5b1be92d01d9c4ea78d1dcf92ce78cf8df355e"
+  },
+  {
+    "path": "base44/shared/serviceEngine.ts",
+    "sha256": "1041058c45064c4e078125cf92c2e5e218c008f508dbfcc7cace11e81008e47a"
+  },
+  {
+    "path": "base44/shared/progressEngine.ts",
+    "sha256": "46bdd8f90a71efb4c56e715ca314acbe4332e8cc8a631ab76d7cd14e43cfeeeb"
+  },
+  {
+    "path": "base44/shared/dispatcherProcessor.ts",
+    "sha256": "c316c0fadc029e718390122ccc7783e07bd06866283d4e2ee94d739348e15c10"
+  },
+  {
+    "path": "base44/shared/liquidityForecastEngine.ts",
+    "sha256": "ee400a2c330f4904593d6afa6abd9c087bff97bc881ff57664658a486fce0923"
+  },
+  {
+    "path": "base44/shared/investmentSavings.ts",
+    "sha256": "c7535ebc691ca04c5d6e637df0f296be410935d015c821430b6f094c2ca8060a"
+  },
+  {
+    "path": "base44/shared/eventScheduler.ts",
+    "sha256": "231be93f68df41b79804e62b0139d63bd5079727f6a918b172405d703451f270"
+  },
+  {
+    "path": "tests/long-run.test.ts",
+    "sha256": "11e4619c85163fac7128143d5a5fc9f9dfb46cc971c4d06c5bd269f0c8a7aa54"
+  },
+  {
+    "path": "tests/full-audit.test.ts",
+    "sha256": "dcdd71cadc9cc9dc61abeafdf18a56d1a23f61e9f43d0c9c1ed5fd24c82abec3"
+  },
+  {
+    "path": "docs/Audit-2026-09-18.md",
+    "sha256": "d6e5d49f773840633f4159a812c8ca2789480848b39b13e9284f1eb65cca89b3"
+  }
+]

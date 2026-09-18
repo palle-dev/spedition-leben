@@ -126,7 +126,7 @@ export function getReservedVacationDays(state, personId) {
   );
   let total = 0;
   for (const r of requests) {
-    total += r.days;
+    total += Math.max(0, r.days - (r.consumedDays || 0) - (r.sickDays || 0));
   }
   return total;
 }
@@ -138,6 +138,7 @@ export function requestVacation(state, { personId, startMin, endMin, reason }) {
   if (!found) throw new Error("Mitarbeiter nicht gefunden.");
   if (!isActivelyEmployed(found.person)) throw new Error("Nur aktiv beschäftigte Mitarbeiter können Urlaub beantragen.");
   
+  if (!Number.isSafeInteger(startMin) || !Number.isSafeInteger(endMin) || startMin < 0 || endMin < 0) throw new Error("Ungültiger Urlaubszeitraum.");
   const sMin = dayStart(startMin);
   const eMin = dayStart(endMin) + DAY_MIN; // Ende exklusiv, Folgetag-Mitternacht
   if (eMin <= sMin) throw new Error("Ende muss nach Beginn liegen.");
@@ -199,6 +200,16 @@ export function approveVacation(state, { requestId, conflictResolution }) {
   if (!req) throw new Error("Antrag nicht gefunden.");
   if (req.status !== "pending") throw new Error("Antrag ist bereits bearbeitet.");
   
+  const currentPerson = findPerson(state, req.personId);
+  if (!currentPerson || !isActivelyEmployed(currentPerson.person)) throw new Error("Person ist nicht mehr aktiv beschäftigt.");
+  if (!Number.isSafeInteger(req.startMin) || !Number.isSafeInteger(req.endMin) || req.endMin <= req.startMin || req.startMin < dayStart(state.gameTime)) throw new Error("Urlaubszeitraum ist nicht mehr gültig.");
+  const days = (req.endMin - req.startMin) / DAY_MIN;
+  if (!Number.isSafeInteger(days) || days < 1) throw new Error("Ungültige Urlaubsdauer.");
+  accrueVacationDays(state, req.personId, state.gameTime);
+  if (days > getVacationAvailable(state, req.personId)) throw new Error("Nicht genügend freie Urlaubstage für diese Genehmigung.");
+  if (state.absences.vacationRequests.some(r => r.id !== req.id && r.personId === req.personId && r.status === "approved" && r.startMin < req.endMin && r.endMin > req.startMin)) throw new Error("Es existiert bereits genehmigter Urlaub in diesem Zeitraum.");
+  req.days = days;
+  req.conflicts = detectAbsenceConflicts(state, req.personId, req.startMin, req.endMin);
   req.status = "approved";
   req.approvedAtMin = state.gameTime;
   req.approvedBy = "player";
@@ -300,7 +311,9 @@ export function returnEarlyFromVacation(state, { requestId, returnMin }) {
   if (state.gameTime < req.startMin) throw new Error("Urlaub hat noch nicht begonnen – bitte stornieren.");
   if (state.gameTime >= req.endMin) throw new Error("Urlaub ist bereits beendet.");
   
-  const rMin = dayStart(returnMin || state.gameTime) + DAY_MIN; // ab nächster Mitternacht
+  const requested = returnMin ?? state.gameTime;
+  if (!Number.isSafeInteger(requested) || requested < state.gameTime) throw new Error("Rückkehr darf nicht in der Vergangenheit liegen.");
+  const rMin = dayStart(requested) + DAY_MIN; // ab nächster Mitternacht
   if (rMin >= req.endMin) throw new Error("Rückkehrzeitpunkt liegt nach Urlaubsende.");
   
   const originalEnd = req.endMin;
@@ -668,6 +681,7 @@ export function isPersonAvailable(state, personId, m) {
   const found = findPerson(state, personId);
   if (!found) return false;
   if (!isActivelyEmployed(found.person)) return false;
+  if (found.person.isTempStaff && Number.isFinite(found.person.tempReturnMin) && found.person.tempReturnMin <= m) return false;
   
   state.absences = state.absences || {};
   
@@ -809,7 +823,16 @@ export function autoApproveVacationRequests(state, m) {
     if (req.conflicts && req.conflicts.some(c => c.severity === "hard")) continue;
 
     const found = findPerson(state, req.personId);
-    if (!found) continue;
+    if (!found || !isActivelyEmployed(found.person)) continue;
+    if (!Number.isSafeInteger(req.startMin) || !Number.isSafeInteger(req.endMin) || req.startMin < dayStart(m)) continue;
+    const days = (req.endMin - req.startMin) / DAY_MIN;
+    if (!Number.isSafeInteger(days) || days < 1) continue;
+    accrueVacationDays(state, req.personId, m);
+    if (days > getVacationAvailable(state, req.personId)) continue;
+    if (state.absences.vacationRequests.some(r => r.id !== req.id && r.personId === req.personId && r.status === "approved" && r.startMin < req.endMin && r.endMin > req.startMin)) continue;
+    req.conflicts = detectAbsenceConflicts(state, req.personId, req.startMin, req.endMin);
+    if (req.conflicts.some(c => c.severity === "hard")) continue;
+    req.days = days;
 
     // Filialleiter für die Filiale des Mitarbeiters suchen
     const personBranchId = found.person.assignedBranchId || found.person.branchId;

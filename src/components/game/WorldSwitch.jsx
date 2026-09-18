@@ -36,7 +36,7 @@ export default function WorldSwitch() {
             onMouseLeave={() => setHovered(null)}
             onFocus={() => setHovered(w.path)}
             onBlur={() => setHovered(null)}
-            className={`relative grid place-items-center w-9 h-9 rounded-full transition-all duration-300 ease-[cubic-bezier(.2,.75,.2,1)] active:scale-90 ${
+            className={`relative grid place-items-center w-9 h-9 rounded-full transition-all duration-300 [transition-timing-function:cubic-bezier(.2,.75,.2,1)] active:scale-90 ${
               isActive
                 ? `${colors.active} ${colors.glow}`
                 : `text-muted-foreground ${colors.ring} hover:bg-white/5`
@@ -44,10 +44,10 @@ export default function WorldSwitch() {
             aria-pressed={isActive}
             aria-label={w.label}
           >
-            <Icon className={`w-4 h-4 transition-transform duration-300 ease-[cubic-bezier(.2,.75,.2,1)] ${isHovered || isActive ? "scale-110" : "scale-100"}`} />
+            <Icon className={`w-4 h-4 transition-transform duration-300 [transition-timing-function:cubic-bezier(.2,.75,.2,1)] ${isHovered || isActive ? "scale-110" : "scale-100"}`} />
             {/* Tooltip */}
             <span
-              className={`pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-surface-2 border border-white/15 px-2 py-1 text-[10px] font-medium text-foreground shadow-lg transition-all duration-200 ease-[cubic-bezier(.2,.75,.2,1)] ${
+              className={`pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-surface-2 border border-white/15 px-2 py-1 text-[10px] font-medium text-foreground shadow-lg transition-all duration-200 [transition-timing-function:cubic-bezier(.2,.75,.2,1)] ${
                 isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"
               }`}
             >

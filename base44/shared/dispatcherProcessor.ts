@@ -111,6 +111,7 @@ function processCleaner(state, emp, m, log) {
 // Modus A: erstellt Vorschläge für freie Fahrzeuge mit angenommenen Aufträgen.
 // Modus B/C: nutzt suggestTours für flottenweite Planung.
 export function processDispatcher(state, emp, m, log) {
+  if (emp.isTempStaff && Number.isFinite(emp.tempReturnMin) && emp.tempReturnMin <= m) return;
   let poolVehicles = state.vehicles.filter(v =>
     v.status !== "sold" && v.status !== "archived" && !v.markedForSale
   );
@@ -435,6 +436,7 @@ export function processDispatcher(state, emp, m, log) {
 // Fahrzeug × Fahrer × Aufträge durchsucht werden.
 export function planSingleVehicle(state, vehicle, m, log) {
   if (vehicle.status !== "free" || vehicle.condition < 20 || vehicle.markedForSale) return;
+  if (Number.isFinite(vehicle.rentalReturnMin) && vehicle.rentalReturnMin <= m) return;
   if (vehicle.ownership_type === "sold" || vehicle.ownership_type === "archived") return;
 
   // Überfällige angenommene Aufträge bereinigen (siehe processDispatcher).
@@ -449,6 +451,7 @@ export function planSingleVehicle(state, vehicle, m, log) {
   // Finde autonomen/dispatch_accepted Disponenten für diese Filiale
   const dispatcher = (state.employees || []).find(e => {
     if (!isActivelyEmployed(e) || e.attendance !== "present") return false;
+    if (e.isTempStaff && Number.isFinite(e.tempReturnMin) && e.tempReturnMin <= m) return false;
     if (e.role !== "dispatcher" && e.role !== "dispatcher_senior") return false;
     if (e.workMode !== "autonomous" && e.workMode !== "dispatch_accepted") return false;
     if (!isDispatcherOnShift(e, m)) return false;

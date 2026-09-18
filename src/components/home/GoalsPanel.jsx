@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { formatEuro } from "@/lib/gameData";
 import { GOAL_TEMPLATES } from "@/lib/achievementCatalog";
+import { getGoalProgress as computeGoalProgress } from "@/lib/progressEngine";
 import Drawer from "@/components/ui/Drawer";
 import { Target, Plus, X, Check, ChevronRight } from "lucide-react";
 
@@ -25,22 +26,11 @@ export default function GoalsPanel({ state, send, showToast }) {
 
   function getGoalProgress(goal) {
     const tpl = GOAL_TEMPLATES.find(t => t.id === goal.templateId);
-    if (!tpl) return { current: 0, target: 1, pct: 0 };
-    if (tpl.type === "purchase") {
-      const privateNetWorth = (state.private?.accountCents || 0);
-      return { current: Math.min(privateNetWorth, tpl.targetCents), target: tpl.targetCents, pct: Math.min(100, (privateNetWorth / tpl.targetCents) * 100), isPurchase: true, targetCents: tpl.targetCents };
-    }
-    if (tpl.type === "stat") {
-      let current = 0;
-      if (tpl.statKey === "promisesKept") current = state.stats?.promisesKept || 0;
-      else if (tpl.statKey === "consecutiveBalanceDays") current = state.stats?.consecutiveBalanceDays || 0;
-      else if (tpl.statKey === "vehicleCount") current = (state.vehicles || []).length;
-      else if (tpl.statKey === "totalDeliveries") current = state.stats?.totalDeliveries || 0;
-      else if (tpl.statKey === "totalRevenueCents") current = state.stats?.totalRevenueCents || 0;
-      else if (tpl.statKey === "companyValue") current = 0; // would need computed
-      return { current: Math.min(current, tpl.target), target: tpl.target, pct: Math.min(100, (current / tpl.target) * 100) };
-    }
-    return { current: 0, target: 1, pct: 0 };
+    if (!tpl) return { current: 0, target: 1, pct: 0, isPurchase: false };
+    const progress = computeGoalProgress(state, goal);
+    return { ...progress, pct: progress.target > 0 ? Math.max(0, Math.min(100, progress.current / progress.target * 100)) : 0,
+      isPurchase: tpl.type === "purchase" || tpl.statKey === "companyValue" || tpl.statKey === "totalRevenueCents" };
+
   }
 
   return (

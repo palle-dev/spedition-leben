@@ -647,10 +647,8 @@ function processEventsAt(state, m, log) {
   // Auftrag 25: Krankheitsgenesung – nur bei aktiven Krankmeldungen
   if ((state.absences?.sicknesses || []).length > 0) processSicknessRecovery(state, m);
   // Dienstleistungsverarbeitung – nur bei vorhandenen Verträgen
-  if ((state.serviceContracts || []).length > 0) {
-    processServiceContracts(state, m, log);
-    processTempStaffBilling(state, m, log);
-  }
+  processServiceContracts(state, m, log);
+  if ((state.serviceContracts || []).length > 0) processTempStaffBilling(state, m, log);
   // Auftrag 27: Werkstatt-Verarbeitung und Automatik
   processWorkshop(state, m, log); evaluateWorkshopAutomation(state, m, log); checkKmMaintenanceDue(state, m, log);
   // Stoerungsmanagement: Auto-Auflösung, Abschluss laufender Maßnahmen
@@ -783,6 +781,8 @@ function planTrip(state, order, vehicle, driver) {
   const plan = buildDeployment(state, order, vehicle, vehicle.locationCity, state.gameTime, {
     workMin: driver.workMinutesSinceRest || 0, driveMin: driver.driveMinutesSinceBreak || 0,
   });
+  if ((Number.isFinite(vehicle.rentalReturnMin) && plan.endMin > vehicle.rentalReturnMin) ||
+      (driver.isTempStaff && Number.isFinite(driver.tempReturnMin) && plan.endMin > driver.tempReturnMin)) throw new Error("Einsatz endet nach Ablauf der Miete oder Personalvertretung.");
   return { ...plan, totalDuration: plan.durationMin };
 
 }
@@ -956,6 +956,8 @@ export function applyCommand(state, command, params) {
       const workSteps = buildEmptyWorkSteps(p.fromCity, p.toCity);
       const counters = { workMin: d.workMinutesSinceRest || 0, driveMin: d.driveMinutesSinceBreak || 0 };
       const phaseResult = buildPhases(workSteps, counters, state.gameTime);
+      if ((Number.isFinite(v.rentalReturnMin) && phaseResult.endMin > v.rentalReturnMin) ||
+          (d.isTempStaff && Number.isFinite(d.tempReturnMin) && phaseResult.endMin > d.tempReturnMin)) throw new Error("Leerfahrt endet nach Ablauf der Miete oder Personalvertretung.");
       const dist = getDistance(p.fromCity, p.toCity);
       const fuel = fuelCents(dist, v.consumptionPer100km);
       const toll = tollCents(dist);

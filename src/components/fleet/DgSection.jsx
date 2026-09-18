@@ -294,7 +294,7 @@ function DgVehicleCard({ vehicle, gameTime, onEquip, onInspect, onClean, busy })
         )}
         {vehicle.status === "maintenance" && (
           <div className="flex-1 text-center text-xs text-sky-300 py-2">
-            <Clock className="w-3.5 h-3.5 inline mr-1" /> Beschäftigt bis {formatGameTime(vehicle.maintenanceUntil)}
+            <Clock className="w-3.5 h-3.5 inline mr-1" /> {Number.isFinite(vehicle.maintenanceUntil) ? "Beschäftigt bis " + formatGameTime(vehicle.maintenanceUntil) : "Werkstattwartung läuft"}
           </div>
         )}
       </div>

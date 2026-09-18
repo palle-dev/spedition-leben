@@ -436,6 +436,34 @@ export function getFreeSettlement(state, depotId) {
   return depot.settlementCents - reserved;
 }
 
+// Pending orders must never be removed to trim the completed order history.
+export function isOpenInvestmentOrder(o) {
+  return ["open", "partially_filled", "pending_stop", "active_stop"].includes(o.status);
+}
+export function validateInvestmentOrder(state, p, allowedTypes) {
+  const depot = getDepot(state, p.depotId);
+  if (!["buy", "sell"].includes(p.side) || !allowedTypes.includes(p.orderType)) throw new Error("Ungültige Orderart oder Handelsrichtung.");
+  if (p.qty != null && (!Number.isFinite(p.qty) || p.qty <= 0)) throw new Error("Menge muss endlich und positiv sein.");
+  if (p.budgetCents != null && (!Number.isSafeInteger(p.budgetCents) || p.budgetCents <= 0)) throw new Error("Ungültiges Orderbudget.");
+  for (const field of ["limitCents", "stopCents"]) if (p[field] != null && (!Number.isFinite(p[field]) || p[field] <= 0)) throw new Error("Ungültiger Orderpreis.");
+  if (p.trailingPercent != null && (!Number.isFinite(p.trailingPercent) || p.trailingPercent <= 0 || p.trailingPercent >= 100)) throw new Error("Ungültiger Trailing-Abstand.");
+  if (p.timeInForce != null && !["DAY", "GTC", "GTD"].includes(p.timeInForce)) throw new Error("Ungültige Ordergültigkeit.");
+  if (p.timeInForce === "GTD" && (!Number.isSafeInteger(p.expireMin) || p.expireMin <= state.gameTime)) throw new Error("Ungültiges Ablaufdatum.");
+  if (depot.orders.filter(isOpenInvestmentOrder).length >= ORDERS_MAX) throw new Error("Maximal 200 offene Orders. Bitte zuerst Orders abschließen oder stornieren.");
+  if (p.side === "buy" && p.depotId === "company" && ((state.openCosts || []).some(o => o.account === "company" && o.amountCents > 0) || (state.accounting?.openItems || []).some(o => o.remainingCents > 0))) throw new Error("Bitte zuerst offene betriebliche Kosten bezahlen.");
+  if (p.ocoWith) {
+    const partner = depot.orders.find(o => o.id === p.ocoWith);
+    if (!partner || !isOpenInvestmentOrder(partner)) throw new Error("OCO-Partner nicht mehr offen oder nicht gefunden.");
+    if (partner.instrumentId !== p.instrumentId || partner.side !== p.side || partner.ocoPartnerId) throw new Error("OCO-Partner passt nicht zu dieser Order.");
+  }
+}
+export function trimInvestmentOrders(depot) {
+  const open = depot.orders.filter(isOpenInvestmentOrder);
+  const closed = depot.orders.filter(o => !isOpenInvestmentOrder(o)).slice(-Math.max(1, ORDERS_MAX - open.length));
+  const keep = new Set([...open, ...closed].map(o => o.id));
+  depot.orders = depot.orders.filter(o => keep.has(o.id));
+}
+
 // ---------- Orders ----------
 export function placeOrder(state, p) {
   const depot = getDepot(state, p.depotId);
@@ -446,6 +474,7 @@ export function placeOrder(state, p) {
 
   const def = ALL_INSTRUMENT_DEFS.find(d => d.id === p.instrumentId);
   const isCrypto = def.type === "crypto";
+  validateInvestmentOrder(state, p, ["market", "limit"]);
   const side = p.side;  // "buy" | "sell"
   const orderType = p.orderType;  // "market" | "limit"
 
@@ -497,6 +526,7 @@ export function placeOrder(state, p) {
     const maxGross = Math.round(qty * maxPrice);
     const maxFee = computeFee(def.type, maxGross);
     reservedCents = maxGross + maxFee;
+    if (!Number.isSafeInteger(reservedCents) || reservedCents <= 0 || (p.budgetCents != null && reservedCents > p.budgetCents)) throw new Error("Order überschreitet das gültige Budget.");
     const free = getFreeSettlement(state, p.depotId);
     if (free < reservedCents) throw new Error(`Freie Depotliquidität reicht nicht aus (benötigt: ${(reservedCents / 100).toFixed(2)} €, verfügbar: ${(free / 100).toFixed(2)} €).`);
   } else {
@@ -505,7 +535,7 @@ export function placeOrder(state, p) {
     const available = pos ? pos.availableQty : 0;
     if (available < qty) throw new Error(`Freie Menge reicht nicht aus (verfügbar: ${available} ${isCrypto ? "Einheiten" : "Anteile"}).`);
     reservedQty = qty;
-    if (pos) pos.availableQty -= qty;
+    // Quantity is reserved only after every validation succeeds.
   }
 
   // Ablaufzeit
@@ -526,6 +556,7 @@ export function placeOrder(state, p) {
     ocoPartnerId = partner.id;
   }
 
+  if (side === "sell") depot.positions[p.instrumentId].availableQty -= qty;
   const order = {
     id: uid(state, "io"),
     depotId: p.depotId,
@@ -559,7 +590,7 @@ export function placeOrder(state, p) {
   }
 
   depot.orders.push(order);
-  if (depot.orders.length > ORDERS_MAX) depot.orders = depot.orders.slice(-ORDERS_MAX);
+  trimInvestmentOrders(depot);
 
   // Sofortausführung versuchen, wenn Markt offen
   const fillResult = tryExecuteOrder(state, order, state.gameTime);
@@ -626,7 +657,11 @@ function tryExecuteOrder(state, order, min) {
 
   const qtyScale = Math.round(1 / (isStock ? STOCK_QTY_PRECISION : CRYPTO_QTY_PRECISION));
   const remainingQty = (Math.round(order.qty * qtyScale) - Math.round(order.filledQty * qtyScale)) / qtyScale;
-  if (remainingQty <= 0) return { filled: false };
+  if (remainingQty <= 0) {
+    order.status = "filled"; order.reservedCents = 0;
+    if (order.ocoPartnerId) cancelOcoPartnerLocal(state, order, min);
+    return { filled: false };
+  }
 
   // Preisprüfung
   let execPrice;
@@ -659,6 +694,8 @@ function tryExecuteOrder(state, order, min) {
     }
   }
 
+  if (!Number.isFinite(execPrice) || execPrice <= 0) return { filled: false, reason: "Keine gültige Quote" };
+
   // Broker-Liquidität prüfen
   let maxQtyByLiquidity;
   if (isStock) {
@@ -672,15 +709,23 @@ function tryExecuteOrder(state, order, min) {
 
   // Ausführung
   const grossCents = Math.round(fillQty * execPrice);
-  let feeCents = computeFee(def.type, grossCents);
-  // Bei vollständigem Restverkauf: Gebühr auf Bruttoerlös begrenzen
-  if (order.closePosition && feeCents > grossCents) feeCents = grossCents;
-
   // Bei Teilausführung: kumulierte Gebühr neu berechnen, nur Differenz buchen
   const prevFilledGross = order.filledGrossCents;
   const newTotalGross = prevFilledGross + grossCents;
-  const newTotalFee = computeFee(def.type, newTotalGross);
+  const uncappedFee = computeFee(def.type, newTotalGross);
+  const newTotalFee = order.closePosition && order.side === "sell" ? Math.min(uncappedFee, newTotalGross) : uncappedFee;
   const incrementalFee = Math.max(0, newTotalFee - order.feeCents);
+
+  if (order.side === "buy") {
+    const available = getFreeSettlement(state, order.depotId) + (order.reservedCents || 0);
+    if (grossCents + incrementalFee > available) {
+      order.status = "cancelled"; order.cancelledAtMin = min; order.reservedCents = 0;
+      order.rejectReason = "Ausführung nach Kursänderung nicht ausreichend gedeckt.";
+      return { filled: false, reason: order.rejectReason };
+    }
+  } else if (incrementalFee > grossCents) {
+    return { filled: false, reason: "Erlös liegt unter der Mindestgebühr. Zum vollständigen Restverkauf Position schließen." };
+  }
 
   // Liquidität verbrauchen
   if (isStock) {
@@ -752,7 +797,7 @@ function applyFill(state, depotId, instrumentId, side, qty, priceCents, feeCents
     pos.totalCostCents += Math.round(qty * priceCents) + feeCents;
     pos.totalFeesCents += feeCents;
     // Buchhaltung (nur Firma)
-    if (depotId === "company") {
+    if (depotId === "company" && cost > 0) {
       const acct = def.type === "crypto" ? "1311" : "1310";
       postJournal(state, {
         text: `Kauf ${instrumentId}: ${qty} @ ${(priceCents / 100).toFixed(2)} €`, type: "investment_buy", gameTime: min,
@@ -781,7 +826,7 @@ function applyFill(state, depotId, instrumentId, side, qty, priceCents, feeCents
     pos.realizedPnlCents += realizedPnl;
     depot.realizedPnlCents += realizedPnl;
     // Buchhaltung (nur Firma)
-    if (depotId === "company") {
+    if (depotId === "company" && (proceeds > 0 || costBasis > 0)) {
       const acct = def.type === "crypto" ? "1311" : "1310";
       const gainAcct = realizedPnl >= 0 ? "4300" : "5710";
       const lines = [

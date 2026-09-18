@@ -39,7 +39,7 @@ function getDailyPersonnelCostCents(state) {
   let total = 0;
   for (const d of (state.drivers || [])) {
     if (!isActivelyEmployed(d)) continue;
-    total += d.costPerDayCents || DRIVER_COST_PER_DAY;
+    total += d.costPerDayCents ?? DRIVER_COST_PER_DAY;
   }
   for (const e of (state.employees || [])) {
     if (!isActivelyEmployed(e)) continue;
@@ -418,6 +418,12 @@ export function computeLiquidityForecast(state, options) {
   positions.push(...collectInProgressTrips(state, horizonMin));
   positions.push(...collectPlannedMaintenance(state, horizonMin));
   positions.push(...collectDailyRecurring(state, horizonMin));
+  for (const c of (state.serviceContracts || [])) {
+    if (c.status === "planned" && c.paymentDueCents > 0 && c.startMin > calcMin && c.startMin <= horizonMin) {
+      positions.push(makePosition("company", "out", "known", "service", c.id, c.startMin, c.paymentDueCents,
+        "Dienstleistung: " + c.providerName, "certain", { type: "service", contractId: c.id }));
+    }
+  }
 
   // Ansicht B: Erwarteter Verlauf (ergänzt A)
   if (view === "expected" || view === "conservative") {

@@ -71,7 +71,7 @@ export function getDevelopmentStage(companyValueCents) {
 // --- Stat-Wert für Ziele ---
 
 export function getStatValue(state, key) {
-  if (key === "vehicleCount") return (state.vehicles || []).filter(v => (v.ownership_type || "owned") === "owned" && v.status !== "archived").length;
+  if (key === "vehicleCount") return (state.vehicles || []).filter(v => (v.ownership_type || "owned") === "owned" && v.status !== "archived" && v.status !== "sold").length;
   if (key === "companyValue") return computeCompanyValue(state);
   if (key === "privateNetWorth") return computePrivateNetWorth(state);
   return (state.stats && state.stats[key]) || 0;

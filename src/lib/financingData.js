@@ -126,7 +126,7 @@ export function ownershipLabel(v) {
   if (v.status === "archived") return "Archiviert";
   if (v.status === "sold") return "Verkauft";
   if (v.ownership_type === "leased") return "Geleast";
-  if (v.ownership_type === "rented") return "Gemietet";
+  if (v.ownership_type === "rented" || v.ownership_type === "rental") return "Gemietet";
   return "Eigen";
 }
 

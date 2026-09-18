@@ -21,7 +21,7 @@ export default function InvestmentOverview({ state }) {
           <span className={`px-2 py-1 rounded-md ${market.cryptoOpen ? "bg-lime/10 text-lime" : "bg-white/5 text-muted-foreground"}`}>
             Krypto {market.cryptoOpen ? "offen" : "geschlossen"}
           </span>
-          <span className="text-muted-foreground">Regime: <span className="text-invest-purple capitalize">{market.regime}</span></span>
+          <span className="text-muted-foreground">Regime: <span className="text-invest-purple capitalize">{({ neutral: "Neutral", positive: "Aufschwung", negative: "Abschwung" })[market.regime] || market.regime}</span></span>
         </div>
       </div>
 

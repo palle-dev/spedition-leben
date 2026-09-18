@@ -3,13 +3,13 @@
 // Reine Logik – keine Auth, keine Speicherung. Wird von simulationEngine importiert.
 
 import {
-  dayOf, formatGameTime, mulberry32, getDistance, driveMinutes,
+  CITIES, dayOf, formatGameTime, mulberry32, getDistance, driveMinutes,
   SERVICE_START_MIN, SERVICE_END_MIN, MAINTENANCE_COST, MAINTENANCE_DURATION,
   STRESS_MAINT_THRESHOLD, MAINT_STRESS_FACTOR,
 } from "./gameRules.ts";
 import { pushEvent } from "./eventLog.ts";
 import { deliverMessage } from "./mailEngine.ts";
-import { isPersonAvailable } from "./absenceEngine.ts";
+import { addBooking, postJournal } from "./accountingEngine.ts";
 import { applyCleaningToBreakArea } from "./siteExpansionEngine.ts";
 
 const DAY_MIN = 1440;
@@ -130,7 +130,6 @@ export function applyCleaningEffect(state, branchId, unitsDone, dayId) {
     applyCleaningToBreakArea(state, branchId, deltaEffect);
   }
   progress.unitsDone = totalUnits;
-  b.cleanlingProgress = b.cleanlingProgress || {};
   b.cleaningProgress[dayId] = progress;
   
   return { effect: deltaEffect, newCleanliness: b.cleanliness, totalUnits };
@@ -140,7 +139,8 @@ export function applyCleaningEffect(state, branchId, unitsDone, dayId) {
 export function bookCleaning(state, { branchId, units, recurring, recurringIntervalDays }) {
   const b = (state.branches || []).find(x => x.id === branchId);
   if (!b) throw new Error("Standort nicht gefunden.");
-  if (units < 1) throw new Error("Mindestens eine Reinigungseinheit erforderlich.");
+  if (!Number.isSafeInteger(units) || units < 1 || units > 24) throw new Error("Reinigungseinheiten müssen eine ganze Zahl von 1 bis 24 sein.");
+  if (recurringIntervalDays != null && (!Number.isSafeInteger(recurringIntervalDays) || recurringIntervalDays < 1 || recurringIntervalDays > 365)) throw new Error("Ungültiger Reinigungsrhythmus.");
   
   const provider = SERVICE_PROVIDERS.find(p => p.type === "cleaning" && p.homeCity === b.city)
     || SERVICE_PROVIDERS.find(p => p.type === "cleaning");
@@ -238,7 +238,8 @@ export function bookMaintenance(state, { vehicleId }) {
 export function bookTowing(state, { vehicleId, targetCity }) {
   const v = (state.vehicles || []).find(x => x.id === vehicleId);
   if (!v) throw new Error("Fahrzeug nicht gefunden.");
-  if (!targetCity) throw new Error("Zielort erforderlich.");
+  if (!CITIES.includes(targetCity)) throw new Error("Gültiger Zielort erforderlich.");
+  if (v.status !== "free" || (state.tours || []).some(t => t.vehicleId === vehicleId && ["active", "planned"].includes(t.status))) throw new Error("Fahrzeug ist bereits verplant oder beschäftigt.");
   if (v.locationCity === targetCity) throw new Error("Fahrzeug bereits am Zielort.");
   
   const provider = SERVICE_PROVIDERS.find(p => p.type === "towing" && p.homeCity === v.locationCity);
@@ -261,13 +262,15 @@ export function bookTowing(state, { vehicleId, targetCity }) {
     id: uid(state, "svc"),
     type: "towing", providerId: provider.id, providerName: provider.name,
     vehicleId, fromCity: v.locationCity, toCity: targetCity,
-    distanceKm: dist, startMin, arrivalMin, handoverMin,
+    distanceKm: dist, startMin, arrivalMin, handoverMin, endMin: handoverMin,
     costCents: cost, status: "planned",
     createdAtMin: state.gameTime,
   };
   
   state.serviceContracts = state.serviceContracts || [];
   state.serviceContracts.push(contract);
+  v.status = "towing";
+  v.towingContractId = contract.id;
   
   pushEvent(state, {
     type: "service_booked",
@@ -286,14 +289,17 @@ export function bookTowing(state, { vehicleId, targetCity }) {
 // ---------- Fremdpersonal ----------
 
 export function bookTempStaff(state, { type, substitutesPersonId, startMin, blocks }) {
-  const providerType = type === "temp_driver" ? "temp_driver" : "temp_dispatcher";
+  if (!["temp_driver", "temp_dispatcher"].includes(type)) throw new Error("Unbekannte Personalart.");
+  const providerType = type;
   const provider = SERVICE_PROVIDERS.find(p => p.type === providerType);
   if (!provider) throw new Error("Kein Anbieter für Fremdpersonal verfügbar.");
   
   const minBlocks = provider.minBlocks || 2;
-  const numBlocks = Math.max(minBlocks, blocks || minBlocks);
+  const numBlocks = blocks ?? minBlocks;
+  if (!Number.isSafeInteger(numBlocks) || numBlocks < minBlocks || numBlocks > 30) throw new Error("Buchungsdauer muss zwischen 2 und 30 ganzen Tagen liegen.");
   
-  const sMin = startMin || state.gameTime;
+  const sMin = startMin ?? state.gameTime;
+  if (!Number.isSafeInteger(sMin) || sMin < state.gameTime) throw new Error("Ungültiger Beginn der Vertretung.");
   const eMin = sMin + numBlocks * BLOCK_DURATION_MIN;
   const totalCost = provider.provisionCents + numBlocks * provider.blockRateCents;
   
@@ -302,6 +308,7 @@ export function bookTempStaff(state, { type, substitutesPersonId, startMin, bloc
   }
   
   const found = substitutesPersonId ? findPersonById(state, substitutesPersonId) : null;
+  if (substitutesPersonId && (!found || found.employmentStatus !== "employed" || (type === "temp_driver" ? !(state.drivers || []).includes(found) : !["dispatcher", "dispatcher_senior"].includes(found.role)))) throw new Error("Vertretung passt nicht zur ausgewählten Person.");
   
   const contract = {
     id: uid(state, "svc"),
@@ -311,12 +318,16 @@ export function bookTempStaff(state, { type, substitutesPersonId, startMin, bloc
     startMin: sMin, endMin: eMin, blocks: numBlocks,
     provisionCents: provider.provisionCents, blockRateCents: provider.blockRateCents,
     totalCostCents: totalCost, status: "planned",
-    capacity: provider.capacity, locationCity: provider.homeCity,
+    capacity: provider.capacity, locationCity: found?.locationCity || provider.homeCity, branchId: found?.branchId || null,
     createdAtMin: state.gameTime,
   };
   
   state.serviceContracts = state.serviceContracts || [];
   state.serviceContracts.push(contract);
+  if (contract.startMin <= state.gameTime) {
+    Object.assign(contract, { status: "active", actualStartMin: state.gameTime });
+    onServiceStart(state, contract, state.gameTime, []);
+  }
   
   pushEvent(state, {
     type: "service_booked",
@@ -343,7 +354,8 @@ export function bookExternalAccounting(state, { startMin }) {
   if (!provider) throw new Error("Kein externer Buchhaltungsdienst verfügbar.");
   
   // Beginn: nächster voller Diensttag
-  const sMin = startMin || (Math.floor(state.gameTime / DAY_MIN) + 1) * DAY_MIN + SERVICE_START_MIN;
+  const sMin = startMin ?? (Math.floor(state.gameTime / DAY_MIN) + 1) * DAY_MIN + SERVICE_START_MIN;
+  if (!Number.isSafeInteger(sMin) || sMin < state.gameTime) throw new Error("Ungültiger Beginn der Buchhaltungsprüfung.");
   const eMin = sMin + (SERVICE_END_MIN - SERVICE_START_MIN);
   const cost = provider.dailyRateCents;
   
@@ -378,11 +390,13 @@ export function bookExternalAccounting(state, { startMin }) {
 // ---------- Mietfahrzeug ----------
 
 export function bookRentalTruck(state, { provisionCity, blocks }) {
+  if (provisionCity != null && !CITIES.includes(provisionCity)) throw new Error("Ungültiger Bereitstellungsort.");
   const provider = SERVICE_PROVIDERS.find(p => p.type === "rental_truck");
   if (!provider) throw new Error("Kein Mietfahrzeug-Anbieter verfügbar.");
   
   const minBlocks = provider.minBlocks || 2;
-  const numBlocks = Math.max(minBlocks, blocks || minBlocks);
+  const numBlocks = blocks ?? minBlocks;
+  if (!Number.isSafeInteger(numBlocks) || numBlocks < minBlocks || numBlocks > 30) throw new Error("Buchungsdauer muss zwischen 2 und 30 ganzen Tagen liegen.");
   const totalCost = provider.handoverCents + numBlocks * provider.blockRateCents;
   
   if (state.company.accountCents < totalCost) {
@@ -404,6 +418,10 @@ export function bookRentalTruck(state, { provisionCity, blocks }) {
   
   state.serviceContracts = state.serviceContracts || [];
   state.serviceContracts.push(contract);
+  if (contract.startMin <= state.gameTime) {
+    Object.assign(contract, { status: "active", actualStartMin: state.gameTime });
+    onServiceStart(state, contract, state.gameTime, []);
+  }
   
   pushEvent(state, {
     type: "service_booked",
@@ -428,6 +446,17 @@ export function cancelService(state, { contractId }) {
   
   // Vor Beginn: kostenlos stornierbar (neues einfaches Profil)
   if (c.startMin > state.gameTime) {
+    // Reverse the actual prepaid journal entry, never create sales revenue.
+    const original = (state.accounting?.journal || []).find(e => e.sourceEventId === c.id && e.lines.some(l => l.account === "1000" && l.creditCents > 0));
+    const refundCents = original ? original.lines.filter(l => l.account === "1000").reduce((n, l) => n + l.creditCents - l.debitCents, 0) : 0;
+    if (refundCents > 0 && !c.refundedCents) {
+      postJournal(state, { text: "Dienstleistung storniert: " + c.id, type: "service_refund", sourceEventId: "refund:" + c.id, correctionOf: original.id,
+        lines: original.lines.map(l => ({ account: l.account, debit: l.creditCents, credit: l.debitCents })) });
+      state.bookings.push({ min: state.gameTime, cause: "Dienstleistung erstattet: " + c.id, amountCents: refundCents, account: "company", refId: c.id });
+    }
+    c.refundedCents = refundCents;
+    const vehicle = (state.vehicles || []).find(v => v.towingContractId === c.id);
+    if (vehicle) { vehicle.status = "free"; vehicle.towingContractId = null; }
     c.status = "cancelled";
     c.cancelledAtMin = state.gameTime;
     pushEvent(state, {
@@ -436,13 +465,13 @@ export function cancelService(state, { contractId }) {
       details: { serviceType: c.type, contractId, beforeStart: true },
       dedupKey: "service_cancelled:" + contractId,
     });
-    return { ok: true, contractId, refund: true };
+    return { ok: true, contractId, refund: refundCents > 0, refundCents };
   }
   
   // Wiederkehrend: zum nächsten Leistungstag kündbar
   if (c.recurring && c.status === "active") {
-    c.status = "cancelled";
-    c.cancelledAtMin = state.gameTime;
+    c.recurring = false;
+    c.renewalCancelledAtMin = state.gameTime;
     c.cancelReason = "recurring_cancelled";
     pushEvent(state, {
       type: "service_cancelled",
@@ -465,40 +494,89 @@ export function cancelService(state, { contractId }) {
 
 export function processServiceContracts(state, m, log) {
   state.serviceContracts = state.serviceContracts || [];
-  
-  for (const c of state.serviceContracts) {
+  retireTemporaryResources(state, m);
+  // New contracts are processed on their own scheduler event.
+  for (const c of [...state.serviceContracts]) {
     if (c.status === "planned" && c.startMin <= m) {
-      // Vertrag beginnt
+      if (c.paymentDueCents > 0) {
+        if (state.company.accountCents < c.paymentDueCents) {
+          c.status = "cancelled";
+          c.cancelReason = "insufficient_funds";
+          deliverMessage(state, { fromId: "system", toId: "player", subject: "Reinigung nicht ausgeführt",
+            body: "Der Folgetermin bei " + c.providerName + " wurde wegen fehlender Deckung storniert. Bitte bei Bedarf neu buchen.",
+            gameTime: m, category: "operations", priority: "high", dedupKey: "service_unpaid:" + c.id });
+          continue;
+        }
+        addBooking(state, m, "Reinigung: " + c.id, -c.paymentDueCents, "company", c.id);
+        c.paymentDueCents = 0;
+      }
       c.status = "active";
       c.actualStartMin = m;
       onServiceStart(state, c, m, log);
     }
-    
     if (c.status === "active" && c.endMin <= m) {
-      // Vertrag endet
       c.status = "completed";
       c.completedAtMin = m;
       onServiceComplete(state, c, m, log);
+      if (c.recurring && c.type === "cleaning") {
+        const interval = (c.recurringIntervalDays || 7) * DAY_MIN;
+        const nextStart = c.startMin + Math.max(1, Math.floor((m - c.startMin) / interval) + 1) * interval;
+        state.serviceContracts.push({
+          id: uid(state, "svc"), type: c.type, providerId: c.providerId, providerName: c.providerName,
+          branchId: c.branchId, branchName: c.branchName, branchCity: c.branchCity,
+          units: c.units, costCents: c.costCents, paymentDueCents: c.costCents,
+          startMin: nextStart, endMin: nextStart + c.units * 60, status: "planned",
+          createdAtMin: m, recurring: true, recurringIntervalDays: c.recurringIntervalDays || 7, parentContractId: c.id,
+        });
+      }
     }
-    
-    // Wiederkehrende Reinigung: nächsten Termin planen
-    if (c.recurring && c.status === "active" && c.type === "cleaning" && c.endMin <= m) {
-      c.status = "completed";
-      c.completedAtMin = m;
-      onServiceComplete(state, c, m, log);
-      // Nächsten Termin erstellen
-      const nextStart = c.endMin + (c.recurringIntervalDays || 7) * DAY_MIN;
-      const nextContract = {
-        ...c, id: uid(state, "svc"), startMin: nextStart,
-        endMin: nextStart + c.units * 60, status: "planned",
-        createdAtMin: m, recurring: true, parentContractId: c.id,
-      };
-      state.serviceContracts.push(nextContract);
+  }
+  retireTemporaryResources(state, m);
+}
+
+function ensureServiceResource(state, c, m) {
+  if (c.resourceId || c.endMin <= m) return;
+  const city = c.provisionCity || c.locationCity;
+  const branchId = c.branchId || (state.branches || []).find(b => b.city === city)?.id || state.branches?.[0]?.id;
+  if (c.type === "rental_truck") {
+    const v = { id: uid(state, "v_rent"), branchId, type: "Miet-Lkw", capacityTons: 12, consumptionPer100km: 30,
+      bookValueCents: 0, condition: 90, locationCity: city, status: "free", tripId: null, maintenanceUntil: null,
+      ownership_type: "rental", odometerKm: 0, acquiredAtMin: m, rentalReturnMin: c.endMin, serviceContractId: c.id };
+    state.vehicles.push(v); c.resourceId = v.id;
+  } else if (c.type === "temp_driver" || c.type === "temp_dispatcher") {
+    const person = { id: uid(state, c.type === "temp_driver" ? "d_temp" : "e_temp"),
+      name: (c.type === "temp_driver" ? "Fremdfahrer" : "Fremddisponent") + " (" + c.providerName + ")",
+      branchId, locationCity: city, costPerDayCents: 0, hireFeeCents: 0, employedDay: dayOf(m),
+      portraitId: null, satisfaction: 70, satisfactionReasons: [], employmentStatus: "employed",
+      attendance: "present", consecutiveLowSatisfactionDays: 0, sickUntil: null, vacationUntil: null,
+      vacationDaysAvailable: 0, isTempStaff: true, tempReturnMin: c.endMin, serviceContractId: c.id };
+    if (c.type === "temp_driver") {
+      state.drivers.push({ ...person, status: "free", restUntil: null, workMinutesSinceRest: 0, driveMinutesSinceBreak: 0 });
+    } else {
+      state.employees.push({ ...person, role: "dispatcher", activity: "idle", exitDate: null,
+        assignedVehicleIds: [], workMode: "autonomous", assignedBranchId: branchId, capacity: c.capacity,
+        lastDecisionMin: null, suggestions: [] });
+    }
+    c.resourceId = person.id;
+  }
+}
+
+// A late running trip may finish; expired resources cannot start another trip.
+function retireTemporaryResources(state, m) {
+  for (const v of (state.vehicles || [])) {
+    if (Number.isFinite(v.rentalReturnMin) && v.rentalReturnMin <= m && v.status !== "on_trip" && v.status !== "archived") {
+      v.status = "archived"; v.archivedAtMin = m; v.archiveReason = "rental_returned"; v.tripId = null;
+    }
+  }
+  for (const p of [...(state.drivers || []), ...(state.employees || [])]) {
+    if (p.isTempStaff && Number.isFinite(p.tempReturnMin) && p.tempReturnMin <= m && p.status !== "on_trip" && p.employmentStatus !== "left") {
+      p.employmentStatus = "left"; p.attendance = "released"; p.exitDate = m; p.activity = "idle";
     }
   }
 }
 
 function onServiceStart(state, c, m, log) {
+  ensureServiceResource(state, c, m);
   if (c.type === "cleaning") {
     log.push({ type: "cleaning_started", contract: c.id, atMin: m });
     pushEvent(state, {
@@ -564,7 +642,7 @@ function onServiceComplete(state, c, m, log) {
     });
   } else if (c.type === "maintenance") {
     const v = (state.vehicles || []).find(x => x.id === c.vehicleId);
-    if (v) {
+    if (v && v.status === "maintenance" && v.maintenanceUntil === c.endMin) {
       v.status = "free";
       v.maintenanceUntil = null;
       v.condition = 100;
@@ -577,9 +655,10 @@ function onServiceComplete(state, c, m, log) {
     });
   } else if (c.type === "towing") {
     const v = (state.vehicles || []).find(x => x.id === c.vehicleId);
-    if (v) {
+    if (v && v.towingContractId === c.id) {
       v.locationCity = c.toCity;
       v.status = "free";
+      v.towingContractId = null;
     }
     log.push({ type: "towing_completed", contract: c.id, atMin: m });
     pushEvent(state, {
@@ -646,6 +725,14 @@ export function processTempStaffBilling(state, m, log) {
 
 export function migrateServices(state) {
   state.serviceContracts = state.serviceContracts || [];
+  for (const c of state.serviceContracts) {
+    if (c.type === "towing" && !Number.isFinite(c.endMin)) c.endMin = c.handoverMin;
+    if (c.type === "towing" && ["planned", "active"].includes(c.status)) {
+      const v = (state.vehicles || []).find(v => v.id === c.vehicleId);
+      if (v?.status === "free") { v.status = "towing"; v.towingContractId = c.id; }
+    }
+    if (c.status === "active") ensureServiceResource(state, c, state.gameTime);
+  }
   // Sauberkeit für bestehende Standorte initialisieren
   for (const b of (state.branches || [])) {
     if (b.cleanliness === undefined) {

@@ -16,7 +16,7 @@ export default function SettingsDialog({ open, onClose }) {
   const activeHelps = HELP_OPTIONS.filter(opt => state.helpSettings?.[opt.id]);
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Spieleinstellungen">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl border border-white/15 bg-surface shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 sticky top-0 bg-surface z-10">
@@ -24,7 +24,7 @@ export default function SettingsDialog({ open, onClose }) {
             <Settings className="w-4 h-4 text-lime" />
             <h2 className="font-semibold text-foreground">Spieleinstellungen</h2>
           </div>
-          <button onClick={onClose} className="w-8 h-8 grid place-items-center rounded-full hover:bg-white/10 text-muted-foreground hover:text-foreground transition">
+          <button aria-label="Schließen" onClick={onClose} className="w-8 h-8 grid place-items-center rounded-full hover:bg-white/10 text-muted-foreground hover:text-foreground transition">
             <X className="w-4 h-4" />
           </button>
         </div>

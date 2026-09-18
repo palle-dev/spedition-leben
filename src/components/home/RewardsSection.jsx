@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { ACHIEVEMENTS } from "@/lib/achievementCatalog";
 import { REWARDS, REWARD_SLOTS, SLOT_LABELS, getRewardById } from "@/lib/rewardData";
 import {
   Award, Ticket, Palette, BookHeart, DoorOpen, Car, Frame, Lock, Gift, X,
@@ -165,7 +166,7 @@ export default function RewardsSection({ state, send, showToast }) {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {locked.map(r => {
               const Icon = TYPE_ICONS[r.type] || Award;
-              const ach = (state.achievements || []).find(a => a.id === r.achievementId);
+              const ach = ACHIEVEMENTS.find(a => a.id === r.achievementId);
               return (
                 <div key={r.id} className="glass border border-white/5 rounded-xl p-3 opacity-60">
                   <div className="flex items-center gap-2 mb-1.5">
