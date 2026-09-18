@@ -831,11 +831,34 @@ export function GameProvider({ children }) {
     try { await send("markAllEventsSeen", {}); setUnseenCount(0); } catch (e) {}
   }, [send]);
 
+  // Vor dem Ersetzen bleibt jede Partie als eigener, wieder ladbarer Slot erhalten.
+  const preserveCurrentParty = useCallback(async (token) => {
+    if (!stateRef.current) return;
+    const snapshot = structuredClone(stateRef.current);
+    ensurePartyId(snapshot);
+    await saveManualSlot(token.userId, "Partie · " + snapshot.company.name + " · " + snapshot.meta.partyId, snapshot);
+    if (!isCurrentSession(token)) throw new Error("Die Sitzung hat sich geändert. Bitte erneut versuchen.");
+  }, [ensurePartyId, isCurrentSession]);
+
+  const openStartScreen = useCallback(async () => {
+    if (sendInFlightRef.current || syncInFlightRef.current || backgroundAdvanceRef.current || changingStateRef.current) {
+      showToast("Bitte den laufenden Vorgang abwarten.", "info");
+      return;
+    }
+    userWantsAutomationRef.current = false;
+    setAutomationEnabled(false);
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    const saved = stateRef.current ? await saveNow(stateRef.current) : { ok: true };
+    if (saved.ok) setShowStart(true);
+    else showToast("Bitte den Spielstand zuerst erfolgreich speichern.", "error");
+  }, [saveNow, showToast]);
+
   const newGame = useCallback(async (names) => {
     let token;
     setBusy(true);
     try {
       token = beginStateChange();
+      await preserveCurrentParty(token);
       const data = await executeInWorker(null, "newGame", names || {});
       if (!isCurrentSession(token)) return { skipped: true };
       if (data.error) throw new Error(data.error);
@@ -846,7 +869,7 @@ export function GameProvider({ children }) {
       return result;
     } catch (error) { showToast(error.message, "error"); throw error; }
     finally { if (!token || isCurrentSession(token)) { changingStateRef.current = false; setBusy(false); } }
-  }, [beginStateChange, isCurrentSession, activateState, uploadToCloud, showToast]);
+  }, [beginStateChange, isCurrentSession, activateState, uploadToCloud, showToast, preserveCurrentParty]);
 
   // Neues Szenario-Spiel starten
   const newScenarioGame = useCallback(async (scenarioId, names) => {
@@ -854,13 +877,18 @@ export function GameProvider({ children }) {
     setBusy(true);
     try {
       token = beginStateChange();
+      await preserveCurrentParty(token);
       const data = await executeInWorker(null, "newScenarioGame", { scenarioId, names: names || {} });
       if (!isCurrentSession(token)) return { skipped: true };
       if (data.error) throw new Error(data.error);
-      return await activateState(data.state, token);
+      const result = await activateState(data.state, token);
+      if (result.ok && isCurrentSession(token) && navigator.onLine) {
+        uploadToCloud(stateRef.current, stateRef.current.company?.name || "Neues Szenario", "new");
+      }
+      return result;
     } catch (error) { showToast(error.message, "error"); throw error; }
     finally { if (!token || isCurrentSession(token)) { changingStateRef.current = false; setBusy(false); } }
-  }, [beginStateChange, isCurrentSession, activateState, showToast]);
+  }, [beginStateChange, isCurrentSession, activateState, uploadToCloud, showToast, preserveCurrentParty]);
 
   // Szenario als freies Spiel fortsetzen
   const continueScenarioAsFreePlay = useCallback(async () => {
@@ -919,11 +947,11 @@ export function GameProvider({ children }) {
     }
   }, [sessionToken, isCurrentSession, assertWritable, uploadToCloud, refreshCloudSaves, showToast]);
 
-  const loadSlot = useCallback(async (name) => {
+  const loadSlot = useCallback(async (name, isScenario = !!stateRef.current?.scenario) => {
     let token;
     try {
       token = beginStateChange();
-      const loaded = await loadManualSlot(token.userId, name, !!stateRef.current?.scenario);
+      const loaded = await loadManualSlot(token.userId, name, isScenario);
       if (!loaded) throw new Error("Slot nicht gefunden");
       return await activateState(loaded, token);
     } catch (error) { return { ok: false, error: error.message }; }
@@ -938,8 +966,8 @@ export function GameProvider({ children }) {
     } catch (error) { return { ok: false, error: error.message }; }
   }, [assertWritable]);
 
-  const listSlots = useCallback(async () => {
-    try { return await listManualSlots(userIdRef.current, !!stateRef.current?.scenario); }
+  const listSlots = useCallback(async (isScenario = !!stateRef.current?.scenario) => {
+    try { return await listManualSlots(userIdRef.current, isScenario); }
     catch (e) { return []; }
   }, []);
 
@@ -1017,7 +1045,7 @@ export function GameProvider({ children }) {
     startBackgroundAdvance, dismissBackgroundAdvanceResult,
     runDiagnosedAdvance, getDiagReport,
     markAllEventsSeen,
-    showToast, dismissToast, dismissOverlay, dismissStart, toggleMotion,
+    showToast, dismissToast, dismissOverlay, dismissStart, openStartScreen, toggleMotion,
     exportGame, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
     uploadToCloud, refreshCloudSaves, loadCloudGame, deleteCloudGame,
     resolveConflictKeepBoth, resolveConflictKeepLocal, resolveConflictKeepCloud,
@@ -1027,7 +1055,7 @@ export function GameProvider({ children }) {
     startBackgroundAdvance, dismissBackgroundAdvanceResult,
     runDiagnosedAdvance, getDiagReport,
     markAllEventsSeen,
-    showToast, dismissToast, dismissOverlay, dismissStart, toggleMotion,
+    showToast, dismissToast, dismissOverlay, dismissStart, openStartScreen, toggleMotion,
     exportGame, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
     uploadToCloud, refreshCloudSaves, loadCloudGame, deleteCloudGame,
     resolveConflictKeepBoth, resolveConflictKeepLocal, resolveConflictKeepCloud,
