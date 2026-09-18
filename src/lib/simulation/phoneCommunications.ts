@@ -1,3 +1,4 @@
+import { getPhoneProposals } from "./phoneProposals.ts";
 import { getDeliveryRisks, getEscalatedDeliveryRisks } from "./deliveryRisk.ts";
 import { deliverMessage } from "./mailEngine.ts";
 
@@ -14,17 +15,23 @@ export function processPhoneCommunications(state, silent=false){
    gameTime:state.gameTime,category:"operations",priority:"normal",linkedRefs:{type:"order",id:order.id},dedupKey:"phone_customer:"+order.id});
   order.phoneCustomerInformed=true;
  }
- if(!silent)return;
  const calls=getEscalatedDeliveryRisks(state).map(r=>({...r,id:r.disruptionId||r.id,type:r.disruptionId?"disruption":r.type}));
  for(const d of state.disruptions?.items||[]){
   if(d.status!=="decision_open"||d.type==="loading_delay"||calls.some(c=>c.id===d.id))continue;
   calls.push({id:d.id,type:"disruption",title:d.cause||"Rückruf der Leitstelle",source:"Leitstelle",disruptionId:d.id});
  }
- if(!calls.length)return;
+ const actionable=[];
+ for(const call of calls){
+  if(getPhoneProposals(state,call).length)actionable.push(call);
+  else deliverMessage(state,{fromId:"system",toId:"player",subject:"Lieferhinweis: "+(call.customer||call.title||"Betrieb"),
+   body:(call.description||call.title||"Lieferung in Gefahr")+". Aktuell liegt kein ausführbarer Entscheidungsvorschlag vor. Dieser Hinweis erfordert keine telefonische Freigabe.",
+   gameTime:state.gameTime,category:"operations",priority:"normal",linkedRefs:{type:call.type==="disruption"?"disruption":"order",id:call.disruptionId||call.orderId||call.id},dedupKey:"delivery_notice:"+call.id});
+ }
+ if(!silent||!actionable.length)return;
  const missed=state.missedPhoneCalls||(state.missedPhoneCalls=[]);
  const known=new Set(missed.map(c=>c.id));
- for(const call of calls)if(!known.has(call.id)){missed.push({...call,missedAtMin:state.gameTime});known.add(call.id);}
+ for(const call of actionable)if(!known.has(call.id)){missed.push({...call,missedAtMin:state.gameTime});known.add(call.id);}
  // Keep unresolved calls even in very long saves.
- const active=new Set(calls.map(c=>c.id));
+ const active=new Set(actionable.map(c=>c.id));
  state.missedPhoneCalls=missed.filter((c,i)=>active.has(c.id)||i>=missed.length-100);
 }

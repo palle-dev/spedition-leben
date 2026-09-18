@@ -1,3 +1,4 @@
+import { getPhoneProposals } from "@/lib/simulation/phoneProposals";
 import { getRoutineDelayResolver } from "@/lib/simulation/disruptionEngine";
 import { getEscalatedDeliveryRisks } from "@/lib/simulation/deliveryRisk";
 import { getPendingDecisions } from "@/lib/decisionQueue";
@@ -21,7 +22,12 @@ export function getCommunicationQueue(state) {
  calls.push(...risks.filter(r=>!r.disruptionId || !calls.some(c=>c.id===r.disruptionId)));
  emails.push(...getPendingDecisions(state));
  calls.sort((a,b)=>(a.deadline??Infinity)-(b.deadline??Infinity)||(a.createdAt||0)-(b.createdAt||0)||a.key.localeCompare(b.key));
- return {calls,emails};
+ const actionable=[];
+ for(const call of calls){
+  if(getPhoneProposals(state,call).length)actionable.push(call);
+  else emails.push({...call,informationOnly:true,actions:[]});
+ }
+ return {calls:actionable,emails};
 }
 export function deadlineLabel(deadline,now) {
  if (deadline===null || deadline===undefined) return "Einsatz wartet auf deine Entscheidung";

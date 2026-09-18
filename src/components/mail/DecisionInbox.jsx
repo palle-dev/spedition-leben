@@ -20,14 +20,15 @@ export default function DecisionInbox() {
    setNotice(action.label+" – deine Entscheidung wurde übernommen.");setSelected(null);setReason("");
   }catch(e){setError(e.message);}finally{lock.current=false;setSending(false);}
  }
- return <section aria-label="E-Mails mit offenen Entscheidungen" className="mb-5 rounded-2xl border border-cyan-300/20 bg-cyan-500/5 p-4">
- <h2 className="text-sm font-semibold">Antworten, die auf dich warten · {entries.length}</h2>
- <p className="text-xs text-muted-foreground mt-1">Planbare Anliegen bearbeitest du hier. Dringende Einsätze erscheinen am Telefon.</p>
+ return <section aria-label="Hinweise und Entscheidungen im Postfach" className="mb-5 rounded-2xl border border-cyan-300/20 bg-cyan-500/5 p-4">
+ <h2 className="text-sm font-semibold">Hinweise & Entscheidungen · {entries.length}</h2>
+ <p className="text-xs text-muted-foreground mt-1">Hinweise benötigen keine Antwort. Das Telefon meldet sich nur bei dringenden, ausführbaren Entscheidungen.</p>
  {notice&&<p role="status" className="text-xs text-lime mt-2">{notice}</p>}
  <div className="mt-3 space-y-2 max-h-[45vh] overflow-y-auto">
  {entries.map(e=><div key={e.key} className="rounded-xl border border-white/10 bg-surface/60">
  <button aria-expanded={selected===e.key} onClick={()=>{if(sending)return;setSelected(selected===e.key?null:e.key);setReason("");setError("");setNotice("");}} className="w-full text-left p-3"><span className="block text-[10px] uppercase tracking-wider text-cyan-200">{e.source}</span><span className="text-sm font-medium">{e.title}</span><span className="block text-xs text-muted-foreground mt-1">{e.description}</span></button>
- {selected===e.key&&e.type!=="disruption"&&<div className="px-3 pb-3 space-y-3">
+ {selected===e.key&&e.informationOnly&&<p className="px-3 pb-3 text-xs text-muted-foreground">Nur zur Information · aktuell keine ausführbare Entscheidung erforderlich.</p>}
+ {selected===e.key&&!e.informationOnly&&e.type!=="disruption"&&<div className="px-3 pb-3 space-y-3">
  <p className="text-xs text-cyan-100">Kosten laut Anfrage: {formatEuro(e.costCents||0)}{e.benefitDesc?" · "+e.benefitDesc:""}</p>
  {e.type==="vacation_request"&&<><p className="text-xs text-amber-200">Vor der Genehmigung die Personaldeckung prüfen. Bestehende Einsätze werden dadurch nicht automatisch umgeplant.</p>
  {(e.meta.conflicts||[]).length>0&&<p className="text-xs text-amber-200">{e.meta.conflicts.length} bekannte Überschneidungen im Urlaubszeitraum.</p>}
@@ -38,6 +39,6 @@ export default function DecisionInbox() {
  </div>)}
  {entries.length===0&&<p className="text-xs text-muted-foreground">Alle planbaren Rückfragen sind bearbeitet.</p>}
  </div>
- {current?.type==="disruption"&&<DisruptionDialog disruptionId={current.id} onClose={()=>setSelected(null)}/>}
+ {current?.type==="disruption"&&!current.informationOnly&&<DisruptionDialog disruptionId={current.id} onClose={()=>setSelected(null)}/>}
  </section>;
 }

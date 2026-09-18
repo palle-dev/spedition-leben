@@ -1,15 +1,19 @@
 import { buildTourPlan, confirmTour, _clearPlanCache, getOrderReservation } from "./tourEngine.ts";
-import { getDisruptionDetail } from "./disruptionEngine.ts";
+import { isLeasingOverdueBlocked } from "./financingEngine.ts";
+import { getDisruptionDetail, resolveDisruption } from "./disruptionEngine.ts";
 
 export function proposalSignature(option) {
  return JSON.stringify([option.id,option.costCents,option.estimatedDurationMin,option.description,option.params]);
 }
 export function getPhoneProposals(state, call) {
- if (!call || call.demo) return [];
+ if (!call || call.demo || (state.appointments||[]).some(a=>a.status==="active"&&a.type!=="scenario_timeoff")) return [];
  if (call.type !== "delivery_risk") {
   const detail=getDisruptionDetail(state,call.id);
   if(detail?.status!=="decision_open")return [];
-  return detail.options.filter(o=>o.available && o.id!=="inform_customer").map(o=>({...o,command:"resolveDisruption",params:{disruptionId:call.id,optionId:o.id,params:{phoneQuote:{cost:o.costCents,duration:o.estimatedDurationMin,description:o.description}}},informationOnly:o.id==="inform_customer"}));
+  return detail.options.filter(o=>{
+   if(!o.available || o.id==="inform_customer" || (o.costCents||0)>state.company.accountCents)return false;
+   try{resolveDisruption(structuredClone(state),call.id,o.id,{});return true;}catch{return false;}
+  }).map(o=>({...o,command:"resolveDisruption",params:{disruptionId:call.id,optionId:o.id,params:{phoneQuote:{cost:o.costCents,duration:o.estimatedDurationMin,description:o.description}}},informationOnly:o.id==="inform_customer"}));
  }
  const order=state.orders.find(o=>o.id===call.orderId);
  if(!order || !["angenommen","unterwegs"].includes(order.status))return [];
@@ -18,7 +22,7 @@ export function getPhoneProposals(state, call) {
    !(state.trips||[]).some(t=>t.orderId===order.id&&t.status==="in_progress")){
   _clearPlanCache();
   const candidates=[];
-  for(const v of state.vehicles.filter(v=>v.status==="free"&&v.condition>=20)){
+  for(const v of state.vehicles.filter(v=>v.status==="free"&&v.condition>=20&&!isLeasingOverdueBlocked(state,v.id))){
    for(const d of state.drivers.filter(d=>d.status==="free"&&d.locationCity===v.locationCity)){
     const params={vehicleId:v.id,driverId:d.id,orderIds:[order.id]};
     try {
