@@ -9,7 +9,7 @@ import { HELP_OPTIONS } from "@/lib/simulation/helpSettings";
 // gewählten Einstiegshilfen an. Die Auswahl erfolgt beim Spielstart
 // und kann während des Spiels nicht geändert werden.
 export default function SettingsDialog({ open, onClose }) {
-  const { state } = useGame();
+  const { state, busy, openStartScreen } = useGame();
   if (!open || !state) return null;
 
   const profile = DIFFICULTY_PROFILES.find(p => p.id === state.difficulty?.profileId) || DIFFICULTY_PROFILES[1];
@@ -30,6 +30,7 @@ export default function SettingsDialog({ open, onClose }) {
         </div>
 
         <div className="p-5 space-y-5">
+          <button disabled={busy} onClick={async () => { await openStartScreen(); onClose(); }} className="w-full px-4 py-3 rounded-xl bg-lime/10 border border-lime/30 text-lime font-medium disabled:opacity-50">Spielstart & Szenarien öffnen</button>
           {/* Schwierigkeitsprofil */}
           <div>
             <h3 className="text-xs uppercase tracking-[0.1em] text-muted-foreground mb-2">Schwierigkeitsprofil</h3>
