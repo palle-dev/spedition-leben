@@ -1,3 +1,4 @@
+import DecisionInbox from "@/components/mail/DecisionInbox";
 import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import MailConversationList from "@/components/mail/MailConversationList";
@@ -33,6 +34,7 @@ export default function Mail() {
         </p>
       </div>
 
+      <DecisionInbox key={state.meta?.partyId} />
       <div className="flex flex-col lg:flex-row gap-4 h-[calc(100dvh-220px)] min-h-[400px]">
         {/* Listen-Spalte */}
         <div className={`flex-1 lg:flex-none lg:w-2/5 rounded-2xl bg-surface/60 border border-white/10 overflow-hidden ${selectedConvId ? "hidden lg:flex" : "flex"} flex-col`}>
