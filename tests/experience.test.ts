@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { describe, it, expect, vi } from "vitest";
 import { createInitialState, applyCommand } from "@/lib/simulation/simulationEngine";
 import { migrateState, checkAchievements } from "@/lib/simulation/progressEngine";
+import { getDisruptionDetail, resolveDisruption } from "@/lib/simulation/disruptionEngine";
 import { pushEvent } from "@/lib/simulation/eventLog";
 import { postJournal } from "@/lib/simulation/accountingEngine";
 import { getDayRecap, getUpcomingRiskCount } from "@/lib/experienceRecapData";
@@ -100,6 +101,24 @@ describe("Spielgefühl – echte Daten und sichere Fortschritte", () => {
   expect(html).toContain("Fünf Punktlandungen");
   expect(html).toContain("nächsten Tageswechsel");
   expect(JSON.stringify(s)).toBe(before);
+ });
+ it("Störungsdetails bleiben aktuell und verändern die Simulation nicht",()=>{
+  const s=initial(), order=s.orders[0];
+  order.deliveryDeadlineMin=s.gameTime+95;
+  const d={id:"test-delay",type:"loading_delay",status:"decision_open",createdAtMin:s.gameTime,orderIds:[order.id],delayMin:20,history:[],options:[]};
+  s.disruptions.items.push(d);
+  const before=JSON.stringify(s);
+  const first=getDisruptionDetail(s,d.id);
+  expect(first.orders[0].deadlineBufferMin).toBe(95);
+  expect(JSON.stringify(s)).toBe(before);
+  s.gameTime+=60;
+  const current=getDisruptionDetail(s,d.id);
+  expect(current.orders[0].deadlineBufferMin).toBe(35);
+  d.options=current.options;
+  resolveDisruption(s,d.id,"accept_delay",{});
+  const result=getDisruptionDetail(s,d.id);
+  expect(result.status).toBe("completed");
+  expect(result.completionSummary).toContain("20");
  });
  it("deaktivierter Ton erzeugt keinen AudioContext",async()=>{
   const Constructor=vi.fn(); vi.stubGlobal("AudioContext",Constructor);
