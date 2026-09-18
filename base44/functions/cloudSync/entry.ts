@@ -25,7 +25,7 @@ function extractMeta(state) {
   };
 }
 
-export default async function (req) {
+export default async function handleCloudSync(req) {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
@@ -207,4 +207,10 @@ export default async function (req) {
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
+}
+
+// Base44 starts this file in Deno; exporting a handler alone does not open the HTTP server.
+// Keep the export for contract tests, which run without the Deno runtime.
+if (typeof Deno !== "undefined") {
+  Deno.serve(handleCloudSync);
 }
