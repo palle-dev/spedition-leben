@@ -17,14 +17,19 @@ export default function PhoneCenter() {
  const queue=useMemo(()=>getCommunicationQueue(state),[state]);
  const [selected,setSelected]=useState(null),[showList,setShowList]=useState(false),[later,setLater]=useState([]);
  const [sending,setSending]=useState(false),[error,setError]=useState("");
- const lock=useRef(false);
+ const lock=useRef(false), ringCounts=useRef(new Map());
  const soundReady=useSoundReady();
  const incoming=queue.calls.find(c=>!later.includes(c.id));
  const recent=(state.disruptions?.items||[]).filter(d=>d.status==="completed").slice(-5).reverse();
  const canRing=soundReady && !selected && !overlay && !backgroundAdvance?.active && !busy;
  useEffect(()=>{
   if (!incoming || !canRing || document.hidden) return;
-  const stop=startPhoneRinging(()=>playExperienceSound("phone"));
+  for(const id of ringCounts.current.keys())if(!queue.calls.some(c=>c.id===id))ringCounts.current.delete(id);
+  const remaining=3-(ringCounts.current.get(incoming.id)||0);
+  const stop=startPhoneRinging(()=>{
+   ringCounts.current.set(incoming.id,(ringCounts.current.get(incoming.id)||0)+1);
+   playExperienceSound("phone");
+  },setInterval,clearInterval,remaining);
   const onVisibility=()=>{if(document.hidden)stop();};
   document.addEventListener("visibilitychange",onVisibility);
   return ()=>{stop();document.removeEventListener("visibilitychange",onVisibility);};

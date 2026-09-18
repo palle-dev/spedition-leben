@@ -16,6 +16,12 @@ describe("Audioaktivierung",()=>{
  expect(instance.resume).toHaveBeenCalled();expect(instance.oscillators).toHaveLength(2);
  expect(instance.gains[0].gain.linearRampToValueAtTime.mock.calls[0][0]).toBeCloseTo(.143);
  });
+ it("Telefon wird nicht durch vorherige Benachrichtigung stummgeschaltet",async()=>{
+ const a=await import("@/lib/experienceSound");await a.setSoundEnabled(true);
+ expect(a.playExperienceSound("phone")).toBe(true);
+ expect(instance.oscillators).toHaveLength(6);
+ expect(a.playExperienceSound("phone")).toBe(false);
+ });
  it("Testton umgeht Ereignis-Cooldown, normale Signale bleiben begrenzt",async()=>{
  const a=await import("@/lib/experienceSound");await a.setSoundEnabled(true);
  expect(a.playExperienceSound("alert")).toBe(false);
