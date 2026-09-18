@@ -12,7 +12,7 @@ export default function OfficeHeader({ state, period, setPeriod }) {
   const day = dayOf(state.gameTime);
 
   return (
-    <div className="flex items-end justify-between flex-wrap gap-4">
+    <div className="flex items-end justify-between flex-wrap gap-4" style={{ background: "transparent", backdropFilter: "none", WebkitBackdropFilter: "none", border: "none", boxShadow: "none" }}>
       {/* Firmenidentität */}
       <div className="flex items-center gap-4">
         <div>

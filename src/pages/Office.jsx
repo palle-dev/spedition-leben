@@ -35,7 +35,7 @@ export default function Office() {
     <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-8 max-w-[1600px] mx-auto space-y-6">
       <PageHint pageKey="office" />
 
-      {/* Kopfzeile */}
+      {/* Kopfzeile — transparent auf atmosphärischem Hintergrund */}
       <OfficeHeader state={state} period={period} setPeriod={setPeriod} />
 
       {/* Tagesübersicht: Natürliche Aussagen aus Spieldaten */}
