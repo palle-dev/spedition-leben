@@ -1082,6 +1082,8 @@ export function resolveDisruption(state, disruptionId, optionId, params) {
     throw new Error("Option nicht mehr verfuegbar: " + (refreshed?.unavailableReason || "Ressource nicht mehr verfuegbar."));
   }
 
+  if(params?.phoneQuote && (params.phoneQuote.cost!==refreshed.costCents || params.phoneQuote.duration!==refreshed.estimatedDurationMin || params.phoneQuote.description!==refreshed.description)) throw new Error("Die Maßnahme hat sich geändert. Bitte den aktuellen Vorschlag erneut prüfen und bestätigen.");
+
   if (refreshed.costCents > 0) {
     if (state.company.accountCents < refreshed.costCents) {
       throw new Error("Firmenkonto reicht fuer diese Massnahme nicht aus.");

@@ -9,7 +9,7 @@ export function getPhoneProposals(state, call) {
  if (call.type !== "delivery_risk") {
   const detail=getDisruptionDetail(state,call.id);
   if(detail?.status!=="decision_open")return [];
-  return detail.options.filter(o=>o.available).map(o=>({...o,command:"resolveDisruption",params:{disruptionId:call.id,optionId:o.id},informationOnly:o.id==="inform_customer"}));
+  return detail.options.filter(o=>o.available).map(o=>({...o,command:"resolveDisruption",params:{disruptionId:call.id,optionId:o.id,params:{phoneQuote:{cost:o.costCents,duration:o.estimatedDurationMin,description:o.description}}},informationOnly:o.id==="inform_customer"}));
  }
  const order=state.orders.find(o=>o.id===call.orderId);
  if(!order || !["angenommen","unterwegs"].includes(order.status))return [];
