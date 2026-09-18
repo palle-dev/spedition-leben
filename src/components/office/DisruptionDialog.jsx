@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useMemo } from "react";
+import { getDisruptionDetail } from "@/lib/simulation/disruptionEngine";
 import { createPortal } from "react-dom";
 import { useGame } from "@/lib/gameContext";
 import { formatGameTime, formatEuro } from "@/lib/gameData";
@@ -19,20 +20,9 @@ const STATUS_CONFIG = {
 // Detail-Dialog für Störungen: zeigt Ursache, betroffene Ressourcen,
 // verfügbare Handlungsoptionen mit Kosten-/Zeitvergleich und Historie.
 export default function DisruptionDialog({ disruptionId, onClose }) {
-  const { send, showToast } = useGame();
-  const [detail, setDetail] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { state, send, showToast } = useGame();
+  const detail = useMemo(() => getDisruptionDetail(state, disruptionId), [state, disruptionId]);
   const [resolving, setResolving] = useState(false);
-
-  async function loadDetail() {
-    try {
-      const r = await send("getDisruptionDetail", { disruptionId });
-      if (r?.detail) setDetail(r.detail);
-    } catch (e) { showToast(e.message, "error"); }
-    finally { setLoading(false); }
-  }
-
-  useEffect(() => { loadDetail(); }, [disruptionId]);
 
   async function handleResolve(optionId) {
     setResolving(true);
@@ -40,20 +30,10 @@ export default function DisruptionDialog({ disruptionId, onClose }) {
       const r = await send("resolveDisruption", { disruptionId, optionId });
       if (r.ok) {
         showToast(r.informationOnly ? "Kunde informiert." : "Störung bearbeitet.", "success");
-        await loadDetail();
-        if (r.ok && !r.informationOnly) onClose();
+        // Ergebnis bleibt sichtbar; Optionen aktualisieren sich aus dem Spielzustand.
       }
     } catch (e) { showToast(e.message, "error"); }
     finally { setResolving(false); }
-  }
-
-  if (loading) {
-    return createPortal(
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/80 backdrop-blur-sm" onClick={onClose}>
-        <div className="text-muted-foreground text-sm">Lade Störung…</div>
-      </div>,
-      document.body
-    );
   }
 
   if (!detail) {
@@ -74,6 +54,7 @@ export default function DisruptionDialog({ disruptionId, onClose }) {
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/80 backdrop-blur-sm p-4" onClick={onClose}>
       <div
+        role="dialog" aria-modal="true" aria-label="Funkmeldung und Entscheidung"
         className="glass border border-white/15 rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto scrollbar-none"
         onClick={e => e.stopPropagation()}
       >
@@ -99,6 +80,7 @@ export default function DisruptionDialog({ disruptionId, onClose }) {
         </div>
 
         <div className="p-5 space-y-4">
+          <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-3"><p className="text-sm font-medium">{detail.driverName ? `${detail.driverName} braucht eine Entscheidung.` : "Die Leitstelle meldet Handlungsbedarf."}</p><p className="text-xs text-muted-foreground mt-1">Fristen laufen ausschließlich mit der Spielzeit. Vergleiche Kosten und Verzögerung, bevor du handelst.</p></div>
           {/* Betroffene Ressourcen */}
           <div className="grid grid-cols-2 gap-3">
             {detail.vehicleLabel && (
@@ -158,7 +140,7 @@ export default function DisruptionDialog({ disruptionId, onClose }) {
                         <span className="text-muted-foreground"> · {o.fromCity} → {o.toCity} · {o.tons}t</span>
                       </div>
                       <div className={`shrink-0 ${urgent ? "text-coral" : "text-muted-foreground"}`}>
-                        {buffer > 0 ? `Frist: ${Math.floor(buffer / 60)}h` : "Frist abgelaufen"}
+                        {buffer > 0 ? `Noch ${Math.floor(buffer / 60)}h ${Math.floor(buffer % 60)}min Spielzeit` : "Frist abgelaufen"}
                       </div>
                     </div>
                   );

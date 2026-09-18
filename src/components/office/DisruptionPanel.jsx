@@ -1,10 +1,9 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
 import { AlertTriangle, Wrench, Clock, UserX, ChevronRight, Loader2, Zap } from "lucide-react";
 import DisruptionDialog from "@/components/office/DisruptionDialog";
 
-// Merkt sich, welche Störungen bereits auto-geöffnet wurden (Session-Scope).
-const autoShownIds = new Set();
+// Entscheidungen bleiben sichtbar, ohne den Zeitvorlauf mit Modal-Kaskaden zu unterbrechen.
 
 const TYPE_CONFIG = {
   technical_defect: { icon: Wrench, label: "Technischer Defekt", color: "text-coral", bg: "bg-coral/10", border: "border-coral/20" },
@@ -32,28 +31,13 @@ export default function DisruptionPanel() {
     [state.disruptions]
   );
 
-  // Auto-Öffnen: Neue Störungen mit offener Entscheidung direkt als Modal anzeigen.
-  const openIdsKey = disruptions
-    .filter(d => d.status === "decision_open")
-    .map(d => d.id)
-    .join(",");
-
-  useEffect(() => {
-    if (selectedId) return;
-    const next = disruptions.find(d => d.status === "decision_open" && !autoShownIds.has(d.id));
-    if (next) {
-      autoShownIds.add(next.id);
-      setSelectedId(next.id);
-    }
-  }, [openIdsKey, selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  if (!disruptions || disruptions.length === 0) return null;
+  if (disruptions.length === 0 && !selectedId) return null;
 
   return (
     <div className="glass border border-white/10 rounded-xl p-4 space-y-3">
       <div className="flex items-center gap-2">
         <AlertTriangle className="w-4 h-4 text-coral" />
-        <h3 className="text-sm font-semibold">Aktive Störungen</h3>
+        <h3 className="text-sm font-semibold">Funk aus dem Betrieb</h3>
         <span className="text-xs text-muted-foreground ml-auto">{disruptions.length} offen</span>
       </div>
 
