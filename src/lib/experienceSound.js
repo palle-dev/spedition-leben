@@ -1,4 +1,5 @@
 // Browser audio is optional and must never interrupt the simulation.
+import phoneRingUrl from "@/assets/phone-ring.wav?url";
 import { useSyncExternalStore } from "react";
 let enabled = false, volume = .65;
 try {
@@ -44,15 +45,16 @@ export async function unlockExperienceSound() {
   return false;
  }
 }
-export async function setSoundEnabled(value) {
+export async function setSoundEnabled(value, { preview = true } = {}) {
  enabled = !!value;
  try { globalThis.localStorage?.setItem("frachtfieber.sound", enabled ? "on" : "off"); } catch { /* optional */ }
  if (!enabled) {
+  for (const channel of phonePlayers.keys()) stopPhoneSound(channel);
   for (const voice of voices) { try { voice.stop(); } catch { /* already ended */ } }
   voices.clear(); updateStatus("Ton ausgeschaltet"); notify(); return false;
  }
  notify();
- return testExperienceSound();
+ return preview ? testExperienceSound() : true;
 }
 export async function testExperienceSound() {
  if (!enabled || !(await unlockExperienceSound())) return false;
@@ -82,3 +84,45 @@ export function playExperienceSound(kind, { force = false } = {}) {
   return true;
  } catch { updateStatus("Ton konnte nicht ausgegeben werden. Bitte Testton erneut versuchen."); return false; }
 }
+const phonePlayers = new Map();
+let phoneStatus = "Klingelton noch nicht geprüft";
+export function usePhoneAudioStatus() { return useSyncExternalStore(subscribe, () => phoneStatus, () => "Klingelton noch nicht geprüft"); }
+const setPhoneStatus = text => { phoneStatus = text; notify(); };
+export function stopPhoneSound(channel = "ring") {
+ const player = phonePlayers.get(channel);
+ if (player) { phonePlayers.delete(channel); player.pause(); }
+}
+export function playPhoneSound(channel = "ring") {
+ if (!enabled || globalThis.document?.hidden) return Promise.resolve(false);
+ stopPhoneSound(channel);
+ try {
+  const player = new Audio(phoneRingUrl);
+  player.volume = volume;
+  player.preload = "auto";
+  phonePlayers.set(channel, player);
+  player.onended = () => { if (phonePlayers.get(channel) === player) phonePlayers.delete(channel); };
+  player.onerror = () => {
+   if (phonePlayers.get(channel) !== player) return;
+   setPhoneStatus("Klingelton-Datei konnte nicht geladen werden. Bitte Seite neu laden.");
+  };
+  // Invoke play synchronously inside the click, before any await or dialog render.
+  const started = player.play();
+  setPhoneStatus("Klingelton wird gestartet…");
+  return Promise.resolve(started).then(() => {
+   if (phonePlayers.get(channel) !== player) return false;
+   setPhoneStatus("Klingelton läuft. Wenn nichts hörbar ist: Tab-Ton und Ausgabegerät prüfen.");
+   return true;
+  }).catch(error => {
+   if (phonePlayers.get(channel) !== player) return false;
+   setPhoneStatus(error?.name === "NotAllowedError"
+    ? "Browser hat den Ton blockiert. Im Audioplayer auf Wiedergabe klicken."
+    : "Klingelton konnte nicht abgespielt werden. Bitte den Audioplayer verwenden.");
+   return false;
+  });
+ } catch {
+  setPhoneStatus("Audiowiedergabe nicht verfügbar. Bitte den Audioplayer verwenden.");
+  return Promise.resolve(false);
+ }
+}
+export { phoneRingUrl };
+

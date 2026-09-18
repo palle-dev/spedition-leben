@@ -7,7 +7,7 @@ import { getCommunicationQueue, deadlineLabel } from "@/lib/communicationData";
 import { getDisruptionDetail } from "@/lib/simulation/disruptionEngine";
 import { formatEuro } from "@/lib/gameData";
 import { startPhoneRinging } from "@/lib/phoneRinging";
-import { playExperienceSound, useSoundReady, setSoundEnabled } from "@/lib/experienceSound";
+import { playPhoneSound, stopPhoneSound, useSoundEnabled, useSoundVolume, usePhoneAudioStatus, phoneRingUrl, setSoundEnabled } from "@/lib/experienceSound";
 import Portrait from "@/components/ui/Portrait";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
@@ -18,7 +18,9 @@ export default function PhoneCenter() {
  const [selected,setSelected]=useState(null),[showList,setShowList]=useState(false),[later,setLater]=useState([]);
  const [sending,setSending]=useState(false),[error,setError]=useState("");
  const lock=useRef(false), ringCounts=useRef(new Map());
- const soundReady=useSoundReady();
+ const soundReady=useSoundEnabled();
+ const phoneAudioStatus=usePhoneAudioStatus(), soundVolume=useSoundVolume();
+ const [playerStatus,setPlayerStatus]=useState("");
  const incoming=queue.calls.find(c=>!later.includes(c.id));
  const recent=(state.disruptions?.items||[]).filter(d=>d.status==="completed").slice(-5).reverse();
  const canRing=soundReady && !selected && !overlay && !backgroundAdvance?.active && !busy;
@@ -28,27 +30,27 @@ export default function PhoneCenter() {
   const remaining=3-(ringCounts.current.get(incoming.id)||0);
   const stop=startPhoneRinging(()=>{
    ringCounts.current.set(incoming.id,(ringCounts.current.get(incoming.id)||0)+1);
-   playExperienceSound("phone");
+   void playPhoneSound("ring");
   },setInterval,clearInterval,remaining);
-  const onVisibility=()=>{if(document.hidden)stop();};
+  const onVisibility=()=>{if(document.hidden){stop();stopPhoneSound("ring");}};
   document.addEventListener("visibilitychange",onVisibility);
-  return ()=>{stop();document.removeEventListener("visibilitychange",onVisibility);};
+  return ()=>{stop();stopPhoneSound("ring");document.removeEventListener("visibilitychange",onVisibility);};
  },[incoming?.id,canRing]);
  const detail=useMemo(()=>selected?.demo ? {
   status:"decision_open", cause:"Hier ist die Leitstelle. Das ist ein Testanruf. Du kannst annehmen und auflegen; deine Spedition bleibt unverändert.",
   orders:[],options:[{id:"demo_done",label:"Verstanden – Verbindung steht",description:"Testgespräch beenden",costCents:0,estimatedDurationMin:0,available:true}]
  } : selected ? getDisruptionDetail(state,selected.id) : null,[state,selected]);
- async function testCall(){
-  setError("");
-  await setSoundEnabled(true);
+ function testCall(){
+  setError("");setPlayerStatus("");
+  void setSoundEnabled(true,{preview:false});
+  void playPhoneSound("test");
   setSelected({id:"demo",demo:true,source:"Leitstelle · Testanruf",title:"Verbindungstest"});
-  playExperienceSound("phone",{force:true});
  }
  const blocked=busy || !!backgroundAdvance?.active || sending;
- const defer=()=>{if(selected && !selected.demo)setLater(prev=>[...new Set([...prev.filter(id=>queue.calls.some(c=>c.id===id)),selected.id])]);setSelected(null);setError("");};
+ const defer=()=>{stopPhoneSound("test");if(selected && !selected.demo)setLater(prev=>[...new Set([...prev.filter(id=>queue.calls.some(c=>c.id===id)),selected.id])]);setSelected(null);setError("");};
  const answer=call=>{setSelected(call);setShowList(false);setError("");};
  async function choose(id){
-  if(selected?.demo){setSelected(null);return;}
+  if(selected?.demo){stopPhoneSound("test");setSelected(null);return;}
   if(lock.current || blocked || !detail || detail.status!=="decision_open")return;
   lock.current=true;setSending(true);setError("");
   try { const result=await send("resolveDisruption",{disruptionId:selected.id,optionId:id});
@@ -81,6 +83,16 @@ export default function PhoneCenter() {
  <div className="flex gap-1 mt-3 items-end h-5" aria-hidden="true">{[8,16,11,20,9,14,6].map((h,i)=><motion.span key={i} className="w-1 rounded bg-emerald-300" style={{height:h}} animate={motionEnabled&&!reduced?{scaleY:[.5,1,.5]}:{scaleY:1}} transition={{duration:.7,delay:i*.07,repeat:3}}/>)}</div>
  </div></div></div>
  <div className="p-5 sm:p-6 space-y-4">
+ {selected?.demo && <section className="rounded-xl border border-cyan-300/30 bg-cyan-400/5 p-4 space-y-3" aria-label="Klingelton testen">
+ <p className="text-sm font-medium">Klingelton direkt abspielen</p>
+ <audio controls preload="auto" src={phoneRingUrl} className="w-full" aria-label="Klingelton-Audioplayer"
+ ref={node=>{if(node)node.volume=soundVolume;}}
+ onPlay={()=>{stopPhoneSound("test");setPlayerStatus("Wiedergabe gestartet. Bewegt sich die Zeitanzeige, aber du hörst nichts? Bitte den Browser-Tab entstummen und die Audioausgabe prüfen.");}}
+ onError={()=>setPlayerStatus("Die Audiodatei konnte nicht geladen werden. Bitte diese Spielversion erneut veröffentlichen und die Seite neu laden.")}
+ onEnded={()=>setPlayerStatus("Wiedergabe beendet.")}/>
+ <p role="status" className="text-xs text-cyan-100">{playerStatus || phoneAudioStatus}</p>
+ <p className="text-xs text-slate-300">Dieser Test spielt einen Klingelton ab, keine gesprochenen Dialoge.</p>
+ </section>}
  {!detail ? <p>Dieses Anliegen ist nicht mehr vorhanden.</p> : <>
  <div className="rounded-2xl rounded-tl-sm bg-white/5 border border-white/10 p-4"><p className="text-sm leading-relaxed">{detail.status==="completed"?detail.completionSummary:detail.status==="measure_running"?"Die Maßnahme läuft. Wir melden uns nach Abschluss wieder.":detail.cause}</p></div>
  {detail.status==="decision_open"&&<>
