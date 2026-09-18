@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useGame } from "@/lib/gameContext";
 import { loadRouteGeometries, buildPlanRouteGeoJSON } from "@/lib/geoData";
+import MapLegend from "@/components/dispatch/MapLegend";
 import DispatchMap from "@/components/dispatch/DispatchMap";
 import DispatchWorkspace from "@/components/dispatch/DispatchWorkspace";
 import PlanningBoard from "@/components/planning/PlanningBoard";
@@ -194,10 +195,11 @@ export default function Dispatch() {
             focusAction={focusAction}
             onFocusDone={() => setFocusAction(null)}
           />
+          <MapLegend showTraffic={showTraffic} gameTime={state.gameTime} />
           {/* Karten-Aktionen */}
           {routeData && (
             <div className="absolute top-3 right-3 flex flex-col gap-1.5 z-10">
-              <MapActionButton onClick={() => setShowTraffic(v => !v)} title="Verkehrslage" highlight={showTraffic}><TrafficCone className="w-4 h-4" /></MapActionButton>
+              <MapActionButton onClick={() => setShowTraffic(v => !v)} title={showTraffic ? "Verkehrslage ausblenden" : "Verkehrslage einblenden"} pressed={showTraffic} highlight={showTraffic}><TrafficCone className="w-4 h-4" /></MapActionButton>
               <MapActionButton onClick={() => setFocusAction({ type: "fleet" })} title="Flotte zeigen"><Truck className="w-4 h-4" /></MapActionButton>
               <MapActionButton onClick={() => setFocusAction({ type: "hq" })} title="Hauptsitz"><Home className="w-4 h-4" /></MapActionButton>
               <Link to="/netzwerk" title="Strategische Netzkarte" className="w-10 h-10 rounded-xl grid place-items-center transition backdrop-blur-xl border shadow-lg shadow-black/40 active:scale-95 bg-surface/80 text-foreground/80 border-white/15 hover:border-lime/30 hover:text-foreground hover:bg-surface">
@@ -248,12 +250,13 @@ export default function Dispatch() {
   );
 }
 
-function MapActionButton({ onClick, title, children, highlight = undefined }) {
+function MapActionButton({ onClick, title, children, highlight = undefined, pressed = undefined }) {
   return (
     <button
       onClick={onClick}
       title={title}
       aria-label={title}
+      aria-pressed={pressed}
       className={`w-10 h-10 rounded-xl grid place-items-center transition backdrop-blur-xl border shadow-lg shadow-black/40 active:scale-95 ${
         highlight ? "bg-lime text-ink border-lime shadow-lime/20" : "bg-surface/80 text-foreground/80 border-white/15 hover:border-white/30 hover:text-foreground hover:bg-surface"
       }`}

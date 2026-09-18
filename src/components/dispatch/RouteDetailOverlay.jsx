@@ -1,7 +1,8 @@
 import React from "react";
 import { vehicleDisplayName, driverDisplayName } from "@/lib/displayHelpers";
 import { formatGameTime, formatEuro } from "@/lib/gameData";
-import { getTrafficLevel, getTrafficInfo } from "@/lib/trafficSystem";
+import { getTrafficInfo } from "@/lib/trafficSystem";
+import { getRouteTrafficProfile } from "@/lib/trafficMapData";
 import { phaseLabel } from "@/lib/driverTimeEngine";
 import { X, Truck, User, Package, Clock, Fuel, CreditCard, MapPin, Navigation } from "lucide-react";
 
@@ -38,7 +39,7 @@ export default function RouteDetailOverlay({ trip, state, routeData, onClose, on
               {order?.customer || "Leerfahrt"}
             </div>
           </div>
-          <button onClick={onClose} className="w-7 h-7 rounded-lg grid place-items-center bg-white/5 hover:bg-white/15 text-muted-foreground hover:text-foreground transition shrink-0">
+          <button aria-label="Routendetails schließen" onClick={onClose} className="w-7 h-7 rounded-lg grid place-items-center bg-white/5 hover:bg-white/15 text-muted-foreground hover:text-foreground transition shrink-0">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -74,7 +75,7 @@ export default function RouteDetailOverlay({ trip, state, routeData, onClose, on
               {(() => {
                 const t = currentPhase.type;
                 if (t === "empty_drive" || t === "loaded_drive" || t === "empty" || t === "drive") {
-                  const level = getTrafficLevel(state.gameTime, currentPhase.fromCity, currentPhase.toCity);
+                  const level = getRouteTrafficProfile(state.gameTime, currentPhase.fromCity, currentPhase.toCity, routeData).level;
                   const info = getTrafficInfo(level);
                   return (
                     <div className="mt-1.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-medium" style={{ background: `${info.color}15`, color: info.color }}>
@@ -91,10 +92,10 @@ export default function RouteDetailOverlay({ trip, state, routeData, onClose, on
           {/* Traffic per drive segment */}
           {drivePhases.length > 0 && (
             <div className="px-4 py-3 border-b border-white/5">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Verkehrslage pro Abschnitt</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Simulierter Verkehr · stärkster Teilabschnitt</div>
               <div className="space-y-1.5">
                 {drivePhases.map((p, i) => {
-                  const level = getTrafficLevel(state.gameTime, p.fromCity, p.toCity);
+                  const level = getRouteTrafficProfile(state.gameTime, p.fromCity, p.toCity, routeData).level;
                   const info = getTrafficInfo(level);
                   const isEmpty = p.type === "empty_drive" || p.type === "empty";
                   return (

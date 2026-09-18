@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useMemo } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useGame } from "@/lib/gameContext";
@@ -7,7 +7,8 @@ import {
   getTripBounds, getFleetBounds
 } from "@/lib/geoData";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
-import { getTrafficLevel, getSegmentTrafficLevel } from "@/lib/trafficSystem";
+import { getTrafficInfo } from "@/lib/trafficSystem";
+import { withTraffic, buildTrafficNetwork, TRAFFIC_COLOR_EXPRESSION } from "@/lib/trafficMapData";
 import { AlertTriangle } from "lucide-react";
 
 const MAP_STYLE = "https://tiles.openfreemap.org/styles/dark";
@@ -18,14 +19,7 @@ const MAP_ZOOM = 5.0;
 const MAX_BOUNDS = [[4, 46], [16, 56]];
 
 // Verkehrsbasierte Farbexpression für MapLibre
-const TRAFFIC_COLOR_EXPR = [
-  "match", ["get", "trafficLevel"],
-  0, "#4ADE80",
-  1, "#FBBF24",
-  2, "#FB923C",
-  3, "#EF4444",
-  "#D5FB83"
-];
+const TRAFFIC_COLOR_EXPR = TRAFFIC_COLOR_EXPRESSION;
 
 export default function DispatchMap({
   routeData,
@@ -45,6 +39,9 @@ export default function DispatchMap({
   cbRef.current = { onSelectTrip, onSelectVehicle };
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
+  const trafficHour = Math.floor(state.gameTime / 60);
+  const trafficNetwork = useMemo(() => showTraffic ? buildTrafficNetwork(routeData, trafficHour * 60) : { type: "FeatureCollection", features: [] }, [showTraffic, routeData, trafficHour]);
 
   // --- Karteninitialisierung (einmalig) ---
   useEffect(() => {
@@ -104,7 +101,7 @@ export default function DispatchMap({
       mapRef.current = null;
       setMapLoaded(false);
     };
-  }, []);
+  }, [retryKey]);
 
   // --- Verkehrslage ein/ausschalten ---
   useEffect(() => {
@@ -113,12 +110,17 @@ export default function DispatchMap({
     const driveColor = showTraffic ? TRAFFIC_COLOR_EXPR : "#D5FB83";
     const emptyColor = showTraffic ? TRAFFIC_COLOR_EXPR : "#FF9E7A";
     try {
+      map.setLayoutProperty("traffic-network", "visibility", showTraffic ? "visible" : "none");
       map.setPaintProperty("tour-drive", "line-color", driveColor);
       map.setPaintProperty("tour-empty", "line-color", emptyColor);
       map.setPaintProperty("plan-drive", "line-color", driveColor);
       map.setPaintProperty("plan-empty", "line-color", emptyColor);
     } catch (e) { /* Layer evtl. noch nicht ready */ }
   }, [mapLoaded, showTraffic]);
+
+  useEffect(() => {
+    if (mapLoaded) mapRef.current?.getSource("traffic-network")?.setData(trafficNetwork);
+  }, [mapLoaded, trafficNetwork]);
 
   // --- Daten-Update bei Zustandsänderung ---
   useEffect(() => {
@@ -172,7 +174,7 @@ export default function DispatchMap({
               Die Basiskarte konnte nicht geladen werden. Die Disposition bleibt über die Listen nutzbar.
             </p>
             <button
-              onClick={() => { setMapError(false); setMapLoaded(false); setTimeout(() => window.location.reload(), 100); }}
+              onClick={() => { setMapError(false); setMapLoaded(false); setRetryKey(k => k + 1); }}
               className="mt-4 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-sm font-medium transition"
             >
               Erneut versuchen
@@ -187,6 +189,7 @@ export default function DispatchMap({
 // --- MapLibre Setup ---
 
 function setupSources(map) {
+  map.addSource("traffic-network", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
   map.addSource("cities", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
   map.addSource("vehicles", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
   map.addSource("tours", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
@@ -194,6 +197,10 @@ function setupSources(map) {
 }
 
 function setupLayers(map) {
+  map.addLayer({ id: "traffic-network", type: "line", source: "traffic-network",
+    layout: { "line-cap": "round" },
+    paint: { "line-color": TRAFFIC_COLOR_EXPR, "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1, 8, 2.5, 12, 4], "line-opacity": 0.45 }
+  });
   // Tour-Glow (nur ausgewählte Tour — breiter, halbtransparenter Halo)
   map.addLayer({
     id: "tour-glow", type: "line", source: "tours",
@@ -209,7 +216,7 @@ function setupLayers(map) {
     paint: {
       "line-color": "#FF9E7A",
       "line-width": ["case", ["get", "isSelected"], 4, 1.5],
-      "line-opacity": ["case", ["get", "isSelected"], 0.85, 0.03],
+      "line-opacity": ["case", ["get", "isPast"], 0.15, ["get", "isSelected"], 0.95, 0.55],
       "line-dasharray": [3, 2]
     }
   });
@@ -221,7 +228,7 @@ function setupLayers(map) {
     paint: {
       "line-color": "#D5FB83",
       "line-width": ["case", ["get", "isSelected"], 5.5, 2.5],
-      "line-opacity": ["case", ["get", "isSelected"], 1, 0.03]
+      "line-opacity": ["case", ["get", "isPast"], 0.15, ["get", "isSelected"], 1, 0.65]
     }
   });
   // Planungs-Vorschau
@@ -303,6 +310,14 @@ function setupClickHandlers(map, cbRef) {
     map.on("mouseenter", layer, cursor(true));
     map.on("mouseleave", layer, cursor(false));
   }
+  map.on("click", "traffic-network", (e) => {
+    if (!e.features?.length) return;
+    if (map.queryRenderedFeatures(e.point, { layers: ["vehicles", "tour-drive", "tour-empty"] }).length) return;
+    const p = e.features[0].properties;
+    new maplibregl.Popup({ closeButton: true, maxWidth: "260px" }).setLngLat(e.lngLat)
+      .setText(p.fromCity + " → " + p.toCity + ": " + getTrafficInfo(p.trafficLevel).label + " (simuliert)" + (p.fallback ? " · vereinfachte Verbindung" : ""))
+      .addTo(map);
+  });
   map.on("click", "vehicles", (e) => {
     if (e.features.length) cbRef.current.onSelectVehicle?.(e.features[0].properties.vehicleId);
   });
@@ -350,20 +365,9 @@ function updateTours(map, state, routeData, selectedTripId) {
   const features = [];
   for (const trip of state.trips) {
     if (trip.status !== "in_progress") continue;
-    const geo = buildTripRouteGeoJSON(trip, routeData);
+    const geo = withTraffic(buildTripRouteGeoJSON(trip, routeData), state.gameTime);
     for (const f of geo.features) {
       f.properties.isSelected = trip.id === selectedTripId;
-      // Verkehrslage für Fahr-Abschnitte berechnen
-      const t = f.properties.legType;
-      if (t === "drive" || t === "empty") {
-        if (f.properties.segmentIndex !== undefined) {
-          f.properties.trafficLevel = getSegmentTrafficLevel(state.gameTime, f.properties.fromCity, f.properties.toCity, f.properties.segmentIndex, f.properties.segmentCount);
-        } else {
-          f.properties.trafficLevel = getTrafficLevel(state.gameTime, f.properties.fromCity, f.properties.toCity);
-        }
-      } else {
-        f.properties.trafficLevel = 0;
-      }
       features.push(f);
     }
   }
@@ -371,19 +375,5 @@ function updateTours(map, state, routeData, selectedTripId) {
 }
 
 function updatePlanRoute(map, planRoute, state) {
-  if (!planRoute) {
-    map.getSource("plan-route").setData({ type: "FeatureCollection", features: [] });
-    return;
-  }
-  // Verkehrslage zu Plan-Route-Features hinzufügen
-  for (const f of (planRoute.features || [])) {
-    if (f.properties && f.properties.fromCity && f.properties.toCity) {
-      if (f.properties.segmentIndex !== undefined) {
-        f.properties.trafficLevel = getSegmentTrafficLevel(state.gameTime, f.properties.fromCity, f.properties.toCity, f.properties.segmentIndex, f.properties.segmentCount);
-      } else {
-        f.properties.trafficLevel = getTrafficLevel(state.gameTime, f.properties.fromCity, f.properties.toCity);
-      }
-    }
-  }
-  map.getSource("plan-route").setData(planRoute);
+  map.getSource("plan-route").setData(withTraffic(planRoute || { type: "FeatureCollection", features: [] }, state.gameTime));
 }
