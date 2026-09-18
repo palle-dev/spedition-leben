@@ -1,3 +1,4 @@
+import { migrateWorld, processWorld, handleWorldCommand } from "./worldEngine.ts";
 import { processAssistant, migrateAssistant } from "./assistantEngine.ts";
 import { generateBranchDecisions } from "./branchManagerEngine.ts";
 import { migrateAcquisition, processAcquisitionEvents } from "./acquisitionEngine.ts";
@@ -681,6 +682,7 @@ function processEventsAt(state, m, log) {
     calculateDepreciation(state, m);
     processMonthEnd(state, m, log);
   }
+  processWorld(state, m);
   // 5. Angebotsablauf
   for (const o of state.orders) { if (o.status === "offered" && o.acceptDeadlineMin === m) { o.status = "expired"; log.push({ type: "order_expired", order: o.id }); } }
   processAcquisitionEvents(state, m, log);
@@ -790,7 +792,7 @@ function planTrip(state, order, vehicle, driver) {
 // ---------- Befehle ----------
 export function applyCommand(state, command, params) {
   _clearPlanCache(); migrateState(state);
-  [migrateAcquisition, migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories, migrateSegmentFields, migrateBusinessFocus, migrateSegmentStats, migrateMarketDynamics, migrateDevelopmentGoals, migrateDisruptions, migrateUsedVehicleMarket, migratePartners, migrateSiteExpansion].forEach(fn => fn(state));
+  [migrateAcquisition, migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories, migrateSegmentFields, migrateBusinessFocus, migrateSegmentStats, migrateMarketDynamics, migrateDevelopmentGoals, migrateDisruptions, migrateUsedVehicleMarket, migratePartners, migrateSiteExpansion, migrateWorld].forEach(fn => fn(state));
   const p = params || {};
   let result;
   switch (command) {
@@ -2436,6 +2438,9 @@ export function applyCommand(state, command, params) {
     }
 
     default: {
+      if (["startWorld", "chooseWorldStory", "bidWorldTender", "withdrawWorldBid"].includes(command)) ensureNotBlocked(state);
+      const worldResult = handleWorldCommand(state, command, p);
+      if (worldResult !== null) { result = worldResult; break; }
       const dgResult = handleDgCommand(state, command, p);
       if (dgResult !== null) { result = dgResult; break; }
       const invResult = handleInvestmentCommand(state, command, p);
@@ -2456,6 +2461,7 @@ export function applyCommand(state, command, params) {
       throw new Error("Unbekannter Befehl: " + command);
     }
   }
+  processWorld(state, state.gameTime);
   // processedGameMinute mit gameTime synchronisieren (manuelle Zeitfortschritte aktualisieren gameTime, aber nicht processedGameMinute).
   if (state.timeControl && state.gameTime > (state.timeControl.processedGameMinute || 0)) {
     state.timeControl.processedGameMinute = state.gameTime;
