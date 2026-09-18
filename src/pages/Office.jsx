@@ -36,9 +36,7 @@ export default function Office() {
       <PageHint pageKey="office" />
 
       {/* Kopfzeile */}
-      <div className="glass border border-white/10 rounded-2xl p-5">
-        <OfficeHeader state={state} period={period} setPeriod={setPeriod} />
-      </div>
+      <OfficeHeader state={state} period={period} setPeriod={setPeriod} />
 
       {/* Tagesübersicht: Natürliche Aussagen aus Spieldaten */}
       <DailyOverview state={state} />
