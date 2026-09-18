@@ -1,7 +1,6 @@
 // @vitest-environment happy-dom
-import React from "react";
+import React, {act} from "react";
 import {createRoot} from "react-dom/client";
-import {act} from "react-dom/test-utils";
 import {describe,it,expect,vi,beforeEach,afterEach} from "vitest";
 const fixture=vi.hoisted(()=>({game:{} as any,calls:[] as any[]}));
 vi.mock("@/lib/gameContext",()=>({useGame:()=>fixture.game}));

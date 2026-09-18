@@ -82,7 +82,7 @@ export default function PhoneCenter() {
  <Dialog open={showList&&!selected} onOpenChange={setShowList}>
  <DialogContent className="max-w-md max-h-[85dvh] overflow-y-auto rounded-2xl border-cyan-200/20 bg-slate-950 text-white p-4">
  <DialogTitle>Telefon · {queue.calls.length} offen</DialogTitle>
- <DialogDescription className="text-slate-400">Anrufe und Rückrufe deiner Leitstelle. Die laufende Spielzeit läuft auch während des Gesprächs weiter.</DialogDescription>
+ <DialogDescription className="text-slate-400">Anrufe und Rückrufe deiner Leitstelle. Anrufe pausieren die Spielzeit nicht.</DialogDescription>
  <button onClick={()=>{setShowList(false);navigate("/postfach");}} className="text-xs flex items-center gap-2 text-slate-300"><Mail className="w-4 h-4"/>Postfach · {queue.emails.length} Entscheidungen</button>
  {incoming && !selected && !overlay && <div className="border-t border-white/10 p-3">
  <div className="flex items-center gap-3"><motion.div animate={motionEnabled&&!reduced?{rotate:[0,-12,12,0]}:{rotate:0}} transition={{duration:.5,repeat:2}}><PhoneIncoming className="text-emerald-300 w-6 h-6"/></motion.div><div><p className="text-sm font-semibold text-white">{incoming.source}</p><p className="text-xs text-slate-300">{incoming.title}</p></div></div>
