@@ -35,7 +35,7 @@ function ratioColor(ratio, good, warn) {
   return "text-coral";
 }
 
-function ChartTooltip({ active, payload, label }) {
+function ChartTooltip({ active = undefined, payload = undefined, label = undefined }) {
   if (!active || !payload?.length) return null;
   const total = payload.reduce((s, p) => s + (p.value || 0), 0);
   return (
@@ -58,7 +58,7 @@ function ChartTooltip({ active, payload, label }) {
   );
 }
 
-function KPICard({ icon: Icon, label, value, sub, accent }) {
+function KPICard({ icon: Icon, label, value, sub, accent = undefined }) {
   return (
     <div className="glass rounded-xl border border-white/10 p-4">
       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5">

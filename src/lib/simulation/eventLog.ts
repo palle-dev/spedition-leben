@@ -27,13 +27,21 @@ export function migrateEvents(state) {
 
 // Erzeugt ein neues dauerhaftes Ereignis. Dedupliziert über dedupKey.
 // Gibt das Ereignis zurück (neu oder bereits vorhanden).
+export interface EventInput {
+  type: string; gameTime?: number; revision?: number;
+  employeeId?: string; employeeName?: string; portraitId?: string;
+  personId?: string; personName?: string; branchId?: string; orderIds?: string[];
+  tourId?: string; vehicleId?: string; driverId?: string;
+  details?: Record<string, unknown>; dedupKey?: string; isSystem?: boolean;
+}
+
 export function pushEvent(state, {
   type, gameTime, revision, employeeId, employeeName, portraitId,
-  orderIds, tourId, vehicleId, driverId, details, dedupKey,
+  orderIds, tourId, vehicleId, driverId, details, dedupKey, personId, personName, branchId,
   isSystem = false,
-}) {
+}: EventInput) {
   initEvents(state);
-  const key = dedupKey || (type + ":" + (orderIds?.[0] || tourId || vehicleId || "") + ":" + gameTime);
+  const key = dedupKey || (type + ":" + (orderIds?.[0] || tourId || vehicleId || personId || employeeId || driverId || branchId || "") + ":" + (gameTime ?? state.gameTime));
   const existing = state.events.find(e => e.dedupKey === key);
   if (existing) return existing;
 
@@ -45,7 +53,10 @@ export function pushEvent(state, {
     gameTime: gameTime != null ? gameTime : state.gameTime,
     revision: revision || 0,
     employeeId: employeeId || null,
-    employeeName: employeeName || null,
+    personId: personId || employeeId || driverId || null,
+    branchId: branchId || null,
+    employeeName: employeeName || personName || null,
+    personName: personName || employeeName || null,
     portraitId: portraitId || null,
     isSystem: isSystem || !employeeId,
     orderIds: orderIds || [],

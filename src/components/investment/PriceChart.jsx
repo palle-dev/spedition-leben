@@ -27,7 +27,7 @@ export default function PriceChart({ priceHistory = [], changePct = 0 }) {
             <YAxis domain={["auto", "auto"]} hide />
             <Tooltip
               contentStyle={{ background: "hsl(var(--surface))", border: "1px solid hsl(var(--line) / 0.1)", borderRadius: 8, fontSize: 11 }}
-              formatter={(v) => v.toFixed(2) + " €"}
+              formatter={(v) => typeof v === "number" ? v.toFixed(2) + " €" : "—"}
               labelFormatter={() => ""}
             />
             <Line type="monotone" dataKey="v" stroke={color} strokeWidth={1.5} dot={false} />

@@ -70,7 +70,7 @@ export default function StartScreen() {
   return (
     <div className="relative min-h-screen flex items-center justify-center p-6 overflow-hidden">
       <div className="fixed inset-0 z-0 overflow-hidden">
-        <img src={OFFICE_URL} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = "none"; }} />
+        <img src={OFFICE_URL} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
         <div className="absolute inset-0 shade-office" />
       </div>
 

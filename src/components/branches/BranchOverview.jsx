@@ -220,7 +220,7 @@ export default function BranchOverview() {
   );
 }
 
-function TotalChip({ icon: Icon, label, value, sub }) {
+function TotalChip({ icon: Icon, label, value, sub = undefined }) {
   return (
     <div className="glass border border-white/10 rounded-xl px-3.5 py-2.5">
       <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-0.5">

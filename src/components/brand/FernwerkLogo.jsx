@@ -9,9 +9,9 @@ export default function FernwerkLogo({
   showWord = true,
   showTagline = false,
   className = "",
-  signetColor,
-  wordClassName,
-  taglineClassName
+  signetColor = undefined,
+  wordClassName = undefined,
+  taglineClassName = undefined
 }) {
   return (
     <div className={`flex flex-col items-center ${className}`}>

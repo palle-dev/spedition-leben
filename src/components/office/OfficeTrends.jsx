@@ -138,7 +138,7 @@ export default function OfficeTrends() {
   );
 }
 
-function RevenueTooltip({ active, payload, branches }) {
+function RevenueTooltip({ active = undefined, payload = undefined, branches }) {
   if (!active || !payload || !payload.length) return null;
   const d = payload[0].payload;
   return (
@@ -164,7 +164,7 @@ function RevenueTooltip({ active, payload, branches }) {
   );
 }
 
-function UtilTooltip({ active, payload, branches }) {
+function UtilTooltip({ active = undefined, payload = undefined, branches }) {
   if (!active || !payload || !payload.length) return null;
   const d = payload[0].payload;
   return (

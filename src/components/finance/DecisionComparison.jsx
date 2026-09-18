@@ -248,7 +248,7 @@ function VariantSelector({ variant, state, onChange, onClear }) {
   );
 }
 
-function ComparisonRow({ label, baseValue, baseSub, variantValues, variantSubs, format, highlightNeg }) {
+function ComparisonRow({ label, baseValue, baseSub = undefined, variantValues, variantSubs = undefined, format, highlightNeg = undefined }) {
   return (
     <div className="grid grid-cols-4 gap-2 px-3 py-2 border-t border-white/5 text-xs">
       <div className="text-muted-foreground">{label}</div>

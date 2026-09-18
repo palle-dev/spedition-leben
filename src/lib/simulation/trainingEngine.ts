@@ -300,7 +300,7 @@ function uid(state, prefix) {
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
 // Prüft ob eine Person eine Qualifikation besitzt
-export function hasQualification(state, personId, type, opts = {}) {
+export function hasQualification(state, personId, type, opts: {requireValid?: boolean} = {}) {
   const now = state.gameTime;
   return state.training.qualifications.some(q =>
     q.personId === personId &&
@@ -564,7 +564,7 @@ function findConflicts(state, personId, fromMin, toMin, kind) {
   return conflicts;
 }
 
-export function bookCourse(state, personId, courseId, opts = {}) {
+export function bookCourse(state, personId, courseId, opts: {confirmPromotion?: boolean} = {}) {
   const preview = previewCourseBooking(state, personId, courseId);
   if (!preview.ok) throw new Error(preview.reason);
 
@@ -1083,7 +1083,7 @@ function findMentorForRole(state, role, excludeApprenticeshipId) {
   return null;
 }
 
-export function startApprenticeship(state, personId, role, opts = {}) {
+export function startApprenticeship(state, personId, role, opts: {takeoverAuthorized?: boolean} = {}) {
   const preview = previewApprenticeship(state, personId, role);
   if (!preview.ok) throw new Error(preview.reason);
 

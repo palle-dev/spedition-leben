@@ -254,7 +254,7 @@ function BranchResourceCard({ data }) {
   );
 }
 
-function StaffPill({ icon: Icon, label, count, name, portraitId }) {
+function StaffPill({ icon: Icon, label, count = undefined, name = undefined, portraitId = undefined }) {
   return (
     <div className="flex items-center gap-1.5 rounded-lg bg-white/5 border border-white/10 px-2 py-1">
       {portraitId ? (

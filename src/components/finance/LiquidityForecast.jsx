@@ -269,7 +269,7 @@ export default function LiquidityForecast() {
   );
 }
 
-function KpiCard({ label, value, sub, highlight }) {
+function KpiCard({ label, value, sub, highlight = undefined }) {
   const colorClass = highlight === "neg" ? "text-red-400"
     : highlight === "warn" ? "text-coral"
     : highlight === "pos" ? "text-lime"

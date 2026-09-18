@@ -271,7 +271,7 @@ export default function DispatchWorkspace({
   );
 }
 
-function TabButton({ active, onClick, label, count, icon: Icon }) {
+function TabButton({ active, onClick, label, count = undefined, icon: Icon }) {
   return (
     <button
       onClick={onClick}

@@ -178,6 +178,17 @@ export function migrateInvestment(state) {
   }
 }
 
+export interface StakingEntry {
+  id: string; qty: number; startMin: number; stakingRate: number; status: string;
+  unstakeMin: number | null; releaseMin: number | null; accumulatedRewardQty: number;
+  unstakeQty?: number; releasedAtMin?: number;
+}
+export interface InvestmentPosition {
+  qty: number; availableQty: number; totalCostCents: number; realizedPnlCents: number;
+  stakedQty?: number; staking?: StakingEntry[];
+  lots: {qty: number; costPerUnitCents: number; feeCents: number; acquiredAtMin: number; totalCostCents: number}[];
+}
+
 function makeDepot() {
   return {
     settlementCents: 0,
@@ -358,7 +369,7 @@ export function getInvestmentEventTimes(state, t, maxMin) {
       if (!c.paid && c.payMin > t && c.payMin <= maxMin) times.push(c.payMin);
     }
     // Unstaking-Freigabezeiten
-    for (const [instId, pos] of Object.entries(depot.positions)) {
+    for (const [instId, pos] of Object.entries<InvestmentPosition>(depot.positions)) {
       for (const s of (pos.staking || [])) {
         if (s.status === "unstaking" && s.releaseMin > t && s.releaseMin <= maxMin) {
           times.push(s.releaseMin);
@@ -875,7 +886,7 @@ function summarizeDepot(state, depotId) {
   const m = state.investment.market;
   let marketValueCents = 0;
   const positions = [];
-  for (const [instId, pos] of Object.entries(depot.positions)) {
+  for (const [instId, pos] of Object.entries<InvestmentPosition>(depot.positions)) {
     if (pos.qty <= 0) continue;
     const inst = m.instruments[instId];
     const mid = inst?.currentQuote?.mid || 0;

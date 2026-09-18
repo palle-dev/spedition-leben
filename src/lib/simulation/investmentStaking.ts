@@ -1,3 +1,4 @@
+import type { InvestmentPosition } from "./investmentEngine.ts";
 // Staking-Engine für Krypto-Investments.
 // Auftrag 34 – I13 (Staking).
 
@@ -24,7 +25,7 @@ export function stakePosition(state, p) {
   const pos = depot.positions[p.instrumentId];
   if (!pos) throw new Error("Keine Position vorhanden.");
   const qty = p.qty;
-  if (!qty || qty <= 0) throw new Error("Menge muss positiv sein.");
+  if (!Number.isFinite(qty) || qty <= 0) throw new Error("Menge muss positiv sein.");
   if (qty > pos.availableQty) throw new Error(`Freie Menge reicht nicht aus (verfügbar: ${pos.availableQty}).`);
 
   // Staking starten
@@ -52,22 +53,35 @@ export function unstakePosition(state, p) {
   if (!pos) throw new Error("Keine Position vorhanden.");
   if (!pos.staking || pos.staking.length === 0) throw new Error("Kein aktives Staking.");
 
-  const qty = p.qty || pos.stakedQty;
+  const activeQty = pos.staking.filter(s => s.status === "active").reduce((sum, s) => sum + s.qty, 0);
+  const qty = p.qty ?? activeQty;
+  if (!Number.isFinite(qty) || qty <= 0) throw new Error("Menge muss positiv sein.");
+  if (qty > activeQty) throw new Error("Menge übersteigt das aktive Staking.");
   let remaining = qty;
+  const pending = [];
   const releaseMin = state.gameTime + UNSTAKING_DURATION_MIN;
 
   for (const s of pos.staking) {
     if (s.status !== "active") continue;
     if (remaining <= 0) break;
     const unstakeQty = Math.min(remaining, s.qty);
-    s.status = "unstaking";
-    s.unstakeMin = state.gameTime;
-    s.releaseMin = releaseMin;
-    s.unstakeQty = unstakeQty;
+    if (unstakeQty < s.qty) {
+      // The remainder stays active and continues earning rewards.
+      s.qty -= unstakeQty;
+      pending.push({ ...s, id: uid(state, "st"), qty: unstakeQty,
+        status: "unstaking", unstakeMin: state.gameTime, releaseMin,
+        unstakeQty, accumulatedRewardQty: 0 });
+    } else {
+      s.status = "unstaking";
+      s.unstakeMin = state.gameTime;
+      s.releaseMin = releaseMin;
+      s.unstakeQty = unstakeQty;
+    }
     remaining -= unstakeQty;
   }
 
-  pos.stakedQty = (pos.stakedQty || 0) - qty;
+  pos.staking.push(...pending);
+  pos.stakedQty = activeQty - qty;
   return { ok: true, releaseMin };
 }
 
@@ -77,14 +91,34 @@ export function processStaking(state, min, log) {
     const depot = getDepot(state, depotId);
     if (!depot) continue;
 
-    for (const [instId, pos] of Object.entries(depot.positions)) {
+    for (const [instId, pos] of Object.entries<InvestmentPosition>(depot.positions)) {
       if (!pos.staking || pos.staking.length === 0) continue;
       const def = ALL_INSTRUMENT_DEFS.find(d => d.id === instId);
       if (!def || !def.stakingRate) continue;
       const inst = state.investment.market.instruments[instId];
       if (!inst) continue;
 
+      // Repair older partial unstakes whose active remainder was left on a pending entry.
+      const recovered = [];
       for (const s of pos.staking) {
+        if (s.status === "unstaking" && s.unstakeQty > 0 && s.qty > s.unstakeQty) {
+          recovered.push({ ...s, id: uid(state, "st"), qty: s.qty - s.unstakeQty,
+            status: "active", unstakeMin: null, releaseMin: null, unstakeQty: undefined,
+            accumulatedRewardQty: 0 });
+          s.qty = s.unstakeQty;
+        }
+      }
+      pos.staking.push(...recovered);
+      pos.stakedQty = pos.staking.filter(s => s.status === "active").reduce((sum, s) => sum + s.qty, 0);
+      for (const s of pos.staking) {
+        // Releases must be processed before filtering for reward-eligible entries.
+        if (s.status === "unstaking" && s.releaseMin != null && s.releaseMin <= min) {
+          const releasedQty = s.unstakeQty ?? s.qty;
+          pos.availableQty += releasedQty;
+          s.status = "released";
+          s.releasedAtMin = min;
+          log.push({ type: "investment_unstaking_released", depotId, instrumentId: instId, qty: releasedQty, min });
+        }
         if (s.status !== "active") continue;
 
         // Vergütung: stakingRate * qty * (tickInterval / (360 * 1440))
@@ -113,13 +147,6 @@ export function processStaking(state, min, log) {
           }
         }
 
-        // Unstaking-Freigabe prüfen
-        if (s.status === "unstaking" && s.releaseMin && s.releaseMin <= min) {
-          pos.availableQty += s.unstakeQty;
-          s.status = "released";
-          s.releasedAtMin = min;
-          log.push({ type: "investment_unstaking_released", depotId, instrumentId: instId, qty: s.unstakeQty, min });
-        }
       }
 
       // Abgeschlossene Staking-Einträge aufräumen

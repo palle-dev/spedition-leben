@@ -64,7 +64,9 @@ export function createInitialState(names) {
       partnerName: p.partnerName || "Mara",
       accountCents: profile.privateCapitalCents,
       stress: 30, happiness: 60, relationship: 60,
-      residence: "Wohnung in Hamburg"
+      residence: "Wohnung in Hamburg",
+      rewards: { claims: {}, cosmetics: {}, vouchers: [] },
+      purchases: { items: [], activeHomeId: null }
     },
     branches: [{ id: "b1", name: "Hauptniederlassung Hamburg", city: "Hamburg", costPerDayCents: BRANCH_COST_PER_DAY, isHeadquarters: true, status: "active", openedAtMin: 480, stats: { revenueCents: 0, deliveries: 0, expensesCents: 0 }, cleanliness: 85, lastCleaningDay: 0 }],
     vehicles: [1, 2, 3].map(i => ({
@@ -79,6 +81,9 @@ export function createInitialState(names) {
       { id: "d2", name: "Petra Süß", branchId: "b1", costPerDayCents: DRIVER_COST_PER_DAY, locationCity: "Hamburg", status: "free", restUntil: null, employedDay: 1 },
       { id: "d3", name: "Helmut Fuchs", branchId: "b1", costPerDayCents: DRIVER_COST_PER_DAY, locationCity: "Hamburg", status: "free", restUntil: null, employedDay: 1 }
     ],
+    absences: { vacationRequests: [], sicknesses: [] },
+    serviceContracts: [],
+    workshop: { slots: [], maintenanceOrders: [], automationProfile: null },
     orders: [],
     trips: [],
     tours: [],
@@ -119,18 +124,14 @@ export function createInitialState(names) {
     tutorialInviteCreated: false,
     lastInvitationTemplateId: null
   };
-  // Porträts für bestehende Fahrer zuordnen
-  let pIdx = 0;
-  for (const d of state.drivers) {
-    d.portraitId = PORTRAIT_IDS[pIdx++] || PORTRAIT_IDS[0];
-    d.satisfaction = 70;
-    d.satisfactionReasons = [];
-    d.employmentStatus = "employed";
-    d.attendance = "present";
-    d.consecutiveLowSatisfactionDays = 0;
-    d.workMinutesSinceRest = 0;
-    d.driveMinutesSinceBreak = 0;
-  }
+  // Porträts und Personalwerte gemeinsam zuordnen.
+  state.drivers = state.drivers.map((driver, index) => ({
+    ...driver,
+    portraitId: PORTRAIT_IDS[index] || PORTRAIT_IDS[0],
+    satisfaction: 70, satisfactionReasons: [], employmentStatus: "employed",
+    attendance: "present", consecutiveLowSatisfactionDays: 0,
+    workMinutesSinceRest: 0, driveMinutesSinceBreak: 0,
+  }));
   state.orders = initialOffers(state);
   // Markt-Engine initialisieren und auf Zielbestand auffüllen (Auftrag 19)
   migrateMarket(state);
@@ -176,5 +177,6 @@ export function createInitialState(names) {
   initStartApplicants(state);
   // Investment-Markt und Depots initialisieren (Auftrag 33)
   initInvestment(state);
-  return { state };
+  // migrateMarket creates the market; scenarios may add loans.
+  return { state: state as typeof state & {market: {rngSeed?: number}; loans?: {status: string; remainingPrincipalCents: number}[]} };
 }

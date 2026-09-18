@@ -361,7 +361,7 @@ export default function Leadership() {
 }
 
 // --- Hilfskomponenten ---
-function RuleInput({ label, value, onChange, step, hint, extra, currency }) {
+function RuleInput({ label, value, onChange, step, hint = undefined, extra = undefined, currency }) {
   const displayValue = currency ? Math.round((value || 0) / 100) : (value || 0);
   const handleChange = currency
     ? e => onChange(Math.max(0, Math.round(Number(e.target.value) * 100)))

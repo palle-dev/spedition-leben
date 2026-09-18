@@ -96,7 +96,7 @@ export default function StoryStatusOverview({ state }) {
   );
 }
 
-function LifeBar({ icon: Icon, label, value, max, colorClass, iconColor, inverted }) {
+function LifeBar({ icon: Icon, label, value, max, colorClass, iconColor, inverted = undefined }) {
   const pct = Math.min(100, (value / max) * 100);
   const displayValue = inverted ? value : value;
   const statusLabel = inverted

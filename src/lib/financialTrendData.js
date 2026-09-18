@@ -19,6 +19,8 @@ export function getDailyFinancialSeries(state, days) {
       revenue: s.revenue || 0,
       expenses: s.expenses || 0,
       profit: 0,
+      cumulativeProfit: 0,
+      profitAvg7: 0,
       directCosts: s.directCosts || 0,
       personnel: s.personnel || 0,
       operations: s.operations || 0,

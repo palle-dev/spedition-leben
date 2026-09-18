@@ -139,7 +139,7 @@ export default function OfficeBottom({ state }) {
   );
 }
 
-function Panel({ icon: Icon, title, to, navigate, alert, children }) {
+function Panel({ icon: Icon, title, to, navigate, alert = undefined, children }) {
   return (
     <div className="glass border border-white/10 rounded-xl p-4">
       <div className="flex items-center justify-between mb-3">
@@ -155,7 +155,7 @@ function Panel({ icon: Icon, title, to, navigate, alert, children }) {
   );
 }
 
-function Row({ label, value, tone }) {
+function Row({ label, value, tone = undefined }) {
   const toneClass = tone === "red" ? "text-red-300" : tone === "amber" ? "text-amber-300" : tone === "lime" ? "text-lime" : tone === "muted" ? "text-muted-foreground/60" : "text-foreground/80";
   return (
     <div className="flex items-center justify-between text-xs">

@@ -228,12 +228,12 @@ export function getRewardStatus(state, rewardId) {
 
 export function getAvailableClaims(state) {
   const claims = state.private?.rewards?.claims || {};
-  return Object.values(claims).filter(c => c.status === "available");
+  return Object.values<{rewardId: string; achievementId: string; status: string; availableSinceMin: number; claimedAtMin: number | null}>(claims).filter(c => c.status === "available");
 }
 
 export function getClaimedRewards(state) {
   const claims = state.private?.rewards?.claims || {};
-  return Object.values(claims).filter(c => c.status === "claimed");
+  return Object.values<{rewardId: string; achievementId: string; status: string; availableSinceMin: number; claimedAtMin: number | null}>(claims).filter(c => c.status === "claimed");
 }
 
 export function getEquippedCosmetics(state) {

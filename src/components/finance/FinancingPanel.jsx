@@ -83,7 +83,7 @@ export default function FinancingPanel() {
   );
 }
 
-function SummaryCard({ label, value, negative }) {
+function SummaryCard({ label, value, negative = undefined }) {
   return (
     <div className="glass border border-white/10 rounded-xl p-3">
       <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{label}</div>

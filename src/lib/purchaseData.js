@@ -74,6 +74,7 @@ export function getResalePrice(item) {
 }
 
 export function getActivityOptions(state) {
+  /** @type {Array<{type: string, label: string, durationMin: number, costCents: number, stressDelta: number, happinessDelta: number, source: string, itemId?: string, itemName?: string, maxPerDay?: number, maxPerWeek?: number, contactDelta?: number, requiresContact?: boolean, isTrip?: boolean}>} */
   const options = [...BASIC_ACTIVITIES.map(a => ({ ...a, source: "basic", itemId: null }))];
   for (const item of (state.private?.purchases?.items || []).filter(i => i.status === "active")) {
     const entry = getCatalogEntry(item.catalogId);

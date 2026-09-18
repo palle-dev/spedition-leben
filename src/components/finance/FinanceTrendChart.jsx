@@ -43,7 +43,7 @@ function compactEuro(cents) {
   return `${Math.round(v)} €`;
 }
 
-function ChartTooltip({ active, payload, label }) {
+function ChartTooltip({ active = undefined, payload = undefined, label = undefined }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="glass border border-white/15 rounded-lg px-3 py-2 text-xs space-y-1 min-w-[150px]">
@@ -73,7 +73,7 @@ function KPICard({ icon: Icon, label, value, sub, accent }) {
   );
 }
 
-function ChartCard({ title, subtitle, actions, children }) {
+function ChartCard({ title, subtitle, actions = undefined, children }) {
   return (
     <div className="glass rounded-xl border border-white/10 p-4 lg:p-5">
       <div className="mb-4 flex items-start justify-between gap-3">

@@ -1,3 +1,4 @@
+import type { InvestmentPosition } from "./investmentEngine.ts";
 // Performance-Tracking für Investment.
 // Auftrag 34 – I15 (Einzahlungen nicht als Rendite zählen).
 
@@ -16,7 +17,7 @@ export function recordDepotSnapshot(state, min) {
     depot.history = depot.history || [];
 
     let marketValue = 0;
-    for (const [instId, pos] of Object.entries(depot.positions)) {
+    for (const [instId, pos] of Object.entries<InvestmentPosition>(depot.positions)) {
       if (pos.qty <= 0) continue;
       const inst = state.investment.market.instruments[instId];
       const mid = inst?.currentQuote?.mid || 0;

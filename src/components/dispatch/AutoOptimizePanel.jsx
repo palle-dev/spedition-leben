@@ -7,7 +7,7 @@ import { Sparkles, Truck, User, Package, ArrowRight, Check, Loader2, TrendingUp,
 
 // Auto-Optimierung: Nutzt suggestTours, um die effizienteste Flottenverplanung
 // zu berechnen und Leerfahrten auf Basis aktueller Aufträge zu minimieren.
-export default function AutoOptimizePanel({ open, onClose, onApplied }) {
+export default function AutoOptimizePanel({ open, onClose, onApplied = undefined }) {
   const { state, send, showToast } = useGame();
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
@@ -216,7 +216,7 @@ export default function AutoOptimizePanel({ open, onClose, onApplied }) {
   );
 }
 
-function StatCard({ icon: Icon, label, value, tone }) {
+function StatCard({ icon: Icon, label, value, tone = undefined }) {
   const color = tone === "lime" ? "text-lime" : tone === "coral" ? "text-coral" : "text-foreground";
   return (
     <div className="rounded-xl border border-white/10 bg-surface/30 p-2.5">

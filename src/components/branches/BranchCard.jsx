@@ -273,7 +273,7 @@ function ResourceStat({ icon: Icon, label, total, sub, subColor }) {
   );
 }
 
-function StaffChip({ icon: Icon, label, value, accent }) {
+function StaffChip({ icon: Icon, label, value, accent = undefined }) {
   const colorMap = {
     sky: "text-sky-300 border-sky-400/20 bg-sky-400/5",
   };
@@ -287,7 +287,7 @@ function StaffChip({ icon: Icon, label, value, accent }) {
   );
 }
 
-function MetricCell({ icon: Icon, label, value, valueClass }) {
+function MetricCell({ icon: Icon, label, value, valueClass = undefined }) {
   return (
     <div className="rounded-lg bg-surface-2/30 border border-white/5 px-2.5 py-2">
       <div className="text-[10px] text-muted-foreground flex items-center gap-1 mb-0.5">

@@ -37,7 +37,7 @@ export function createScenarioState(scenarioId, names) {
   const startMin = state.gameTime;
   const deadlineMin = startMin + scenario.durationDays * 1440;
 
-  state.scenario = {
+  const scenarioState = Object.assign(state, { scenario: {
     scenarioId: scenario.id,
     version: scenario.version,
     rngSeed: scenario.rngSeed,
@@ -60,7 +60,7 @@ export function createScenarioState(scenarioId, names) {
     // Unveränderliche Zielbedingungen (Kopie aus der Vorlage)
     mandatoryGoals: JSON.parse(JSON.stringify(scenario.mandatoryGoals)),
     optionalGoals: JSON.parse(JSON.stringify(scenario.optionalGoals || [])),
-  };
+  } });
 
   // Szenario-spezifische Ausgangslage anwenden
   const setupFn = SCENARIO_SETUPS[scenario.id];
@@ -86,10 +86,10 @@ export function createScenarioState(scenarioId, names) {
     acquisitionCostCents: v.bookValueCents, acquiredAtMin: state.gameTime });
 
   // Anfangswerte für Auswertung sichern
-  state.scenario.initialAccountCents = state.company.accountCents;
-  state.scenario.initialLoanPrincipalCents = initialLoanTotal;
+  scenarioState.scenario.initialAccountCents = state.company.accountCents;
+  scenarioState.scenario.initialLoanPrincipalCents = initialLoanTotal;
 
-  return { state };
+  return { state: scenarioState };
 }
 
 // ---------- Operative Eingriffe definieren ----------

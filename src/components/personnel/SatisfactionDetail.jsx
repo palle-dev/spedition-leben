@@ -289,7 +289,7 @@ export default function SatisfactionDetail({ personId, personName, kind, onSetup
   );
 }
 
-function ActionButton({ icon: Icon, label, description, disabled, busy, onClick, expanded, variant }) {
+function ActionButton({ icon: Icon, label, description, disabled, busy, onClick, expanded = undefined, variant = undefined }) {
   const isRetention = variant === "retention";
   return (
     <button

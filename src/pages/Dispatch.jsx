@@ -177,7 +177,7 @@ export default function Dispatch() {
         </div>
       ) : showPartners ? (
         <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-12 pt-3 pb-6">
-          <PartnerOverview />
+          <PartnerOverview onClose={() => setShowPartners(false)} />
         </div>
       ) : (
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
@@ -248,7 +248,7 @@ export default function Dispatch() {
   );
 }
 
-function MapActionButton({ onClick, title, children, highlight }) {
+function MapActionButton({ onClick, title, children, highlight = undefined }) {
   return (
     <button
       onClick={onClick}

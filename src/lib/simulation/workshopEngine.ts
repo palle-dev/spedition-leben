@@ -144,7 +144,7 @@ export function buildWorkshopSlot(state, { branchId }) {
 }
 
 // ---------- Wartungsauftrag erstellen ----------
-export function createMaintenanceOrder(state, { vehicleId, branchId, type, isAutomated, mechanicId }) {
+export function createMaintenanceOrder(state, { vehicleId, branchId, type, isAutomated, mechanicId }: {vehicleId: string; branchId: string; type: string; isAutomated?: boolean; mechanicId?: string}) {
   const v = (state.vehicles || []).find(x => x.id === vehicleId);
   if (!v) throw new Error("Fahrzeug nicht gefunden.");
   if (v.status === "archived" || v.status === "sold") throw new Error("Fahrzeug nicht im aktiven Bestand.");

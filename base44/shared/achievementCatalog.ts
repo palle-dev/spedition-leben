@@ -81,11 +81,11 @@ export const ACHIEVEMENTS = [
     condition: (s) => (s.stats?.consecutiveBalanceDays || 0) >= 7,
     progress: (s) => ({ current: Math.min(s.stats?.consecutiveBalanceDays || 0, 7), target: 7 }) },
   { id: "friendship_70", title: "Gute Gesellschaft", desc: "Eine Freundschaft durch Aktivitäten auf ≥70 entwickeln", category: "privatleben", xp: 200,
-    condition: (s) => Object.values(s.stats?.friendshipQualities || {}).some(q => q >= 70),
-    progress: (s) => ({ current: Math.min(Math.max(0, ...Object.values(s.stats?.friendshipQualities || {})), 70), target: 70 }) },
+    condition: (s) => Object.values<number>(s.stats?.friendshipQualities || {}).some(q => q >= 70),
+    progress: (s) => ({ current: Math.min(Math.max(0, ...Object.values<number>(s.stats?.friendshipQualities || {})), 70), target: 70 }) },
   { id: "hobby_five", title: "Dranbleiben", desc: "5 absolvierte Aktivitäten desselben Hobbytyps", category: "privatleben", xp: 150,
-    condition: (s) => Object.values(s.stats?.hobbyCounts || {}).some(n => n >= 5),
-    progress: (s) => ({ current: Math.min(Math.max(0, ...Object.values(s.stats?.hobbyCounts || {})), 5), target: 5 }) },
+    condition: (s) => Object.values<number>(s.stats?.hobbyCounts || {}).some(n => n >= 5),
+    progress: (s) => ({ current: Math.min(Math.max(0, ...Object.values<number>(s.stats?.hobbyCounts || {})), 5), target: 5 }) },
   { id: "experience_trip", title: "Rauskommen", desc: "Eine gebuchte mehrtägige Reise abgeschlossen", category: "privatleben", xp: 200,
     condition: (s) => (s.stats?.tripsCompleted || 0) >= 1,
     progress: (s) => ({ current: Math.min(s.stats?.tripsCompleted || 0, 1), target: 1 }) },
@@ -205,7 +205,7 @@ export const GOAL_TEMPLATES = [
     criterion: "Ein Kunde mit ≥5 abgeschlossenen Transporten UND Vertrauen ≥60 (Stammkunden-Status). Die Zaehlung beginnt ab Spielbeginn.",
     rewardDesc: "Rahmenvertrag-Option freigeschaltet",
     evaluate: (s) => {
-      const relations = Object.values(s.customerRelations?.relations || {});
+      const relations = Object.values<{completedTransports: number; trust: number}>(s.customerRelations?.relations || {});
       const stammkunden = relations.filter(r => r.completedTransports >= 5 && r.trust >= 60);
       if (stammkunden.length >= 1) {
         return { current: 1, target: 1, completed: true, nextAction: "Ziel erreicht", deadlineMin: null, blockedReason: null, progressDetail: stammkunden.length + " Stammkunde(n) erreicht" };
@@ -249,7 +249,7 @@ export const GOAL_TEMPLATES = [
         return { current: 1, target: 1, completed: true, nextAction: "Ziel erreicht", deadlineMin: null, blockedReason: null, progressDetail: fulfilled + " Vertrag/Verträge erfüllt" };
       }
       // Blockiert, wenn kein Stammkunde → kein Vertrag moeglich
-      const hasStammkunde = Object.values(s.customerRelations?.relations || {}).some(r => r.completedTransports >= 5 && r.trust >= 60);
+      const hasStammkunde = Object.values<{completedTransports: number; trust: number}>(s.customerRelations?.relations || {}).some(r => r.completedTransports >= 5 && r.trust >= 60);
       const blockedReason = !hasStammkunde ? "Benötigt zuerst einen Stammkunden (Ziel „Ein Kunde bleibt“)" : null;
       return {
         current: bestActive ? bestActive.timely : 0, target: bestActive ? bestActive.required : 1, completed: false,

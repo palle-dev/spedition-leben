@@ -402,7 +402,7 @@ export const TEMPLATES = {
   asset_disposal: (s, p) => {
     const loss = p.bookValueCents - p.salePriceCents;
     const gain = p.salePriceCents - p.bookValueCents;
-    const lines = [{ account: "1000", debit: p.salePriceCents }];
+    const lines: {account: string; debit?: number; credit?: number}[] = [{ account: "1000", debit: p.salePriceCents }];
     if (loss > 0) lines.push({ account: "5510", debit: loss });
     lines.push({ account: p.assetAccount || "1200", credit: p.bookValueCents });
     if (gain > 0) lines.push({ account: "4200", credit: gain });

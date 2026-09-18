@@ -19,7 +19,7 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "types": [],
+    "types": ["vite/client"],
     "noEmit": true,
     "allowImportingTsExtensions": true
   },

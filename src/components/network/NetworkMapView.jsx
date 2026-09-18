@@ -7,8 +7,10 @@ import { getNetworkMapElements } from "@/lib/networkData";
 import { AlertTriangle } from "lucide-react";
 
 const MAP_STYLE = "https://tiles.openfreemap.org/styles/dark";
+/** @type {[number, number]} */
 const MAP_CENTER = [10.2, 51.0];
 const MAP_ZOOM = 5.0;
+/** @type {[[number, number], [number, number]]} */
 const MAX_BOUNDS = [[4, 46], [16, 56]];
 
 // Strategische Netzkarte für FERNWERK.

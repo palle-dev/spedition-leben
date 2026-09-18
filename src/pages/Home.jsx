@@ -253,7 +253,7 @@ function labelOf(a) {
   return a.text || "Termin";
 }
 
-function VitalBar({ icon: Icon, label, value, invert }) {
+function VitalBar({ icon: Icon, label, value, invert = undefined }) {
   const color = invert
     ? value >= 80 ? "bg-red-500" : value >= 50 ? "bg-amber-500" : "bg-lime"
     : value >= 60 ? "bg-lime" : value >= 30 ? "bg-amber-500" : "bg-red-500";

@@ -202,7 +202,7 @@ export default function SellVehicleDialog({ vehicle, onClose }) {
   );
 }
 
-function Row({ label, value, muted }) {
+function Row({ label, value, muted = undefined }) {
   return (
     <div className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2">
       <span className="text-sm text-muted-foreground">{label}</span>

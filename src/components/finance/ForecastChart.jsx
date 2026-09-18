@@ -72,7 +72,7 @@ export default function ForecastChart({ forecast }) {
               fontSize: "12px",
             }}
             labelStyle={{ color: "hsl(var(--text))" }}
-            formatter={(value) => formatKEuro(value) + " (" + (value / 100).toFixed(2) + " €)"}
+            formatter={(value) => typeof value === "number" ? formatKEuro(value) + " (" + (value / 100).toFixed(2) + " €)" : "—"}
           />
           <Legend
             wrapperStyle={{ fontSize: "12px" }}

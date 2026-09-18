@@ -101,7 +101,7 @@ export function migrateDelegation(state) {
 
     // Standard: "daily_relief" wenn Automatik bereits an, sonst "close_guidance"
     const defaultPreset = (existingAutoAccept || existingAutoDispatch) ? "daily_relief" : "close_guidance";
-    const baseRules = { ...PRESETS[defaultPreset].rules };
+    const baseRules: typeof PRESETS.daily_relief.rules & {autoAcceptMarginPct?: number; trainingBudgetPerDay?: number; workshopMaxCostCents?: number} = { ...PRESETS[defaultPreset].rules };
 
     // Bestehende assistantConfig-Werte übernehmen, nicht überschreiben
     if (existingConfig.autoAcceptMarginPct != null) baseRules.autoAcceptMarginPct = existingConfig.autoAcceptMarginPct;

@@ -278,9 +278,9 @@ export function buildTourPlan(state, opts) {
   const { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin, minStartTime } = opts;
   const vehicle = _vehicleById(state, vehicleId);
   const driver = _driverById(state, driverId);
-  if (!vehicle || !driver) return { error: "Fahrzeug oder Fahrer nicht gefunden." };
+  if (!vehicle || !driver) return { ok: false as const, error: "Fahrzeug oder Fahrer nicht gefunden." };
   if (!Array.isArray(orderIds) || orderIds.length === 0 || new Set(orderIds).size !== orderIds.length) {
-    return { error: "Eine Tour benötigt eindeutige Aufträge." };
+    return { ok: false as const, error: "Eine Tour benötigt eindeutige Aufträge." };
   }
 
   // Prüfe Grundvoraussetzungen
@@ -295,7 +295,7 @@ export function buildTourPlan(state, opts) {
   // Orten von freien Fahrern vom Hauptsitz genutzt werden.
   let driverTravelMin = 0;
   if (vehicleFutureCity !== driverFutureCity) {
-    return { error: "Fahrer und Lkw sind an verschiedenen Orten. Bitte zuerst eine Fahrerreise planen." };
+    return { ok: false as const, error: "Fahrer und Lkw sind an verschiedenen Orten. Bitte zuerst eine Fahrerreise planen." };
   }
 
   const _calcStart = _cached("ea:" + vehicleId + "|" + driverId, () => earliestAvailable(state, vehicle, driver)) + driverTravelMin;
@@ -324,19 +324,19 @@ export function buildTourPlan(state, opts) {
 
     for (const orderId of orderIds) {
       const order = _orderById(state, orderId);
-      if (!order) return { error: "Auftrag nicht gefunden: " + orderId };
+      if (!order) return { ok: false as const, error: "Auftrag nicht gefunden: " + orderId };
       if (order.status !== "offered" && order.status !== "angenommen") {
-        return { error: "Auftrag " + order.customer + " ist nicht verfügbar (Status: " + order.status + ")." };
+        return { ok: false as const, error: "Auftrag " + order.customer + " ist nicht verfügbar (Status: " + order.status + ")." };
       }
       if (order.tons > vehicle.capacityTons) {
-        return { error: "Überladung: " + order.tons + " t überschreiten Kapazität von " + vehicle.capacityTons + " t." };
+        return { ok: false as const, error: "Überladung: " + order.tons + " t überschreiten Kapazität von " + vehicle.capacityTons + " t." };
       }
       // Aufbau-Kompatibilität: strikte Frachtarten erfordern passenden Aufbau.
       const bodyCheck = checkBodyTypeCompatibility(order, vehicle);
-      if (!bodyCheck.ok) return { error: bodyCheck.error };
+      if (!bodyCheck.ok) return { ok: false as const, error: bodyCheck.error };
       const dep = buildDeployment(state, order, vehicle, currentCity, t, counters);
       if (order.windowVersion >= 2 && dep.phases.find(p => p.type === "loading")?.startMin > order.latestLoadStartMin) {
-        return { error: "Ladefenster von " + order.customer + " wird überschritten." };
+        return { ok: false as const, error: "Ladefenster von " + order.customer + " wird überschritten." };
       }
       // Spätlieferung-Toleranz: 4h Gnadenfrist. completeTrip zahlt 90% bei
       // Spätlieferung — buildTourPlan soll daher leichte Überschreitungen
@@ -344,10 +344,10 @@ export function buildTourPlan(state, opts) {
       // statt sie aufzugeben (was zu überfälligen Aufträgen führt).
       const LATE_GRACE_MIN = 240;
       if (dep.endMin > order.deliveryDeadlineMin + LATE_GRACE_MIN) {
-        return { error: "Lieferung von " + order.customer + " würde die Lieferfrist überschreiten (Ankunft " + formatGameTime(dep.endMin) + ", Frist " + formatGameTime(order.deliveryDeadlineMin) + ")." };
+        return { ok: false as const, error: "Lieferung von " + order.customer + " würde die Lieferfrist überschreiten (Ankunft " + formatGameTime(dep.endMin) + ", Frist " + formatGameTime(order.deliveryDeadlineMin) + ")." };
       }
       if (order.status === "offered" && order.acceptDeadlineMin <= state.gameTime) {
-        return { error: "Annahmefrist für " + order.customer + " ist abgelaufen." };
+        return { ok: false as const, error: "Annahmefrist für " + order.customer + " ist abgelaufen." };
       }
       if (order.status === "offered") acceptedOrderIds.push(orderId);
       deployments.push(dep);
@@ -374,20 +374,20 @@ export function buildTourPlan(state, opts) {
     let driverFreeMin = t;
     if (counters.workMin >= WORK_BUDGET_MIN) driverFreeMin = t + REST_MIN;
     if (latestReturnMin && tourEndMin > latestReturnMin) {
-      return { error: "Tour endet zu spät (" + formatGameTime(tourEndMin) + "), späteste Rückkehr " + formatGameTime(latestReturnMin) + "." };
+      return { ok: false as const, error: "Tour endet zu spät (" + formatGameTime(tourEndMin) + "), späteste Rückkehr " + formatGameTime(latestReturnMin) + "." };
     }
     // Konfliktprüfung mit Vorausplanung: Die neue Tour muss enden (inkl.
     // evtl. Ruhezeit), bevor die nächste geplante Einsatz-Reservierung
     // beginnt. Verhindert Doppelbuchung bei 24/7-Vorausplanung.
     const reservationStart = _cached("nrs:" + vehicleId + "|" + driverId, () => nextReservationStart(state, vehicle, driver));
     if (reservationStart !== null && driverFreeMin > reservationStart) {
-      return { error: "Tour überschneidet sich mit Vorausplanung (Tour endet " + formatGameTime(driverFreeMin) + ", nächste Reservierung startet " + formatGameTime(reservationStart) + ")." };
+      return { ok: false as const, error: "Tour überschneidet sich mit Vorausplanung (Tour endet " + formatGameTime(driverFreeMin) + ", nächste Reservierung startet " + formatGameTime(reservationStart) + ")." };
     }
     const liquidityCheck = checkTourLiquidity(state, deployments, returnDeployment, planStart);
-    if (!liquidityCheck.ok) return { error: "Liquidität reicht nicht: " + liquidityCheck.reason };
+    if (!liquidityCheck.ok) return { ok: false as const, error: "Liquidität reicht nicht: " + liquidityCheck.reason };
     const hasMidTourRest = deployments.some(d => (d.phases || []).some(p => p.type === "daily_rest"));
     return {
-      ok: true, hasMidTourRest,
+      ok: true as const, hasMidTourRest,
       deployments, returnDeployment, acceptedOrderIds,
       totalKm, emptyKm, loadedKm,
       totalFuelCents: totalFuel, totalTollCents: totalToll,
@@ -430,11 +430,11 @@ export function buildTourPlan(state, opts) {
     if (restFirstResult.ok) planResult = restFirstResult;
   }
 
-  if (planResult.error) return { error: planResult.error };
+  if (!planResult.ok) return { ok: false as const, error: planResult.error };
 
   return {
     ...planResult,
-    ok: true,
+    ok: true as const,
     vehicleId, driverId,
     startCity: vehicle.locationCity,
     desiredEndCity: desiredEndCity || null,

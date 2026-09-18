@@ -239,7 +239,7 @@ function TourPreview({ plan }) {
   );
 }
 
-function Stat({ label, value, icon: Icon, highlight }) {
+function Stat({ label, value, icon: Icon, highlight = undefined }) {
   return (
     <div className="flex items-center gap-1.5">
       <Icon className="w-3 h-3 text-muted-foreground/60 shrink-0" />

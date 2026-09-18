@@ -408,7 +408,7 @@ function ArrowRightShort() {
   return <span className="text-muted-foreground/40">→</span>;
 }
 
-function Kpi({ icon: Icon, label, value, sub, tone = "default" }) {
+function Kpi({ icon: Icon, label, value, sub = undefined, tone = "default" }) {
   const toneCls = {
     default: "text-foreground",
     lime: "text-lime",
@@ -428,7 +428,7 @@ function Kpi({ icon: Icon, label, value, sub, tone = "default" }) {
   );
 }
 
-function Th({ label, col, sort, onSort, right }) {
+function Th({ label, col = undefined, sort = undefined, onSort = undefined, right = undefined }) {
   const active = col && sort.key === col;
   return (
     <th className={`px-3 py-2.5 font-medium ${right ? "text-right" : "text-left"} ${col ? "cursor-pointer select-none hover:text-foreground" : ""}`} onClick={col ? () => onSort(col) : undefined}>

@@ -167,7 +167,7 @@ function KpiCard({ icon: Icon, label, value, sub, tone }) {
   );
 }
 
-function SectionTitle({ icon: Icon, label, sub }) {
+function SectionTitle({ icon: Icon, label, sub = undefined }) {
   return (
     <div className="flex items-baseline gap-2 mb-3">
       <Icon className="w-4 h-4 text-muted-foreground" />

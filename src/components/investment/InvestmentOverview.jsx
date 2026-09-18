@@ -80,7 +80,7 @@ function DepotCard({ summary, label, icon: Icon, accent }) {
   );
 }
 
-function Row({ label, value, tone }) {
+function Row({ label, value, tone = undefined }) {
   const toneClass = tone === "lime" ? "text-lime" : tone === "red" ? "text-red-300" : tone === "muted" ? "text-muted-foreground/60" : "text-foreground/80";
   return (
     <div className="flex items-center justify-between text-xs">

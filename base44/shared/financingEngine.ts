@@ -172,7 +172,7 @@ export function getSevereLeasingArrears(state) {
       const daysOverdue = Math.floor((state.gameTime - contract.overdueSinceMin) / DAY_MIN);
       if (daysOverdue >= SEVERE_OVERDUE_DAYS) {
         arrears.push({
-          type: "leasing", contractId: contract.id,
+          type: "leasing" as const, contractId: contract.id,
           overdueCents: contract.overdueRatesCents,
           overdueSinceMin: contract.overdueSinceMin, daysOverdue,
         });
@@ -192,7 +192,7 @@ export function getSevereLoanArrears(state) {
       const daysOverdue = Math.floor((state.gameTime - loan.overdueSinceMin) / DAY_MIN);
       if (daysOverdue >= SEVERE_OVERDUE_DAYS) {
         arrears.push({
-          type: "loan", loanId: loan.id,
+          type: "loan" as const, loanId: loan.id,
           overduePrincipalCents: loan.overduePrincipalCents || 0,
           overdueInterestCents: loan.overdueInterestCents || 0,
           overdueCents: totalOverdue, overdueSinceMin: loan.overdueSinceMin, daysOverdue,
@@ -360,7 +360,7 @@ function settleSevereArrears(state, severeArrears) {
         lines: [{ account: "2120", debit: pay }, { account: "1000", credit: pay }],
       });
       if (contract.overdueRatesCents <= 0) contract.overdueSinceMin = null;
-      cleared.push({ type: "leasing", contractId: contract.id, paidCents: pay });
+      cleared.push({ type: "leasing" as const, contractId: contract.id, paidCents: pay });
     } else if (a.type === "loan") {
       const loan = (state.loans || []).find(l => l.id === a.loanId);
       if (!loan) continue;
@@ -386,7 +386,7 @@ function settleSevereArrears(state, severeArrears) {
       if ((loan.overdueInterestCents || 0) <= 0 && (loan.overduePrincipalCents || 0) <= 0) {
         loan.overdueSinceMin = null;
       }
-      cleared.push({ type: "loan", loanId: loan.id, paidInterestCents: payInterest, paidPrincipalCents: payPrincipal });
+      cleared.push({ type: "loan" as const, loanId: loan.id, paidInterestCents: payInterest, paidPrincipalCents: payPrincipal });
     }
   }
   return cleared;
@@ -578,7 +578,7 @@ export function getAllLeasingOffers() {
   ];
 }
 
-export function leaseTruck(state, { provisionCity, offerId, branchId, bodyType } = {}) {
+export function leaseTruck(state, { provisionCity, offerId, branchId, bodyType }: {provisionCity?: string; offerId?: string; branchId?: string; bodyType?: string} = {}) {
   const offer = getLeasingOffer(offerId);
   const access = checkFinancingAccess(state, { type: "leasing", offerId: offer.id, provisionCity });
   if (!access.allowed) throw new Error(access.blockingReasons.join(" "));

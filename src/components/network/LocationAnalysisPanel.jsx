@@ -153,7 +153,7 @@ function Section({ title, icon: Icon, children }) {
   );
 }
 
-function DataItem({ label, value, suffix }) {
+function DataItem({ label, value, suffix = undefined }) {
   return (
     <div>
       <div className="text-muted-foreground text-[10px]">{label}</div>

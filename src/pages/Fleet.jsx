@@ -23,8 +23,8 @@ export default function Fleet() {
   const [busyId, setBusyId] = useState(null);
   const [sellVehicle, setSellVehicle] = useState(null);
   const [moveVehicle, setMoveVehicle] = useState(null);
-  const [buyDialog, setBuyDialog] = useState(false);
-  const [leaseDialog, setLeaseDialog] = useState(false);
+  const [buyDialog, setBuyDialog] = useState(null);
+  const [leaseDialog, setLeaseDialog] = useState(null);
   const [tab, setTab] = useState("fleet");
   const [buyBranchId, setBuyBranchId] = useState(null);
   const activeBranches = (state.branches || []).filter(b => b.status === "active");
@@ -188,8 +188,8 @@ export default function Fleet() {
 
           {sellVehicle && <SellVehicleDialog vehicle={sellVehicle} onClose={() => setSellVehicle(null)} />}
           {moveVehicle && <MoveResourceDialog resource={moveVehicle} resourceType="vehicle" onClose={() => setMoveVehicle(null)} />}
-          {buyDialog && <BuyVehicleDialog branchId={buyDialog.branchId} branchCity={buyDialog.branchCity} onClose={() => setBuyDialog(false)} />}
-          {leaseDialog && <LeaseVehicleDialog branchId={leaseDialog.branchId} branchCity={leaseDialog.branchCity} onClose={() => setLeaseDialog(false)} />}
+          {buyDialog && <BuyVehicleDialog branchId={buyDialog.branchId} branchCity={buyDialog.branchCity} onClose={() => setBuyDialog(null)} />}
+          {leaseDialog && <LeaseVehicleDialog branchId={leaseDialog.branchId} branchCity={leaseDialog.branchCity} onClose={() => setLeaseDialog(null)} />}
         </>
       )}
     </div>

@@ -13,7 +13,7 @@ const ICONS = {
   delivery_completed: Package,
 };
 
-export default function DispatchLiveLog({ events, onJumpToLatest }) {
+export default function DispatchLiveLog({ events, onJumpToLatest = undefined }) {
   const [collapsed, setCollapsed] = useState(false);
   const scrollRef = useRef(null);
   const [autoScroll, setAutoScroll] = useState(true);
@@ -97,7 +97,7 @@ export default function DispatchLiveLog({ events, onJumpToLatest }) {
                   return (
                     <div key={ev.id} className="px-4 py-2.5 flex items-start gap-2.5 hover:bg-white/5 transition">
                       {ev.portraitId && !ev.isSystem ? (
-                        <Portrait personId={ev.portraitId} name={ev.employeeName} size="sm" />
+                        <Portrait portraitId={ev.portraitId} name={ev.employeeName} size="sm" />
                       ) : (
                         <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
                           <Icon className="w-3.5 h-3.5 text-foreground/70" />

@@ -180,7 +180,7 @@ export function getSevereLeasingArrears(state) {
     if ((contract.overdueRatesCents || 0) > 0 && contract.overdueSinceMin) {
       const daysOverdue = Math.floor((state.gameTime - contract.overdueSinceMin) / DAY_MIN);
       if (daysOverdue >= SEVERE_OVERDUE_DAYS) {
-        arrears.push({ type: "leasing", contractId: contract.id, overdueCents: contract.overdueRatesCents, daysOverdue });
+        arrears.push({ type: /** @type {const} */ ("leasing"), contractId: contract.id, overdueCents: contract.overdueRatesCents, daysOverdue });
       }
     }
   }
@@ -195,7 +195,7 @@ export function getSevereLoanArrears(state) {
     if (totalOverdue > 0 && loan.overdueSinceMin) {
       const daysOverdue = Math.floor((state.gameTime - loan.overdueSinceMin) / DAY_MIN);
       if (daysOverdue >= SEVERE_OVERDUE_DAYS) {
-        arrears.push({ type: "loan", loanId: loan.id, overdueCents: totalOverdue, daysOverdue });
+        arrears.push({ type: /** @type {const} */ ("loan"), loanId: loan.id, overdueCents: totalOverdue, daysOverdue });
       }
     }
   }

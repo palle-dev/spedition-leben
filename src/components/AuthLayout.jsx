@@ -2,7 +2,7 @@ import React from "react";
 import FernwerkLogo from "@/components/brand/FernwerkLogo";
 
 // Auth-Seiten-Hintergrund mit FERNWERK-Marke, Tagline und dunkler Atmosphäre.
-export default function AuthLayout({ icon: Icon, title, subtitle, footer, children }) {
+export default function AuthLayout({ icon: Icon, title, subtitle = undefined, footer = undefined, children = undefined }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-ink px-4 py-10">
       <div className="w-full max-w-md">

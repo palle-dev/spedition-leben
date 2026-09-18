@@ -67,7 +67,7 @@ export default function MarketOverview({ state, send }) {
             <Bell className="w-4 h-4 text-coral" /> Aktive Marktereignisse
           </h3>
           {overview.activeEvents.map(ev => (
-            <EventCard key={ev.id} event={ev} active />
+            <EventCard key={ev.id} event={ev} active gameTime={state.gameTime} />
           ))}
         </div>
       )}

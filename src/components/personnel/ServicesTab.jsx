@@ -166,7 +166,7 @@ export default function ServicesTab({ state, send, showToast }) {
   );
 }
 
-function ContractCard({ contract, state, onCancel, onSelect }) {
+function ContractCard({ contract, state, onCancel = undefined, onSelect }) {
   const Icon = TYPE_ICON[contract.type] || Package;
   const statusColors = {
     planned: "text-sky-300 bg-sky-500/10",

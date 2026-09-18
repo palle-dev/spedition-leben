@@ -259,7 +259,7 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
   );
 }
 
-function SummaryRow({ icon: Icon, label, value, strong, warn, tone }) {
+function SummaryRow({ icon: Icon = undefined, label, value, strong = undefined, warn = undefined, tone = undefined }) {
   const color = warn ? "text-red-300" : tone === "ok" ? "text-lime" : tone === "late" ? "text-red-300" : strong ? "text-foreground font-medium" : "text-foreground/70";
   return (
     <div className="flex items-center justify-between text-xs">

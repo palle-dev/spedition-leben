@@ -4,7 +4,7 @@ import { getPortraitUrl } from "@/lib/portraitCatalog";
 // Cartoon-Porträt für FERNWERK-Personen.
 // Zeigt das persistente Porträt basierend auf portrait_id.
 // size: "sm" (Listen), "md" (Karten), "lg" (Detail)
-export default function Portrait({ portraitId, name, size = "md", className = "" }) {
+export default function Portrait({ portraitId, name = undefined, size = "md", className = "" }) {
   const url = getPortraitUrl(portraitId);
   const sizes = {
     sm: "w-10 h-10",

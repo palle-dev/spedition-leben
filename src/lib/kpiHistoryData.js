@@ -59,6 +59,7 @@ export function getTrainingEvents(state, days = 30) {
     const course = COURSE_CATALOG.find(c => c.effect === q.type);
     events.push({
       day: dayOf(q.acquiredAtMin),
+      dayLabel: `T${dayOf(q.acquiredAtMin)}`,
       minute: q.acquiredAtMin,
       personName: person?.name || "Unbekannt",
       label: course?.label || qualTypeLabel(q.type),

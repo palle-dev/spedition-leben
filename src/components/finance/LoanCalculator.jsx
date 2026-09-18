@@ -147,7 +147,7 @@ export default function LoanCalculator() {
   );
 }
 
-function Row({ label, value, strong, negative }) {
+function Row({ label, value, strong = undefined, negative = undefined }) {
   return (
     <div className="flex justify-between">
       <span className="text-muted-foreground">{label}</span>

@@ -121,7 +121,7 @@ export default function SegmentStatsView({ state, send }) {
   );
 }
 
-function SummaryCard({ label, value, highlight }) {
+function SummaryCard({ label, value, highlight = undefined }) {
   return (
     <div className={`glass rounded-xl border p-3 ${highlight ? "border-lime/20" : "border-white/10"}`}>
       <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">{label}</div>
@@ -130,7 +130,7 @@ function SummaryCard({ label, value, highlight }) {
   );
 }
 
-function Stat({ label, value, highlight }) {
+function Stat({ label, value, highlight = undefined }) {
   return (
     <div className="flex items-center justify-between">
       <span className="text-muted-foreground">{label}</span>

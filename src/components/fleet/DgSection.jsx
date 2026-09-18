@@ -302,7 +302,7 @@ function DgVehicleCard({ vehicle, gameTime, onEquip, onInspect, onClean, busy })
   );
 }
 
-function StatCard({ icon: Icon, label, value, alert }) {
+function StatCard({ icon: Icon, label, value, alert = undefined }) {
   return (
     <div className={`glass border rounded-xl p-3 ${alert ? "border-amber-400/20" : "border-white/10"}`}>
       <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">

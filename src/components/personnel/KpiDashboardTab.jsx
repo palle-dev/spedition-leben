@@ -137,7 +137,7 @@ function KpiCard({ label, value, icon: Icon, color }) {
   );
 }
 
-function KpiTooltip({ active, payload, label }) {
+function KpiTooltip({ active = undefined, payload = undefined, label = undefined }) {
   if (!active || !payload || payload.length === 0) return null;
   const data = payload[0]?.payload;
   if (!data) return null;

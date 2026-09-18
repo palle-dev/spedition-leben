@@ -177,6 +177,6 @@ export default function LeasingSection() {
 function Info2({ icon: Icon, label, value }) {
   return <div className="flex items-center gap-1.5 text-muted-foreground"><Icon className="w-3.5 h-3.5 text-foreground/40" /> <span className="text-muted-foreground/60">{label}:</span> <span className="text-foreground/80">{value}</span></div>;
 }
-function Row({ label, value, negative }) {
+function Row({ label, value, negative = undefined }) {
   return <div className="flex justify-between"><span className="text-muted-foreground">{label}</span><span className={`tabular-nums ${negative ? "text-coral" : "text-foreground/80"}`}>{value}</span></div>;
 }

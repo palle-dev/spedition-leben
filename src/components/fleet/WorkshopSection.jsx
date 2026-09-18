@@ -346,7 +346,7 @@ function AutomationConfig({ state, send, showToast, profile, onToggle }) {
         </div>
         <div>
           <label className="text-[11px] text-muted-foreground">Max. Kosten pro automatischer Wartung (€)</label>
-          <input type="number" min="900" value={maxCost / 100} onChange={e => setMaxCost(String(Number(e.target.value) * 100))}
+          <input type="number" min="900" value={Number(maxCost) / 100} onChange={e => setMaxCost(String(Number(e.target.value) * 100))}
             className="mt-1 w-full px-3 py-2 rounded-lg bg-surface-2 border border-white/10 text-foreground text-sm focus:border-coral/50 outline-none" />
         </div>
       </div>

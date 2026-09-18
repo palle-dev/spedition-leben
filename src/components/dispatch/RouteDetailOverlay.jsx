@@ -158,7 +158,7 @@ export default function RouteDetailOverlay({ trip, state, routeData, onClose, on
   );
 }
 
-function Row({ icon: Icon, label, value, tone }) {
+function Row({ icon: Icon, label, value, tone = undefined }) {
   const color = tone === "ok" ? "text-lime" : tone === "late" ? "text-red-300" : tone === "cost" ? "text-amber-300/80" : "text-foreground/80";
   return (
     <div className="flex items-center justify-between text-[11px]">

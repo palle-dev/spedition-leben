@@ -117,7 +117,7 @@ function ReportCard({ title, children }) {
   );
 }
 
-function ReportLine({ label, amount, bold, indent, color }) {
+function ReportLine({ label, amount, bold = undefined, indent = undefined, color = undefined }) {
   const c = color === "lime" ? "text-lime" : color === "red" ? "text-red-300" : "text-foreground";
   return (
     <div className={`flex items-center justify-between py-1.5 ${bold ? "font-medium border-t border-white/10 mt-1 pt-2" : "border-b border-white/5 last:border-0"}`}>

@@ -137,7 +137,7 @@ export default function FinanceOverview({ state }) {
   );
 }
 
-function KpiCard({ icon: Icon, label, value, sub, accent }) {
+function KpiCard({ icon: Icon, label, value, sub = undefined, accent = undefined }) {
   const color = accent === "lime" ? "text-lime" : accent === "coral" ? "text-coral" : accent === "red" ? "text-red-300" : "text-foreground";
   return (
     <div className="glass border border-white/10 rounded-xl p-3 lg:p-4">
@@ -150,7 +150,7 @@ function KpiCard({ icon: Icon, label, value, sub, accent }) {
   );
 }
 
-function Stat({ label, value, icon: Icon, iconClass, highlight }) {
+function Stat({ label, value, icon: Icon = undefined, iconClass = undefined, highlight = undefined }) {
   const color = highlight === "lime" ? "text-lime" : highlight === "red" ? "text-red-300" : "text-foreground";
   return (
     <div>

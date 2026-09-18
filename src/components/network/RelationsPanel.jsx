@@ -5,7 +5,7 @@ import { ArrowRight, Clock, AlertTriangle, RotateCcw, X } from "lucide-react";
 
 // Relationsanalyse: Zeigt wirtschaftliche Kennzahlen pro Richtung (fromCity → toCity).
 // Unterscheidet Auftragsrelationen von Fahrzeugbewegungen (Leerfahrten).
-export default function RelationsPanel({ focusAction, onFocusCity, initialCustomerId }) {
+export default function RelationsPanel({ focusAction, onFocusCity, initialCustomerId = undefined }) {
   const { state } = useGame();
   const [periodDays, setPeriodDays] = useState(30);
   const [sortBy, setSortBy] = useState("revenueCents");
@@ -128,7 +128,7 @@ export default function RelationsPanel({ focusAction, onFocusCity, initialCustom
   );
 }
 
-function Stat({ label, value, warn, highlight }) {
+function Stat({ label, value, warn = undefined, highlight = undefined }) {
   return (
     <div>
       <div className="text-muted-foreground">{label}</div>

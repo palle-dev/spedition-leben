@@ -60,6 +60,10 @@ export function migrateMail(state) {
   if (!state.mail.drafts) state.mail.drafts = [];
   if (!state.mail.reportSchedules) state.mail.reportSchedules = [];
   if (!state.mail.staffTasks) state.mail.staffTasks = [];
+  // Normalize legacy single-object references before UI and export consumers read them.
+  for (const message of state.mail.messages) {
+    if (!Array.isArray(message.linkedRefs)) message.linkedRefs = message.linkedRefs ? [message.linkedRefs] : [];
+  }
   if (!state.mail.nextMailId) state.mail.nextMailId = (state.mail.messages.length || 0) + 1;
 
   // Aufbewahrung und Referenzen werden zusammen am Tageswechsel gepflegt.
@@ -178,7 +182,7 @@ export function getAllContacts(state) {
 
 export function findOrCreateConversation(state, {
   subject, category, participantIds, linkedRef, sourceEvent
-}) {
+}: {subject?: string; category?: string; participantIds: string[]; linkedRef?: {type: string; id: string}; sourceEvent?: string}) {
   if (linkedRef) {
     const existing = (state.mail.conversations || []).find(c =>
       c.linkedRef &&
@@ -207,11 +211,21 @@ export function findOrCreateConversation(state, {
 
 // ---------- Nachrichten ----------
 
+export interface MessageInput {
+  fromId: string; toId: string; subject?: string; body?: string;
+  gameTime?: number; category?: string; priority?: string;
+  linkedRefs?: {type: string; id: string}[] | {type: string; id: string};
+  quickReplies?: {label: string; intentType: string; params: Record<string, unknown>}[]; sourceEvent?: string;
+  conversationId?: string; status?: string; intent?: {requiresDecision?: boolean; [key: string]: unknown}; dedupKey?: string;
+}
+
 export function deliverMessage(state, {
   fromId, toId, subject, body, gameTime, category, priority,
-  linkedRefs, sourceEvent, conversationId, status, intent, dedupKey
-}) {
+  linkedRefs, sourceEvent, conversationId, status, intent, dedupKey, quickReplies
+}: MessageInput) {
   if (!state.mail) migrateMail(state);
+  // Callers may provide one link or a list; persisted messages always use a list.
+  linkedRefs = linkedRefs ? (Array.isArray(linkedRefs) ? linkedRefs : [linkedRefs]) : [];
 
   if (dedupKey) {
     const existing = (state.mail.messages || []).find(m =>
@@ -255,6 +269,7 @@ export function deliverMessage(state, {
     read: false, starred: false, archived: false,
     isOutgoing: fromId === "player",
     intent: intent || null,
+    quickReplies: quickReplies || [],
     taskIds: [],
     dedupKey: dedupKey || null,
     createdAtMin: state.gameTime,

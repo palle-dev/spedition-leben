@@ -178,7 +178,7 @@ function phaseDescription(phase) {
   return t;
 }
 
-function Row({ icon: Icon, label, value, tone }) {
+function Row({ icon: Icon, label, value, tone = undefined }) {
   const color = tone === "ok" ? "text-lime" : tone === "late" ? "text-red-300" : "text-foreground/80";
   return (
     <div className="flex items-center justify-between text-xs">

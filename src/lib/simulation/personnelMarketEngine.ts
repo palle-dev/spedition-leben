@@ -132,7 +132,7 @@ function countWorkshopSlots(state) {
 
 // V_R = offene ausgeschriebene Stellen je Rolle (remaining, nicht status)
 function countOpenPostings(state) {
-  const v = {};
+  const v: Record<string, number> = {};
   for (const p of (state.personnelMarket?.postings || [])) {
     if (p.status === "open" && p.remaining > 0) {
       v[p.role] = (v[p.role] || 0) + p.remaining;
@@ -275,7 +275,7 @@ export function generatePersonnelWave(state, m, log, isDemandBased) {
   const usedNames = getUsedNames(state);
   const rng = () => pmRng(state);
   let generated = 0;
-  const generatedByRole = {};
+  const generatedByRole: Record<string, number> = {};
 
   for (const role of Object.keys(targets)) {
     let needed = targets[role] - (current[role] || 0);
