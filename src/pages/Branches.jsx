@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro } from "@/lib/gameData";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
+import SiteExpansionCard from "@/components/branches/SiteExpansionCard";
 import BranchCard from "@/components/branches/BranchCard";
 import BranchMapLibre from "@/components/branches/BranchMapLibre";
 import BranchOverview from "@/components/branches/BranchOverview";
@@ -83,12 +84,15 @@ export default function Branches() {
       <BranchDecisionsPanel />
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-white/10">
+      <div className="flex flex-wrap items-center gap-1 border-b border-white/10">
         <TabButton active={tab === "overview"} onClick={() => setTab("overview")} icon={List} label="Übersicht" />
         <TabButton active={tab === "map"} onClick={() => setTab("map")} icon={LayoutGrid} label="Standorte & Karte" />
+        <TabButton active={tab === "expansion"} onClick={() => setTab("expansion")} icon={Building2} label="Standortausbau" />
       </div>
 
-      {tab === "overview" ? (
+      {tab === "expansion" ? (
+        <div className="grid lg:grid-cols-2 gap-4 items-start">{activeBranches.map(b => <SiteExpansionCard key={b.id} branchId={b.id} />)}</div>
+      ) : tab === "overview" ? (
         <BranchOverview />
       ) : (
         <>
