@@ -116,7 +116,7 @@ const OPERATIVE_COMMANDS = new Set([
   "approveBranchDecision", "rejectBranchDecision",
   "reportSickness", "requestVacation", "approveVacation", "rejectVacation",
   "cancelVacation", "returnEarlyFromVacation",
-  "updateAutomationProfile",
+  "updateAutomationProfile", "startSiteExpansion",
 ]);
 
 export function isOperativeCommand(command) {
