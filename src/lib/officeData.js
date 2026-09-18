@@ -5,7 +5,7 @@
 import { formatGameTime, dayOf, clockOf, PERSONNEL_ROLES, formatEuro } from "./gameData";
 import { getPnL, getOpenItems, getAccountBalance } from "./accountingData";
 import { computeCreditLimit, computeEquity, getVehicleBookValue } from "./financingData";
-import { computeCompanyValue, getDevelopmentStage, getExperienceLevel } from "./progressEngine";
+import { computeCompanyValue, getDevelopmentStage, getExperienceLevel, getAchievementSummary } from "./progressEngine";
 import { vehicleDisplayName } from "./displayHelpers";
 
 // ---------- Zeitraum-Definitionen ----------
@@ -519,9 +519,9 @@ export function getGrowthInfo(state) {
   const stage = getDevelopmentStage(companyValue);
   const xp = state.xp || 0;
   const level = getExperienceLevel(xp);
-  const unlockedAchievements = (state.achievements || []).filter(a => a.unlocked).length;
+  const achievements = getAchievementSummary(state);
   const goals = state.goals || [];
-  return { companyValue, stage, level, unlockedAchievements, totalAchievements: (state.achievements || []).length, goals };
+  return { companyValue, stage, level, unlockedAchievements: achievements.unlocked, totalAchievements: achievements.total, goals };
 }
 
 // ---------- Privatleben-Vorschau ----------

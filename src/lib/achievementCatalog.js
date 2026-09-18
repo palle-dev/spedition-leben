@@ -8,6 +8,12 @@ export const ACHIEVEMENT_CATEGORIES = [
   { id: "besitz", label: "Besitz" },
 ];
 
+// Nur aktive eigene Fahrzeuge zählen für Eigentums-Erfolge und Filialziele.
+function ownedActiveVehicles(state) {
+  return (state.vehicles || []).filter(v =>
+    (v.ownership_type || "owned") === "owned" && v.status !== "sold" && v.status !== "archived");
+}
+
 export const ACHIEVEMENTS = [
   { id: "biz_first", title: "Erste Lieferung", desc: "1 tatsächlich gelieferter Auftrag", category: "unternehmen", xp: 100,
     condition: (s) => (s.stats?.totalDeliveries || 0) >= 1,
@@ -22,14 +28,14 @@ export const ACHIEVEMENTS = [
     condition: (s) => (s.stats?.totalDeliveries || 0) >= 100,
     progress: (s) => ({ current: Math.min(s.stats?.totalDeliveries || 0, 100), target: 100 }) },
   { id: "fleet_four", title: "Verstärkung", desc: "4 eigene Lkw gleichzeitig", category: "unternehmen", xp: 150,
-    condition: (s) => (s.vehicles || []).length >= 4,
-    progress: (s) => ({ current: Math.min((s.vehicles || []).length, 4), target: 4 }) },
+    condition: (s) => ownedActiveVehicles(s).length >= 4,
+    progress: (s) => ({ current: Math.min(ownedActiveVehicles(s).length, 4), target: 4 }) },
   { id: "fleet_ten", title: "Eigene Flotte", desc: "10 eigene Lkw gleichzeitig", category: "unternehmen", xp: 300,
-    condition: (s) => (s.vehicles || []).length >= 10,
-    progress: (s) => ({ current: Math.min((s.vehicles || []).length, 10), target: 10 }) },
+    condition: (s) => ownedActiveVehicles(s).length >= 10,
+    progress: (s) => ({ current: Math.min(ownedActiveVehicles(s).length, 10), target: 10 }) },
   { id: "fleet_twentyfive", title: "Große Verantwortung", desc: "25 eigene Lkw gleichzeitig", category: "unternehmen", xp: 600,
-    condition: (s) => (s.vehicles || []).length >= 25,
-    progress: (s) => ({ current: Math.min((s.vehicles || []).length, 25), target: 25 }) },
+    condition: (s) => ownedActiveVehicles(s).length >= 25,
+    progress: (s) => ({ current: Math.min(ownedActiveVehicles(s).length, 25), target: 25 }) },
   { id: "revenue_100k", title: "Sechsstellig", desc: "100.000 € kumulierte Transportvergütungen", category: "unternehmen", xp: 250,
     condition: (s) => (s.stats?.totalRevenueCents || 0) >= 10000000,
     progress: (s) => ({ current: Math.min(s.stats?.totalRevenueCents || 0, 10000000), target: 10000000 }) },
@@ -39,6 +45,12 @@ export const ACHIEVEMENTS = [
   { id: "company_5m", title: "Ein Lebenswerk wächst", desc: "5 Mio. € Unternehmensvermögenswert", category: "unternehmen", xp: 800,
     condition: (s, c) => c.companyValue >= 500000000,
     progress: (s, c) => ({ current: Math.min(c.companyValue, 500000000), target: 500000000 }) },
+  { id: "dg_first", title: "Gefahrgut-Erstling", desc: "1 Gefahrgut-Lieferung abgeschlossen", category: "unternehmen", xp: 200,
+    condition: (s) => (s.stats?.dgDeliveries || 0) >= 1,
+    progress: (s) => ({ current: Math.min(s.stats?.dgDeliveries || 0, 1), target: 1 }) },
+  { id: "dg_ten", title: "Sicherer Umgang", desc: "10 Gefahrgut-Lieferungen abgeschlossen", category: "unternehmen", xp: 400,
+    condition: (s) => (s.stats?.dgDeliveries || 0) >= 10,
+    progress: (s) => ({ current: Math.min(s.stats?.dgDeliveries || 0, 10), target: 10 }) },
   { id: "reliable_ten", title: "Verlässlich", desc: "10 aufeinanderfolgende rechtzeitige Lieferungen", category: "zuverlaessigkeit", xp: 250,
     condition: (s) => (s.stats?.consecutiveTimely || 0) >= 10,
     progress: (s) => ({ current: Math.min(s.stats?.consecutiveTimely || 0, 10), target: 10 }) },
@@ -254,7 +266,7 @@ export const GOAL_TEMPLATES = [
       const branches = (s.branches || []).filter(b => b.status === "active");
       let opCount = 0;
       for (const b of branches) {
-        const hasVehicle = (s.vehicles || []).some(v => v.branchId === b.id && v.status !== "sold" && v.status !== "archived");
+        const hasVehicle = ownedActiveVehicles(s).some(v => v.branchId === b.id);
         const hasDriver = (s.drivers || []).some(d => d.branchId === b.id && d.employmentStatus === "employed");
         const hasDelivery = (b.stats?.deliveries || 0) >= 1;
         if (hasVehicle && hasDriver && hasDelivery) opCount++;

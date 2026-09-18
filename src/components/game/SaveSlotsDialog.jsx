@@ -142,6 +142,7 @@ export default function SaveSlotsDialog({ open, onOpenChange }) {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="z. B. vor Großauftrag"
+              aria-label="Name des neuen Spielstands"
               onKeyDown={(e) => e.key === "Enter" && handleSave()}
               className="bg-ink/50 border-white/10"
             />
@@ -167,10 +168,10 @@ export default function SaveSlotsDialog({ open, onOpenChange }) {
                     <div className="text-sm font-medium truncate">{s.name}</div>
                     <div className="text-[11px] text-muted-foreground">{fmt(s.savedAt)}</div>
                   </div>
-                  <Button size="sm" variant="ghost" onClick={() => handleLoad(s.name)} disabled={!!busy} className="h-8 px-2 text-lime hover:text-lime hover:bg-lime/10">
+                  <Button size="sm" variant="ghost" aria-label={`Spielstand „${s.name}“ laden`} title={`Spielstand „${s.name}“ laden`} onClick={() => handleLoad(s.name)} disabled={!!busy} className="h-8 px-2 text-lime hover:text-lime hover:bg-lime/10">
                     {busy === "load:" + s.name ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FolderOpen className="w-3.5 h-3.5" />}
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => handleDelete(s.name)} disabled={!!busy} className="h-8 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                  <Button size="sm" variant="ghost" aria-label={`Spielstand „${s.name}“ löschen`} title={`Spielstand „${s.name}“ löschen`} onClick={() => handleDelete(s.name)} disabled={!!busy} className="h-8 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
                     {busy === "del:" + s.name ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                   </Button>
                 </div>
@@ -209,6 +210,7 @@ export default function SaveSlotsDialog({ open, onOpenChange }) {
                       disabled={!!busy}
                       className="absolute top-1 right-1 w-5 h-5 grid place-items-center rounded text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition disabled:opacity-30"
                       title="Sicherung löschen"
+                      aria-label={`Automatische Sicherung ${i + 1} löschen`}
                     >
                       {busy === "delAuto:" + i ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
                     </button>

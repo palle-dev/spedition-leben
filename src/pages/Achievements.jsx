@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import { ACHIEVEMENT_CATEGORIES, ACHIEVEMENTS, GOAL_TEMPLATES } from "@/lib/achievementCatalog.js";
-import { computeCompanyValue, getExperienceLevel, getDevelopmentStage } from "@/lib/progressEngine.js";
+import { computeCompanyValue, getExperienceLevel, getDevelopmentStage, getAchievementSummary } from "@/lib/progressEngine.js";
 import { formatEuro } from "@/lib/gameData";
 import { DEVELOPMENT_FOCI } from "@/lib/developmentEngine.js";
 import { getMilestoneSummary, getFocusLabel } from "@/lib/developmentData.js";
@@ -32,7 +32,7 @@ export default function Achievements() {
   const companyValue = computeCompanyValue(state);
   const stage = getDevelopmentStage(companyValue);
   const goals = state.goals || [];
-  const unlockedCount = (state.achievements || []).filter(a => a.unlocked).length;
+  const achievementSummary = getAchievementSummary(state);
 
   async function attachGoal(templateId) {
     setBusy(true);
@@ -77,7 +77,7 @@ export default function Achievements() {
             Dein Fortschritt.<br /><em className="text-lime not-italic">Sichtbar und dauerhaft.</em>
           </h1>
           <p className="text-sm text-muted-foreground mt-3 max-w-md">
-            {unlockedCount} von {ACHIEVEMENTS.length} Erfolgen freigeschaltet · {xp.toLocaleString("de-DE")} XP gesammelt.
+            {achievementSummary.unlocked} von {achievementSummary.total} Erfolgen freigeschaltet · {xp.toLocaleString("de-DE")} XP gesammelt.
           </p>
         </div>
         <div className="w-full lg:w-[400px] shrink-0">
@@ -209,8 +209,7 @@ export default function Achievements() {
         {/* Kategorie-Tabs */}
         <div className="flex gap-1.5 mb-4 overflow-x-auto scrollbar-none">
           {ACHIEVEMENT_CATEGORIES.map(cat => {
-            const count = ACHIEVEMENTS.filter(a => a.category === cat.id).length;
-            const unlocked = (state.achievements || []).filter(a => a.unlocked && ACHIEVEMENTS.find(d => d.id === a.id)?.category === cat.id).length;
+            const { total: count, unlocked } = getAchievementSummary(state, cat.id);
             return (
               <button
                 key={cat.id}

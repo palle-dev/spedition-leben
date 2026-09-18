@@ -26,8 +26,8 @@ const SEGMENTS = [
   { key: "Ruhe/Pause", color: "hsl(190 15% 40%)" },
 ];
 
-function fmtHours(min) { return `${(min / 60).toFixed(1)} h`; }
-function fmtKm(km) { return `${Math.round(km)} km`; }
+function fmtHours(min) { return `${(min / 60).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h`; }
+function fmtKm(km) { return `${Math.round(km).toLocaleString("de-DE")} km`; }
 
 function ratioColor(ratio, good, warn) {
   if (ratio <= good) return "text-lime";
@@ -47,12 +47,12 @@ function ChartTooltip({ active = undefined, payload = undefined, label = undefin
             <span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color }} />
             {p.name}
           </span>
-          <span className="font-medium tabular-nums text-foreground">{p.value.toFixed(1)} h</span>
+          <span className="font-medium tabular-nums text-foreground">{fmtHours(p.value * 60)}</span>
         </div>
       ))}
       <div className="flex justify-between gap-3 pt-1 border-t border-white/10">
         <span className="text-muted-foreground">Gesamt</span>
-        <span className="font-medium tabular-nums text-foreground">{total.toFixed(1)} h</span>
+        <span className="font-medium tabular-nums text-foreground">{fmtHours(total * 60)}</span>
       </div>
     </div>
   );
@@ -138,7 +138,7 @@ function VehicleTable({ data }) {
                     {Math.round(v.productiveRatio * 100)}%
                   </td>
                   <td className="px-3 py-3 text-right tabular-nums hidden md:table-cell">
-                    {(v.revenuePerKm / 100).toFixed(2)} €
+                    {formatEuro(v.revenuePerKm)}
                   </td>
                 </tr>
               );
@@ -270,7 +270,7 @@ export default function Efficiency() {
               accent={ratioColor(0.25 - kpis.productiveRatio, 0.1, 0.05)} />
             <KPICard icon={Package} label="Rüstzeit" value={`${Math.round(kpis.handlingRatio * 100)}%`}
               sub="Be- und Entladung" />
-            <KPICard icon={TrendingDown} label="Erlös pro km" value={`${(kpis.revenuePerKm / 100).toFixed(2)} €`}
+            <KPICard icon={TrendingDown} label="Erlös pro km" value={formatEuro(kpis.revenuePerKm)}
               sub={`${kpis.tripCount} Touren · ${fmtHours(kpis.totalHours * 60)}`} />
           </div>
 

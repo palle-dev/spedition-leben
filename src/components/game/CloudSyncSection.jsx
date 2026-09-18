@@ -141,10 +141,10 @@ export default function CloudSyncSection() {
                     {s.cloud_saved_at ? " · " + fmt(s.cloud_saved_at) : ""}
                   </div>
                 </div>
-                <Button size="sm" variant="ghost" onClick={() => handleLoad(s.id)} disabled={!!busy} className="h-8 px-2 text-lime hover:text-lime hover:bg-lime/10">
+                <Button size="sm" variant="ghost" aria-label={`Cloud-Spielstand „${s.save_label || s.company_name || "Unbenannter Stand"}“ laden`} title="Cloud-Spielstand laden" onClick={() => handleLoad(s.id)} disabled={!!busy} className="h-8 px-2 text-lime hover:text-lime hover:bg-lime/10">
                   {busy === "load:" + s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => handleDelete(s.id)} disabled={!!busy} className="h-8 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                <Button size="sm" variant="ghost" aria-label={`Cloud-Spielstand „${s.save_label || s.company_name || "Unbenannter Stand"}“ löschen`} title="Cloud-Spielstand löschen" onClick={() => handleDelete(s.id)} disabled={!!busy} className="h-8 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
                   {busy === "del:" + s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                 </Button>
               </div>

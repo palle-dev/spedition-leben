@@ -4,6 +4,16 @@
 import { getVehicleBookValue } from "@/lib/simulation/accountingEngine";
 import { ACHIEVEMENTS, XP_LEVELS, COMPANY_STAGES, GOAL_TEMPLATES } from "@/lib/achievementCatalog.js";
 
+// Katalog statt gespeicherter Array-Länge: Altstände können zusätzliche IDs enthalten.
+export function getAchievementSummary(state, category = null) {
+  const definitions = category ? ACHIEVEMENTS.filter(a => a.category === category) : ACHIEVEMENTS;
+  const unlockedIds = new Set((state.achievements || []).filter(a => a.unlocked).map(a => a.id));
+  return {
+    unlocked: definitions.filter(a => unlockedIds.has(a.id)).length,
+    total: definitions.length,
+  };
+}
+
 export function computeCompanyValue(state) {
   const vehicleValue = (state.vehicles || [])
     .filter(v => (v.ownership_type || "owned") === "owned" && v.status !== "archived" && v.status !== "sold")
