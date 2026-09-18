@@ -1,5 +1,5 @@
 import { addBooking } from "./accountingEngine.ts";
-import { getDistance } from "./gameRules.ts";
+import { getDistance, checkBodyTypeCompatibility } from "./gameRules.ts";
 import { isActivelyEmployed } from "./terminationEngine.ts";
 import { WORLD_DAY, WORLD_RIVALS, WORLD_STORIES, WORLD_BIDS, worldScene } from "./worldCatalog.ts";
 
@@ -209,7 +209,7 @@ function makeTenderBatch(state, m) {
   w.nextTenderMin = m + 3 * WORLD_DAY;
 }
 function playerCapacity(state) {
-  const vehicles = state.vehicles.filter(v => !["sold", "archived"].includes(v.status) && v.capacityTons >= 8 && v.condition >= 20).length;
+  const vehicles = state.vehicles.filter(v => !["sold", "archived"].includes(v.status) && v.capacityTons >= 8 && v.condition >= 20 && checkBodyTypeCompatibility({ cargo: "Stückgut", tons: 8 }, v).ok).length;
   const drivers = state.drivers.filter(activeDriver).length;
   return Math.min(vehicles, drivers);
 }

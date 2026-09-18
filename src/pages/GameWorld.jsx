@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Anchor, ArrowRight, BookOpen, Check, Clock, Compass, Flag, Heart, Loader2, Truck, Users } from "lucide-react";
+import { Anchor, ArrowRight, BookOpen, Check, Clock, Compass, Flag, Heart, Loader2, Truck } from "lucide-react";
 import { useGame } from "@/lib/gameContext";
 import { WORLD_STORIES, WORLD_BIDS, worldScene } from "@/lib/simulation/worldCatalog";
 import { worldChoiceReason, worldBidReason, worldAppointmentSlot } from "@/lib/simulation/worldEngine";

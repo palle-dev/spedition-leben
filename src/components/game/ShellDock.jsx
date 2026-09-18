@@ -19,6 +19,7 @@ const QUICK_NAV = [
   { to: "/filialen", label: "Filialen", icon: Network },
 ];
 const MORE_NAV = [
+  { to: "/spielwelt", label: "Spielwelt", icon: BookOpen },
   { to: "/netzwerk", label: "Netzkarte", icon: Network },
   { to: "/fuehrung", label: "Führung", icon: Shield },
   { to: "/geschaeftsmodelle", label: "Geschäftsmodelle", icon: Briefcase },
@@ -125,6 +126,7 @@ export default function ShellDock() {
                 key={n.to}
                 to={n.to}
                 className={`flex items-center gap-2 rounded-lg px-2.5 lg:px-3 py-2 text-xs whitespace-nowrap transition shrink-0 ${active ? "bg-lime/10 text-lime" : "text-muted-foreground hover:text-foreground hover:bg-white/5"}`}
+                aria-label={n.label}
                 aria-current={active ? "page" : undefined}
               >
                 <Icon className="w-4 h-4" /> <span className="hidden sm:inline">{n.label}</span>
@@ -139,6 +141,7 @@ export default function ShellDock() {
                 key={n.to}
                 to={n.to}
                 className={`hidden lg:flex items-center gap-2 rounded-lg px-3 py-2 text-xs whitespace-nowrap transition shrink-0 ${active ? "bg-lime/10 text-lime" : "text-muted-foreground hover:text-foreground hover:bg-white/5"}`}
+                aria-label={n.label}
                 aria-current={active ? "page" : undefined}
               >
                 <Icon className="w-4 h-4" /> <span>{n.label}</span>

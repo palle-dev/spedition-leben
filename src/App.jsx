@@ -31,6 +31,7 @@ import Customers from '@/pages/Customers';
 import Leadership from '@/pages/Leadership';
 import BusinessModels from '@/pages/BusinessModels';
 import NetworkMap from '@/pages/NetworkMap';
+import GameWorld from '@/pages/GameWorld';
 // Add page imports here
 
 const AuthenticatedApp = () => {
@@ -83,6 +84,7 @@ const AuthenticatedApp = () => {
         <Route path="/fuehrung" element={<Leadership />} />
         <Route path="/geschaeftsmodelle" element={<BusinessModels />} />
         <Route path="/netzwerk" element={<NetworkMap />} />
+        <Route path="/spielwelt" element={<GameWorld />} />
       </Route>
     </Route>
     <Route path="*" element={<PageNotFound />} />

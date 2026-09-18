@@ -15,6 +15,7 @@ import DevelopmentPanel from "@/components/office/DevelopmentPanel";
 import ScenarioProgressPanel from "@/components/scenarios/ScenarioProgressPanel";
 import DisruptionPanel from "@/components/office/DisruptionPanel";
 import ForecastHints from "@/components/office/ForecastHints";
+import WorldTeaser from "@/components/world/WorldTeaser";
 
 // Büro – zentrale Tagesübersicht und Führungsansicht.
 // Die Seite beantwortet unmittelbar:
@@ -43,6 +44,7 @@ export default function Office() {
 
       {/* Tagesübersicht: Natürliche Aussagen aus Spieldaten */}
       <DailyOverview state={state} />
+      <WorldTeaser state={state} />
 
       {/* Aktive Störungen (nur bei vorhandenen Störungen sichtbar) */}
       <DisruptionPanel />
