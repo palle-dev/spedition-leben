@@ -1,4 +1,4 @@
-// Initialzustand-Erzeugung für "Spedition & Leben".
+// Initialzustand-Erzeugung für "Frachtfieber".
 // Aus simulationEngine.ts extrahiert, um die Dateigröße zu reduzieren.
 // Trennung: initialStateEngine (Startzustand) · simulationEngine (Regeln/Zustand).
 

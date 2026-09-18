@@ -2,7 +2,7 @@ import { migrateWorld, processWorld, handleWorldCommand } from "./worldEngine.ts
 import { processAssistant, migrateAssistant } from "./assistantEngine.ts";
 import { generateBranchDecisions } from "./branchManagerEngine.ts";
 import { migrateAcquisition, processAcquisitionEvents } from "./acquisitionEngine.ts";
-// Simulations-Engine für "Spedition & Leben". Reine Spielregeln/Zustände – keine Auth/Speicherung.
+// Simulations-Engine für "Frachtfieber". Reine Spielregeln/Zustände – keine Auth/Speicherung.
 // Trennung: gameRules (statisch) · simulationEngine (Regeln/Zustand) · gameRepository (Speicherung).
 
 import {

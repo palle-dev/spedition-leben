@@ -42,7 +42,7 @@ function GameShellContent() {
     if (!data) return;
     const url = URL.createObjectURL(new Blob([data], { type: "application/json" }));
     const link = document.createElement("a");
-    link.href = url; link.download = "Fernwerk_Sicherung_" + Date.now() + ".json"; link.click();
+    link.href = url; link.download = "Frachtfieber_Sicherung_" + Date.now() + ".json"; link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   const storageWarning = localSaveError && (

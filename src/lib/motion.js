@@ -1,4 +1,4 @@
-// Einheitliches Motion-System für "Spedition & Leben".
+// Einheitliches Motion-System für "Frachtfieber".
 // Nutzt framer-motion mit einer gemeinsamen Abbremskurve.
 // Alle Werte sind aus Zustandswechseln abgeleitet – keine dekorative Dauerbewegung.
 

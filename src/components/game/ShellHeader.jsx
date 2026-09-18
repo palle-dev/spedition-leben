@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import MoneyText from "@/components/MoneyText";
-import FernwerkSignet from "@/components/brand/FernwerkSignet";
-import FernwerkMobileSignet from "@/components/brand/FernwerkMobileSignet";
+import FrachtfieberSignet from "@/components/brand/FrachtfieberSignet";
+import FrachtfieberMobileSignet from "@/components/brand/FrachtfieberMobileSignet";
 import SaveSlotsDialog from "@/components/game/SaveSlotsDialog";
 import MailModal from "@/components/mail/MailModal";
 import { Sparkles, Mail as MailIcon, Save, Loader2, HardDrive, HelpCircle, LogOut, Settings, Menu } from "lucide-react";
@@ -43,8 +43,8 @@ export default function ShellHeader() {
     <header className="relative z-20 flex items-center gap-2 lg:gap-3 px-4 lg:px-6 h-14 lg:h-16 border-b border-white/10 bg-ink/95 shrink-0">
       {/* Marke */}
       <button onClick={() => navigate("/")} className="flex items-center gap-2.5 shrink-0" aria-label="FRACHTFIEBER – zum Büro">
-        <FernwerkMobileSignet size={28} className="lg:hidden" />
-        <FernwerkSignet size={26} className="hidden lg:block" />
+        <FrachtfieberMobileSignet size={28} className="lg:hidden" />
+                    <FrachtfieberSignet size={26} className="hidden lg:block" />
       </button>
 
       {/* Welt-Umschaltung */}

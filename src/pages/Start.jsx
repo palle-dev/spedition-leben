@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useGame } from "@/lib/gameContext";
 import { Plus, Play, Upload, LogOut, Check, Cloud, Loader2 } from "lucide-react";
-import FernwerkLogo from "@/components/brand/FernwerkLogo";
-import FernwerkMobileSignet from "@/components/brand/FernwerkMobileSignet";
+import FrachtfieberLogo from "@/components/brand/FrachtfieberLogo";
+import FrachtfieberMobileSignet from "@/components/brand/FrachtfieberMobileSignet";
 import { base44 } from "@/api/base44Client";
 import { DIFFICULTY_PROFILES, DEFAULT_PROFILE_ID } from "@/lib/simulation/difficultyProfiles";
 import { HELP_OPTIONS, DEFAULT_HELP_SETTINGS } from "@/lib/simulation/helpSettings";
@@ -87,8 +87,8 @@ export default function StartScreen() {
       <div className="relative z-10 max-w-lg w-full">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-5">
-            <FernwerkMobileSignet size={56} className="sm:hidden" />
-            <FernwerkLogo size={52} showWord={false} className="hidden sm:block" />
+            <FrachtfieberMobileSignet size={56} className="sm:hidden" />
+            <FrachtfieberLogo size={52} showWord={false} className="hidden sm:block" />
           </div>
           <p className="text-[11px] tracking-[0.04em] text-muted-foreground mt-3">Kleine Firma. Große Pläne.</p>
           <p className="text-muted-foreground mt-3 text-sm max-w-xs mx-auto">Baue deine Spedition auf, führe dein Team und finde deinen eigenen Weg zwischen Geschäft und Privatleben.</p>

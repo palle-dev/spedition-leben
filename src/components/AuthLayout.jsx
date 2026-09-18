@@ -1,5 +1,5 @@
 import React from "react";
-import FernwerkLogo from "@/components/brand/FernwerkLogo";
+import FrachtfieberLogo from "@/components/brand/FrachtfieberLogo";
 
 // Auth-Seiten-Hintergrund mit FERNWERK-Marke, Tagline und dunkler Atmosphäre.
 export default function AuthLayout({ icon: Icon, title, subtitle = undefined, footer = undefined, children = undefined }) {
@@ -8,7 +8,7 @@ export default function AuthLayout({ icon: Icon, title, subtitle = undefined, fo
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-5">
-            <FernwerkLogo size={56} showWord={false} />
+            <FrachtfieberLogo size={56} showWord={false} />
           </div>
           <p className="text-[11px] tracking-[0.04em] text-muted-foreground mt-3">Dein Unternehmen. Dein Leben. Dein Weg.</p>
         </div>

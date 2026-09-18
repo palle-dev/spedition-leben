@@ -1,4 +1,4 @@
-// Clientseitige statische Spieldaten für "Spedition & Leben".
+// Clientseitige statische Spieldaten für "Frachtfieber".
 // (Die verbindlichen Werte liegen serverseitig in base44/shared/gameRules.ts;
 // dies ist die ungefähre Spiegelung für Darstellung und Dispositionsplanung in der UI.)
 

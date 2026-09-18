@@ -1,4 +1,4 @@
-// Zentraler serverseitiger Einstieg für alle Spielbefehle in "Spedition & Leben".
+// Zentraler serverseitiger Einstieg für alle Spielbefehle in "Frachtfieber".
 // Prüft Anmeldung, Eigentum und alle Spielregeln. Der Browser sendet Absichten und IDs,
 // keine verbindlichen Preise/Kontostände. Atomare Konfliktbehandlung über bedingtes updateMany
 // (Filter nach Spielstand-ID, Eigentümer und bisheriger Revision).

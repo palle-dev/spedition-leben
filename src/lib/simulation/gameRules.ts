@@ -1,4 +1,4 @@
-// Statische Spielweltdaten und reine Berechnungsregeln für "Spedition & Leben".
+// Statische Spielweltdaten und reine Berechnungsregeln für "Frachtfieber".
 // Diese Werte sind vereinfachte, veränderbare Spielwerte – keine Abbildung realer Preise oder Vorschriften.
 
 // 30 Städte – deckt ganz Deutschland ab (Nord, Süd, West, Ost, Mitte).
