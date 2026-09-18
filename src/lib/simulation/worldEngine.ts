@@ -23,7 +23,7 @@ function note(state, title, text, cause = null, kind = "world") {
   if (w.chronicle.length > 180) w.chronicle.splice(0, w.chronicle.length - 180);
   return item.id;
 }
-function effect(state, run, e = {}) {
+function effect(state, run, e: any = {}) {
   const w = state.world;
   for (const key of ["trust", "quality", "price"]) if (e[key]) w.reputation[key] = clamp(w.reputation[key] + e[key], 0, key === "trust" ? 100 : 20);
   for (const [id, delta] of Object.entries(e.relations || {})) {
@@ -236,7 +236,8 @@ function award(state, t, m) {
     const r = w.rivals.find(r => r.id === o.rivalId);
     return r.cashCents >= t.costCents && r.jobs.length < r.fleet;
   }).map(o => ({ ...o, id: o.rivalId }));
-  if (t.bid && playerCapacity(state) > 0) offers.push({
+  const committed = w.tenders.filter(other => other.orderId && !other.outcome).length;
+  if (t.bid && playerCapacity(state) > committed) offers.push({
     ...t.bid, id: "player", score: tenderScore(t.bid.percent, w.reputation.trust, w.reputation.quality, w.reputation.price),
   });
   offers.sort((a, b) => b.score - a.score || a.paymentCents - b.paymentCents || a.id.localeCompare(b.id));
