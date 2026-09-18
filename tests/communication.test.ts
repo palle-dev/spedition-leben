@@ -18,9 +18,9 @@ describe("Telefon und Entscheidungspostfach",()=>{
   expect(getCommunicationQueue(s).calls.map(e=>e.id)).toEqual([d.id]);
   expect(getCommunicationQueue(s).emails.some(e=>e.id===d.id)).toBe(false);
  });
- it("blockierte Einsätze rufen ohne erfundene Lieferfrist an",()=>{
+ it("blockierte Einsätze ohne ausführbare Maßnahme bleiben Hinweise ohne erfundene Frist",()=>{
   const s=initial();const d=addDelay(s);d.type="technical_defect";d.orderIds=[];
-  const c=getCommunicationQueue(s).calls[0];
+  const q=getCommunicationQueue(s);expect(q.calls).toHaveLength(0);const c=q.emails.find(e=>e.id===d.id);expect(c.informationOnly).toBe(true);
   expect(c.deadline).toBeNull();expect(deadlineLabel(c.deadline,s.gameTime)).toContain("Einsatz wartet");
  });
  it("offene Rückrufe überleben Laden, erledigte verschwinden",()=>{

@@ -22,7 +22,7 @@ describe("Eskalation an die Geschäftsführung",()=>{
  it("ohne verfügbares Personal bleibt die Routine im Postfach statt als Telefonunterbrechung",()=>{
  const s=initial(),o=late(s,30);s.employees=[];const d={id:"alone",type:"loading_delay",status:"decision_open",orderIds:[o.id],delayMin:30,createdAtMin:s.gameTime,history:[],options:[]};s.disruptions.items.push(d);expect(getCommunicationQueue(s).calls).toHaveLength(0);expect(getCommunicationQueue(s).emails.some(e=>e.id===d.id)).toBe(true);
  });
- it("unbehandelter Defekt bleibt dringend, laufende Maßnahme erzeugt keinen neuen Anruf",()=>{
- const s=initial(),o=late(s,30),d={id:"defect",type:"technical_defect",status:"decision_open",orderIds:[o.id]};s.disruptions.items.push(d);expect(getCommunicationQueue(s).calls).toHaveLength(1);d.status="measure_running";expect(getCommunicationQueue(s).calls).toHaveLength(0);
+ it("Defekt ohne ausführbare Maßnahme wird zum Hinweis, laufende Maßnahme klingelt nicht",()=>{
+ const s=initial(),o=late(s,30),d={id:"defect",type:"technical_defect",status:"decision_open",orderIds:[o.id]};s.disruptions.items.push(d);expect(getCommunicationQueue(s).calls).toHaveLength(0);expect(getCommunicationQueue(s).emails.some(e=>e.id===d.id&&e.informationOnly)).toBe(true);d.status="measure_running";expect(getCommunicationQueue(s).calls).toHaveLength(0);
  });
 });
