@@ -5,7 +5,7 @@ import { useGame } from "@/lib/gameContext";
 import { WORLD_STORIES, WORLD_BIDS, worldScene } from "@/lib/simulation/worldCatalog";
 import { worldChoiceReason, worldBidReason, worldAppointmentSlot } from "@/lib/simulation/worldEngine";
 
-const money = cents => (cents / 100).toLocaleString("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+const money = cents => (cents / 100).toLocaleString("de-DE", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const when = min => "Tag " + (Math.floor(min / 1440) + 1) + ", " + String(Math.floor(min % 1440 / 60)).padStart(2, "0") + ":" + String(min % 60).padStart(2, "0");
 const card = "rounded-2xl border border-white/10 bg-white/[0.035]";
 const button = "rounded-xl border border-white/15 px-4 py-3 text-sm transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-lime disabled:opacity-40 disabled:cursor-not-allowed";
