@@ -951,12 +951,13 @@ export function GameProvider({ children }) {
     let token;
     try {
       token = beginStateChange();
+      await preserveCurrentParty(token);
       const loaded = await loadManualSlot(token.userId, name, isScenario);
       if (!loaded) throw new Error("Slot nicht gefunden");
       return await activateState(loaded, token);
     } catch (error) { return { ok: false, error: error.message }; }
     finally { if (token && isCurrentSession(token)) changingStateRef.current = false; }
-  }, [beginStateChange, activateState, isCurrentSession]);
+  }, [beginStateChange, activateState, isCurrentSession, preserveCurrentParty]);
 
   const deleteSlot = useCallback(async (name) => {
     try {

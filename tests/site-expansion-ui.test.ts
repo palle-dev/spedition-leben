@@ -73,3 +73,11 @@ describe("Standortausbau", () => {
     expect(getReservedSlots(s, "b1")).toBe(3);
   });
 });
+
+it("schützt laufende Bauprojekte beim Stilllegen einer Filiale", () => {
+  const s = initial();
+  s.branches.push({ ...structuredClone(s.branches[0]), id: "b2", city: "Bremen", name: "Bremen", isHeadquarters: false });
+  applyCommand(s, "startSiteExpansion", { branchId: "b2", type: "parking", slots: 1 });
+  expect(() => applyCommand(s, "closeBranch", { branchId: "b2" })).toThrow(/Bauprojekt/);
+  expect(s.branches.find(b => b.id === "b2").status).toBe("active");
+});

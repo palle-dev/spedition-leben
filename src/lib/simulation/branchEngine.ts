@@ -152,6 +152,9 @@ export function closeBranch(state, { branchId }) {
   if (!b) throw new Error("Filiale nicht gefunden.");
   if (b.isHeadquarters) throw new Error("Der Hauptsitz kann nicht stillgelegt werden.");
   if (b.status === "closed") throw new Error("Filiale ist bereits stillgelegt.");
+  if ((state.siteExpansion?.projects || []).some(p => p.branchId === branchId && p.status === "active")) {
+    throw new Error("An dieser Filiale läuft noch ein Bauprojekt. Bitte die Fertigstellung abwarten.");
+  }
 
   // Prüfen, ob noch Ressourcen dort stationiert sind
   const vehiclesAtBranch = (state.vehicles || []).filter(v =>
