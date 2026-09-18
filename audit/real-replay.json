@@ -1,7 +1,7 @@
 [
   {
     "step": 1440,
-    "elapsedMs": 3303.1135839999997,
+    "elapsedMs": 2976.0147369999995,
     "gameTime": 41135,
     "newTrips": 22,
     "cashDelta": 655132,
@@ -34,7 +34,7 @@
   },
   {
     "step": 60,
-    "elapsedMs": 2316.0742899999996,
+    "elapsedMs": 1907.0938220000007,
     "gameTime": 41135,
     "newTrips": 22,
     "cashDelta": 655132,
@@ -67,7 +67,7 @@
   },
   {
     "step": 15,
-    "elapsedMs": 1962.3384959999985,
+    "elapsedMs": 1859.9311589999998,
     "gameTime": 41135,
     "newTrips": 22,
     "cashDelta": 655132,
