@@ -22,6 +22,14 @@ export default function SaveSlotsDialog({ open, onOpenChange }) {
   const [error, setError] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
   const fileRef = useRef(null);
+  const loadLock=useRef(false);
+  async function runLoad(label,operation){
+    if(loadLock.current||busy)return;
+    loadLock.current=true;setBusy(label);setError(null);
+    try{await new Promise(resolve=>setTimeout(resolve,40));const r=await operation();if(!r?.ok)throw Error(r?.error||"Laden fehlgeschlagen.");onOpenChange(false);}
+    catch(e){setError(e.message);}
+    finally{loadLock.current=false;setBusy(null);}
+  }
 
   const refresh = useCallback(async () => {
     const list = await listSlots();
@@ -44,13 +52,7 @@ export default function SaveSlotsDialog({ open, onOpenChange }) {
     else setError(r.error);
   };
 
-  const handleLoad = async (name) => {
-    setBusy("load:" + name); setError(null);
-    const r = await loadSlot(name);
-    setBusy(null);
-    if (r.ok) onOpenChange(false);
-    else setError(r.error);
-  };
+  const handleLoad = name => runLoad("load:"+name,()=>loadSlot(name));
 
   const handleDelete = async (name) => {
     setBusy("del:" + name); setError(null);
@@ -59,13 +61,7 @@ export default function SaveSlotsDialog({ open, onOpenChange }) {
     refresh();
   };
 
-  const handleLoadAutosave = async (i) => {
-    setBusy("auto:" + i); setError(null);
-    const r = await loadAutosaveSlot(i);
-    setBusy(null);
-    if (r.ok) onOpenChange(false);
-    else setError(r.error);
-  };
+  const handleLoadAutosave = i => runLoad("auto:"+i,()=>loadAutosaveSlot(i));
 
   const handleExport = () => {
     const data = exportGame();
@@ -121,13 +117,14 @@ export default function SaveSlotsDialog({ open, onOpenChange }) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={value=>{if(!loadLock.current)onOpenChange(value);}}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto bg-surface border-white/10">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><HardDrive className="w-5 h-5 text-lime" /> Spielstände</DialogTitle>
           <DialogDescription>Sichern und laden Sie Ihren Stand manuell — ergänzend zu den automatischen Sicherungen.</DialogDescription>
         </DialogHeader>
 
+        {(busy?.startsWith("load:")||busy?.startsWith("auto:"))&&<div role="status" aria-live="polite" className="flex items-center gap-3 rounded-xl border border-lime/30 bg-lime/10 p-4 text-sm"><Loader2 className="w-5 h-5 animate-spin shrink-0"/>Spielstand wird geladen … Bitte warten.</div>}
         {error && (
           <div className="text-sm text-destructive-foreground bg-destructive/15 border border-destructive/30 rounded-lg px-3 py-2">
             {error}
@@ -146,7 +143,7 @@ export default function SaveSlotsDialog({ open, onOpenChange }) {
               onKeyDown={(e) => e.key === "Enter" && handleSave()}
               className="bg-ink/50 border-white/10"
             />
-            <Button onClick={handleSave} disabled={busy === "saving"} className="shrink-0 bg-lime text-ink hover:bg-lime/90">
+            <Button onClick={handleSave} disabled={!!busy} className="shrink-0 bg-lime text-ink hover:bg-lime/90">
               {busy === "saving" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Sichern
             </Button>
