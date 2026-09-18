@@ -63,7 +63,8 @@ export default function ToastStack({ toasts, onDismiss }) {
   }, []);
 
   const handleAction = (toast) => {
-    if (toast.action?.targetType === "order") navigate("/auftraege");
+    if (toast.action?.targetType === "office") navigate("/");
+    else if (toast.action?.targetType === "order") navigate("/auftraege");
     else if (toast.action?.targetType === "dispatch") navigate("/disposition");
     else if (toast.action?.targetType === "home") navigate("/zuhause");
     else if (toast.action?.targetType === "branches") navigate("/filialen");

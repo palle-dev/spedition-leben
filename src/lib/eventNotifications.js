@@ -26,6 +26,7 @@ export const CRITICAL_EVENT_TYPES = new Set([
   "order_failed",
   "expansion_completed",
   "course_completed",
+  "disruption_created",
   "dating_match",
   "date_completed",
   "new_partner",
@@ -48,6 +49,8 @@ export const CRITICAL_EVENT_TYPES = new Set([
 const EVENT_LABELS = {
   // Routinemäßig
   delivery_completed: "Lieferung",
+  disruption_created: "Störung gemeldet",
+  disruption_resolved: "Störung bearbeitet",
   expansion_completed: "Ausbau fertig",
   course_completed: "Weiterbildung abgeschlossen",
   tour_started: "Tour gestartet",
@@ -165,6 +168,14 @@ export function eventToToast(ev) {
         eventSeq: ev.seq,
       };
 
+    case "disruption_created":
+      return { id: ev.id, kind: "error", icon: "alert", title: "Funkmeldung aus dem Betrieb",
+        body: d.cause || "Eine Störung wurde gemeldet. Prüfe Maßnahmen und Lieferfristen in der Leitstelle.",
+        action: { label: "Leitstelle öffnen", targetType: "office" }, duration: 8000, eventSeq: ev.seq };
+    case "disruption_resolved":
+      return { id: ev.id, kind: "info", icon: "check", title: "Störung bearbeitet",
+        body: "Die gewählte Maßnahme wurde umgesetzt. Prüfe den aktuellen Tourenstatus in der Disposition.",
+        action: { label: "Disposition", targetType: "dispatch" }, duration: 6000, eventSeq: ev.seq };
     case "expansion_completed":
       return { id: ev.id, kind: "success", icon: "truck", title: "Dein Unternehmen wächst!",
         body: `${d.expansionLabel || "Ausbau"} in ${d.branchName || "deinem Standort"} fertiggestellt.`,

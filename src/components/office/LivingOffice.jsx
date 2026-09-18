@@ -30,7 +30,7 @@ export default function LivingOffice({ state }) {
  <text x="42" y="85" fill="#bef264" fontSize="13" fontFamily="sans-serif">FRACHTFIEBER</text>
  {[0,1,2,3].map(i => <rect key={i} x={44+i*39} y="104" width="23" height="25" rx="2" fill={mood.label.includes("Nacht") || mood.label.includes("Abend") ? "#fcd34d" : "#7dd3fc"} opacity=".65"/>)}
  {vehicles.length >= 25 && <rect x="220" y="20" width="95" height="128" rx="5" fill="#254350" stroke="#64748b"/>}
- {Array.from({length:Math.min(8,vehicles.length)},(_,i)=><motion.g key={i} initial={false} animate={{y:motionEnabled && !reduced ? [0,-2,0] : 0}} transition={{duration:1.2, delay:i*.08, repeat:0}}>
+ {Array.from({length:Math.min(8,vehicles.length)},(_,i)=><motion.g key={i + ":" + (latest?.id || "yard")} initial={false} animate={{y:motionEnabled && !reduced ? [0,-2,0] : 0}} transition={{duration:1.2, delay:i*.08, repeat:0}}>
  <rect x={335+(i%4)*108} y={95-Math.floor(i/4)*45} width="67" height="27" rx="3" fill={i%2 ? "#94a3b8" : "#bef264"}/>
  <path d={`M${404+(i%4)*108} ${104-Math.floor(i/4)*45}h17l8 10v8h-25z`} fill="#e2e8f0"/>
  {[0,1].map(j=><circle key={j} cx={350+(i%4)*108+j*62} cy={125-Math.floor(i/4)*45} r="5" fill="#0f172a" stroke="#64748b"/>)}</motion.g>)}
