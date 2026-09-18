@@ -80,7 +80,7 @@ export default function DisruptionDialog({ disruptionId, onClose }) {
         </div>
 
         <div className="p-5 space-y-4">
-          <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-3"><p className="text-sm font-medium">{detail.driverName ? `${detail.driverName} braucht eine Entscheidung.` : "Die Leitstelle meldet Handlungsbedarf."}</p><p className="text-xs text-muted-foreground mt-1">Fristen laufen ausschließlich mit der Spielzeit. Vergleiche Kosten und Verzögerung, bevor du handelst.</p></div>
+          <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-3"><p className="text-sm font-medium">{isCompleted ? "Deine Entscheidung zeigt Wirkung." : canResolve ? (detail.driverName ? `${detail.driverName} braucht eine Entscheidung.` : "Die Leitstelle meldet Handlungsbedarf.") : "Die gewählte Maßnahme läuft."}</p><p className="text-xs text-muted-foreground mt-1">Fristen laufen ausschließlich mit der Spielzeit. Vergleiche Kosten und Verzögerung, bevor du handelst.</p></div>
           {/* Betroffene Ressourcen */}
           <div className="grid grid-cols-2 gap-3">
             {detail.vehicleLabel && (

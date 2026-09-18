@@ -49,7 +49,7 @@ export default function Office() {
       <WorldTeaser state={state} />
 
       {/* Aktive Störungen (nur bei vorhandenen Störungen sichtbar) */}
-      <DisruptionPanel />
+      <DisruptionPanel key={state.meta?.partyId} />
 
       {/* Liquiditäts-Warnhinweise (nur bei prognostizierten Engpässen) */}
       <ForecastHints />

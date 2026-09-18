@@ -12,12 +12,12 @@ export default function LivingOffice({ state }) {
  const branch = state.branches?.find(b => b.isHeadquarters) || state.branches?.[0];
  const site = useMemo(() => branch ? getSiteOverview(state, branch.id) : null, [state, branch]);
  const vehicles = (state.vehicles || []).filter(v => !["sold","archived"].includes(v.status));
- const moving = vehicles.filter(v => v.status === "driving" || v.tripId).length;
+ const moving = vehicles.filter(v => v.status === "on_trip").length;
  const contact = (state.employees || []).find(e => e.role === "dispatcher") || state.drivers?.[0];
  const mood = officeAtmosphere(state.gameTime);
  const tier = vehicles.length >= 25 ? "Logistikzentrale" : vehicles.length >= 10 ? "Wachsender Betrieb" : "Dein Betriebshof";
  const project = site?.activeProject;
- const latest = [...(state.events || [])].reverse().find(e => e.employeeName || e.type === "delivery_completed");
+ const latest = [...(state.events || [])].reverse().find(e => e.type === "delivery_completed");
  return <section className="relative overflow-hidden rounded-2xl border border-white/15 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950 p-5">
  <div className="relative z-10 flex flex-wrap justify-between gap-3">
  <div><p className="text-[10px] uppercase tracking-[.2em] text-lime">{mood.label}</p><h2 className="text-xl font-semibold mt-1">{tier}</h2>
@@ -39,7 +39,7 @@ export default function LivingOffice({ state }) {
  <div className="relative grid sm:grid-cols-2 gap-3">
  <div className="flex items-center gap-3 rounded-xl bg-black/20 p-3">
  <Portrait portraitId={contact?.portraitId || contact?.portrait_id} name={contact?.name || "Leitstelle"} size="sm"/>
- <div className="min-w-0"><p className="text-xs font-medium">{latest?.employeeName || "Aus der Leitstelle"}</p><p className="text-xs text-slate-300 mt-1">{latest?.type === "delivery_completed" ? `Fracht bei ${latest.details?.customer || "unserem Kunden"} angekommen.` : `${moving} Fahrzeuge unterwegs. ${site?.parking.free ?? 0} freie Stellplätze am Hauptstandort.`}</p></div></div>
+ <div className="min-w-0"><p className="text-xs font-medium">{contact?.name || "Aus der Leitstelle"}</p><p className="text-xs text-slate-300 mt-1">{latest?.type === "delivery_completed" ? `Fracht bei ${latest.details?.customer || "unserem Kunden"} angekommen.` : `${moving} Fahrzeuge unterwegs. ${site?.parking.free ?? 0} freie Stellplätze am Hauptstandort.`}</p></div></div>
  <div className="rounded-xl bg-black/20 p-3 text-xs">
  {project ? <><p className="text-amber-300">Im Bau: {project.label} · {project.progressPct}%</p><progress aria-label="Baufortschritt" value={project.progressPct} max="100" className="w-full h-2 mt-2 accent-amber-400"/><p className="text-slate-300 mt-1">Noch {Math.max(0,Math.ceil((project.completionMin-state.gameTime)/60))} Spielstunden</p></> : <><p className="text-lime">Werkstatt & Hof</p><p className="text-slate-300 mt-1">{site?.workshop.slots || 0} Werkstattplätze · {site?.workshop.activeMaintenance || 0} Wartungen eingeplant oder in Arbeit</p><p className="text-slate-400 mt-1">Dein Hof wächst mit Flotte und Standortausbau.</p></>}
  </div></div></section>;

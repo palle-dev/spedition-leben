@@ -24,6 +24,8 @@ export const EMAILED_EVENT_TYPES = new Set([
 // Zusammenfassung gebündelt, um den Bildschirm nicht zu fluten.
 export const CRITICAL_EVENT_TYPES = new Set([
   "order_failed",
+  "expansion_completed",
+  "course_completed",
   "dating_match",
   "date_completed",
   "new_partner",
@@ -46,6 +48,8 @@ export const CRITICAL_EVENT_TYPES = new Set([
 const EVENT_LABELS = {
   // Routinemäßig
   delivery_completed: "Lieferung",
+  expansion_completed: "Ausbau fertig",
+  course_completed: "Weiterbildung abgeschlossen",
   tour_started: "Tour gestartet",
   order_accepted_by_dispatcher: "Auftrag angenommen",
   tour_planned_by_dispatcher: "Tour geplant",

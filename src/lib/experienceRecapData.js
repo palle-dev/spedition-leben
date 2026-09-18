@@ -13,5 +13,5 @@ export function getDayRecap(state, day) {
   result: finance ? finance.revenue - finance.expenses : null };
 }
 export function getUpcomingRiskCount(state) {
- return (state.orders || []).filter(o => ["accepted", "in_transit"].includes(o.status) && Number.isFinite(o.deliveryDeadlineMin) && o.deliveryDeadlineMin <= state.gameTime + 1440).length;
+ return (state.orders || []).filter(o => ["angenommen", "unterwegs"].includes(o.status) && Number.isFinite(o.deliveryDeadlineMin) && o.deliveryDeadlineMin <= state.gameTime + 1440).length;
 }

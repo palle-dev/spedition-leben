@@ -21,6 +21,15 @@ export async function setSoundEnabled(value) {
     } catch { /* unsupported or blocked audio must not interrupt play */ }
   }
 }
+export async function unlockExperienceSound() {
+ if (!enabled || context?.state === "running") return;
+ try {
+  const Audio = globalThis.AudioContext || globalThis.webkitAudioContext;
+  if (!Audio) return;
+  context ||= new Audio();
+  await context.resume();
+ } catch { /* browser policy: keep silent */ }
+}
 export function playExperienceSound(kind) {
   if (!enabled || !context || context.state !== "running" || globalThis.document?.hidden) return;
   if (performance.now() - lastPlayed < 2500) return;
