@@ -5,7 +5,7 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
 import { migrateState } from "../../shared/progressEngine.ts";
 
-export default async function (req) {
+export default async function handleSaveGameState(req) {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
@@ -48,4 +48,9 @@ export default async function (req) {
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
+}
+
+// Register the HTTP entrypoint in Base44; keep the export for contract tests.
+if (typeof Deno !== "undefined") {
+  Deno.serve(handleSaveGameState);
 }

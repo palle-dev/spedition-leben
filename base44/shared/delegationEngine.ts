@@ -123,7 +123,14 @@ export function migrateDelegation(state) {
   resetDailySpendIfNeeded(state);
 }
 
+function maintenanceApprovalKey(req) {
+  const data = req.actionData;
+  if (req.type !== "maintenance" || !data?.vehicleId || !data?.branchId || (data.type && data.type !== "standard")) return null;
+  return JSON.stringify(["maintenance", data.vehicleId, data.branchId, data.type || "standard"]);
+}
+
 export function migrateApprovals(state) {
+  if (!state.delegation) migrateDelegation(state);
   if (!state.approvals || state.approvals.version !== APPROVAL_VERSION) {
     state.approvals = {
       version: APPROVAL_VERSION,
@@ -131,6 +138,22 @@ export function migrateApprovals(state) {
       resolved: [],
     };
   }
+  // Alte Zeitstempel-Keys können mehrere identische Wartungen enthalten.
+  // Nur gleiche Fahrzeuge, Standorte, Wartungsarten und Beträge zusammenführen.
+  const seen = new Set();
+  for (const req of state.approvals.pending) {
+    if (req.status !== "pending") continue;
+    const key = maintenanceApprovalKey(req);
+    if (!key) continue;
+    req.dedupKey = key;
+    const identity = JSON.stringify([key, req.costCents]);
+    if (!seen.has(identity)) { seen.add(identity); continue; }
+    req.status = "superseded";
+    req.resolvedAtMin = state.gameTime;
+    req.supersedeReason = "Identische Wartungsanfrage bereits vorhanden";
+    moveResolved(state, req);
+  }
+  state.delegation.stats.pendingApprovals = state.approvals.pending.filter(a => a.status === "pending").length;
 }
 
 // ---------- Tages-Reset ----------
@@ -211,7 +234,7 @@ export function recordSpend(state, employeeId, amountCents, branchId) {
 // für denselben unveränderten Vorgang.
 export function createApprovalRequest(state, opts) {
   if (!state.approvals) migrateApprovals(state);
-  const dedupKey = opts.dedupKey || (opts.type + ":" + (opts.actionData?.dedupId || opts.employeeId));
+  const dedupKey = maintenanceApprovalKey(opts) || opts.dedupKey || (opts.type + ":" + (opts.actionData?.dedupId || opts.employeeId));
   // Bestehende pending-Anfrage für denselben Vorgang finden
   const existing = state.approvals.pending.find(a => a.dedupKey === dedupKey && a.status === "pending");
   if (existing) return { request: existing, isNew: false };
@@ -252,7 +275,7 @@ export function createApprovalRequest(state, opts) {
 }
 
 // Freigabe einer Anfrage — prüft erneut, ob die Aktion noch möglich ist.
-export function approveApproval(state, requestId) {
+export function approveApproval(state, requestId, executeAction = null) {
   if (!state.approvals) migrateApprovals(state);
   const req = state.approvals.pending.find(a => a.id === requestId && a.status === "pending");
   if (!req) throw new Error("Freigabe nicht gefunden oder bereits bearbeitet.");
@@ -267,12 +290,19 @@ export function approveApproval(state, requestId) {
     return { ok: false, superseded: true, reason: recheck.reason };
   }
 
+  // Erst ausführen, dann als genehmigt markieren. Ein Fehler lässt die Anfrage offen.
+  const execution = executeAction?.(req) || {};
+  if (execution.superseded) {
+    req.status = "superseded";
+    req.resolvedAtMin = state.gameTime;
+    req.supersedeReason = execution.reason;
+    moveResolved(state, req);
+    return execution;
+  }
   req.status = "approved";
   req.resolvedAtMin = state.gameTime;
   moveResolved(state, req);
-  // Die tatsächliche Ausführung erfolgt im Aufrufer (z.B. Branch-Manager-
-  // Entscheidung anwenden). Hier wird nur die Freigabe erteilt.
-  return { ok: true, requestId, actionData: req.actionData };
+  return { ok: true, requestId, actionData: req.actionData, ...execution };
 }
 
 export function rejectApproval(state, requestId) {
@@ -287,6 +317,7 @@ export function rejectApproval(state, requestId) {
 
 // Prüft, ob eine Freigabe noch gültig ist (Zustand hat sich nicht geändert).
 function recheckApproval(state, req) {
+  if (req.deadlineMin != null && state.gameTime > req.deadlineMin) return { stillValid: false, reason: "Freigabefrist abgelaufen" };
   const emp = findEmployee(state, req.employeeId);
   if (!emp || !isActivelyEmployedSafe(emp)) return { stillValid: false, reason: "Mitarbeiter nicht mehr beschäftigt" };
   if (req.costCents > 0) {

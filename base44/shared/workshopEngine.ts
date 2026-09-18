@@ -189,6 +189,35 @@ export function createMaintenanceOrder(state, { vehicleId, branchId, type, isAut
   return { ok: true, orderId: order.id };
 }
 
+// Legt nach ausdrücklicher Freigabe genau einen Auftrag mit verbindlicher Kostengrenze an.
+export function createApprovedMaintenanceOrder(state, req) {
+  const { vehicleId, branchId, type = "standard" } = req.actionData || {};
+  const obsolete = reason => ({ ok: false, superseded: true, reason });
+  const v = (state.vehicles || []).find(x => x.id === vehicleId);
+  if (!v || ["sold", "archived"].includes(v.status)) return obsolete("Fahrzeug nicht mehr im aktiven Bestand");
+  if (type !== "standard") throw new Error("Unbekannte Wartungsart in der Freigabe.");
+  if ((state.workshop?.maintenanceOrders || []).some(o =>
+    o.vehicleId === vehicleId && o.type === type &&
+    ["planned", "waiting", "in_progress", "interrupted"].includes(o.status)
+  )) return obsolete("Für dieses Fahrzeug besteht bereits ein Wartungsauftrag");
+  const branch = (state.branches || []).find(b => b.id === branchId);
+  if (!branch || !(state.workshop?.slots || []).some(s => s.branchId === branchId)) {
+    return obsolete("Werkstattstandort nicht mehr verfügbar");
+  }
+  if (v.locationCity !== branch.city || v.status !== "free") {
+    throw new Error("Fahrzeug derzeit nicht frei am Werkstattstandort. Freigabe später erneut versuchen.");
+  }
+  const { cost } = computePartsCost(state);
+  if (!Number.isSafeInteger(req.costCents) || req.costCents < cost) {
+    throw new Error("Kosten der Wartung sind höher als in der Anfrage. Anfrage ablehnen und eine aktuelle Freigabe anfordern.");
+  }
+  const result = createMaintenanceOrder(state, { vehicleId, branchId, type, isAutomated: false });
+  const order = state.workshop.maintenanceOrders.find(o => o.id === result.orderId);
+  order.approvalRequestId = req.id;
+  order.approvedPartsCostCents = req.costCents;
+  return result;
+}
+
 // ---------- Wartungsauftrag stornieren ----------
 export function cancelMaintenanceOrder(state, { orderId }) {
   const order = (state.workshop?.maintenanceOrders || []).find(o => o.id === orderId);
@@ -258,6 +287,7 @@ function startWork(state, order, slot, mechanic, partsCost, m, log) {
   });
   order.materialConsumed = true;
   order.actualPartsCostCents = partsCost;
+  if (order.approvalRequestId) recordSpend(state, mechanic.id, partsCost, order.branchId);
 
   // Fahrzeug in Wartung setzen
   const v = (state.vehicles || []).find(x => x.id === order.vehicleId);
@@ -463,6 +493,11 @@ export function processWorkshop(state, m, log) {
     if (!isPersonAvailable(state, mech.id, m)) { order.status = "waiting"; order.blockReason = "Mechaniker nicht verfügbar"; continue; }
     // Finanzierung?
     const { cost, stressed } = computePartsCost(state);
+    if (order.approvedPartsCostCents != null && cost > order.approvedPartsCostCents) {
+      order.status = "waiting";
+      order.blockReason = "Teilekosten übersteigen den freigegebenen Betrag – Auftrag stornieren und neu freigeben";
+      continue;
+    }
     if (state.company.accountCents < cost) { order.status = "waiting"; order.blockReason = "Firmenkonto reicht für Teile nicht aus"; continue; }
     // Starten
     startWork(state, order, freeSlot, mech, cost, m, log);

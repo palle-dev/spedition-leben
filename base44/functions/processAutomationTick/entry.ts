@@ -12,7 +12,7 @@ import { computeTargetGameMinute } from "../../shared/timeControlEngine.ts";
 const PROCESSING_BUDGET_MS = 25000; // 25 Sekunden Zeitbudget pro Lauf
 const MAX_GAMES_PER_RUN = 50;
 
-export default async function(req) {
+export default async function handleProcessAutomationTick(req) {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
@@ -100,3 +100,9 @@ export default async function(req) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 }
+
+// Register the HTTP entrypoint in Base44; keep the export for contract tests.
+if (typeof Deno !== "undefined") {
+  Deno.serve(handleProcessAutomationTick);
+}
+

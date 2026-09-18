@@ -18,7 +18,7 @@ function stableStringify(obj) {
 }
 function hash(obj) { return stableStringify(obj); }
 
-export default async function (req) {
+export default async function handleGameCommand(req) {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
@@ -206,3 +206,9 @@ export default async function (req) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 }
+
+// Register the HTTP entrypoint in Base44; keep the export for contract tests.
+if (typeof Deno !== "undefined") {
+  Deno.serve(handleGameCommand);
+}
+
