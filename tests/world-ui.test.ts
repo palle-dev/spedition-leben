@@ -1,6 +1,6 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router-dom";
+import { StaticRouter } from "react-router-dom/server";
 import { describe, it, expect, vi } from "vitest";
 import { createInitialState, applyCommand } from "../src/lib/simulation/simulationEngine";
 
@@ -11,7 +11,7 @@ vi.mock("@/lib/gameContext", () => ({
 import GameWorld from "../src/pages/GameWorld";
 import WorldTeaser from "../src/components/world/WorldTeaser";
 function render(view = "stories") {
-  return renderToStaticMarkup(React.createElement(MemoryRouter, { initialEntries: ["/spielwelt?view=" + view] }, React.createElement(GameWorld)));
+  return renderToStaticMarkup(React.createElement(StaticRouter, { location: "/spielwelt?view=" + view }, React.createElement(GameWorld)));
 }
 describe("Spielwelt-Oberfläche", () => {
   it("renders a safe entry for a legacy save without world data", () => {
@@ -58,7 +58,7 @@ describe("Spielwelt-Oberfläche", () => {
   it("links the office overview to the new world and reports waiting decisions", () => {
     fixture.state = createInitialState({}).state;
     applyCommand(fixture.state, "startWorld", {});
-    const html = renderToStaticMarkup(React.createElement(MemoryRouter, null, React.createElement(WorldTeaser, { state: fixture.state })));
+    const html = renderToStaticMarkup(React.createElement(StaticRouter, { location: "/" }, React.createElement(WorldTeaser, { state: fixture.state })));
     expect(html).toContain('href="/spielwelt"');
     expect(html).toContain("1 offene Entscheidungen");
     expect(html).toContain("2 Ausschreibungen");
