@@ -96,7 +96,8 @@ function uid(state, prefix) {
 export function getTotalParkingSlots(state, branchId) {
   const b = (state.branches || []).find(x => x.id === branchId);
   if (!b) return 0;
-  return (b.parkingSlotsBase || BASE_PARKING_SLOTS) + (b.parkingSlotsExpanded || 0);
+  const base = b.parkingSlotsBase ?? Math.max(b.isHeadquarters ? HQ_BASE_PARKING_SLOTS : BASE_PARKING_SLOTS, getAssignedVehicleCount(state, branchId) + 2);
+  return base + (b.parkingSlotsExpanded || 0);
 }
 
 // Aktuell belegte Stellplätze (dauerhaft zugeordnete Fahrzeuge)
@@ -112,7 +113,7 @@ export function getAssignedVehicleCount(state, branchId) {
 export function getReservedSlots(state, branchId) {
   return (state.siteExpansion?.reservations || []).filter(
     r => r.branchId === branchId && r.status === "active"
-  ).length;
+  ).reduce((sum, r) => sum + (r.count ?? 1), 0);
 }
 
 // Freie Stellplätze (Gesamt - zugeordnet - reserviert)
@@ -277,7 +278,6 @@ export function getActiveProject(state, branchId) {
 
 // Vorschau für einen Ausbau
 export function previewExpansion(state, { branchId, type, slots = 1 }) {
-  migrateSiteExpansion(state);
   const b = (state.branches || []).find(x => x.id === branchId);
   if (!b) throw new Error("Standort nicht gefunden.");
   if (b.status !== "active") throw new Error("Standort ist nicht aktiv.");
@@ -293,7 +293,10 @@ export function previewExpansion(state, { branchId, type, slots = 1 }) {
   }
 
   const cfg = EXPANSION_CONFIG[type];
-  if (!cfg) return { ok: false, error: "Unbekannter Ausbau-Typ: " + type };
+  if (!["parking", "workshop", "breakArea"].includes(type)) return { ok: false, error: "Unbekannter Ausbau-Typ: " + type };
+  if (type !== "breakArea" && (!Number.isInteger(slots) || slots < cfg.minSlots || slots > cfg.maxSlots)) {
+    return { ok: false, error: `Bitte eine ganze Anzahl zwischen ${cfg.minSlots} und ${cfg.maxSlots} wählen.` };
+  }
 
   let costCents, buildTimeMin, dailyCostCents, effectDescription;
 
@@ -313,7 +316,7 @@ export function previewExpansion(state, { branchId, type, slots = 1 }) {
     const currentSlots = getUsableWorkshopSlots(state, branchId);
     const mechanics = getAvailableMechanicCount(state, branchId);
     effectDescription = `+${n} Werkstattplatz/plätze (neu gesamt: ${currentSlots + n}). ` +
-      `Nutzbare Kapazität: min(Slots, Mechaniker) = min(${currentSlots + n}, ${mechanics}). ` +
+      `${mechanics} Mechaniker am Standort. Jeder gleichzeitig genutzte Platz benötigt einen verfügbaren Mechaniker. ` +
       (mechanics < currentSlots + n ? `Hinweis: Es fehlen ${currentSlots + n - mechanics} Mechaniker für volle Auslastung.` : "");
   } else if (type === "breakArea") {
     if (b.breakAreaLevel >= 2) {
@@ -322,7 +325,7 @@ export function previewExpansion(state, { branchId, type, slots = 1 }) {
     costCents = cfg.costCents;
     buildTimeMin = cfg.buildTimeMin;
     dailyCostCents = cfg.dailyCostCents;
-    const newLevel = b.breakAreaLevel + 1;
+    const newLevel = (b.breakAreaLevel || 0) + 1;
     effectDescription = `Aufenthaltsbereich Stufe ${newLevel}. ` +
       `Arbeitsumfeld-Bonus: bis zu +${newLevel === 2 ? cfg.workEnvironmentBonus : Math.floor(cfg.workEnvironmentBonus * 0.67)} Zufriedenheit/Tag ` +
       `(skaliert mit Pflege und Sauberkeit).`;
@@ -543,7 +546,6 @@ export function getExpansionEventTimes(state, t, maxMin) {
 // ---------- Standort-Übersicht ----------
 
 export function getSiteOverview(state, branchId) {
-  migrateSiteExpansion(state);
   const b = (state.branches || []).find(x => x.id === branchId);
   if (!b) return null;
 
