@@ -60,7 +60,7 @@ export default function PhoneCenter() {
  {!detail ? <p>Dieses Anliegen ist nicht mehr vorhanden.</p> : <>
  <div className="rounded-2xl rounded-tl-sm bg-white/5 border border-white/10 p-4"><p className="text-sm leading-relaxed">{detail.status==="completed"?detail.completionSummary:detail.status==="measure_running"?"Die Maßnahme läuft. Wir melden uns nach Abschluss wieder.":detail.cause}</p></div>
  {detail.status==="decision_open"&&<>
- <p className="flex items-center gap-2 text-xs text-amber-200"><Clock className="w-4 h-4"/>{deadlineLabel(selected?.deadline,state.gameTime)}</p>
+ <p className="flex items-center gap-2 text-xs text-amber-200"><Clock className="w-4 h-4"/>{deadlineLabel(detail.orders.filter(o=>["angenommen","unterwegs"].includes(o.status)&&Number.isFinite(o.deliveryDeadlineMin)).reduce((min,o)=>min===null?o.deliveryDeadlineMin:Math.min(min,o.deliveryDeadlineMin),null),state.gameTime)}</p>
  <p className="text-xs text-slate-400">Was soll das Team tun? Jede Antwort löst die angezeigte Maßnahme aus.</p>
  <div className="space-y-2">{detail.options.map(option=><button key={option.id} disabled={blocked||!option.available} onClick={()=>choose(option.id)} className="w-full text-left rounded-2xl p-4 bg-white/5 border border-white/10 hover:border-cyan-300/50 hover:bg-cyan-400/10 transition disabled:opacity-40 disabled:cursor-not-allowed">
  <span className="font-medium text-sm">{option.label}</span><span className="block text-xs text-slate-300 mt-1">{option.description}</span>

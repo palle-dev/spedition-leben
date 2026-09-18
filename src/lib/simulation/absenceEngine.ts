@@ -236,6 +236,7 @@ export function approveVacation(state, { requestId, conflictResolution }) {
     subject: "Urlaub genehmigt",
     body: `Dein Urlaub vom ${formatGameTime(req.startMin)} bis ${formatGameTime(req.endMin - 1)} (${req.days} Tag(e)) wurde genehmigt.`,
     gameTime: state.gameTime, category: "personnel", priority: "normal",
+    linkedRefs: { type: "vacation_request", id: requestId },
     dedupKey: "vacation_approved_msg:" + requestId,
   });
   
@@ -273,6 +274,7 @@ export function rejectVacation(state, { requestId, reason }) {
     subject: "Urlaubsantrag abgelehnt",
     body: `Dein Urlaubsantrag vom ${formatGameTime(req.startMin)} bis ${formatGameTime(req.endMin - 1)} wurde abgelehnt.${reason ? "\nGrund: " + reason : ""}`,
     gameTime: state.gameTime, category: "personnel", priority: "normal",
+    linkedRefs: { type: "vacation_request", id: requestId },
     dedupKey: "vacation_rejected_msg:" + requestId,
   });
   
