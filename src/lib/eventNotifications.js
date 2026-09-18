@@ -16,6 +16,71 @@ export const EMAILED_EVENT_TYPES = new Set([
   "order_auto_dispatched",
 ]);
 
+// Prioritäten für die Toast-Steuerung.
+// CRITICAL: Ereignisse, die der Spieler sofort sehen sollte (Fehler,
+// Beziehungsänderungen, Belohnungen, Käufe, Filialleiter-Entscheidungen).
+// ROUTINE: Häufige operative Ereignisse (Lieferungen, Touren, Disposition).
+// Bei vielen gleichzeitigen Events werden ROUTINE-Toasts zu einer
+// Zusammenfassung gebündelt, um den Bildschirm nicht zu fluten.
+export const CRITICAL_EVENT_TYPES = new Set([
+  "order_failed",
+  "dating_match",
+  "date_completed",
+  "new_partner",
+  "breakup",
+  "reward_available",
+  "reward_claimed",
+  "purchase_completed",
+  "purchase_sold",
+  "private_activity_started",
+  "assistant_training_booked",
+  "branch_training_booked",
+  "branch_vehicle_purchased",
+  "branch_workshop_built",
+  "branch_employee_hired",
+]);
+
+// Kurzbezeichnungen für die Zusammenfassung routinemäßiger Ereignisse.
+const ROUTINE_LABELS = {
+  delivery_completed: "Lieferung",
+  tour_started: "Tour gestartet",
+  order_accepted_by_dispatcher: "Auftrag angenommen",
+  tour_planned_by_dispatcher: "Tour geplant",
+  order_accepted_by_assistant: "Assistent: Auftrag",
+  order_auto_dispatched: "Assistent: Disposition",
+};
+
+// Bündelt eine Liste von Routine-Toasts zu einem einzigen Zusammenfassungs-Toast.
+// Gibt null zurück, wenn die Liste leer ist.
+export function summarizeRoutineToasts(routineToasts) {
+  if (!routineToasts || routineToasts.length === 0) return null;
+  if (routineToasts.length === 1) return routineToasts[0];
+
+  const counts = {};
+  for (const t of routineToasts) {
+    const label = ROUTINE_LABELS[t._eventType] || null;
+    if (!label) continue;
+    counts[label] = (counts[label] || 0) + 1;
+  }
+
+  const parts = Object.entries(counts).map(([label, n]) =>
+    `${n}× ${label}`
+  );
+  const body = parts.length > 0
+    ? parts.join(" · ")
+    : `${routineToasts.length} Ereignisse verarbeitet`;
+
+  return {
+    id: "summary_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
+    kind: "info",
+    icon: "bell",
+    title: "Zusammenfassung",
+    body,
+    duration: 6000,
+    _isSummary: true,
+  };
+}
+
 function vehicleLabel(id) {
   if (!id) return "—";
   const n = parseInt(String(id).replace(/[^0-9]/g, ""), 10);

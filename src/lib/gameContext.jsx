@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import { saveCurrent, loadCurrent, saveAutosave, loadAutosave, getAllAutosaveMetas, listManualSlots, saveManualSlot, loadManualSlot, deleteManualSlot, exportSave, importSave, getSyncMeta, setSyncMeta as persistSyncMeta } from "@/lib/persistence";
 import { acquireLock, refreshLock, releaseLock, LOCK_REFRESH } from "@/lib/tabLock";
 import { writeRecoverySave, prepareLoadedState } from "@/lib/saveSafety";
-import { eventToToast } from "@/lib/eventNotifications";
+import { eventToToast, summarizeRoutineToasts, CRITICAL_EVENT_TYPES } from "@/lib/eventNotifications";
 import { getUnseenEventCount } from "@/lib/eventLogClient";
 import { useAuth } from "@/lib/AuthContext";
 import { listCloudSaves, loadCloudSave, createCloudSave, saveCloudSave, deleteCloudSave, CloudSyncQueue, generatePartyId, makeSyncMeta } from "@/lib/cloudSync";
@@ -293,11 +293,30 @@ export function GameProvider({ children }) {
         latestSeq = Math.max(latestSeq, event.seq || 0);
         if (seenEventIdsRef.current.has(event.id)) continue;
         const toast = eventToToast(event);
-        if (toast) newToasts.unshift(toast);
+        if (toast) {
+          toast._eventType = event.type;
+          newToasts.unshift(toast);
+        }
         seenEventIdsRef.current.add(event.id);
       }
       lastEventSeqRef.current = latestSeq;
-      if (newToasts.length) setToasts(previous => [...previous, ...newToasts].slice(-20));
+      // Intelligente Toast-Steuerung: Bei vielen gleichzeitigen Events
+      // (typisch bei Zeitvorläufen) werden Routine-Meldungen zu einer
+      // einzigen Zusammenfassung gebündelt. Kritische Ereignisse
+      // (Fehler, Beziehungen, Belohnungen) erscheinen weiterhin einzeln.
+      if (newToasts.length <= 3) {
+        if (newToasts.length) setToasts(previous => [...previous, ...newToasts].slice(-20));
+      } else {
+        const critical = [];
+        const routine = [];
+        for (const t of newToasts) {
+          if (CRITICAL_EVENT_TYPES.has(t._eventType)) critical.push(t);
+          else routine.push(t);
+        }
+        const summary = summarizeRoutineToasts(routine);
+        const finalToasts = summary ? [...critical, summary] : critical;
+        if (finalToasts.length) setToasts(previous => [...previous, ...finalToasts].slice(-20));
+      }
     }
     setUnseenCount(getUnseenEventCount(newState));
   }, []);
