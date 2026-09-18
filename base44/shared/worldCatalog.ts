@@ -23,7 +23,9 @@ export const WORLD_BIDS = [
   { id: "premium", label: "Qualität hat ihren Preis", percent: 115, detail: "115 % des Richtpreises · braucht einen sehr guten Ruf" },
 ];
 export const WORLD_REPUTATION_LABELS = { trust: "Verlässlichkeit", quality: "Qualitätsvorsprung", price: "Verhandlungsvorsprung" };
-const c = (id, label, detail, effect = {}, extra = {}) => ({ id, label, detail, effect, costCents: 0, account: "company", ...extra });
+type WorldEffect = { trust?: number; quality?: number; price?: number; stress?: number; happiness?: number; relationship?: number; driver?: number; friend?: number; relations?: Record<string, number> };
+type WorldChoice = { id: string; label: string; detail: string; effect: WorldEffect; costCents: number; account: "company" | "private"; appointment?: boolean; requiresHansen?: number; delayed?: { text: string; effect: WorldEffect; identity?: string } };
+const c = (id: string, label: string, detail: string, effect: WorldEffect = {}, extra: Partial<WorldChoice> = {}): WorldChoice => ({ id, label, detail, effect, costCents: 0, account: "company", ...extra });
 export function worldScene(state, run) {
   const w = state.world;
   const picks = Object.fromEntries((w?.stories?.harbor?.decisions || []).map(d => [d.stage, d.choiceId]));
