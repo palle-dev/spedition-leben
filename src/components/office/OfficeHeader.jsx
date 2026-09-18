@@ -1,5 +1,4 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import { formatGameTime, dayOf } from "@/lib/gameData";
 import { MapPin, Pause, Play, Wifi, WifiOff } from "lucide-react";
@@ -7,7 +6,6 @@ import { MapPin, Pause, Play, Wifi, WifiOff } from "lucide-react";
 // Kompakte, professionelle Kopfzeile: Firmenidentität, Spieltag/Uhrzeit,
 // Automatikstatus und Zeitraum-Filter in klarer Hierarchie.
 export default function OfficeHeader({ state, period, setPeriod }) {
-  const navigate = useNavigate();
   const { automationEnabled, automationBusy, enableAutomation, pauseAutomation, connectionState } = useGame();
   const day = dayOf(state.gameTime);
 
@@ -33,7 +31,7 @@ export default function OfficeHeader({ state, period, setPeriod }) {
       </div>
 
       {/* Steuerung */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex flex-wrap items-center gap-2.5">
         {/* Zeitraum-Filter */}
         <div className="flex rounded-lg overflow-hidden border border-white/10">
           {[{ id: "today", label: "Heute" }, { id: "week", label: "7 Tage" }, { id: "month", label: "30 Tage" }].map(p => (

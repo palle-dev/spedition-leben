@@ -20,69 +20,60 @@ import DisruptionPanel from "@/components/office/DisruptionPanel";
 import ForecastHints from "@/components/office/ForecastHints";
 import WorldTeaser from "@/components/world/WorldTeaser";
 
-// Büro – zentrale Tagesübersicht und Führungsansicht.
-// Die Seite beantwortet unmittelbar:
-// 1. Was braucht jetzt meine Entscheidung? (DailyOverview + UnifiedTaskList)
-// 2. Welche Verpflichtungen stehen heute an? (DailyCapacity)
-// 3. Was erledigen meine Mitarbeiter selbstständig? (DailyCapacity)
-// 4. Wie steht es um verfügbare Mittel und Kapazität? (DailyCapacity + OfficeKPIs)
-// 5. Welche persönlichen Termine habe ich? (PersonalAndGoals)
-// 6. Welches meiner Ziele ist als Nächstes sinnvoll erreichbar? (PersonalAndGoals)
-//
-// Weitere Details sind über die Fachseiten erreichbar.
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+
 export default function Office() {
-  const { state } = useGame();
-  const [period, setPeriod] = useState("today");
-
-  return (
-    <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-8 max-w-[1600px] mx-auto space-y-6">
-      <PageHint pageKey="office" />
-
-      {/* Kopfzeile — transparent auf atmosphärischem Hintergrund */}
-      <OfficeHeader state={state} period={period} setPeriod={setPeriod} />
-
-      {/* Tagesübersicht: Natürliche Aussagen aus Spieldaten */}
-      <LivingOffice state={state} />
-      <DayRecap key={state.meta?.partyId} state={state} />
-      <DailyOverview state={state} />
-      <ShortGoals state={state} />
-      <WorldTeaser state={state} />
-
-      {/* Aktive Störungen (nur bei vorhandenen Störungen sichtbar) */}
-      <DisruptionPanel key={state.meta?.partyId} />
-
-      {/* Liquiditäts-Warnhinweise (nur bei prognostizierten Engpässen) */}
-      <ForecastHints />
-
-      {/* Kennzahlen */}
-      <OfficeKPIs state={state} period={period} />
-
-      {/* Szenario-Fortschritt (nur bei aktivem Szenario) */}
-      <ScenarioProgressPanel />
-
-      {/* Mittel, Kapazität, Verpflichtungen, Mitarbeiter-Autonomie */}
-      <DailyCapacity state={state} />
-
-      {/* Persönliche Termine + Nächstes Ziel */}
-      <PersonalAndGoals state={state} />
-
-      {/* Stillstandgründe: Warum die Automatik nicht disponiert hat */}
-      <IdleReasonsList state={state} />
-
-      {/* Kundenbeziehungen: aktive Rahmenverträge + Stammkunden */}
-      <OfficeCustomerRelations state={state} />
-
-      {/* Filialübersicht (nur bei mehreren Standorten) */}
-      <OfficeBranches state={state} />
-
-      {/* Trends: Umsatz- und Flottenauslastung (30 Tage) */}
-      <OfficeTrends />
-
-      {/* Unterer Bereich: Finanzen, Personal, Wachstum, Privatleben */}
-      <OfficeBottom state={state} />
-
-      {/* Entwicklung: Entwicklungsziel, Ziele, Meilensteine */}
-      <DevelopmentPanel state={state} />
-    </div>
-  );
+ const {state}=useGame();
+ const [period,setPeriod]=useState("today");
+ if(!state)return null;
+ return <div className="px-4 sm:px-6 lg:px-10 py-5 max-w-[1400px] mx-auto space-y-5">
+  <OfficeHeader state={state} period={period} setPeriod={setPeriod}/>
+  <Tabs defaultValue="overview" key={state.meta?.partyId}>
+   <TabsList aria-label="Bürobereiche" className="grid grid-cols-2 sm:grid-cols-4 h-auto w-full gap-1 bg-slate-950/70 border border-white/10 p-1.5">
+    <TabsTrigger value="overview" className="py-2.5">Überblick</TabsTrigger>
+    <TabsTrigger value="operations" className="py-2.5">Betrieb</TabsTrigger>
+    <TabsTrigger value="development" className="py-2.5">Ziele & Entwicklung</TabsTrigger>
+    <TabsTrigger value="reports" className="py-2.5">Berichte & Verlauf</TabsTrigger>
+   </TabsList>
+   <TabsContent value="overview" className="space-y-5 mt-5">
+    <OfficeKPIs state={state} period={period}/>
+    <section className="space-y-3"><h2 className="text-lg font-semibold">Jetzt wichtig</h2><DailyOverview state={state} maxItems={3}/></section>
+    <ForecastHints/>
+    <OfficeDetail title="Heute im Betrieb" description="Kapazität, Verpflichtungen und Aufgaben des Teams"><DailyCapacity state={state}/></OfficeDetail>
+    <OfficeDetail title="Dein Büro" description="Atmosphäre und Einführung"><LivingOffice state={state}/><PageHint pageKey="office"/></OfficeDetail>
+   </TabsContent>
+   <TabsContent value="operations" className="space-y-4 mt-5">
+    <h2 className="text-lg font-semibold">Betrieb steuern</h2>
+    <DisruptionPanel key={state.meta?.partyId}/>
+    <OfficeDetail title="Kapazität & Tagesplanung" description="Verfügbare Mittel, Termine und Mitarbeiter-Autonomie" initialOpen><DailyCapacity state={state}/></OfficeDetail>
+    <OfficeDetail title="Stillstand & Disposition" description="Warum Fahrzeuge oder Aufträge warten"><IdleReasonsList state={state}/></OfficeDetail>
+    <OfficeDetail title="Kunden & Verträge" description="Stammkunden und laufende Rahmenverträge"><OfficeCustomerRelations state={state}/></OfficeDetail>
+    <OfficeDetail title="Standorte" description="Übersicht deiner Filialen"><OfficeBranches state={state}/></OfficeDetail>
+    <OfficeDetail title="Persönliche Termine" description="Privatleben und nächste persönliche Ziele"><PersonalAndGoals state={state}/></OfficeDetail>
+   </TabsContent>
+   <TabsContent value="development" className="space-y-4 mt-5">
+    <h2 className="text-lg font-semibold">Deine nächsten Schritte</h2>
+    <ShortGoals state={state}/>
+    <ScenarioProgressPanel/>
+    <OfficeDetail title="Entwicklung & Meilensteine" description="Langfristige Ziele und Fortschritte"><DevelopmentPanel state={state}/></OfficeDetail>
+    <OfficeDetail title="Chancen in der Spielwelt" description="Neue Möglichkeiten entdecken"><WorldTeaser state={state}/></OfficeDetail>
+   </TabsContent>
+   <TabsContent value="reports" className="space-y-4 mt-5">
+    <h2 className="text-lg font-semibold">Berichte & Verlauf</h2>
+    <DayRecap key={state.meta?.partyId} state={state}/>
+    <OfficeDetail title="Umsatz & Auslastung" description="Trends der letzten 30 Tage"><OfficeTrends/></OfficeDetail>
+    <OfficeDetail title="Unternehmensbereiche" description="Finanzen, Personal, Wachstum und Privatleben"><OfficeBottom state={state}/></OfficeDetail>
+   </TabsContent>
+  </Tabs>
+ </div>;
 }
+function OfficeDetail({title,description,initialOpen=false,children}){
+ const [open,setOpen]=useState(initialOpen);
+ return <details open={open} onToggle={e=>setOpen(e.currentTarget.open)} className="rounded-2xl border border-white/10 bg-slate-950/40">
+  <summary className="cursor-pointer p-4 focus-visible:outline focus-visible:outline-lime rounded-2xl">
+   <span className="font-medium">{title}</span><span className="block mt-1 text-xs text-muted-foreground">{description}</span>
+  </summary>
+  {open&&<div className="p-4 pt-0 space-y-4">{children}</div>}
+ </details>;
+}
+

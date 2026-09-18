@@ -1,12 +1,13 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getDailyStatements } from "@/lib/dailyOverviewData";
 import { AlertTriangle, Truck, Calendar, Wrench, Heart, Users, Target, ArrowRight } from "lucide-react";
 
 // Tagesübersicht — beantwortet die zentralen Führungsfragen
 // mit klaren, natürlichen Aussagen aus Spieldaten.
-export default function DailyOverview({ state }) {
+export default function DailyOverview({ state, maxItems = Infinity }) {
   const navigate = useNavigate();
+  const [showAll,setShowAll]=useState(false);
   const statements = useMemo(() => getDailyStatements(state), [state]);
 
   if (statements.length === 0) {
@@ -43,7 +44,7 @@ export default function DailyOverview({ state }) {
 
   return (
     <div className="space-y-2">
-      {statements.map((s, i) => {
+      {(showAll?statements:statements.slice(0,maxItems)).map((s, i) => {
         const Icon = iconFor(s.icon);
         const tone = toneFor(s.priority);
         return (
@@ -58,6 +59,7 @@ export default function DailyOverview({ state }) {
           </button>
         );
       })}
+      {statements.length>maxItems&&<button onClick={()=>setShowAll(v=>!v)} className="text-sm text-lime underline px-1 py-2">{showAll?"Weniger anzeigen":`${statements.length-maxItems} weitere Hinweise anzeigen`}</button>}
     </div>
   );
 }
