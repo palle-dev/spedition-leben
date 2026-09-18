@@ -6,7 +6,7 @@ const MOBILE_LOGO_URL = "https://media.base44.com/images/public/6aa52ebc01a939da
 // mix-blend-lighten macht den schwarzen Hintergrund transparent —
 // nur das Monogramm erscheint auf jedem Untergrund.
 // Quadratisch, für die mobile Kopfzeile optimiert.
-export default function FernwerkMobileSignet({ size = 28, className = "" }) {
+export default function FrachtfieberMobileSignet({ size = 28, className = "" }) {
   return (
     <img
       src={MOBILE_LOGO_URL}

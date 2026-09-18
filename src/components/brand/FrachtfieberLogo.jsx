@@ -4,7 +4,7 @@ const LOGO_URL = "https://media.base44.com/images/public/6aa52ebc01a939da57f8b78
 
 // FRACHTFIEBER-Logo: FF-Monogramm + Wortmarke als Bild.
 // showWord wird ignoriert, da das Bild die Wortmarke immer enthält.
-export default function FernwerkLogo({
+export default function FrachtfieberLogo({
   size = 32,
   showWord = true,
   showTagline = false,
