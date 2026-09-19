@@ -1,3 +1,4 @@
+import InvestmentAdvisor from "@/components/investment/InvestmentAdvisor";
 import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import InvestmentOverview from "@/components/investment/InvestmentOverview";
@@ -22,6 +23,7 @@ export default function Investment() {
     { id: "markets", label: "Märkte", icon: Store },
     { id: "depot", label: "Depot", icon: Wallet },
     { id: "orders", label: "Orders", icon: ListOrdered },
+    { id: "advisor", label: "Investmentberater", icon: User },
   ];
 
   return (
@@ -68,6 +70,7 @@ export default function Investment() {
       </div>
 
       {/* Inhalt */}
+      {tab === "advisor" && <InvestmentAdvisor depotId={depotId} />}
       {tab === "overview" && <InvestmentOverview state={state} />}
 
       {tab === "markets" && (
