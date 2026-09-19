@@ -1,3 +1,4 @@
+import { summarizeRoutineToasts, CRITICAL_EVENT_TYPES } from "@/lib/eventNotifications";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
@@ -170,17 +171,23 @@ describe("Cloud-Synchronisation", () => {
 });
 
 describe("Ladepfade und Ereignisse", () => {
-  it("meldet alle neuen Ereignisse eines Schritts genau einmal", () => {
+  it("bündelt neue Routineereignisse genau einmal und spielt nur einen Hinweis", () => {
     let toasts = [];
+    const sound = vi.fn();
     const env = {
+      playExperienceSound: sound, summarizeRoutineToasts, CRITICAL_EVENT_TYPES,
       isInitialLoadRef: ref(false), seenEventIdsRef: ref(new Set()), lastEventSeqRef: ref(0),
       eventToToast: e => e, setToasts: update => { toasts = update(toasts); },
       setUnseenCount: noop, getUnseenEventCount: () => 3,
     };
     const process = callback("processNewEvents", env);
-    const state = { events: [1, 2, 3].map(seq => ({ seq, id: String(seq) })) };
+    const state = { events: [1, 2, 3].map(seq => ({ seq, id: String(seq), type: "delivery_completed" })) };
     process(state); process(state);
-    expect(toasts.map(e => e.seq)).toEqual([1, 2, 3]);
+    expect(toasts).toHaveLength(1);
+    expect(JSON.stringify(toasts[0])).toContain("3× Lieferung");
+    expect(sound).toHaveBeenCalledTimes(1);
+    expect(env.lastEventSeqRef.current).toBe(3);
+    expect([...env.seenEventIdsRef.current].sort()).toEqual(["1","2","3"]);
   });
   it("Autosaves verwenden denselben sicheren Aktivierungsweg wie manuelle Slots", async () => {
     const activateState = vi.fn(async () => ({ ok: true }));

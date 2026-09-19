@@ -69,7 +69,9 @@ export default function ShellDock() {
     setAdvancing(true);
     try {
       const res = await send("advanceTime", { minutes: 60, silentPhoneAdvance: true });
-      if (res?.stopped) showToast("Vorlauf abgebrochen – nicht alle Vorgänge verarbeitet.", "error");
+      if (res?.stopped) showToast(res.stopReason === "pending_approval"
+        ? "Nach " + (res.advancedMinutes || 0) + " von 60 Minuten angehalten: Bitte unter Führung → Freigaben entscheiden."
+        : "Vorlauf nach " + (res.advancedMinutes || 0) + " von 60 Minuten angehalten.", "info");
       else summarizeEvents(res?.events);
     } catch (e) { showToast(e.message, "error"); }
     finally { setAdvancing(false); }

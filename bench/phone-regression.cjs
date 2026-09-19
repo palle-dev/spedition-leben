@@ -1,5 +1,6 @@
 const {performance}=require("perf_hooks");
-if(process.argv.includes("--day")) Date.now=()=>1800000000000;
+const advanceMinutes=process.argv.includes("--day")?1440:process.argv.includes("--hour")?60:0;
+if(advanceMinutes) Date.now=()=>1800000000000;
 const b=require("./harness.cjs");
 const {getDisruptionDetail}=require("../src/lib/simulation/disruptionEngine.ts");
 const {processPhoneCommunications}=require("../src/lib/simulation/phoneCommunications.ts");
@@ -10,10 +11,10 @@ for(let i=0;i<10000;i++)s.mail.messages.push({id:"history-"+i,fromId:"system",to
 const clone=global.structuredClone;let copies=0,cloneMs=0;
 global.structuredClone=(x)=>{const t=performance.now();const r=clone(x);copies++;cloneMs+=performance.now()-t;return r;};
 const bytes=JSON.stringify(s).length;const t=performance.now();
-if(process.argv.includes("--day")) b.applyCommand(s,"advanceTime",{minutes:1440,silentPhoneAdvance:true});
+if(advanceMinutes) b.applyCommand(s,"advanceTime",{minutes:advanceMinutes,silentPhoneAdvance:true});
 else for(let i=0;i<30;i++)processPhoneCommunications(s,true);
-const result={fixture:"12 offene Defekte, 10000 historische Nachrichten, 30 Kommunikationsprüfungen",bytes,ms:Math.round(performance.now()-t),copies,cloneMs:Math.round(cloneMs)};
-result.mode=process.argv.includes("--day")?"day":"communications";
+const result={fixture:"12 offene Defekte, 10000 historische Nachrichten",bytes,ms:Math.round(performance.now()-t),copies,cloneMs:Math.round(cloneMs)};
+result.mode=advanceMinutes?String(advanceMinutes)+" game minutes":"30 communications passes";
 result.gameTime=s.gameTime;
 result.stateHash=require("crypto").createHash("sha256").update(JSON.stringify(s)).digest("hex");
 console.log(JSON.stringify(result));

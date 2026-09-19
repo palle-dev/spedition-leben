@@ -29,10 +29,10 @@ vi.mock('@/lib/efficiencyData', () => ({
 }));
 
 describe('Live-Abnahme: Erfolgsanzeige und Eigentumsregeln', () => {
-  it('zeigt alle 32 Engine-Erfolge mit identischen Metadaten', () => {
+  it('zeigt alle 35 Engine-Erfolge mit identischen Metadaten', () => {
     const metadata = list => list.map(({id, title, desc, category, xp}) => ({id, title, desc, category, xp}));
     expect(metadata(ACHIEVEMENTS)).toEqual(metadata(ENGINE_ACHIEVEMENTS));
-    expect(ACHIEVEMENTS).toHaveLength(32);
+    expect(ACHIEVEMENTS).toHaveLength(35);
   });
 
   it.each([0, 1, 9, 10])('zeigt Gefahrgut-Fortschritt bei %s Lieferungen konsistent', deliveries => {
@@ -90,11 +90,11 @@ describe('Live-Abnahme: Erfolgsanzeige und Eigentumsregeln', () => {
       {id: 'life_first', unlocked: false},
     ]};
     const before = structuredClone(s);
-    expect(getAchievementSummary(s)).toEqual({unlocked: 2, total: 32});
+    expect(getAchievementSummary(s)).toEqual({unlocked: 2, total: 35});
     expect(getAchievementSummary(s, 'unternehmen')).toEqual({unlocked: 2, total: 12});
-    expect(getGrowthInfo(s)).toMatchObject({unlockedAchievements: 2, totalAchievements: 32});
+    expect(getGrowthInfo(s)).toMatchObject({unlockedAchievements: 2, totalAchievements: 35});
     expect(s).toEqual(before);
-    expect(getAchievementSummary({})).toEqual({unlocked: 0, total: 32});
+    expect(getAchievementSummary({})).toEqual({unlocked: 0, total: 35});
   });
 
   it('behält bereits erworbene Flotten-Erfolge und XP unverändert bei', () => {

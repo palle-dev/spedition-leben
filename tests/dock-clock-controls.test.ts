@@ -15,3 +15,19 @@ afterEach(async()=>{await act(async()=>root.unmount());container.remove();});
 async function render(){await act(async()=>root.render(React.createElement(Dock)));}
 it("Start/Pause steht direkt vor +1 Tag und löst die richtige Aktion aus",async()=>{await render();let b=document.querySelector('button[aria-label="Live-Simulation starten"]') as HTMLButtonElement;expect(b.nextElementSibling?.getAttribute("aria-label")).toBe("1 Tag weiter");await act(async()=>b.click());expect(fixture.game.enableAutomation).toHaveBeenCalledTimes(1);fixture.game.automationEnabled=true;await render();await act(async()=>(document.querySelector('button[aria-label="Live-Simulation pausieren"]') as HTMLButtonElement).click());expect(fixture.game.pauseAutomation).toHaveBeenCalledTimes(1);await act(async()=>(document.querySelector('button[aria-label="1 Tag weiter"]') as HTMLButtonElement).click());expect(fixture.game.startBackgroundAdvance).toHaveBeenCalledWith(1440);});
 it("zeigt Fehler auch ohne Ergebnis und Freigabestopps mit echtem Fortschritt",async()=>{fixture.game.backgroundAdvance={active:false,error:"Workerfehler",result:null};await render();expect(document.body.textContent).toContain("Workerfehler");fixture.game.backgroundAdvance={active:false,result:{stopped:true,stopReason:"pending_approval",advancedMinutes:0,requestedMinutes:1440}};await render();expect(document.body.textContent).toContain("Freigabe");expect(document.body.textContent).toContain("0/1440");});
+
+it("+1 Std sendet genau 60 stille Minuten und sperrt den Button bis zum Ergebnis",async()=>{
+ let finish;fixture.game.send=vi.fn(()=>new Promise(resolve=>{finish=resolve;}));
+ await render();const b=document.querySelector('button[aria-label="1 Stunde weiter"]') as HTMLButtonElement;
+ await act(async()=>b.click());expect(b.disabled).toBe(true);
+ await act(async()=>b.click());expect(fixture.game.send).toHaveBeenCalledTimes(1);
+ expect(fixture.game.send).toHaveBeenCalledWith("advanceTime",{minutes:60,silentPhoneAdvance:true});
+ await act(async()=>finish({events:[],advancedMinutes:60,stopped:false}));
+ expect(b.disabled).toBe(false);
+});
+it("+1 Std erklärt einen Freigabestopp mit tatsächlichem Fortschritt",async()=>{
+ fixture.game.send=vi.fn(async()=>({stopped:true,stopReason:"pending_approval",advancedMinutes:0}));
+ await render();await act(async()=>(document.querySelector('button[aria-label="1 Stunde weiter"]') as HTMLButtonElement).click());
+ expect(fixture.game.showToast).toHaveBeenCalledWith(expect.stringContaining("0 von 60 Minuten"),"info");
+ expect(fixture.game.showToast).toHaveBeenCalledWith(expect.stringContaining("Freigaben"),"info");
+});
