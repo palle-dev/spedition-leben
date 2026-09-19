@@ -3,6 +3,8 @@
 // Umrechnung: 20 echte Sekunden = 60 Spielminuten = 1 Spielstunde.
 // 1 echte Millisekunde = 3/20 Spielminuten = 15 Numerator-Einheiten (1/100 Spielminute).
 
+export const LIVE_TICK_MS = 5000;
+export const LIVE_TICK_MINUTES = 15;
 export const NUMERATOR_PER_REAL_MS = 0.3;
 export const NUMERATOR_PER_GAME_MINUTE = 100;
 export const REAL_MS_PER_GAME_HOUR = 20000; // 20 Sekunden = 1 Spielstunde
@@ -15,7 +17,7 @@ export function computeTargetNumerator(tc, serverNowMs) {
   if (!tc.enabled) return tc.frozenGameNumerator || 0;
   const anchorReal = tc.anchorRealMs || 0;
   const elapsed = Math.max(0, serverNowMs - anchorReal);
-  return (tc.anchorGameNumerator || 0) + NUMERATOR_PER_REAL_MS * elapsed;
+  return (tc.anchorGameNumerator || 0) + Math.floor(elapsed / LIVE_TICK_MS) * LIVE_TICK_MINUTES * NUMERATOR_PER_GAME_MINUTE;
 }
 
 // Berechnet die Ziel-Spielminute (ganzzahlig).
@@ -94,10 +96,10 @@ export function pauseAutomation(state, serverNowMs, reason) {
 // Gibt die verarbeiteten Ereignisse und die neue Spielminute zurück.
 export function syncToTarget(state, serverNowMs, advanceFn) {
   const tc = state.timeControl;
+  if(tc.enabled && computeTargetGameMinute(tc,serverNowMs)<state.gameTime)enableAutomation(state,serverNowMs);
   const targetMin = computeTargetGameMinute(tc, serverNowMs);
   const log = [];
-  if (targetMin > tc.processedGameMinute) {
-    state.gameTime = tc.processedGameMinute;
+  if (targetMin > state.gameTime) {
     advanceFn(state, targetMin, log);
   }
   tc.processedGameMinute = state.gameTime;

@@ -98,7 +98,6 @@ export function GameProvider({ children }) {
   const userWantsAutomationRef = useRef(false);
   const lastSyncGameTimeRef = useRef(0);
   const lastSyncRealMsRef = useRef(0);
-  const clockIntervalRef = useRef(null);
   const pollRef = useRef(null);
   const [toasts, setToasts] = useState([]);
   const [unseenCount, setUnseenCount] = useState(0);
@@ -169,22 +168,8 @@ export function GameProvider({ children }) {
     document.body.classList.toggle("no-motion", !motionEnabled);
   }, [motionEnabled]);
 
-  // ---- Glatte Uhr ----
-  useEffect(() => {
-    if (!automationEnabled || !state?.timeControl?.enabled) {
-      setDisplayGameTime(state?.gameTime || 0);
-      if (clockIntervalRef.current) { clearInterval(clockIntervalRef.current); clockIntervalRef.current = null; }
-      return;
-    }
-    const tick = () => {
-      const elapsedMs = Date.now() - lastSyncRealMsRef.current;
-      const advancedMin = Math.floor(elapsedMs / 1000 * 3);
-      setDisplayGameTime(lastSyncGameTimeRef.current + advancedMin);
-    };
-    tick();
-    clockIntervalRef.current = setInterval(tick, 500);
-    return () => { if (clockIntervalRef.current) { clearInterval(clockIntervalRef.current); clockIntervalRef.current = null; } };
-  }, [automationEnabled, state?.gameTime, state?.timeControl?.enabled]);
+  // Display only committed simulation time; no speculative clock during worker runs.
+  useEffect(()=>{setDisplayGameTime(state?.gameTime||0);},[state?.gameTime]);
 
   const toggleMotion = useCallback(() => setMotionEnabled(v => !v), []);
 
@@ -657,7 +642,7 @@ export function GameProvider({ children }) {
     try {
       await send("enableAutomation", {});
       setAutomationEnabled(true);
-      if (!silent) showToast("Zeitautomatik aktiviert – läuft, solange das Spiel geöffnet ist.", "success");
+      if (!silent) showToast("Live-Simulation aktiviert: alle 5 Sekunden vergehen 15 Spielminuten.", "success");
     } catch (e) { if (!silent) showToast("Automatik konnte nicht aktiviert werden: " + (e?.message || "Unbekannt"), "error"); }
     finally { setAutomationBusy(false); }
   }, [send, showToast]);
@@ -678,8 +663,7 @@ export function GameProvider({ children }) {
 
   useEffect(() => {
     if (!automationEnabled) { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } return; }
-    syncAutomation();
-    pollRef.current = setInterval(syncAutomation, 15000);
+    pollRef.current = setInterval(syncAutomation, 5000);
     return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
   }, [automationEnabled, syncAutomation]);
 

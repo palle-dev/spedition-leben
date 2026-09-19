@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import DockClock from "@/components/game/DockClock";
-import { Building2, Package, Map, Truck, Users, Wallet, BookOpen, Clock, MoreHorizontal, Trophy, Network, Calendar, Loader2, BarChart3, Gauge, UserCircle, Shield, Briefcase } from "lucide-react";
+import { Building2, Package, Map, Truck, Users, Wallet, BookOpen, Clock, MoreHorizontal, Trophy, Network, Calendar, Loader2, BarChart3, Gauge, UserCircle, Shield, Briefcase, Play, Pause } from "lucide-react";
 import AdvanceProgressModal from "@/components/game/AdvanceProgressModal";
 import DiagPanel from "@/components/game/DiagPanel";
 
@@ -32,7 +32,7 @@ const MORE_NAV = [
 
 // Untere Navigationsleiste und Zeitsteuerung – dauerhaft sichtbar.
 export default function ShellDock() {
-  const { state, send, showToast, busy, backgroundAdvance, startBackgroundAdvance, dismissBackgroundAdvanceResult } = useGame();
+  const { state, send, showToast, busy, backgroundAdvance, startBackgroundAdvance, dismissBackgroundAdvanceResult, automationEnabled, automationBusy, enableAutomation, pauseAutomation } = useGame();
   const location = useLocation();
   const [advancing, setAdvancing] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -101,21 +101,21 @@ export default function ShellDock() {
   const disabled = busy || advancing || bgActive;
 
   // Summary-Modal aus dem Hintergrund-Vorlauf-Ergebnis konstruieren
-  const summaryModal = backgroundAdvance?.result ? {
+  const summaryModal = (backgroundAdvance?.result || backgroundAdvance?.error) ? {
     current: 1440,
     total: 1440,
-    stats: backgroundAdvance.result.stats || null,
-    eventCount: backgroundAdvance.result.events?.length || 0,
+    stats: backgroundAdvance.result?.stats || null,
+    eventCount: backgroundAdvance.result?.events?.length || 0,
     done: true,
-    error: !!backgroundAdvance.error || !!backgroundAdvance.result.stopped,
+    error: !!backgroundAdvance.error || !!backgroundAdvance.result?.stopped,
     status: backgroundAdvance.error ? "Fehler: " + backgroundAdvance.error
-      : backgroundAdvance.result.stopped ? (backgroundAdvance.result.stopReason === "delivery_at_risk" ? "Lieferung in Gefahr – Vorlauf pausiert. Bitte Telefon prüfen." : "Abgebrochen – nicht alle Vorgänge verarbeitet")
+      : backgroundAdvance.result?.stopped ? (backgroundAdvance.result.stopReason === "pending_approval" ? "Vorlauf pausiert: Eine Freigabe wartet auf deine Entscheidung. Bitte Führung → Freigaben prüfen." : backgroundAdvance.result.stopReason === "delivery_at_risk" ? "Lieferung in Gefahr – Vorlauf pausiert. Bitte Telefon prüfen." : "Abgebrochen – nicht alle Vorgänge verarbeitet")
       : "Abgeschlossen",
   } : null;
 
   return (
     <footer className="relative z-20 border-t border-white/10 bg-ink/95 shrink-0">
-      <div className="flex items-center gap-2 lg:gap-4 px-3 lg:px-12 py-2.5">
+      <div className="flex flex-wrap items-center gap-2 lg:gap-4 px-3 lg:px-12 py-2.5">
         {/* Navigation – primär + schnell + Mehr-Aufklappmenü */}
         <nav className="flex items-center gap-1 flex-1 min-w-0" aria-label="Spielnavigation">
           {PRIMARY_NAV.map((n) => {
@@ -219,6 +219,7 @@ export default function ShellDock() {
           >
             <Clock className="w-4 h-4" /> <span className="hidden lg:inline">1 Std</span>
           </button>
+          <button aria-label={automationEnabled?"Live-Simulation pausieren":"Live-Simulation starten"} title={automationEnabled?"Pausieren · 15 Spielminuten je 5 Sekunden":"Starten · 15 Spielminuten je 5 Sekunden"} aria-pressed={automationEnabled} disabled={disabled||automationBusy} onClick={()=>automationEnabled?pauseAutomation():enableAutomation()} className={"grid place-items-center rounded-lg w-11 min-h-[44px] border disabled:opacity-40 "+(automationEnabled?"border-lime/40 bg-lime/15 text-lime":"border-white/10 bg-white/5 text-muted-foreground hover:text-foreground")}>{automationBusy?<Loader2 className="w-4 h-4 animate-spin"/>:automationEnabled?<Pause className="w-4 h-4"/>:<Play className="w-4 h-4"/>}</button>
           <button
             onClick={advanceDay}
             disabled={disabled}
@@ -227,7 +228,7 @@ export default function ShellDock() {
             aria-label="1 Tag weiter"
           >
             {bgActive ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calendar className="w-4 h-4" />}
-            <span className="hidden lg:inline">1 Tag</span>
+            <span className="hidden lg:inline">+1 Tag</span>
           </button>
         </div>
       </div>

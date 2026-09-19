@@ -2501,7 +2501,8 @@ export function applyCommand(state, command, params) {
   processWorld(state, state.gameTime);
   // processedGameMinute mit gameTime synchronisieren (manuelle Zeitfortschritte aktualisieren gameTime, aber nicht processedGameMinute).
   if (state.timeControl && state.gameTime > (state.timeControl.processedGameMinute || 0)) {
-    state.timeControl.processedGameMinute = state.gameTime;
+    if(state.timeControl.enabled && command!=="syncAutomation")enableAutomation(state,p.serverNowMs ?? Date.now());
+    else {state.timeControl.processedGameMinute=state.gameTime;state.timeControl.frozenGameNumerator=state.gameTime*100;}
   }
   // Erfolgsprüfung nach jedem Befehl (idempotent)
   const finalAchs = checkAchievements(state, state.gameTime);
