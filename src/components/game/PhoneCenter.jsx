@@ -1,3 +1,5 @@
+import StaffPhoneDialog from "./StaffPhoneDialog";
+import {getStaffPhoneContacts} from "@/lib/simulation/staffPhone";
 import PhoneConversation from "./PhoneConversation";
 import { getPhoneProposals } from "@/lib/simulation/phoneProposals";
 import OfficeAudioControls from "./OfficeAudioControls";
@@ -20,6 +22,8 @@ export default function PhoneCenter() {
  const navigate=useNavigate(), reduced=useReducedMotion();
  const queue=useMemo(()=>getCommunicationQueue(state),[state]);
  const [selected,setSelected]=useState(null),[showList,setShowList]=useState(false),[later,setLater]=useState([]);
+ const [staffId,setStaffId]=useState(null);
+ const contacts=useMemo(()=>getStaffPhoneContacts(state),[state]);
  const [sending,setSending]=useState(false),[error,setError]=useState("");
  const ringCounts=useRef(new Map());
  const soundReady=useSoundEnabled();
@@ -28,10 +32,10 @@ export default function PhoneCenter() {
  const missed=state.missedPhoneCalls||[];
  const missedIds=new Set(missed.map(c=>c.id));
  const incoming=queue.calls.find(c=>!later.includes(c.id)&&!missedIds.has(c.id));
- useEffect(()=>{setOfficeDucked(!!incoming||!!selected);return()=>setOfficeDucked(false);},[!!incoming,!!selected]);
+ useEffect(()=>{setOfficeDucked(!!incoming||!!selected||!!staffId);return()=>setOfficeDucked(false);},[!!incoming,!!selected,!!staffId]);
  const recent=(state.disruptions?.items||[]).filter(d=>d.status==="completed").slice(-5).reverse();
 
- const canRing=soundReady && !busy && !selected && !overlay && !backgroundAdvance?.active;
+ const canRing=soundReady && !busy && !selected && !staffId && !overlay && !backgroundAdvance?.active;
  useEffect(()=>{
   if (!incoming || !canRing || document.hidden) return;
   for(const id of ringCounts.current.keys())if(!queue.calls.some(c=>c.id===id))ringCounts.current.delete(id);
@@ -76,6 +80,7 @@ export default function PhoneCenter() {
   return result;
  }
  return <>
+ {staffId&&<StaffPhoneDialog key={staffId} employeeId={staffId} onClose={()=>setStaffId(null)}/>}
  <button onClick={()=>setShowList(true)} aria-label={incoming?"Eingehender Anruf – Telefon öffnen":`Telefon öffnen · ${queue.calls.length} offene Anliegen · ${missed.length} verpasste Anrufe`} title="Telefon"
  className={`relative w-9 h-9 grid place-items-center rounded-full border shrink-0 ${incoming?"border-emerald-300 bg-emerald-400/15 text-emerald-200":"border-white/10 bg-white/5 text-muted-foreground hover:text-lime"}`}>
  <Phone className="w-4 h-4"/>
@@ -90,6 +95,7 @@ export default function PhoneCenter() {
  <div className="flex items-center gap-3"><motion.div animate={motionEnabled&&!reduced?{rotate:[0,-12,12,0]}:{rotate:0}} transition={{duration:.5,repeat:2}}><PhoneIncoming className="text-emerald-300 w-6 h-6"/></motion.div><div><p className="text-sm font-semibold text-white">{incoming.source}</p><p className="text-xs text-slate-300">{incoming.title}</p></div></div>
  <div className="flex gap-2 mt-3"><button disabled={blocked} onClick={()=>answer(incoming)} className="flex-1 rounded-xl bg-emerald-400 text-slate-950 py-2 text-xs font-semibold disabled:opacity-50">Annehmen</button><button onClick={()=>setLater(prev=>[...new Set([...prev,incoming.id])])} className="rounded-xl bg-white/10 text-white px-3 text-xs">Später</button></div></div>}
  {showList && <div className="border-t border-white/10 p-2 max-h-64 overflow-y-auto">{queue.calls.length===0?<p className="p-2 text-xs text-slate-400">Keine offenen Rückrufe.</p>:queue.calls.map(c=><button key={c.id} disabled={blocked} onClick={()=>answer(c)} className="w-full text-left rounded-xl hover:bg-white/10 p-3 disabled:opacity-50"><p className="text-xs font-medium text-white">{missedIds.has(c.id)?"Verpasster Anruf · ":""}{c.source} · {c.title}</p><p className="text-[10px] text-amber-200 mt-1">{deadlineLabel(c.deadline,state.gameTime)}</p></button>)}</div>}
+ {showList&&<section aria-label="Team anrufen" className="border-t border-white/10 p-3 space-y-2"><h3 className="font-semibold text-sm text-cyan-100">Team anrufen</h3><p className="text-xs text-slate-400">Status abfragen und Anweisungen im Gespräch erteilen.</p>{contacts.length===0?<p className="text-xs text-slate-300">Stelle eine Assistenz ein oder weise einem aktiven Standort eine Filialleitung zu, um hier anzurufen.</p>:contacts.map(c=><button key={c.id} disabled={blocked} onClick={()=>{setShowList(false);setStaffId(c.id);}} className="w-full text-left p-3 rounded-xl border border-white/10 bg-white/5 hover:border-cyan-300/40 disabled:opacity-40"><span className="block text-sm">{c.name}</span><span className="block text-xs text-slate-400 mt-1">{c.label}</span><span className={"block text-xs mt-1 "+(c.available?"text-emerald-300":"text-amber-200")}>{c.available?"Anrufen":c.reason}</span></button>)}</section>}
  {showList&&missed.length>0&&<section aria-label="Verpasste Anrufe" className="border-t border-white/10 p-3 space-y-2"><h3 className="text-sm font-semibold">Verpasste Anrufe im Zeitvorlauf</h3><p className="text-xs text-slate-400">Offene Anliegen kannst du oben zurückrufen. Bereits erledigte bleiben hier dokumentiert.</p><div className="max-h-40 overflow-y-auto space-y-2">{missed.slice(-20).reverse().map(c=><p key={c.id} className="text-xs text-slate-300">{formatGameTime(c.missedAtMin)} · {c.source||"Leitstelle"} · {c.title||"Lieferung in Gefahr"} · {queue.calls.some(q=>q.id===c.id)?"Rückruf offen":"Nicht mehr offen"}</p>)}</div></section>}
  {showList && <div className="border-t border-white/10 px-3 py-3 space-y-2">
  <OfficeAudioControls compact />
