@@ -15,7 +15,7 @@ const BRANCH = [
  ["costs","Standortkosten optimieren",true],["managementReport","Standortlage täglich berichten",false]
 ];
 export function branchResponsibilityAllows(manager,type) {
- const key=({maintenance:"fleet",hire_driver:"staff",staff_training:"staff",hire_employee:"staff",buy_vehicle:"growth",build_workshop_slot:"growth",accept_order:"orders",optimize_dispatch:"orders",cost_optimization:"costs"})[type];
+ const key=({maintenance:"fleet",hire_driver:"staff",staff_training:"staff",hire_employee:"staff",buy_vehicle:"growth",build_workshop_slot:"growth",accept_order:"orders",optimize_dispatch:"orders",cost_optimization:"costs"})[type.split(":")[0]];
  return !key || manager.responsibilities?.[key] !== false;
 }
 export function managementReport(state,employee) {
