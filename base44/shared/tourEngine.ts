@@ -1091,8 +1091,10 @@ export function findReturnLoads(state, primaryOrderId, vehicleId, driverId) {
 // mode: "balanced" | "high_margin" | "low_empty"
 export function suggestTours(state, opts) {
   _clearPlanCache();
-  const { vehicleIds, earliestStart, horizonMin, desiredEndCity, latestReturnMin, mode, acceptNew, restrictOrderIds, fastMode } = opts;
+  const { vehicleIds, earliestStart, horizonMin, desiredEndCity, latestReturnMin, mode, acceptNew, restrictOrderIds, fastMode, minNewOrderBufferMin = 0, candidateOrderLimit = 12, maxSuggestions = Infinity } = opts;
   const restrictSet = restrictOrderIds ? new Set(restrictOrderIds) : null;
+  if (maxSuggestions <= 0) return { suggestions: [] };
+  const reliable = plan => plan.ok && plan.deployments.every(d => d.orderStatus !== "offered" || d.deadlineBufferMin >= minNewOrderBufferMin);
   const suggestions = [];
 
   // Lookup-Maps aufbauen: O(1) Zugriff für buildTourPlan statt O(n) .find().
@@ -1252,7 +1254,7 @@ export function suggestTours(state, opts) {
     // CPU-Schutz: die Doppel-Tour-Suche ist O(n²). Bei vielen Aufträgen
     // wird die Liste begrenzt, damit die kombinatorische Explosion vermieden wird.
     // Konstanter Wert (unabhängig von fastMode) — siehe maxDrivers-Kommentar.
-    const orderLimit = 12;
+    const orderLimit = Math.max(12, Math.min(24, candidateOrderLimit));
     if (allOrders.length > orderLimit) {
       const vehicleCity = vehicleFutureCity;
       const scored = allOrders.map(o => {
@@ -1261,7 +1263,12 @@ export function suggestTours(state, opts) {
         const totalKm = (emptyKm + loadedKm) || 1;
         return { o, score: (o.paymentCents || 0) / totalKm };
       });
-      scored.sort((a, b) => b.score - a.score);
+      scored.sort((a, b) => {
+        const aAccepted = a.o.status === "angenommen", bAccepted = b.o.status === "angenommen";
+        if (aAccepted !== bAccepted) return aAccepted ? -1 : 1;
+        if (aAccepted && a.o.deliveryDeadlineMin !== b.o.deliveryDeadlineMin) return a.o.deliveryDeadlineMin - b.o.deliveryDeadlineMin;
+        return b.score - a.score;
+      });
       allOrders.length = 0;
       for (const s of scored.slice(0, orderLimit)) allOrders.push(s.o);
     }
@@ -1298,7 +1305,7 @@ export function suggestTours(state, opts) {
           orderIds: [o.id],
           desiredEndCity, latestReturnMin,
         });
-        if (plan.ok && plan.tourEndMin <= maxMin) {
+        if (reliable(plan) && plan.tourEndMin <= maxMin && isPersonAvailable(state, driver.id, plan.earliestStartMin) && driver.attendance !== "released" && !isPersonInTraining(state, driver.id, plan.earliestStartMin)) {
           const isNew = o.status === "offered";
           if (isNew && plan.totalContributionCents <= 0) continue;
           if (!driverBestPlan || comparePlans(plan, driverBestPlan, mode) < 0) {
@@ -1323,7 +1330,7 @@ export function suggestTours(state, opts) {
             orderIds: [o1.id, o2.id],
             desiredEndCity, latestReturnMin,
           });
-          if (plan.ok && plan.tourEndMin <= maxMin) {
+          if (reliable(plan) && plan.tourEndMin <= maxMin && isPersonAvailable(state, driver.id, plan.earliestStartMin) && driver.attendance !== "released" && !isPersonInTraining(state, driver.id, plan.earliestStartMin)) {
             const hasNew = o1.status === "offered" || o2.status === "offered";
             if (hasNew && plan.totalContributionCents <= 0) continue;
             if (!driverBestPlan || comparePlans(plan, driverBestPlan, mode) < 0) {
@@ -1356,7 +1363,7 @@ export function suggestTours(state, opts) {
 
     // Performance: Early-Exit wenn alle verfügbaren Aufträge verplant sind.
     // Bei 100 Fahrzeugen und 10 Aufträgen spart das 90% der buildTourPlan-Aufrufe.
-    if (usedOrderIds.size >= totalAvailableOrders) break;
+    if (usedOrderIds.size >= totalAvailableOrders || suggestions.length >= maxSuggestions) break;
   }
 
   return { suggestions };
@@ -1368,6 +1375,12 @@ export function suggestTours(state, opts) {
 }
 
 function comparePlans(a, b, mode) {
+  const accepted = p => p.deployments.filter(d => d.orderStatus === "angenommen").length;
+  const commitments = accepted(b) - accepted(a);
+  if (commitments) return commitments;
+  const late = p => p.deployments.reduce((sum, d) => sum + Math.max(0, -d.deadlineBufferMin), 0);
+  const delay = late(a) - late(b);
+  if (delay) return delay;
   if (mode === "high_margin") return (b.totalContributionCents || 0) - (a.totalContributionCents || 0);
   if (mode === "low_empty") {
     // Erst Auftragsabdeckung (mehr Aufträge = besser), dann weniger Leer-km
@@ -1380,5 +1393,5 @@ function comparePlans(a, b, mode) {
   const aScore = (a.totalContributionCents || 0) / Math.max(1, a.totalKm || 1);
   const bScore = (b.totalContributionCents || 0) / Math.max(1, b.totalKm || 1);
   if (Math.abs(aScore - bScore) > 0.01) return bScore - aScore;
-  return (a.minDeadlineBufferMin || 0) - (b.minDeadlineBufferMin || 0);
+  return (b.minDeadlineBufferMin || 0) - (a.minDeadlineBufferMin || 0);
 }
