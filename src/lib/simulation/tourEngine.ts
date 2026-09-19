@@ -436,8 +436,9 @@ export function buildTourPlan(state, opts) {
 
   if (!planResult.ok) return { ok: false as const, error: planResult.error };
 
-  return {
-    ...planResult,
+  // planResult gehört ausschließlich diesem Aufruf. Direkt ergänzen statt
+  // für jeden Suchkandidaten ein großes zweites Objekt anzulegen.
+  return Object.assign(planResult, {
     ok: true as const,
     vehicleId, driverId,
     startCity: vehicle.locationCity,
@@ -445,7 +446,7 @@ export function buildTourPlan(state, opts) {
     latestReturnMin: latestReturnMin || null,
     driverTravelMin,
     driverTravelFromCity: driverTravelMin > 0 ? driverFutureCity : null,
-  };
+  });
 }
 
 // Simuliert den Firmenkontoverlauf für eine Tour.
