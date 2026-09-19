@@ -18,7 +18,7 @@ import { onOrderAccepted, onTourConfirmed } from "./mailReports.ts";
 import { hasDgDispatch, hasDispoEfficiency } from "./trainingEngine.ts";
 import { processAccountant } from "./accountingEngine.ts";
 import { applyCleaningEffect } from "./serviceEngine.ts";
-import { checkSpendAuthority, recordSpend, logDecision, createApprovalRequest, ROLE_AUTHORITY } from "./delegationEngine.ts";
+import { getEffectiveRules, checkSpendAuthority, recordSpend, logDecision, createApprovalRequest, ROLE_AUTHORITY } from "./delegationEngine.ts";
 
 // Lokale Kopie von uid (inkrementiert state.idCounter).
 function uid(state, prefix) {
@@ -168,7 +168,7 @@ export function processDispatcher(state, emp, m, log) {
   // ---------- Modus B/C: flottenweite Planung mit suggestTours ----------
   // Bestehende Zusagen werden auch bei Überlastung gerettet. Für neue
   // Zusagen muss Betreuungskapazität frei sein; laufende Touren bleiben bestehen.
-  const acceptNew = emp.workMode === "autonomous" && remainingCapacity > 0;
+  const acceptNew = emp.workMode === "autonomous" && remainingCapacity > 0 && getEffectiveRules(state, _bf).rules.autoAcceptOrders !== false;
   // Effiziente-Tourenplanung-Qualifikation: längerer Horizont (72h) und
   // schnellere Reaktion (halbierte Skip-Cache-Zeiten) → weniger scheiternde Aufträge.
   const efficiencyQual = hasDispoEfficiency(state, emp.id);
@@ -283,7 +283,7 @@ export function processDispatcher(state, emp, m, log) {
     const tourFuelCents = sug.plan.totalFuelCents || 0;
     const tourTollCents = sug.plan.totalTollCents || 0;
     const tourCostCents = tourFuelCents + tourTollCents;
-    const authCheck = checkSpendAuthority(state, emp.id, tourCostCents, { branchId: emp.assignedBranchId || emp.branchId });
+    const authCheck = checkSpendAuthority(state, emp.id, tourCostCents, { branchId: emp.assignedBranchId || emp.branchId, purpose: "tour" });
     if (!authCheck.allowed) {
       vehicleFailReasons.set(sug.vehicleId, "Freigabe ausstehend: " + authCheck.reason);
       // Freigabe anfordern wenn Kosten über Befugnis
@@ -476,7 +476,7 @@ export function planSingleVehicle(state, vehicle, m, log) {
 
   const profile = dispatcherProfile(state, dispatcher);
   const remainingCapacity = Math.max(0, profile.capacity - dispatcherVehicleIds(state, dispatcher.id).size);
-  const acceptNew = dispatcher.workMode === "autonomous" && remainingCapacity > 0;
+  const acceptNew = dispatcher.workMode === "autonomous" && remainingCapacity > 0 && getEffectiveRules(state, vehicle.branchId).rules.autoAcceptOrders !== false;
   const result = suggestTours(state, {
     vehicleIds: [vehicle.id], earliestStart: m, horizonMin: profile.horizonMin,
     minNewOrderBufferMin: profile.bufferMin, candidateOrderLimit: profile.candidateOrderLimit, maxSuggestions: 1,
@@ -501,7 +501,7 @@ export function planSingleVehicle(state, vehicle, m, log) {
   if (sug.orderIds.some(oid => busyOrderIds.has(oid))) return;
 
   const cost = (sug.plan.totalFuelCents || 0) + (sug.plan.totalTollCents || 0);
-  if (!checkSpendAuthority(state, dispatcher.id, cost, {branchId:vehicle.branchId}).allowed) return;
+  if (!checkSpendAuthority(state, dispatcher.id, cost, {branchId:vehicle.branchId, purpose:"tour"}).allowed) return;
   try {
     const r = doConfirmTour(state, {
       vehicleId: sug.vehicleId, driverId: sug.driverId, orderIds: sug.orderIds,

@@ -224,7 +224,10 @@ export function checkSpendAuthority(state, employeeId, amountCents, opts) {
 
   // 1. Rollen-Befugnis: Darf diese Rolle überhaupt Ausgaben tätigen?
   const roleAuth = ROLE_AUTHORITY[emp.role] || ROLE_AUTHORITY.driver;
-  if (amountCents > 0 && !roleAuth.canSpend) {
+  const tourSpend = opts?.purpose === "tour" && roleAuth.canPlanTours &&
+    ["autonomous", "dispatch_accepted"].includes(emp.workMode) && rules.autoDispatch !== false;
+  if (opts?.purpose === "tour" && !tourSpend) return { allowed: false, reason: "Automatische Tourenplanung ist nicht freigegeben", violatedRule: "role_authority" };
+  if (amountCents > 0 && !roleAuth.canSpend && !tourSpend) {
     return { allowed: false, reason: `Rolle "${emp.role}" hat keine Ausgabenbefugnis`, violatedRule: "role_authority" };
   }
 
