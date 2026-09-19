@@ -1,5 +1,5 @@
 {
-  "completedDays": 49,
+  "completedDays": 61,
   "groups": [
     {
       "days": "1–20",
@@ -26,16 +26,28 @@
       "delivered": 1539
     },
     {
-      "days": "41–49",
+      "days": "41–60",
       "vehicles": 75,
       "branches": 3,
-      "medianSeconds": 60.02,
-      "maxSeconds": 92.721,
+      "medianSeconds": 90.028,
+      "maxSeconds": 158.206,
       "minSeconds": 18.305,
-      "cloneMedianSeconds": 0.557,
-      "endMB": 29.62,
-      "meanActive": 62.8,
-      "delivered": 1090
+      "cloneMedianSeconds": 0.616,
+      "endMB": 36.91,
+      "meanActive": 63.5,
+      "delivered": 2450
+    },
+    {
+      "days": "61–61",
+      "vehicles": 100,
+      "branches": 4,
+      "medianSeconds": 332.696,
+      "maxSeconds": 332.696,
+      "minSeconds": 332.696,
+      "cloneMedianSeconds": 0.843,
+      "endMB": 38.28,
+      "meanActive": 87,
+      "delivered": 168
     }
   ],
   "thresholds": [
@@ -61,100 +73,100 @@
     },
     {
       "seconds": 120,
-      "firstDay": null,
-      "vehicles": null
+      "firstDay": 52,
+      "vehicles": 75
     },
     {
       "seconds": 180,
-      "firstDay": null,
-      "vehicles": null
+      "firstDay": 61,
+      "vehicles": 100
     },
     {
       "seconds": 300,
-      "firstDay": null,
-      "vehicles": null
+      "firstDay": 61,
+      "vehicles": 100
     }
   ],
-  "totalSeconds": 900.1988220019999,
+  "totalSeconds": 2495.766030627,
   "last": {
-    "day": 49,
-    "startGameDay": 49,
-    "endGameDay": 50,
-    "gameTime": 71040,
-    "engineMs": 45939.475409999955,
-    "inputCloneMs": 255.94494700001087,
-    "outputCloneMs": 310.16217599995434,
-    "serializeMs": 146.4804770000046,
-    "inputBytes": 30431373,
-    "outputBytes": 31058142,
+    "day": 61,
+    "startGameDay": 61,
+    "endGameDay": 62,
+    "gameTime": 88320,
+    "engineMs": 332696.40275000036,
+    "inputCloneMs": 373.22049400024116,
+    "outputCloneMs": 469.94922699965537,
+    "serializeMs": 225.59282599994913,
+    "inputBytes": 38888936,
+    "outputBytes": 40140627,
     "before": {
-      "vehicles": 75,
-      "branches": 3,
-      "drivers": 105,
-      "dispatchers": 18,
-      "activeTrucks": 68,
-      "freeTrucks": 7,
-      "orders": 21239,
-      "offered": 538,
-      "accepted": 35,
-      "trips": 932,
-      "tours": 1008,
-      "journal": 13822,
-      "mails": 1063,
+      "vehicles": 100,
+      "branches": 4,
+      "drivers": 140,
+      "dispatchers": 24,
+      "activeTrucks": 56,
+      "freeTrucks": 44,
+      "orders": 25884,
+      "offered": 576,
+      "accepted": 36,
+      "trips": 957,
+      "tours": 1063,
+      "journal": 19853,
+      "mails": 1558,
       "bookings": 200
     },
     "after": {
-      "vehicles": 75,
-      "branches": 3,
-      "drivers": 105,
-      "dispatchers": 18,
-      "activeTrucks": 61,
-      "freeTrucks": 14,
-      "orders": 21658,
-      "offered": 380,
-      "accepted": 33,
-      "trips": 914,
-      "tours": 992,
-      "journal": 14253,
-      "mails": 1102,
+      "vehicles": 100,
+      "branches": 4,
+      "drivers": 140,
+      "dispatchers": 24,
+      "activeTrucks": 87,
+      "freeTrucks": 13,
+      "orders": 26503,
+      "offered": 539,
+      "accepted": 52,
+      "trips": 1006,
+      "tours": 1139,
+      "journal": 20595,
+      "mails": 1620,
       "bookings": 200
     },
-    "delivered": 105,
-    "totalDelivered": 3425,
-    "plans": 77703,
-    "suggestions": 243,
-    "dispatcherCalls": 576,
-    "heapMB": 159.14407348632812,
+    "delivered": 168,
+    "totalDelivered": 4953,
+    "plans": 444188,
+    "suggestions": 512,
+    "dispatcherCalls": 768,
+    "heapMB": 245.8359603881836,
     "controls": {
-      "conditionRestored": 65,
-      "moraleRestored": 82
+      "conditionRestored": 71,
+      "moraleRestored": 164
     },
-    "cashCents": 100139601521
+    "cashCents": 100198680651
   },
   "top": [
     {
-      "day": 44,
-      "seconds": 92.72094106099999,
+      "day": 61,
+      "seconds": 332.69640275000035,
+      "vehicles": 100
+    },
+    {
+      "day": 52,
+      "seconds": 158.2059362280001,
       "vehicles": 75
     },
     {
-      "day": 46,
-      "seconds": 91.122685757,
+      "day": 57,
+      "seconds": 151.8996022689999,
       "vehicles": 75
     },
     {
-      "day": 45,
-      "seconds": 76.64075353600003,
+      "day": 56,
+      "seconds": 148.25588737100014,
       "vehicles": 75
     },
     {
-      "day": 47,
-      "seconds": 64.92731287899997,
-      "vehicles": 75
-    },
-    {
-      "day": 42,
-      "seconds": 60.020243257,
+      "day": 55,
+      "seconds": 142.2149772659999,
       "vehicles": 75
     }
   ]
