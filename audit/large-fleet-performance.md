@@ -35,6 +35,6 @@ npm run build
 npm run lint
 ```
 
-449 Tests der Gesamtsuite und 2 zusätzliche Worker-Tests bestanden; 1 vorhandenes Real-Save-Replay mangels externer Fixture übersprungen. Build und Lint erfolgreich. Der projektweite Typecheck meldet bestehende Fehler; Vergleich mit der Baseline separat dokumentiert.
+449 Tests der Gesamtsuite und 2 zusätzliche Worker-Tests bestanden; 1 vorhandenes Real-Save-Replay mangels externer Fixture übersprungen. Build und Lint erfolgreich. Der projektweite Typecheck meldet dieselben bestehenden Fehler wie die Baseline: 65 identische Diagnosezeilen nach Normalisierung; keine neue Typecheck-Diagnose.
 
 Nach Veröffentlichung auf dem betroffenen Gerät prüfen. Bei weiterhin hoher Laufzeit: Strg+Umschalt+D, Zeitspanne wählen, Bericht kopieren. Für exakte Reproduktion den betroffenen Spielstand exportieren. Die Diagnose setzt das Spiel fort; bei Bedarf vorher einen Slot sichern.
