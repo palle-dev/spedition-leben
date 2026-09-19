@@ -1,0 +1,46 @@
+.ff-phone{
+ display:flex!important;flex-direction:column;gap:0!important;padding:0!important;
+ width:min(420px,calc(100vw - 24px))!important;max-width:420px!important;
+ height:min(850px,94dvh);max-height:94dvh;border:7px solid #242529!important;
+ border-radius:50px!important;overflow:hidden;background:#08090c!important;color:#f5f5f7;
+ box-shadow:0 0 0 1px #71717a,0 0 0 3px #17181c,0 32px 110px #000b,inset 0 0 0 1px #ffffff18;
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:-.015em;
+}
+.ff-phone>button{display:none}
+.ff-phone-status{position:relative;display:flex;align-items:center;justify-content:space-between;height:48px;min-height:48px;padding:0 27px;font-size:13px;font-weight:600}
+.ff-phone-island{position:absolute;left:50%;transform:translateX(-50%);top:9px;width:116px;height:29px;background:#000;border-radius:24px;display:flex;align-items:center;justify-content:space-between;padding:0 13px;color:#30d158;box-shadow:0 1px 0 #ffffff0a}
+.ff-phone-island i{margin-left:auto;width:7px;height:7px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#274057,#080b14);box-shadow:0 0 0 2px #101115}
+.ff-phone-brand{font-size:10px;color:#98989f;letter-spacing:.1em}
+.ff-phone-toolbar{display:flex;align-items:center;justify-content:space-between;padding:0 19px 5px 23px;min-height:37px;font-size:10px;letter-spacing:.14em;color:#8e8e93}
+.ff-phone-toolbar button{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:#ffffff0c;color:#aeb0b9}
+.ff-phone-toolbar button:disabled{opacity:.35}
+.ff-phone-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:12px 18px 20px;scrollbar-width:thin;scrollbar-color:#343438 transparent}
+.ff-phone-scroll h2{font-size:32px;font-weight:700;letter-spacing:-.045em;line-height:1.2}
+.ff-phone-scroll>p{margin:8px 0 18px;font-size:12px;color:#98989f;line-height:1.5}
+.ff-phone-scroll>section,.ff-phone-scroll>div.border-t{border:0;border-radius:22px;background:#1c1c1e;margin-top:16px;padding:14px}
+.ff-phone-scroll button{min-height:44px}
+.ff-phone-scroll button:focus-visible,.ff-phone-toolbar button:focus-visible,.ff-phone-footer button:focus-visible{outline:2px solid #64a8ff;outline-offset:2px}
+.ff-phone-scroll section[aria-label="Team anrufen"]>button{border:0;border-top:1px solid #ffffff12;border-radius:0;background:transparent;min-height:76px}
+.ff-phone-scroll section[aria-label="Team anrufen"]>button>span:first-child{font-size:16px;font-weight:600}
+.ff-phone-footer{flex-shrink:0;background:#17171ad9;border-top:1px solid #ffffff12;backdrop-filter:blur(24px);padding:10px 12px 0}
+.ff-phone-tabs{display:flex;justify-content:space-around;gap:4px}
+.ff-phone-tabs button{flex:1;display:flex;align-items:center;flex-direction:column;gap:5px;border-radius:14px;color:#8e8e93;font-size:10px;min-height:54px;padding:7px 4px}
+.ff-phone-tabs button[aria-pressed="true"]{color:#64a8ff;background:#0a84ff14}
+.ff-phone-home{display:flex;justify-content:center;align-items:center;min-height:25px;background:#17171ad9}
+.ff-phone-home span{height:5px;width:118px;border-radius:8px;background:#f5f5f7c9}
+.ff-phone-call{background:radial-gradient(ellipse at 15% 0%,#33505e 0,transparent 62%),linear-gradient(160deg,#283346,#14181e 65%)!important}
+.ff-phone-call .ff-phone-scroll{padding:0 14px 20px}
+.ff-phone-call .ff-phone-call-header{background:transparent;text-align:center;padding:16px 8px 24px}
+.ff-phone-call-header>p{font-size:9px;letter-spacing:.2em;color:#bdccd7;margin-bottom:18px}
+.ff-phone-call-header>div{flex-direction:column;gap:14px}
+.ff-phone-call-header h2{font-weight:400;font-size:29px}
+.ff-phone-call-header [aria-hidden="true"]{justify-content:center}
+.ff-phone-call .ff-phone-call-body{padding:0 4px 8px}
+.ff-phone-call .ff-phone-call-body>div:first-child{background:#ffffff0b;border-color:#ffffff12;backdrop-filter:blur(10px)}
+.ff-phone-call .ff-phone-call-body p{line-height:1.55}
+.ff-phone-call .ff-phone-hangup{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;margin:22px auto 0;padding:0;background:transparent;border:0;color:#fff;font-size:12px;min-height:90px}
+.ff-phone-hangup svg{width:64px;height:64px;padding:20px;border-radius:50%;background:#ff453a;box-shadow:0 6px 20px #ff453a20}
+.ff-phone-call .ff-phone-footer,.ff-phone-call .ff-phone-home{background:transparent}
+@media(max-height:600px){.ff-phone{border-radius:34px!important}.ff-phone-call-header>div>div.rounded-full{width:52px;height:52px}.ff-phone-call .ff-phone-call-header{padding:4px 8px 12px}}
+@media(prefers-reduced-motion:reduce){.ff-phone{animation:none!important;transition:none!important}}
+.no-motion .ff-phone{animation:none!important;transition:none!important}

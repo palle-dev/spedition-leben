@@ -1,8 +1,9 @@
+import PhoneScreen from "./PhoneScreen";
 import React,{useMemo,useRef,useState} from "react";
 import {useGame} from "@/lib/gameContext";
 import {getStaffPhoneData} from "@/lib/simulation/staffPhone";
 import {formatGameTime,formatEuro} from "@/lib/gameData";
-import {Dialog,DialogContent,DialogTitle,DialogDescription} from "@/components/ui/dialog";
+import {Dialog,DialogTitle,DialogDescription} from "@/components/ui/dialog";
 import Portrait from "@/components/ui/Portrait";
 import {PhoneOff,ClipboardList} from "lucide-react";
 
@@ -24,12 +25,12 @@ export default function StaffPhoneDialog({employeeId,onClose}){
   }catch(e){setError(e.message);}finally{lock.current=false;setSending(false);}
  }
  return <Dialog open={!!employeeId} onOpenChange={open=>{if(!open&&!lock.current)onClose();}}>
- <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto rounded-3xl border-cyan-300/20 bg-slate-950 text-slate-100 p-0 gap-0">
- <div className="bg-gradient-to-br from-cyan-950 via-slate-900 to-emerald-950 p-6 sm:p-8">
+ <PhoneScreen gameTime={state.gameTime} conversation closingDisabled={sending}>
+ <div className="ff-phone-call-header">
  <p className="text-[10px] tracking-[.25em] text-cyan-300 mb-5">FRACHTFIEBER · AUSGEHENDES GESPRÄCH</p>
  <div className="flex items-center gap-4"><Portrait portraitId={data?.contact.portraitId} name={data?.contact.name} size="lg"/><div><DialogTitle>{data?.contact.name||"Kontakt nicht mehr verfügbar"}</DialogTitle><DialogDescription className="text-slate-300 mt-2">{data?.contact.label||"Diese Person ist nicht mehr beschäftigt."}</DialogDescription></div></div>
  </div>
- <div className="p-5 sm:p-6 space-y-4">
+ <div className="ff-phone-call-body space-y-4">
  {data&&!data.contact.available&&<p role="status" className="rounded-xl bg-amber-400/10 p-4 text-amber-200">Derzeit nicht erreichbar: {data.contact.reason}. Bitte während der Dienstzeit erneut anrufen.</p>}
  {data?.contact.available&&<>
  <p className="rounded-2xl rounded-tl-sm border border-white/10 bg-white/5 p-4 text-sm">Hallo! Möchtest du den aktuellen Stand wissen oder mir eine Anweisung geben?</p>
@@ -42,7 +43,7 @@ export default function StaffPhoneDialog({employeeId,onClose}){
  {error&&<p role="alert" className="text-red-300 text-sm">{error}</p>}
  {!!data?.tasks.length&&<details className="text-xs text-slate-300"><summary className="cursor-pointer">Letzte beauftragte Aufgaben</summary>{data.tasks.map(t=><div key={t.id} className="mt-3 border-t border-white/10 pt-2"><p>{{assistant_report:"Tagesbericht",assistant_accept_orders:"Auftragsprüfung",assistant_dispatch:"Disposition",assistant_optimize_costs:"Kostenoptimierung"}[t.type]||"Aufgabe"} · {{pending:"Wartet auf Bearbeitung",in_progress:"In Bearbeitung",completed:"Bearbeitet",failed:"Fehlgeschlagen"}[t.status]||t.status}</p>{t.result?.body&&<p className="mt-2 whitespace-pre-wrap">{t.result.body}</p>}</div>)}</details>}
  <p className="text-xs text-slate-400">Die laufende Spielzeit wird durch dieses Gespräch nicht pausiert.</p>
- <button disabled={sending} onClick={onClose} className="flex gap-2 justify-center items-center w-full rounded-xl bg-rose-500/15 text-rose-200 p-3"><PhoneOff className="w-4 h-4"/>Gespräch beenden</button>
+ <button disabled={sending} onClick={onClose} className="ff-phone-hangup"><PhoneOff className="w-4 h-4"/>Gespräch beenden</button>
  </div>
- </DialogContent></Dialog>;
+ </PhoneScreen></Dialog>;
 }
