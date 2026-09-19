@@ -1,0 +1,161 @@
+{
+  "completedDays": 44,
+  "groups": [
+    {
+      "days": "1–20",
+      "vehicles": 25,
+      "branches": 1,
+      "medianSeconds": 1.45,
+      "maxSeconds": 3.903,
+      "minSeconds": 0.275,
+      "cloneMedianSeconds": 0.092,
+      "endMB": 8.89,
+      "meanActive": 20.6,
+      "delivered": 796
+    },
+    {
+      "days": "21–40",
+      "vehicles": 50,
+      "branches": 2,
+      "medianSeconds": 15.72,
+      "maxSeconds": 48.036,
+      "minSeconds": 5.419,
+      "cloneMedianSeconds": 0.309,
+      "endMB": 21.49,
+      "meanActive": 41.3,
+      "delivered": 1539
+    },
+    {
+      "days": "41–44",
+      "vehicles": 75,
+      "branches": 3,
+      "medianSeconds": 59.129,
+      "maxSeconds": 92.721,
+      "minSeconds": 18.305,
+      "cloneMedianSeconds": 0.528,
+      "endMB": 25.46,
+      "meanActive": 62.3,
+      "delivered": 516
+    }
+  ],
+  "thresholds": [
+    {
+      "seconds": 5,
+      "firstDay": 21,
+      "vehicles": 50
+    },
+    {
+      "seconds": 10,
+      "firstDay": 22,
+      "vehicles": 50
+    },
+    {
+      "seconds": 30,
+      "firstDay": 34,
+      "vehicles": 50
+    },
+    {
+      "seconds": 60,
+      "firstDay": 42,
+      "vehicles": 75
+    },
+    {
+      "seconds": 120,
+      "firstDay": null,
+      "vehicles": null
+    },
+    {
+      "seconds": 180,
+      "firstDay": null,
+      "vehicles": null
+    },
+    {
+      "seconds": 300,
+      "firstDay": null,
+      "vehicles": null
+    }
+  ],
+  "totalSeconds": 580.296412241,
+  "last": {
+    "day": 44,
+    "startGameDay": 44,
+    "endGameDay": 45,
+    "gameTime": 63840,
+    "engineMs": 92720.94106099999,
+    "inputCloneMs": 220.5724840000039,
+    "outputCloneMs": 336.64461600000504,
+    "serializeMs": 139.311996000004,
+    "inputBytes": 25784086,
+    "outputBytes": 26692416,
+    "before": {
+      "vehicles": 75,
+      "branches": 3,
+      "drivers": 105,
+      "dispatchers": 18,
+      "activeTrucks": 61,
+      "freeTrucks": 14,
+      "orders": 18249,
+      "offered": 546,
+      "accepted": 25,
+      "trips": 776,
+      "tours": 806,
+      "journal": 11356,
+      "mails": 899,
+      "bookings": 200
+    },
+    "after": {
+      "vehicles": 75,
+      "branches": 3,
+      "drivers": 105,
+      "dispatchers": 18,
+      "activeTrucks": 60,
+      "freeTrucks": 15,
+      "orders": 18702,
+      "offered": 396,
+      "accepted": 31,
+      "trips": 828,
+      "tours": 865,
+      "journal": 11880,
+      "mails": 941,
+      "bookings": 200
+    },
+    "delivered": 132,
+    "totalDelivered": 2851,
+    "plans": 236063,
+    "suggestions": 491,
+    "dispatcherCalls": 574,
+    "heapMB": 172.5522003173828,
+    "controls": {
+      "conditionRestored": 64,
+      "moraleRestored": 82
+    },
+    "cashCents": 100117414729
+  },
+  "top": [
+    {
+      "day": 44,
+      "seconds": 92.72094106099999,
+      "vehicles": 75
+    },
+    {
+      "day": 42,
+      "seconds": 60.020243257,
+      "vehicles": 75
+    },
+    {
+      "day": 43,
+      "seconds": 58.23724336000002,
+      "vehicles": 75
+    },
+    {
+      "day": 34,
+      "seconds": 48.03577906599999,
+      "vehicles": 50
+    },
+    {
+      "day": 32,
+      "seconds": 25.944112036999986,
+      "vehicles": 50
+    }
+  ]
+}

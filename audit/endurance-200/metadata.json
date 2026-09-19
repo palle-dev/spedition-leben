@@ -1,0 +1,10 @@
+{
+  "startedAt": "2026-09-19T20:49:34.327Z",
+  "commit": "a79a217e07ba2eda5f0b052b14f4197785135e34",
+  "days": 200,
+  "seed": 1234567,
+  "node": "v20.20.2",
+  "method": "continuous engine advanceTime(1440), every day measured; no browser/render/cloud time",
+  "growth": "25 trucks and 1 branch on days 1,21,41,61,81,101,121,141,161,181",
+  "controls": "Synthetic fleet/branch/staff provisioning outside timing; 35 drivers and 6 ordinary dispatchers per branch. Daily 2 new test offers per truck; destinations among nearest 3 cities. Capital injection, daily condition floor 85 and satisfaction floor 75 maintain load. No history removal; travel, rest, illness, disruptions and natural market remain engine-controlled."
+}
