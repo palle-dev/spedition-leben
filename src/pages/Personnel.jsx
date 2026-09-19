@@ -1,3 +1,4 @@
+import DispatcherQuality from "@/components/personnel/DispatcherQuality";
 import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime, PERSONNEL_ROLES } from "@/lib/gameData";
@@ -468,6 +469,7 @@ function DispatcherSetupSummary({ employee, onEdit }) {
 
   return (
     <div className="space-y-2">
+      <DispatcherQuality state={state} employee={employee} />
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div className="p-2 rounded-lg bg-surface-2/30 border border-white/5">
           <div className="text-[10px] text-muted-foreground">Arbeitsweise</div>

@@ -1,3 +1,4 @@
+import DispatcherQuality from "@/components/personnel/DispatcherQuality";
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
@@ -102,7 +103,7 @@ export default function DispatcherPanel() {
                 const bf = emp.assignedBranchId !== undefined ? emp.assignedBranchId : (emp.branchId || null);
                 const branch = bf ? (state.branches || []).find(b => b.id === bf) : null;
                 const poolCount = (state.vehicles || []).filter(v =>
-                  v.branchId === bf && v.status !== "sold" && v.status !== "archived" && !v.markedForSale
+                  (!bf || v.branchId === bf) && v.status !== "sold" && v.status !== "archived" && !v.markedForSale
                 ).length;
                 return (
                   <span className={`text-[10px] px-2 py-0.5 rounded-full border flex items-center gap-1 ${branch ? "bg-sky-400/10 border-sky-400/20 text-sky-300" : "bg-lime/10 border-lime/20 text-lime/80"}`}>
@@ -112,6 +113,7 @@ export default function DispatcherPanel() {
               })()}
             </div>
 
+            <DispatcherQuality state={state} employee={emp} />
             {/* Ergebnis heute */}
             {stats.day === dayOf(state.gameTime) && (stats.ordersAccepted || stats.ordersPlanned || stats.toursStarted) ? (
               <div className="mt-2.5 grid grid-cols-3 gap-1.5 pt-2.5 border-t border-white/5">

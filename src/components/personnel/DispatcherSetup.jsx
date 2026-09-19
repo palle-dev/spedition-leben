@@ -1,3 +1,4 @@
+import DispatcherQuality from "@/components/personnel/DispatcherQuality";
 import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import { Check, Headset, Clock, Moon, Truck, Building2 } from "lucide-react";
@@ -50,10 +51,11 @@ export default function DispatcherSetup({ employee, onClose }) {
           <Truck className="w-3 h-3" /> Fahrzeugpool
         </div>
         <div className="text-xs text-muted-foreground leading-relaxed">
-          Standardmäßig disponiert dieser Disponent alle Lkw des Firmenpools. Alternativ kannst du ihn einer Filiale zuordnen — dann plant er nur noch deren Fahrzeuge.
+          Standardmäßig kann dieser Disponent auf den gesamten Firmenpool zugreifen. Neue Zusagen sind durch seine Betreuungskapazität begrenzt. Alternativ kannst du ihn einer Filiale zuordnen — dann plant er nur noch deren Fahrzeuge.
         </div>
       </div>
 
+      <DispatcherQuality state={state} employee={employee} />
       {/* Arbeitsweise */}
       <div>
         <div className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground mb-2 flex items-center gap-1.5">

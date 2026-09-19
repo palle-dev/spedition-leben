@@ -1,3 +1,4 @@
+import {dispatcherProfile} from "@/lib/simulation/dispatcherQuality";
 import React from "react";
 import { formatEuro } from "@/lib/gameData";
 import { roleLabel } from "@/lib/displayHelpers";
@@ -38,6 +39,9 @@ export default function ApplicantCard({ app, state, onHire, onWatch, onDetails, 
         </button>
       </div>
 
+      {['dispatcher','dispatcher_senior'].includes(app.role) && <p className="text-xs text-lime mt-2">
+        {dispatcherProfile(state,app).capacity} betreute Lkw · {dispatcherProfile(state,app).bufferMin} Minuten Mindestpuffer. Weiterbildung zur Dispositionsleitung möglich.
+      </p>}
       <div className="grid grid-cols-2 gap-2 text-xs mt-3 pt-3 border-t border-white/5">
         <div className="flex items-center gap-1.5 text-muted-foreground">
           <MapPin className="w-3 h-3 text-foreground/40" /> {app.locationCity}
