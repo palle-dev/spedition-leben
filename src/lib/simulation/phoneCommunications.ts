@@ -1,13 +1,14 @@
+import { withOrderLookup, findOrder } from "./orderLookup.ts";
 import { getPhoneProposals } from "./phoneProposals.ts";
 import { getDeliveryRisks, getEscalatedDeliveryRisks } from "./deliveryRisk.ts";
 import { deliverMessage } from "./mailEngine.ts";
 
 // Called at simulation event boundaries; deterministic and idempotent.
 export function processPhoneCommunications(state, silent=false){
+ return withOrderLookup(state, (state.orders||[]).filter(o=>o.status==="angenommen"||o.status==="unterwegs"), ()=>{
  const risks=getDeliveryRisks(state);
- const orders=new Map((state.orders||[]).map(o=>[o.id,o]));
  for(const risk of risks){
-  const order=orders.get(risk.orderId);
+  const order=findOrder(state,risk.orderId);
   if(!order || order.phoneCustomerInformed || risk.code==="unplanned")continue;
   const previous=(state.disruptions?.items||[]).some(d=>d.customerInformed&&d.orderIds?.includes(order.id));
   if(!previous)deliverMessage(state,{fromId:"system",toId:"player",subject:"Kundeninfo: "+order.customer,
@@ -15,7 +16,7 @@ export function processPhoneCommunications(state, silent=false){
    gameTime:state.gameTime,category:"operations",priority:"normal",linkedRefs:{type:"order",id:order.id},dedupKey:"phone_customer:"+order.id});
   order.phoneCustomerInformed=true;
  }
- const calls=getEscalatedDeliveryRisks(state).map(r=>({...r,id:r.disruptionId||r.id,type:r.disruptionId?"disruption":r.type}));
+ const calls=getEscalatedDeliveryRisks(state,risks).map(r=>({...r,id:r.disruptionId||r.id,type:r.disruptionId?"disruption":r.type}));
  for(const d of state.disruptions?.items||[]){
   if(d.status!=="decision_open"||d.type==="loading_delay"||calls.some(c=>c.id===d.id))continue;
   calls.push({id:d.id,type:"disruption",title:d.cause||"Rückruf der Leitstelle",source:"Leitstelle",disruptionId:d.id});
@@ -34,4 +35,5 @@ export function processPhoneCommunications(state, silent=false){
  // Keep unresolved calls even in very long saves.
  const active=new Set(actionable.map(c=>c.id));
  state.missedPhoneCalls=missed.filter((c,i)=>active.has(c.id)||i>=missed.length-100);
+ });
 }

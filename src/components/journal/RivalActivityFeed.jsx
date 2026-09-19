@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { formatGameTime, formatEuro } from "@/lib/gameData";
 import {
   Swords, TrendingDown, UserMinus, Handshake, AlertTriangle,
-  Clock, ArrowDownRight, ArrowUpRight, Users, Building2
+  ArrowUpRight, Building2
 } from "lucide-react";
 
 // Konkurrenten-Aktivitätsfeed — zeigt Rivalen-Ereignisse aus dem Eventlog

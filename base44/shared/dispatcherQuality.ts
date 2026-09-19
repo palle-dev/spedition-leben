@@ -11,11 +11,14 @@ export function dispatcherProfile(state, employee) {
     efficiency:efficient,lead};
 }
 export function dispatcherVehicleIds(state, employeeId) {
-  const orders = new Map<string, any>((state.orders || []).map(o => [o.id, o]));
+  let orders: Map<string, any> | undefined;
   const ids = new Set();
   for (const tour of state.tours || []) {
     if (!['active','planned'].includes(tour.status)) continue;
-    if (tour.dispatcherId === employeeId || (!tour.dispatcherId && (tour.deployments || []).some(d => orders.get(d.orderId)?.plannedById === employeeId))) ids.add(tour.vehicleId);
+    if (tour.dispatcherId) { if (tour.dispatcherId === employeeId) ids.add(tour.vehicleId); continue; }
+    // Old saves need the fallback only for an actually untagged active tour.
+    if (!orders) { orders = new Map(); for (const o of state.orders || []) orders.set(o.id, o); }
+    if ((tour.deployments || []).some(d => orders.get(d.orderId)?.plannedById === employeeId)) ids.add(tour.vehicleId);
   }
   return ids;
 }

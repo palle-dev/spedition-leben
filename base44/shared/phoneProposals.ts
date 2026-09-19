@@ -1,3 +1,4 @@
+import { findOrder } from "./orderLookup.ts";
 import { validateTourConfirmation, _clearPlanCache, getOrderReservation } from "./tourEngine.ts";
 import { isLeasingOverdueBlocked } from "./financingEngine.ts";
 import { getDisruptionDetail, validateDisruptionResolution } from "./disruptionEngine.ts";
@@ -15,7 +16,7 @@ export function getPhoneProposals(state, call, limit = 2) {
    try{validateDisruptionResolution(state,call.id,o.id,{});return true;}catch{return false;}
   }).map(o=>({...o,command:"resolveDisruption",params:{disruptionId:call.id,optionId:o.id,params:{phoneQuote:{cost:o.costCents,duration:o.estimatedDurationMin,description:o.description}}},informationOnly:o.id==="inform_customer"}));
  }
- const order=state.orders.find(o=>o.id===call.orderId);
+ const order=findOrder(state,call.orderId);
  if(!order || !["angenommen","unterwegs"].includes(order.status))return [];
  const proposals=[];
  if(order.status==="angenommen" && !getOrderReservation(state,order.id) && !order.externalTransportId &&

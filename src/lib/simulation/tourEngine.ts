@@ -1,3 +1,4 @@
+import { findOrder } from "./orderLookup.ts";
 // Tourenketten-Engine für FERNWERK.
 // Planung, Validierung, Bestätigung und automatische Ausführung von
 // Mehrfachauftrags-Ketten mit Erholung, Leerfahrten und Fristen.
@@ -55,7 +56,7 @@ function _driverById(state, id) {
 }
 function _orderById(state, id) {
   if (state._orderMap) return state._orderMap.get(id);
-  return state.orders.find(o => o.id === id);
+  return findOrder(state, id);
 }
 
 // Prüft, ob ein Fahrer/Fahrzeug-Paar für ein gegebenes Intervall frei ist.
@@ -558,7 +559,7 @@ export function validateTourConfirmation(state, params) {
   //    aktiven Tour reserviert sein (Paket 1: verhindert Doppelbuchung
   //    bei manueller und automatischer Disposition).
   for (const orderId of orderIds) {
-    const o = state.orders.find(x => x.id === orderId);
+    const o = _orderById(state, orderId);
     if (!o) continue;
     if (getOrderReservation(state, orderId)) throw new Error("Auftrag ist bereits für eine andere Tour reserviert.");
     if (o.reservedByTourId) {
@@ -572,7 +573,7 @@ export function validateTourConfirmation(state, params) {
 
   // 3a. Nimm alle noch nicht angenommenen Aufträge an
   for (const orderId of plan.acceptedOrderIds) {
-    const o = state.orders.find(x => x.id === orderId);
+    const o = _orderById(state, orderId);
     if (!o) throw new Error("Auftrag nicht gefunden: " + orderId);
     if (o.status !== "offered") throw new Error("Auftrag " + o.customer + " ist nicht mehr verfügbar.");
     if (o.acceptDeadlineMin <= state.gameTime) throw new Error("Annahmefrist für " + o.customer + " ist abgelaufen.");
@@ -582,7 +583,7 @@ export function validateTourConfirmation(state, params) {
   // 3a. DG-Validierung für alle Aufträge der Tour (Auftrag 32)
   const tourEndMin = plan.tourEndMin;
   for (const orderId of orderIds) {
-    const o = state.orders.find(x => x.id === orderId);
+    const o = _orderById(state, orderId);
     if (!o || !o.isDangerousGoods) continue;
     const dgCheck = validateDgTransport(state, o, vehicle, driver, tourEndMin);
     if (!dgCheck.ok) {
@@ -644,7 +645,7 @@ export function confirmTour(state, params) {
 
   // 4a. Aufträge für diese Tour reservieren (Paket 1)
   for (const orderId of orderIds) {
-    const o = state.orders.find(x => x.id === orderId);
+    const o = _orderById(state, orderId);
     if (o) o.reservedByTourId = tourId;
   }
 
@@ -1101,7 +1102,8 @@ export function suggestTours(state, opts) {
   // Bei 192K buildTourPlan-Aufrufen mit 320 Aufträgen spart das ~46M Iterationen.
   state._vehicleMap = new Map(state.vehicles.map(v => [v.id, v]));
   state._driverMap = new Map(state.drivers.map(d => [d.id, d]));
-  state._orderMap = new Map(state.orders.map(o => [o.id, o]));
+  const planningOrders = state.orders.filter(o => o.status === "angenommen" || (acceptNew && o.status === "offered"));
+  state._orderMap = new Map(planningOrders.map(o => [o.id, o]));
 
   try {
   const startMin = earliestStart || state.gameTime;
@@ -1142,7 +1144,7 @@ export function suggestTours(state, opts) {
   // Wenn alle Aufträge verplant sind, müssen keine weiteren Fahrzeuge
   // geprüft werden — das spart bei 100 Fahrzeugen mit 10 Aufträgen 90%
   // der buildTourPlan-Aufrufe.
-  const totalAvailableOrders = state.orders.filter(o =>
+  const totalAvailableOrders = planningOrders.filter(o =>
     (o.status === "angenommen" || (acceptNew && o.status === "offered")) &&
     o.deliveryDeadlineMin > startMin - 240 &&
     !activeTourOrderIds.has(o.id) &&
@@ -1219,7 +1221,7 @@ export function suggestTours(state, opts) {
     //    geplant (completeTrip zahlt 90% Vergütung bei Spätlieferung).
     //    Sortiert nach Dringlichkeit (knappste Frist zuerst), damit bei
     //    Truncation auf 12 Aufträge die eiligsten nicht verloren gehen.
-    const acceptedOrders = state.orders.filter(o =>
+    const acceptedOrders = planningOrders.filter(o =>
       o.status === "angenommen" &&
       o.deliveryDeadlineMin > startMin - 240 &&
       o.tons <= vehicle.capacityTons &&
@@ -1232,7 +1234,7 @@ export function suggestTours(state, opts) {
 
     // 2. Offene Angebote (nur wenn acceptNew, nicht bereits zugewiesen)
     //    Lieferfrist muss noch in der Zukunft liegen.
-    const offeredOrders = acceptNew ? state.orders.filter(o =>
+    const offeredOrders = acceptNew ? planningOrders.filter(o =>
       o.status === "offered" &&
       o.acceptDeadlineMin > startMin &&
       o.deliveryDeadlineMin > startMin &&

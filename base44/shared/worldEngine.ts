@@ -2,6 +2,7 @@ import { addBooking } from "./accountingEngine.ts";
 import { getDistance, checkBodyTypeCompatibility } from "./gameRules.ts";
 import { isActivelyEmployed } from "./terminationEngine.ts";
 import { WORLD_DAY, WORLD_RIVALS, WORLD_STORIES, WORLD_BIDS, worldScene } from "./worldCatalog.ts";
+import { recordTenderResult } from "./rivalBehaviorEngine.ts";
 
 const clamp = (v, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
 const activeDriver = d => isActivelyEmployed(d) && !d.isTempStaff;
@@ -247,6 +248,7 @@ function award(state, t, m) {
   const winner = offers[0];
   t.status = "resolved"; t.winnerId = winner?.id || null;
   t.results = offers.map(o => ({ id: o.id, score: o.score, paymentCents: o.paymentCents }));
+  recordTenderResult(state, winner?.id || "unassigned", offers.filter(o => o.id !== winner?.id && o.id !== "player").map(o => o.id));
   if (!winner) { t.outcome = "unassigned"; return; }
   if (winner.id === "player") {
     const id = t.id + "_order";

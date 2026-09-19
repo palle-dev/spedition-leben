@@ -1,4 +1,5 @@
 import { recordOrderOutcome } from "./customerEngine.ts";
+import { recordKeyAccountOrderOutcome } from "./keyAccountEngine.ts";
 import { bookExpense } from "./accountingEngine.ts";
 // Markt-Engine für FERNWERK – Auftrag 19.
 // Stündlicher, mitwachsender Auftragsmarkt mit flottenabhängigem Zielbestand,
@@ -653,7 +654,7 @@ export function failOverdueOrders(state, m, log) {
     if (penalty > 0) bookExpense(state, { expenseAccount: "5700", amountCents: penalty,
       text: "Konventionalstrafe: " + o.customer, type: "order_failed", gameTime: m, refId: "failed:" + o.id });
     o.reservedByTourId = null;
-    recordOrderOutcome(state, o, "failed", m, 0);
+    recordOrderOutcome(state, o, "failed", m, 0); if (o.isKeyAccountOrder) recordKeyAccountOrderOutcome(state, o, "failed", m, 0);
     log.push({ type: "order_failed", order: o.id, atMin: m, penaltyCents: penalty });
     state.stats = state.stats || {};
     state.stats.failedOrders = (state.stats.failedOrders || 0) + 1;

@@ -193,15 +193,18 @@ export function processDispatcher(state, emp, m, log) {
   // dass freie Lkw tatsächlich eingesetzt werden. Die Bereinigung in
   // processEventsAt läuft nur bei Zeitvorläufen — hier läuft sie bei jeder
   // Dispatcher-Runde, auch ohne Zeitvorlauf.
+  let unplannedCount = 0, offeredCount = 0;
   for (const o of state.orders) {
     if (o.status === "angenommen" && o.deliveryDeadlineMin + 240 <= m) {
       o.status = "failed";
       o.failedAtMin = m;
       log.push({ type: "order_failed", order: o.id, customer: o.customer, reason: "Lieferfrist überschritten (Dispatcher-Bereinigung)" });
     }
+    if (o.status === "angenommen" && !busyOrderIds.has(o.id)) unplannedCount++;
+    if (acceptNew && o.status === "offered" && o.acceptDeadlineMin > m) offeredCount++;
   }
-  const hasUnplannedAccepted = state.orders.some(o => o.status === "angenommen" && !busyOrderIds.has(o.id));
-  const hasOfferedOrders = acceptNew && state.orders.some(o => o.status === "offered" && o.acceptDeadlineMin > m);
+  const hasUnplannedAccepted = unplannedCount > 0;
+  const hasOfferedOrders = offeredCount > 0;
   if (!hasUnplannedAccepted && !hasOfferedOrders) {
     emp.lastIdleReason = acceptNew ? "Keine Aufträge auf dem Markt" : "Keine angenommenen Aufträge – autonomer Modus nötig";
     emp.lastIdleReasonAtMin = m;
@@ -218,8 +221,6 @@ export function processDispatcher(state, emp, m, log) {
   // Vorschläge sind noch gültig.
   // WICHTIG: freeDriverCount ist Teil des Context-Keys, damit die
   // Rückkehr eines Fahrers aus der Pause den Cache sofort invalidiert.
-  const unplannedCount = state.orders.filter(o => o.status === "angenommen" && !busyOrderIds.has(o.id)).length;
-  const offeredCount = hasOfferedOrders ? state.orders.filter(o => o.status === "offered" && o.acceptDeadlineMin > m).length : 0;
   const freeVehicleCount = poolVehicles.filter(v => v.status === "free" || v.status === "resting").length;
   const freeDriverCount = (state.drivers || []).filter(d =>
     d.employmentStatus === "employed" && d.attendance !== "released" &&
