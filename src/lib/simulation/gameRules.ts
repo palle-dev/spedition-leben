@@ -41,11 +41,15 @@ function haversineKm(a, b) {
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
+// Die Weltkoordinaten sind statisch: 30 × 30 Distanzen einmal berechnen.
+// Kein Spielstand-Cache, keine Rundungsänderung, kein unbegrenztes Wachstum.
+const CITY_DISTANCES = new Map(Object.entries(CITY_LATLON).map(([from, a]) => [
+  from, new Map(Object.entries(CITY_LATLON).map(([to, b]) => [
+    to, from === to ? 0 : Math.round(haversineKm(a, b) * ROAD_FACTOR / 5) * 5,
+  ])),
+]));
 export function getDistance(a, b) {
-  if (a === b) return 0;
-  const c1 = CITY_LATLON[a], c2 = CITY_LATLON[b];
-  if (!c1 || !c2) return 0;
-  return Math.round(haversineKm(c1, c2) * ROAD_FACTOR / 5) * 5;
+  return CITY_DISTANCES.get(a)?.get(b) ?? 0;
 }
 
 // Spielkonstanten (Cent-basiert für Geld).
