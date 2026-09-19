@@ -59,29 +59,27 @@ export function processReportSchedules(state, m, log) {
     const isDispatcher = emp.role === "dispatcher" || emp.role === "dispatcher_senior";
     const isAccountant = emp.role === "accountant" || emp.role === "accountant_senior";
 
-    if (isDispatcher) {
-      generateDispatcherReport(state, emp, sched.reportType, m);
-      generated++;
-      // Naechsten Bericht setzen
-      if (sched.reportType === "morning") {
-        sched.reportType = "evening";
-        sched.nextDueMin = Math.floor(m / 1440) * 1440 + SERVICE_END_MIN;
-      } else {
-        sched.reportType = "morning";
-        sched.nextDueMin = Math.floor(m / 1440) * 1440 + 1440 + SERVICE_START_MIN;
-      }
-    } else if (isAccountant) {
-      generateAccountingReport(state, emp, sched.reportType, m);
-      generated++;
-      if (sched.reportType === "morning") {
-        sched.reportType = "evening";
-        sched.nextDueMin = Math.floor(m / 1440) * 1440 + SERVICE_END_MIN;
-      } else {
-        sched.reportType = "morning";
-        sched.nextDueMin = Math.floor(m / 1440) * 1440 + 1440 + SERVICE_START_MIN;
-      }
+    // Morgenberichte werden unterdrückt — sie enthalten nur Status-Updates,
+    // die der GF im Büro abrufen kann. Nur der Tagesbericht (evening) wird
+    // generiert, und auch nur, wenn es Handlungsbedarf gibt.
+    if (sched.reportType === "morning") {
+      sched.reportType = "evening";
+      sched.nextDueMin = Math.floor(m / 1440) * 1440 + SERVICE_END_MIN;
+      sched.lastProcessedMin = m;
+      continue;
     }
 
+    let didGenerate = false;
+    if (isDispatcher) {
+      didGenerate = generateDispatcherReport(state, emp, m);
+    } else if (isAccountant) {
+      didGenerate = generateAccountingReport(state, emp, m);
+    }
+    if (didGenerate) generated++;
+
+    // Nächsten Bericht: immer morning (wird übersprungen) → evening am Folgetag
+    sched.reportType = "morning";
+    sched.nextDueMin = Math.floor(m / 1440) * 1440 + 1440 + SERVICE_START_MIN;
     sched.lastProcessedMin = m;
   }
   if (generated > 0) log.push({ type: "reports_generated", count: generated, atMin: m });
@@ -89,79 +87,45 @@ export function processReportSchedules(state, m, log) {
 
 // ---------- Dispatcher-Berichte ----------
 
-function generateDispatcherReport(state, emp, reportType, m) {
+function generateDispatcherReport(state, emp, m) {
   const assignedVehicles = (emp.assignedVehicleIds || []).map(vid => state.vehicles.find(v => v.id === vid)).filter(Boolean);
-  const free = assignedVehicles.filter(v => v.status === "free");
-  const onTrip = assignedVehicles.filter(v => v.status === "on_trip");
   const maintenance = assignedVehicles.filter(v => v.status === "maintenance");
   const accepted = state.orders.filter(o => o.status === "angenommen");
   const pendingSugs = (emp.suggestions || []).filter(s => s.status === "pending");
-  const running = state.trips.filter(t => t.status === "in_progress" && assignedVehicles.some(v => v.id === t.vehicleId));
 
-  const lines = [];
-  const isMorning = reportType === "morning";
-  const subject = (isMorning ? "Morgenbericht" : "Tagesbericht") + " - " + formatGameTime(m);
-
-  lines.push("Hallo, hier ist " + emp.name + " mit dem " + (isMorning ? "Morgen" : "Tages") + "bericht.");
-  lines.push("");
-  lines.push("Betreute Flotte: " + assignedVehicles.length + " Lkw");
-  lines.push("- Frei: " + free.length);
-  lines.push("- Unterwegs: " + onTrip.length);
-  lines.push("- Wartung: " + maintenance.length);
-  lines.push("");
-  lines.push("Angenommene Auftraege: " + accepted.length);
-  if (accepted.length > 0) {
-    for (const o of accepted.slice(0, 5)) {
-      lines.push("  - " + o.id + ": " + o.customer + " (" + o.fromCity + " -> " + o.toCity + ")");
-    }
-  }
-  lines.push("");
-  lines.push("Laufende Touren: " + running.length);
-  lines.push("Offene Vorschlaege: " + pendingSugs.length);
-  lines.push("Delegationsmodus: " + workModeText(emp.workMode));
-
-  if (!isMorning) {
-    // Tagesbericht: Kennzahlen
-    const stats = emp.dailyStats || { offersChecked: 0, ordersAccepted: 0, ordersPlanned: 0, toursStarted: 0 };
-    lines.push("");
-    lines.push("Kennzahlen heute:");
-    lines.push("- Angebote geprueft: " + (stats.offersChecked || 0));
-    lines.push("- Auftraege angenommen: " + (stats.ordersAccepted || 0));
-    lines.push("- Auftraege geplant: " + (stats.ordersPlanned || 0));
-    lines.push("- Touren gestartet: " + (stats.toursStarted || 0));
-  }
-
-  // Probleme
+  // Probleme erkennen — nur bei Handlungsbedarf wird ein Bericht gesendet
   const problems = [];
   if (maintenance.length > 0) problems.push(maintenance.length + " Lkw in Wartung");
   const sickDrivers = (state.drivers || []).filter(d => d.attendance === "sick" && assignedVehicles.some(v => v.tripId && state.trips.find(t => t.id === v.tripId && t.driverId === d.id)));
   if (sickDrivers.length > 0) problems.push(sickDrivers.length + " Fahrer krank");
   if (state.company.accountCents < 500000) problems.push("Firmenreserve gering (" + formatEuro(state.company.accountCents) + ")");
+  const hasPendingApprovals = emp.workMode === "suggestions" && pendingSugs.length > 0;
+
+  if (problems.length === 0 && !hasPendingApprovals) return false;
+
+  const lines = [];
+  const subject = "Tagesbericht - " + formatGameTime(m) + " - " + emp.name;
+  lines.push("Hallo, hier ist " + emp.name + " mit dem Tagesbericht.");
+  lines.push("");
   if (problems.length > 0) {
-    lines.push("");
     lines.push("Probleme: " + problems.join(", "));
   }
-
-  if (emp.workMode === "suggestions" && pendingSugs.length > 0) {
+  if (hasPendingApprovals) {
     lines.push("");
     lines.push(pendingSugs.length + " Vorschlaege warten auf Deine Freigabe.");
   }
+  lines.push("");
+  lines.push("Angenommene Auftraege: " + accepted.length + " · Laufende Touren: " + state.trips.filter(t => t.status === "in_progress" && assignedVehicles.some(v => v.id === t.vehicleId)).length);
 
   deliverMessage(state, {
     fromId: emp.id, toId: "player",
     subject, body: lines.join("\n"),
-    gameTime: m, category: "dispatch", priority: "normal",
-    sourceEvent: "report_dispatcher_" + reportType,
-    dedupKey: "report_dispatcher_" + reportType + ":" + emp.id + ":" + dayOf(m),
+    gameTime: m, category: "dispatch", priority: hasPendingApprovals ? "high" : "normal",
+    sourceEvent: "report_dispatcher_evening",
+    dedupKey: "report_dispatcher_evening:" + emp.id + ":" + dayOf(m),
     linkedRefs: assignedVehicles.slice(0, 3).map(v => ({ type: "vehicle", id: v.id })),
   });
-}
-
-function workModeText(mode) {
-  if (mode === "suggestions") return "Vorschlaege vorbereiten - Deine Freigabe erforderlich";
-  if (mode === "dispatch_accepted") return "Plant angenommene Auftraege - nimmt keine neuen Angebote an";
-  if (mode === "autonomous") return "Nimmt passende Auftraege selbst an und plant sie";
-  return mode || "unbekannt";
+  return true;
 }
 
 // ---------- Fahrer-Lieferbericht ----------
@@ -169,82 +133,64 @@ function workModeText(mode) {
 export function generateDriverDeliveryReport(state, driver, trip, order, m) {
   if (!driver || !order) return;
   const onTime = trip.endMin <= order.deliveryDeadlineMin;
-  const payment = order.paidCents || trip.paymentCents;
-  const restUntil = driver.restUntil;
+  // Pünktliche Lieferungen sind Routine — keine E-Mail nötig.
+  // Nur bei Verspätung wird eine Warnung gesendet.
+  if (onTime) return;
 
+  const payment = order.paidCents || trip.paymentCents;
   const lines = [];
-  lines.push("Lieferung abgeschlossen: " + order.customer);
-  lines.push("Auftrag " + order.id + ": " + order.fromCity + " -> " + order.toCity + " (" + order.cargo + ", " + order.tons + " t)");
-  lines.push("Ankunft: " + formatGameTime(trip.endMin));
-  lines.push(onTime ? "Lieferung rechtzeitig." : "Lieferung verspaetet - Verguetung gekuerzt.");
-  lines.push("Verguetung: " + formatEuro(payment));
+  lines.push("Lieferung verspaetet: " + order.customer);
+  lines.push("Auftrag " + order.id + ": " + order.fromCity + " -> " + order.toCity);
+  lines.push("Ankunft: " + formatGameTime(trip.endMin) + " (Frist: " + formatGameTime(order.deliveryDeadlineMin) + ")");
+  lines.push("Verguetung gekuerzt auf " + formatEuro(payment));
   lines.push("Fahrzeug: " + vehicleLabel(state.vehicles.find(v => v.id === trip.vehicleId)));
-  if (restUntil) {
-    lines.push("Ich bin nach der Erholung ab " + formatGameTime(restUntil) + " wieder verfuegbar.");
-  }
-  lines.push("");
-  lines.push("Diese Meldung wurde automatisch beim Lieferabschluss erstellt.");
 
   deliverMessage(state, {
     fromId: driver.id, toId: "player",
-    subject: "Lieferung abgeschlossen: " + order.customer + " (" + order.id + ")",
+    subject: "Lieferung verspaetet: " + order.customer + " (" + order.id + ")",
     body: lines.join("\n"),
-    gameTime: m, category: "dispatch", priority: "normal",
-    sourceEvent: "delivery_report",
-    dedupKey: "delivery_report:" + trip.id + ":" + driver.id,
+    gameTime: m, category: "dispatch", priority: "high",
+    sourceEvent: "delivery_report_late",
+    dedupKey: "delivery_report_late:" + trip.id + ":" + driver.id,
     linkedRefs: [{ type: "order", id: order.id }, { type: "trip", id: trip.id }],
   });
 }
 
 // ---------- Buchhaltungs-Berichte ----------
 
-function generateAccountingReport(state, emp, reportType, m) {
+function generateAccountingReport(state, emp, m) {
   const openItems = (state.accounting?.openItems || []).filter(o => o.remainingCents > 0);
-  const receipts = (state.accounting?.receipts || []);
-  const uncheckedReceipts = receipts.filter(r => r.status === "generated");
+  const uncheckedReceipts = (state.accounting?.receipts || []).filter(r => r.status === "generated");
   const preparedPayments = openItems.filter(o => o.paymentPrepared);
 
-  const lines = [];
-  const isMorning = reportType === "morning";
-  const subject = "Buchhaltung " + (isMorning ? "Morgen" : "Tages") + "bericht - " + formatGameTime(m);
+  // Nur bei Handlungsbedarf senden: offene Posten oder ungeprüfte Belege
+  if (openItems.length === 0 && uncheckedReceipts.length === 0 && preparedPayments.length === 0) return false;
 
-  lines.push("Hallo, hier ist " + emp.name + " aus der Buchhaltung mit dem " + (isMorning ? "Morgen" : "Tages") + "bericht.");
+  const lines = [];
+  const subject = "Buchhaltung Tagesbericht - " + formatGameTime(m) + " - " + emp.name;
+  lines.push("Hallo, hier ist " + emp.name + " aus der Buchhaltung.");
   lines.push("");
   lines.push("Firmenkonto: " + formatEuro(state.company.accountCents));
   lines.push("");
-
-  if (isMorning) {
-    lines.push("Bekannte faellige Posten: " + openItems.length);
-    if (openItems.length > 0) {
-      lines.push("Gesamt offen: " + formatEuro(openItems.reduce((s, o) => s + o.remainingCents, 0)));
-    }
-    lines.push("Ungepruefte Belege: " + uncheckedReceipts.length);
+  lines.push("Offene Posten: " + openItems.length + (openItems.length > 0 ? " (" + formatEuro(openItems.reduce((s, o) => s + o.remainingCents, 0)) + ")" : ""));
+  lines.push("Ungepruefte Belege: " + uncheckedReceipts.length);
+  if (preparedPayments.length > 0) {
+    lines.push("Zur Zahlung vorbereitet: " + preparedPayments.length);
     lines.push("");
-    if (openItems.length > 0) {
-      lines.push("Bitte pruefe, welche Zahlungen ich vorbereiten soll.");
-    } else {
-      lines.push("Keine offenen Posten - alles auf dem neuesten Stand.");
-    }
-  } else {
-    const stats = emp.dailyStats || { receiptsChecked: 0, paymentsPrepared: 0, paymentsExecuted: 0 };
-    lines.push("Kennzahlen heute:");
-    lines.push("- Belege geprueft: " + (stats.receiptsChecked || 0));
-    lines.push("- Zahlungen vorbereitet: " + (stats.paymentsPrepared || 0));
-    lines.push("- Zahlungen ausgefuehrt: " + (stats.paymentsExecuted || 0));
+    lines.push("Bitte pruefe, welche Zahlungen ich ausfuehren soll.");
+  } else if (openItems.length > 0) {
     lines.push("");
-    lines.push("Verbleibend:");
-    lines.push("- Offene Posten: " + openItems.length);
-    lines.push("- Ungepruefte Belege: " + uncheckedReceipts.length);
-    lines.push("- Zur Zahlung vorbereitet: " + preparedPayments.length);
+    lines.push("Bitte pruefe, welche Zahlungen ich vorbereiten soll.");
   }
 
   deliverMessage(state, {
     fromId: emp.id, toId: "player",
     subject, body: lines.join("\n"),
     gameTime: m, category: "accounting", priority: "normal",
-    sourceEvent: "report_accounting_" + reportType,
-    dedupKey: "report_accounting_" + reportType + ":" + emp.id + ":" + dayOf(m),
+    sourceEvent: "report_accounting_evening",
+    dedupKey: "report_accounting_evening:" + emp.id + ":" + dayOf(m),
   });
+  return true;
 }
 
 // ---------- Mitarbeiter-Einfuehrung ----------
