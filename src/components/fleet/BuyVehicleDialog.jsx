@@ -3,14 +3,12 @@ import { useGame } from "@/lib/gameContext";
 import { formatEuro } from "@/lib/gameData";
 import { VEHICLE_CATALOG_LIST, VEHICLE_BODY_TYPE_LIST } from "@/lib/gameData";
 import { Truck, Check, ArrowRight, Wallet, Gauge, Package } from "lucide-react";
-import VehicleShowroom from "@/components/three/VehicleShowroom";
 
 export default function BuyVehicleDialog({ branchId, branchCity, onClose }) {
   const { state, send, showToast } = useGame();
   const [vehicleType, setVehicleType] = useState("standard");
   const [bodyType, setBodyType] = useState("planen");
   const [buying, setBuying] = useState(false);
-  const [showroom, setShowroom] = useState(null);
 
   const profile = VEHICLE_CATALOG_LIST.find(v => v.id === vehicleType) || VEHICLE_CATALOG_LIST[1];
   const body = VEHICLE_BODY_TYPE_LIST.find(b => b.id === bodyType) || VEHICLE_BODY_TYPE_LIST[0];
@@ -23,7 +21,7 @@ export default function BuyVehicleDialog({ branchId, branchCity, onClose }) {
     try {
       await send("buyVehicle", { branchId, vehicleType, bodyType });
       showToast(`${profile.label} (${body.label}) in ${branchCity} übernommen.`, "success");
-      setShowroom({ vehicleType, bodyType, label: `${profile.label} · ${body.label}` });
+      onClose();
     } catch (e) {
       showToast(e.message, "error");
     } finally {
@@ -121,14 +119,6 @@ export default function BuyVehicleDialog({ branchId, branchCity, onClose }) {
           </button>
         </div>
       </div>
-      {showroom && (
-        <VehicleShowroom
-          vehicleType={showroom.vehicleType}
-          bodyType={showroom.bodyType}
-          vehicleLabel={showroom.label}
-          onClose={() => { setShowroom(null); onClose(); }}
-        />
-      )}
     </div>
   );
 }

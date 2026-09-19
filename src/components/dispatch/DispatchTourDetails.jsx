@@ -1,17 +1,12 @@
 import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import { vehicleDisplayName, driverDisplayName } from "@/lib/displayHelpers";
-import { formatGameTime, formatEuro, getVehicleProfile, getVehicleBodyType } from "@/lib/gameData";
+import { formatGameTime, formatEuro } from "@/lib/gameData";
 import { hasRealGeometry } from "@/lib/geoData";
 import { phaseLabel } from "@/lib/driverTimeEngine";
-import { ArrowLeft, MapPin, Clock, Package, Truck, CheckCircle2, AlertTriangle, Fuel, CreditCard, User, Coffee, Moon, Eye, Gamepad2 } from "lucide-react";
-import TourCompanionView from "@/components/three/TourCompanionView";
-import DriveMiniGame from "@/components/three/DriveMiniGame";
+import { ArrowLeft, MapPin, Clock, Package, Truck, CheckCircle2, AlertTriangle, Fuel, CreditCard, User, Coffee, Moon } from "lucide-react";
 
 export default function DispatchTourDetails({ trip, state, routeData, onBack, onShowOnMap, onShowVehicle }) {
-  const { showToast } = useGame();
-  const [companion, setCompanion] = useState(false);
-  const [miniGame, setMiniGame] = useState(false);
   const vehicle = state.vehicles.find(v => v.id === trip.vehicleId);
   const driver = state.drivers.find(d => d.id === trip.driverId);
   const order = state.orders.find(o => o.id === trip.orderId);
@@ -25,10 +20,7 @@ export default function DispatchTourDetails({ trip, state, routeData, onBack, on
   });
 
   const buffer = order ? order.deliveryDeadlineMin - trip.endMin : null;
-  const vProfile = getVehicleProfile(vehicle);
-  const vBody = getVehicleBodyType(vehicle);
-  const routeFrom = order?.fromCity || phases.find(p => p.fromCity)?.fromCity || "Start";
-  const routeTo = order?.toCity || phases.slice().reverse().find(p => p.toCity)?.toCity || "Ziel";
+
 
   return (
     <div className="space-y-4">
@@ -130,45 +122,7 @@ export default function DispatchTourDetails({ trip, state, routeData, onBack, on
             <Truck className="w-3.5 h-3.5" /> Fahrzeug
           </button>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setCompanion(true)}
-            className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2.5 bg-sky-500/10 border border-sky-400/25 text-xs font-medium text-sky-200 hover:bg-sky-500/20 transition active:scale-95"
-          >
-            <Eye className="w-3.5 h-3.5" /> 3D begleiten
-          </button>
-          <button
-            onClick={() => setMiniGame(true)}
-            className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2.5 bg-lime/10 border border-lime/30 text-xs font-medium text-lime hover:bg-lime/20 transition active:scale-95"
-          >
-            <Gamepad2 className="w-3.5 h-3.5" /> Selbst fahren
-          </button>
-        </div>
       </div>
-
-      {companion && (
-        <TourCompanionView
-          vehicleType={vProfile.id}
-          bodyType={vBody.id}
-          fromCity={routeFrom}
-          toCity={routeTo}
-          onClose={() => setCompanion(false)}
-        />
-      )}
-      {miniGame && (
-        <DriveMiniGame
-          vehicleType={vProfile.id}
-          bodyType={vBody.id}
-          fromCity={routeFrom}
-          toCity={routeTo}
-          paymentCents={order?.paymentCents || 0}
-          onComplete={(res) => {
-            setMiniGame(false);
-            showToast?.(`Fahrt abgeschlossen: ${res.rating} · ${(res.totalPayment / 100).toFixed(2)} €`, "success");
-          }}
-          onClose={() => setMiniGame(false)}
-        />
-      )}
     </div>
   );
 }
