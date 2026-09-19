@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatGameTime, euroSigned, formatEuro } from "@/lib/gameData";
-import { BookOpen, Truck, Heart, Trophy, Package, Euro, Briefcase, TrendingUp, TrendingDown, Calendar } from "lucide-react";
+import { BookOpen, Truck, Heart, Trophy, Package, Euro, Briefcase, TrendingUp, TrendingDown, Calendar, Swords } from "lucide-react";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
 import AssistantLog from "@/components/journal/AssistantLog";
+import RivalActivityFeed from "@/components/journal/RivalActivityFeed";
 import PageHint from "@/components/help/PageHint";
 
 const EASE = [0.2, 0.75, 0.2, 1];
@@ -64,6 +65,12 @@ export default function Journal() {
 
   const hasAssistantLog = (state?.assistantLog || []).length > 0;
 
+  // Konkurrenten-Ereignisse zählen für Tab-Badge
+  const rivalEventCount = useMemo(() => {
+    const types = ["rival_price_adaptation", "rival_poaching_attempt", "driver_poached", "rival_cooperation_offer", "cooperation_accepted"];
+    return (state.events || []).filter(e => types.includes(e.type)).length;
+  }, [state.events]);
+
   return (
     <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-[1600px] mx-auto space-y-5">
       <PageHint pageKey="journal" />
@@ -83,11 +90,14 @@ export default function Journal() {
       {/* Tab-Navigation */}
       <div className="flex gap-1 border-b border-white/10 -mx-1 px-1">
         <TabButton active={tab === "events"} onClick={() => setTab("events")} icon={BookOpen} label="Ereignisse" count={events.length} />
+        <TabButton active={tab === "rivals"} onClick={() => setTab("rivals")} icon={Swords} label="Konkurrenten" count={rivalEventCount} />
         <TabButton active={tab === "assistant"} onClick={() => setTab("assistant")} icon={Briefcase} label="Assistent" count={hasAssistantLog ? (state.assistantLog || []).length : null} />
       </div>
 
       {tab === "assistant" ? (
         <AssistantLog />
+      ) : tab === "rivals" ? (
+        <RivalActivityFeed state={state} />
       ) : recent.length === 0 ? (
         <EmptyState />
       ) : (
