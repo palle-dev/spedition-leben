@@ -29,7 +29,7 @@ describe('Ergebnisgleiche Großflotten-Planung',()=>{
   expect(search(s)[0].driverId).toBe('candidate_1');
  });
  it('unterscheidet Lenkzeit, Ruhe und Verfügbarkeit und erneuert Zähler nach einer Suche',()=>{
-  const s=setup();s.drivers[0].driveMinutesSinceBreak=270;
+  const s=setup();s.orders[0].deliveryDeadlineMin=481;s.drivers[0].driveMinutesSinceBreak=270;
   const result=search(s)[0];expect(result.driverId).toBe('candidate_1');
   s.drivers[1].status='resting';s.drivers[1].restUntil=s.gameTime+2000;
   expect(search(s)[0].driverId).toBe('candidate_2');
