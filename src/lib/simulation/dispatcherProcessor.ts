@@ -1,3 +1,5 @@
+import { dispatcherProfile, dispatcherVehicleIds, tagDispatcherTour } from "./dispatcherQuality.ts";
+import { isPersonInTraining } from "./trainingEngine.ts";
 // Extrahiert aus simulationEngine.ts: Dispositions-Verarbeitung für Angestellte.
 // Enthält processDispatcher, triggerDispatcherPlanning, processEmployees.
 // Performance-optimiert: busyOrderIds-Set, Skip-Cache, reduzierte triggerDispatcher-Häufigkeit.
@@ -111,6 +113,10 @@ function processCleaner(state, emp, m, log) {
 // Modus A: erstellt Vorschläge für freie Fahrzeuge mit angenommenen Aufträgen.
 // Modus B/C: nutzt suggestTours für flottenweite Planung.
 export function processDispatcher(state, emp, m, log) {
+  if (isPersonInTraining(state, emp.id, m)) return;
+  const profile = dispatcherProfile(state, emp);
+  const managedVehicles = dispatcherVehicleIds(state, emp.id);
+  const remainingCapacity = Math.max(0, profile.capacity - managedVehicles.size);
   if (emp.isTempStaff && Number.isFinite(emp.tempReturnMin) && emp.tempReturnMin <= m) return;
   let poolVehicles = state.vehicles.filter(v =>
     v.status !== "sold" && v.status !== "archived" && !v.markedForSale
@@ -160,11 +166,13 @@ export function processDispatcher(state, emp, m, log) {
   }
 
   // ---------- Modus B/C: flottenweite Planung mit suggestTours ----------
-  const acceptNew = emp.workMode === "autonomous";
+  // Bestehende Zusagen werden auch bei Überlastung gerettet. Für neue
+  // Zusagen muss Betreuungskapazität frei sein; laufende Touren bleiben bestehen.
+  const acceptNew = emp.workMode === "autonomous" && remainingCapacity > 0;
   // Effiziente-Tourenplanung-Qualifikation: längerer Horizont (72h) und
   // schnellere Reaktion (halbierte Skip-Cache-Zeiten) → weniger scheiternde Aufträge.
   const efficiencyQual = hasDispoEfficiency(state, emp.id);
-  const horizonMin = efficiencyQual ? 72 * 60 : 48 * 60;
+  const horizonMin = profile.horizonMin;
   // Build Set of order IDs already in a trip or active tour.
   // Replaces O(orders × tours × deployments) nested .some() with O(1) lookups.
   const busyOrderIds = new Set();
@@ -233,6 +241,8 @@ export function processDispatcher(state, emp, m, log) {
 
   const result = suggestTours(state, {
     vehicleIds: poolVehicleIds, earliestStart: m, horizonMin,
+    minNewOrderBufferMin: profile.bufferMin, candidateOrderLimit: profile.candidateOrderLimit,
+    maxSuggestions: Math.max(1, remainingCapacity),
     desiredEndCity: null, latestReturnMin: null, mode: state.marketPriority || "balanced", acceptNew,
     fastMode: state._largeAdvance === false,
   });
@@ -240,7 +250,7 @@ export function processDispatcher(state, emp, m, log) {
   const usedVehicleIds = new Set();
   const usedOrderIds = new Set();
   let planned = 0;
-  const capacity = Math.max(emp.capacity || 6, poolVehicles.length);
+  const capacity = Math.max(1, remainingCapacity);
   // Pro-Fahrzeug: konkreter Grund, warum die Tour nicht bestätigt wurde.
   // Wird für präzise Stillstandsgründe in der UI ausgewertet.
   const vehicleFailReasons = new Map();
@@ -300,6 +310,7 @@ export function processDispatcher(state, emp, m, log) {
         vehicleId: sug.vehicleId, driverId: sug.driverId, orderIds: sug.orderIds,
         desiredEndCity: sug.plan.desiredEndCity || null, latestReturnMin: sug.plan.latestReturnMin || null,
       });
+      tagDispatcherTour(state, r.tourId, emp.id);
       // Ausgabe im Tagesbudget erfassen
       if (tourCostCents > 0) recordSpend(state, emp.id, tourCostCents, emp.assignedBranchId || emp.branchId);
       // Entscheidung protokollieren
@@ -313,7 +324,9 @@ export function processDispatcher(state, emp, m, log) {
       planned++;
       const vehicle = state.vehicles.find(v => v.id === sug.vehicleId);
       const driver = state.drivers.find(d => d.id === sug.driverId);
-      const newlyAccepted = r.acceptedOrderIds || [];
+      tagDispatcherTour(state, r.tourId, dispatcher.id);
+    if (cost > 0) recordSpend(state, dispatcher.id, cost, vehicle.branchId);
+    const newlyAccepted = r.acceptedOrderIds || [];
       for (const oid of sug.orderIds) {
         const o = state.orders.find(x => x.id === oid);
         if (!o) continue;
@@ -450,6 +463,7 @@ export function planSingleVehicle(state, vehicle, m, log) {
 
   // Finde autonomen/dispatch_accepted Disponenten für diese Filiale
   const dispatcher = (state.employees || []).find(e => {
+    if (isPersonInTraining(state, e.id, m)) return false;
     if (!isActivelyEmployed(e) || e.attendance !== "present") return false;
     if (e.isTempStaff && Number.isFinite(e.tempReturnMin) && e.tempReturnMin <= m) return false;
     if (e.role !== "dispatcher" && e.role !== "dispatcher_senior") return false;
@@ -461,9 +475,12 @@ export function planSingleVehicle(state, vehicle, m, log) {
   });
   if (!dispatcher) return;
 
-  const acceptNew = dispatcher.workMode === "autonomous";
+  const profile = dispatcherProfile(state, dispatcher);
+  const remainingCapacity = Math.max(0, profile.capacity - dispatcherVehicleIds(state, dispatcher.id).size);
+  const acceptNew = dispatcher.workMode === "autonomous" && remainingCapacity > 0;
   const result = suggestTours(state, {
-    vehicleIds: [vehicle.id], earliestStart: m, horizonMin: hasDispoEfficiency(state, dispatcher.id) ? 72 * 60 : 48 * 60,
+    vehicleIds: [vehicle.id], earliestStart: m, horizonMin: profile.horizonMin,
+    minNewOrderBufferMin: profile.bufferMin, candidateOrderLimit: profile.candidateOrderLimit, maxSuggestions: 1,
     desiredEndCity: null, latestReturnMin: null,
     mode: state.marketPriority || "balanced", acceptNew,
     fastMode: state._largeAdvance === false,
@@ -484,6 +501,8 @@ export function planSingleVehicle(state, vehicle, m, log) {
   }
   if (sug.orderIds.some(oid => busyOrderIds.has(oid))) return;
 
+  const cost = (sug.plan.totalFuelCents || 0) + (sug.plan.totalTollCents || 0);
+  if (!checkSpendAuthority(state, dispatcher.id, cost, {branchId:vehicle.branchId}).allowed) return;
   try {
     const r = doConfirmTour(state, {
       vehicleId: sug.vehicleId, driverId: sug.driverId, orderIds: sug.orderIds,
