@@ -1,0 +1,64 @@
+{
+  "baselineCommit": "149c4dae93034a6bf8db42b524c133a87bbc222b",
+  "note": "Synthetic stress fixture, not a production save or browser end-to-end measurement. End-state hashes compare the full serialized state. Performance varies by machine.",
+  "communications": {
+    "before": {
+      "fixture": "12 offene Defekte, 10000 historische Nachrichten, 30 Kommunikationsprüfungen",
+      "bytes": 2255689,
+      "ms": 9808,
+      "copies": 720,
+      "cloneMs": 9656
+    },
+    "after": {
+      "fixture": "12 offene Defekte, 10000 historische Nachrichten, 30 Kommunikationsprüfungen",
+      "bytes": 2255689,
+      "ms": 6,
+      "copies": 0,
+      "cloneMs": 0
+    }
+  },
+  "day": {
+    "before": {
+      "fixture": "12 offene Defekte, 10000 historische Nachrichten, 30 Kommunikationsprüfungen",
+      "bytes": 2255689,
+      "ms": 15705,
+      "copies": 1368,
+      "cloneMs": 14799,
+      "mode": "day",
+      "gameTime": 1920,
+      "stateHash": "e9239687cf2d89e35b4c6967fb208928feca5f27e551fcd73fed1b238170132b"
+    },
+    "after": {
+      "fixture": "12 offene Defekte, 10000 historische Nachrichten, 30 Kommunikationsprüfungen",
+      "bytes": 2255689,
+      "ms": 40,
+      "copies": 0,
+      "cloneMs": 0,
+      "mode": "day",
+      "gameTime": 1920,
+      "stateHash": "e9239687cf2d89e35b4c6967fb208928feca5f27e551fcd73fed1b238170132b"
+    }
+  },
+  "hour": {
+    "before": {
+      "fixture": "12 offene Defekte, 10000 historische Nachrichten",
+      "bytes": 2255689,
+      "ms": 1375,
+      "copies": 72,
+      "cloneMs": 1311,
+      "mode": "60 game minutes",
+      "gameTime": 540,
+      "stateHash": "5a07cdfc8c6823c90d483ac968516f1f3bb03ca6dfd6996fc7e0300ebf384b2c"
+    },
+    "after": {
+      "fixture": "12 offene Defekte, 10000 historische Nachrichten",
+      "bytes": 2255689,
+      "ms": 8,
+      "copies": 0,
+      "cloneMs": 0,
+      "mode": "60 game minutes",
+      "gameTime": 540,
+      "stateHash": "5a07cdfc8c6823c90d483ac968516f1f3bb03ca6dfd6996fc7e0300ebf384b2c"
+    }
+  }
+}

@@ -91,7 +91,7 @@ describe('Live-Abnahme: Erfolgsanzeige und Eigentumsregeln', () => {
     ]};
     const before = structuredClone(s);
     expect(getAchievementSummary(s)).toEqual({unlocked: 2, total: 35});
-    expect(getAchievementSummary(s, 'unternehmen')).toEqual({unlocked: 2, total: 12});
+    expect(getAchievementSummary(s, 'unternehmen')).toEqual({unlocked: 2, total: 13});
     expect(getGrowthInfo(s)).toMatchObject({unlockedAchievements: 2, totalAchievements: 35});
     expect(s).toEqual(before);
     expect(getAchievementSummary({})).toEqual({unlocked: 0, total: 35});
