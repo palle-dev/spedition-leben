@@ -120,3 +120,20 @@ it("verpasste Anrufe lassen sich aus dem Verpasst-Bereich zurückrufen",async()=
  expect(document.querySelector(".ff-phone-call")).not.toBeNull();
  expect(fixture.game.pauseAutomation).not.toHaveBeenCalled();
 });
+
+it("Investmentberater-Mandat kann im Telefon geprüft und erst danach verbindlich erteilt werden",async()=>{
+ const s=createInitialState({}).state;s.gameTime=600;
+ s.investment.advisor={hired:true,revision:1,paidDay:0,policies:{},runtime:{},activity:[]};
+ fixture.game.state=s;fixture.game.send=vi.fn(async()=>({ok:true,summary:"Mandat übernommen."}));
+ await render(()=>React.createElement(StaffPhoneDialog,{employeeId:"investment-advisor",onClose:vi.fn()}));
+ expect(document.body.textContent).toContain("Robin Weber");
+ const section=document.querySelector('[aria-label="Handelsmandat Firmendepot"]')!;
+ const activate=section.querySelector('input[type="checkbox"]') as HTMLInputElement;
+ await act(async()=>activate.click());
+ const review=[...section.querySelectorAll("button")].find(b=>b.textContent==="Mandat prüfen")!;
+ await act(async()=>review.click());expect(fixture.game.send).not.toHaveBeenCalled();
+ const confirm=[...section.querySelectorAll("button")].find(b=>b.textContent==="Mandat bestätigen")!;
+ await act(async()=>{confirm.click();confirm.click();});
+ expect(fixture.game.send).toHaveBeenCalledTimes(1);
+ expect(fixture.game.send).toHaveBeenCalledWith("staffPhoneCommand",expect.objectContaining({employeeId:"investment-advisor",action:"advisor_policy",depotId:"company",expectedRevision:1,policy:expect.objectContaining({enabled:true})}));
+});
