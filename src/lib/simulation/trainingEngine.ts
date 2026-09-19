@@ -1,3 +1,4 @@
+import { dispatcherProfile } from "./dispatcherQuality.ts";
 // Ausbildungs- und Weiterbildungs-Engine für FERNWERK – Auftrag 31.
 // Verwaltet Kurskatalog, Qualifikationen, Kursbuchungen, Ausbildungen,
 // Terminplanung, Anbieterplätze, Effektanwendung und Übernahmen.
@@ -1011,6 +1012,7 @@ export function hasBranchManagerAdvanced(state, personId) {
 export function getEffectiveCapacity(state, person) {
   if (!person) return 0;
   const role = person.role || "driver";
+  if (role === "dispatcher" || role === "dispatcher_senior") return dispatcherProfile(state, person).capacity;
   let base = person.capacity || PERSONNEL_ROLES[role]?.capacity || 0;
   // cleaning_advanced: 4 → 6
   if (role === "cleaner" && hasQualification(state, person.id, "cleaning_advanced")) {

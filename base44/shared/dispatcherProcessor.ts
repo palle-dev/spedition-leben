@@ -148,7 +148,8 @@ export function processDispatcher(state, emp, m, log) {
       if (!hasSituationChanged(state, emp, existingValid)) return;
     }
     const result = suggestTours(state, {
-      vehicleIds: poolVehicleIds, earliestStart: m, horizonMin: 2880,
+      vehicleIds: poolVehicleIds, earliestStart: m, horizonMin: profile.horizonMin,
+      candidateOrderLimit: profile.candidateOrderLimit, maxSuggestions: Math.max(1, remainingCapacity),
       desiredEndCity: null, latestReturnMin: null, mode: state.marketPriority || "balanced", acceptNew: false,
       fastMode: state._largeAdvance === false,
     });

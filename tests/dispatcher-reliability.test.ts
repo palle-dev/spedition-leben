@@ -57,3 +57,22 @@ describe('Zuverlässige Disposition',()=>{
   expect(dispatcherReport(s,e).punctuality).toBe(100);
  });
 });
+
+it('wählt einen verfügbaren Fahrer statt eines gleichwertigen erkrankten Fahrers',()=>{
+ const s=base();s.drivers.push({...structuredClone(s.drivers[0]),id:'healthy'});
+ s.absences.sicknesses.push({personId:'d0',status:'active',startMin:0,expectedEndMin:10000});
+ expect(search(s).suggestions[0].driverId).toBe('healthy');
+});
+it('normaler Disponent erhält nur zweckgebundene Tourausgaben innerhalb seiner Befugnisse',async()=>{
+ const {checkSpendAuthority}=await import('@/lib/simulation/delegationEngine');const s=base(),e=s.employees[0];
+ expect(checkSpendAuthority(s,e.id,100,{purpose:'tour'}).allowed).toBe(true);
+ expect(checkSpendAuthority(s,e.id,100,{}).allowed).toBe(false);
+ s.delegation.rules.autoDispatch=false;
+ expect(checkSpendAuthority(s,e.id,100,{purpose:'tour'}).allowed).toBe(false);
+});
+it('Schichtverstärkung übernimmt neue Zusagen, wenn der erste Disponent ausgelastet ist',()=>{
+ const s=base(7),first=s.employees[0];processDispatcher(s,first,s.gameTime,[]);
+ s.employees.push({...structuredClone(first),id:'second',lastDecisionMin:null,suggestions:[]});
+ const free=s.vehicles.find(v=>v.status==='free');planSingleVehicle(s,free,s.gameTime,[]);
+ expect(dispatcherVehicleIds(s,'second').size).toBe(1);
+});
