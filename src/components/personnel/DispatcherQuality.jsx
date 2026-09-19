@@ -11,7 +11,7 @@ export default function DispatcherQuality({state,employee}) {
    <div><strong>{r.late}</strong><div className="text-muted-foreground">verspätet</div></div>
    <div><strong>{r.failed}</strong><div className="text-muted-foreground">gescheitert</div></div>
   </div>
-  <p className="text-[11px] text-muted-foreground">Zugeordnete Lieferungen der letzten 7 Spieltage. {r.criticalAtPlanning} verspätete Lieferungen waren schon bei der Planung kritisch.</p>
+  <p className="text-[11px] text-muted-foreground">Zugeordnete Lieferungen der letzten 7 Spieltage. {r.criticalAtPlanning} Lieferungen waren schon bei der Planung kritisch.</p>
   {r.load>=r.capacity&&<p className="text-xs text-coral">Betreuung ausgelastet: bestehende Zusagen werden weiter bearbeitet, neue Annahmen begrenzt. Verstärke die Schicht oder bilde Personal weiter.</p>}
   <Link className="text-xs text-lime underline" to="/personal">Personal, erfahrene Bewerber und Weiterbildung</Link>
  </div>;

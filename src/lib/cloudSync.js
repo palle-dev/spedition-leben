@@ -23,9 +23,7 @@ async function invokeCloudSync(payload) {
     const status = error.response?.status || error.status;
     const data = error.response?.data || error.data;
     if (status === 409 && data?.conflict) return data;
-    const failure = new Error(data?.error || error.message || "Cloud-Speicherung fehlgeschlagen.");
-    failure.status = status;
-    failure.code = error.code;
+    const failure = Object.assign(new Error(data?.error || error.message || "Cloud-Speicherung fehlgeschlagen."), { status, code: error.code });
     throw failure;
   }
 }
