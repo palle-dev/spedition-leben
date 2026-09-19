@@ -9,7 +9,7 @@ import { Loader2, Cloud, CloudOff, RefreshCw, AlertTriangle, Download, Trash2, C
 export default function CloudSyncSection() {
   const {
     syncMeta, cloudSaves, cloudLoading,
-    refreshCloudSaves, loadCloudGame, deleteCloudGame,
+    refreshCloudSaves, loadCloudGame, deleteCloudGame, retryCloudSync,
     resolveConflictKeepBoth, resolveConflictKeepLocal, resolveConflictKeepCloud,
   } = useGame();
   const [busy, setBusy] = useState(null);
@@ -46,6 +46,13 @@ export default function CloudSyncSection() {
     if (r?.error) setError(r.error);
   };
 
+  const handleRetry = async () => {
+    setBusy("retry"); setError(null);
+    try { const result = await retryCloudSync(); if (result?.error) setError(result.error); }
+    catch (failure) { setError(failure.message); }
+    finally { setBusy(null); }
+  };
+
   const statusConfig = {
     idle: { icon: Cloud, label: "Bereit", color: "text-muted-foreground" },
     uploading: { icon: Loader2, label: "Wird synchronisiert …", color: "text-lime", spin: true },
@@ -80,6 +87,14 @@ export default function CloudSyncSection() {
         )}
       </div>
 
+      {syncMeta?.lastCloudSyncAt && status !== "synced" && <p className="text-xs text-muted-foreground">Letzte erfolgreiche Cloud-Sicherung: {fmt(syncMeta.lastCloudSyncAt)}</p>}
+      {status === "error" && <div className="rounded-lg border border-destructive/30 p-3 space-y-2">
+        <p role="alert" className="text-xs text-destructive">{syncMeta?.lastError || "Die Cloud ist momentan nicht erreichbar."}</p>
+        <p className="text-xs text-muted-foreground">Der Cloud-Stand wurde nicht als aktuell bestätigt. Erneut versuchen oder den lokalen Stand exportieren.</p>
+        <Button size="sm" variant="outline" disabled={!!busy} onClick={handleRetry}>
+          {busy === "retry" ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Synchronisation erneut versuchen
+        </Button>
+      </div>}
       {/* Konflikt-Lösung */}
       {isConflict && (
         <div className="rounded-lg border border-coral/30 bg-coral/10 px-3 py-3 space-y-2">

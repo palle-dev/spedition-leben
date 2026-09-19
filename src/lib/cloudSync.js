@@ -23,7 +23,10 @@ async function invokeCloudSync(payload) {
     const status = error.response?.status || error.status;
     const data = error.response?.data || error.data;
     if (status === 409 && data?.conflict) return data;
-    throw new Error(data?.error || error.message || "Cloud-Speicherung fehlgeschlagen.");
+    const failure = new Error(data?.error || error.message || "Cloud-Speicherung fehlgeschlagen.");
+    failure.status = status;
+    failure.code = error.code;
+    throw failure;
   }
 }
 
@@ -51,6 +54,21 @@ export async function saveCloudSave(stateId, state, expectedRevision, saveLabel,
 
 export async function deleteCloudSave(stateId) {
   return await invokeCloudSync({ command: "delete", stateId });
+}
+
+// Wiederholt nur vorübergehende Fehler. Payload/Revision bleiben identisch;
+// 409 und fachliche Fehler werden niemals durch Überschreiben umgangen.
+export async function withCloudRetry(task, { isCurrent = () => true, wait = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (!isCurrent()) return { skipped: true };
+    try { return await task(); }
+    catch (error) {
+      const transient = [429, 502, 503, 504].includes(Number(error.status)) ||
+        (!error.status && (/Network|Failed to fetch|timeout/i.test(error.message || '') || ['ERR_NETWORK','ECONNABORTED'].includes(error.code)));
+      if (!transient || attempt === 2) throw error;
+      await wait(attempt === 0 ? 500 : 1500);
+    }
+  }
 }
 
 // ---- Sync-Status-Erzeugung ----

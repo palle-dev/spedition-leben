@@ -1,0 +1,7 @@
+import {it,expect,vi} from 'vitest';
+vi.mock('@/api/base44Client',()=>({base44:{functions:{invoke:vi.fn()}}}));
+import {withCloudRetry} from '@/lib/cloudSync';
+it('wiederholt vorübergehende Fehler höchstens zweimal',async()=>{const task=vi.fn().mockRejectedValueOnce(Object.assign(new Error('busy'),{status:503})).mockResolvedValue({revision:8});const wait=vi.fn();expect(await withCloudRetry(task,{wait})).toEqual({revision:8});expect(task).toHaveBeenCalledTimes(2);expect(wait).toHaveBeenCalledWith(500);});
+it.each([400,401,403,409,413,500])('wiederholt Status %s nicht blind',async status=>{const task=vi.fn().mockRejectedValue(Object.assign(new Error('blocked'),{status}));await expect(withCloudRetry(task,{wait:vi.fn()})).rejects.toThrow('blocked');expect(task).toHaveBeenCalledTimes(1);});
+it('stoppt nach drei Netzwerkfehlern und respektiert Spielstandwechsel',async()=>{const task=vi.fn().mockRejectedValue(new Error('Network Error'));await expect(withCloudRetry(task,{wait:vi.fn()})).rejects.toThrow();expect(task).toHaveBeenCalledTimes(3);let current=true;task.mockClear();expect(await withCloudRetry(task,{isCurrent:()=>current,wait:async()=>{current=false;}})).toEqual({skipped:true});expect(task).toHaveBeenCalledTimes(1);});
+it('gibt Konflikte unverändert zurück',async()=>{const task=vi.fn().mockResolvedValue({conflict:true,current_revision:9});expect(await withCloudRetry(task)).toEqual({conflict:true,current_revision:9});expect(task).toHaveBeenCalledTimes(1);});

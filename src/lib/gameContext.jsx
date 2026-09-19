@@ -7,7 +7,7 @@ import { writeRecoverySave, prepareLoadedState } from "@/lib/saveSafety";
 import { eventToToast, summarizeRoutineToasts, CRITICAL_EVENT_TYPES } from "@/lib/eventNotifications";
 import { getUnseenEventCount } from "@/lib/eventLogClient";
 import { useAuth } from "@/lib/AuthContext";
-import { listCloudSaves, loadCloudSave, createCloudSave, saveCloudSave, deleteCloudSave, CloudSyncQueue, generatePartyId, makeSyncMeta } from "@/lib/cloudSync";
+import { withCloudRetry, listCloudSaves, loadCloudSave, createCloudSave, saveCloudSave, deleteCloudSave, CloudSyncQueue, generatePartyId, makeSyncMeta } from "@/lib/cloudSync";
 // Simulations-Engine läuft in einem Web Worker – der Haupt-Thread
 // bleibt für UI und Rendering frei, auch bei großen Flotten.
 const simWorker = new Worker(new URL("./simulationWorker.js", import.meta.url), { type: "module" });
@@ -359,9 +359,11 @@ export function GameProvider({ children }) {
           expectedRevision = latest.revision;
         }
         if (!stillCurrent()) return { skipped: true };
-        const res = meta.cloudId
-          ? await saveCloudSave(meta.cloudId, snapshot, expectedRevision, saveLabel, saveType || "auto")
-          : await createCloudSave(snapshot, partyId, saveLabel, saveType || "new");
+        const res = await withCloudRetry(() => meta.cloudId
+          ? saveCloudSave(meta.cloudId, snapshot, expectedRevision, saveLabel, saveType || "auto")
+          : createCloudSave(snapshot, partyId, saveLabel, saveType || "new"),
+          { isCurrent: () => stillCurrent() && hasLockRef.current && !lockRequiresReloadRef.current });
+        if (res.skipped) return res;
         if (!stillCurrent()) return { skipped: true };
         assertWritable();
         if (res.conflict) {
@@ -384,6 +386,17 @@ export function GameProvider({ children }) {
       }
     });
   }, [sessionToken, isCurrentSession, assertWritable, updateSyncMeta]);
+
+  const retryCloudSync = useCallback(async () => {
+    const current = stateRef.current;
+    const token = sessionToken();
+    if (!current || changingStateRef.current) return { ok: false, error: "Kein aktiver Spielstand." };
+    if (syncMetaRef.current?.status === "conflict") return { ok: false, error: "Bitte zuerst den Versionskonflikt lösen." };
+    const local = await saveNow(current);
+    if (!isCurrentSession(token) || stateRef.current?.meta?.partyId !== current.meta?.partyId) return { skipped: true };
+    if (!local?.ok) return { ok: false, error: "Lokale Sicherung nicht möglich. Bitte den Spielstand exportieren." };
+    return uploadToCloud(current, null, "manual");
+  }, [saveNow, sessionToken, isCurrentSession, uploadToCloud]);
 
   // Cloud-Spielstände auflisten (für geräteübergreifendes Fortsetzen)
   const refreshCloudSaves = useCallback(async () => {
@@ -1056,7 +1069,7 @@ export function GameProvider({ children }) {
     markAllEventsSeen,
     showToast, dismissToast, dismissOverlay, dismissStart, openStartScreen, toggleMotion,
     exportGame, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
-    uploadToCloud, refreshCloudSaves, loadCloudGame, deleteCloudGame,
+    uploadToCloud, retryCloudSync, refreshCloudSaves, loadCloudGame, deleteCloudGame,
     resolveConflictKeepBoth, resolveConflictKeepLocal, resolveConflictKeepCloud,
   }), [
     send, newGame, newScenarioGame, continueScenarioAsFreePlay, reload,
@@ -1066,7 +1079,7 @@ export function GameProvider({ children }) {
     markAllEventsSeen,
     showToast, dismissToast, dismissOverlay, dismissStart, openStartScreen, toggleMotion,
     exportGame, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
-    uploadToCloud, refreshCloudSaves, loadCloudGame, deleteCloudGame,
+    uploadToCloud, retryCloudSync, refreshCloudSaves, loadCloudGame, deleteCloudGame,
     resolveConflictKeepBoth, resolveConflictKeepLocal, resolveConflictKeepCloud,
   ]);
 
