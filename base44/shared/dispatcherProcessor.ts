@@ -1,3 +1,4 @@
+import { withDispatchLookup, planningOrdersFor, findOrder } from "./orderLookup.ts";
 import { dispatcherProfile, dispatcherVehicleIds, tagDispatcherTour } from "./dispatcherQuality.ts";
 import { isPersonInTraining } from "./trainingEngine.ts";
 // Extrahiert aus simulationEngine.ts: Dispositions-Verarbeitung für Angestellte.
@@ -63,6 +64,9 @@ function isDispatcherOnShift(emp, gameMinute) {
 
 // Wird an Dienstzeitpunkten (08:00–16:00, alle 60 min) aufgerufen.
 export function processEmployees(state, m, log) {
+  return withDispatchLookup(state, () => processEmployeesIndexed(state, m, log));
+}
+function processEmployeesIndexed(state, m, log) {
   const clock = m % 1440;
   const inServiceHours = clock >= SERVICE_START_MIN && clock < SERVICE_END_MIN;
   // Inkrementelle Disposition: completeTrip löst planSingleVehicle aus,
@@ -134,7 +138,7 @@ export function processDispatcher(state, emp, m, log) {
 
   // ---------- Modus A: Vorschläge vorbereiten ----------
   if (emp.workMode === "suggestions") {
-    const hasAcceptedOrders = state.orders.some(o => o.status === "angenommen");
+    const hasAcceptedOrders = planningOrdersFor(state).some(o => o.status === "angenommen");
     const hasFreeVehicles = poolVehicles.some(v => v.status === "free" || v.status === "resting");
     if (!hasAcceptedOrders || !hasFreeVehicles) {
       if ((emp.suggestions || []).length > 0) {
@@ -194,7 +198,7 @@ export function processDispatcher(state, emp, m, log) {
   // processEventsAt läuft nur bei Zeitvorläufen — hier läuft sie bei jeder
   // Dispatcher-Runde, auch ohne Zeitvorlauf.
   let unplannedCount = 0, offeredCount = 0;
-  for (const o of state.orders) {
+  for (const o of planningOrdersFor(state)) {
     if (o.status === "angenommen" && o.deliveryDeadlineMin + 240 <= m) {
       o.status = "failed";
       o.failedAtMin = m;
@@ -263,7 +267,7 @@ export function processDispatcher(state, emp, m, log) {
     const allAvailable = sug.orderIds.every(oid => {
       if (usedOrderIds.has(oid)) return false;
       if (busyOrderIds.has(oid)) return false;
-      const o = state.orders.find(x => x.id === oid);
+      const o = findOrder(state, oid);
       if (!o || (o.status !== "offered" && o.status !== "angenommen")) return false;
       return true;
     });
@@ -276,7 +280,7 @@ export function processDispatcher(state, emp, m, log) {
       vehicleFailReasons.set(sug.vehicleId, "Tour nicht profitabel (" + ((sug.plan.totalContributionCents || 0) / 100).toFixed(0) + " € Beitrag)");
       continue;
     }
-    if (sug.orderIds.some(oid => state.orders.find(x => x.id === oid)?.isDangerousGoods) && !hasDgDispatch(state, emp.id)) {
+    if (sug.orderIds.some(oid => findOrder(state, oid)?.isDangerousGoods) && !hasDgDispatch(state, emp.id)) {
       vehicleFailReasons.set(sug.vehicleId, "Gefahrgut-Befugnis fehlt beim Disponenten");
       continue;
     }
@@ -305,7 +309,7 @@ export function processDispatcher(state, emp, m, log) {
       continue;
     }
     // Begründung aus Planungsdaten (primaryOrder wird unten definiert)
-    const _primaryOrder = state.orders.find(x => x.id === sug.orderIds[0]);
+    const _primaryOrder = findOrder(state, sug.orderIds[0]);
     const reasoning = buildTourReasoning(state, sug, _primaryOrder);
     try {
       const r = doConfirmTour(state, {
@@ -328,7 +332,7 @@ export function processDispatcher(state, emp, m, log) {
       const driver = state.drivers.find(d => d.id === sug.driverId);
       const newlyAccepted = r.acceptedOrderIds || [];
       for (const oid of sug.orderIds) {
-        const o = state.orders.find(x => x.id === oid);
+        const o = findOrder(state, oid);
         if (!o) continue;
         if (newlyAccepted.includes(oid)) {
           o.acceptedById = emp.id; o.acceptedByName = emp.name;
@@ -351,7 +355,7 @@ export function processDispatcher(state, emp, m, log) {
         o.history = o.history || [];
         o.history.push({ type: "planned", min: m, actor: emp.id, actorName: emp.name, details: { vehicleId: sug.vehicleId, driverId: sug.driverId } });
       }
-      const primaryOrder = state.orders.find(x => x.id === sug.orderIds[0]);
+      const primaryOrder = findOrder(state, sug.orderIds[0]);
       pushEvent(state, {
         type: "tour_planned_by_dispatcher",
         gameTime: m, employeeId: emp.id, employeeName: emp.name, portraitId: emp.portraitId,
@@ -424,7 +428,7 @@ export function processDispatcher(state, emp, m, log) {
       } else if (!hasUnplannedAccepted && !hasOfferedOrders) {
         reason = acceptNew ? "Keine (profitablen) Aufträge verfügbar" : "Keine angenommenen Aufträge – autonomer Modus oder manuelle Annahme nötig";
       } else {
-        const consideredOrders = (state.orders || []).filter(o =>
+        const consideredOrders = planningOrdersFor(state).filter(o =>
           (o.status === "offered" && o.acceptDeadlineMin > m) || o.status === "angenommen"
         ).length;
         reason = "Kein profitabler Auftrag gefunden (" + consideredOrders + " geprüft)";
@@ -436,7 +440,7 @@ export function processDispatcher(state, emp, m, log) {
   // Backlog für Assistent und UI dokumentieren
   const stillBusy = new Set(busyOrderIds);
   for (const oid of usedOrderIds) stillBusy.add(oid);
-  emp.backlogCount = (state.orders || []).filter(o => o.status === "angenommen" && !stillBusy.has(o.id)).length;
+  emp.backlogCount = planningOrdersFor(state).filter(o => o.status === "angenommen" && !stillBusy.has(o.id)).length;
 
   emp.lastDecisionMin = m;
   emp._lastPlanPlanned = planned;
@@ -448,12 +452,15 @@ export function processDispatcher(state, emp, m, log) {
 // die stündliche Flotten-Vollscan über processDispatcher, da nur ein
 // Fahrzeug × Fahrer × Aufträge durchsucht werden.
 export function planSingleVehicle(state, vehicle, m, log) {
+  return withDispatchLookup(state, () => planSingleVehicleIndexed(state, vehicle, m, log));
+}
+function planSingleVehicleIndexed(state, vehicle, m, log) {
   if (vehicle.status !== "free" || vehicle.condition < 20 || vehicle.markedForSale) return;
   if (Number.isFinite(vehicle.rentalReturnMin) && vehicle.rentalReturnMin <= m) return;
   if (vehicle.ownership_type === "sold" || vehicle.ownership_type === "archived") return;
 
   // Überfällige angenommene Aufträge bereinigen (siehe processDispatcher).
-  for (const o of state.orders) {
+  for (const o of planningOrdersFor(state)) {
     if (o.status === "angenommen" && o.deliveryDeadlineMin + 240 <= m) {
       o.status = "failed";
       o.failedAtMin = m;
@@ -491,7 +498,7 @@ export function planSingleVehicle(state, vehicle, m, log) {
   const sug = result.suggestions[0];
   const newOrderIds = sug.plan.acceptedOrderIds || [];
   if (newOrderIds.length > 0 && sug.plan.totalContributionCents <= 0) return;
-  if (sug.orderIds.some(oid => state.orders.find(x => x.id === oid)?.isDangerousGoods) && !hasDgDispatch(state, dispatcher.id)) return;
+  if (sug.orderIds.some(oid => findOrder(state, oid)?.isDangerousGoods) && !hasDgDispatch(state, dispatcher.id)) return;
 
   // Auftragsverfügbarkeit prüfen
   const busyOrderIds = new Set();
@@ -513,7 +520,7 @@ export function planSingleVehicle(state, vehicle, m, log) {
     if (cost > 0) recordSpend(state, dispatcher.id, cost, vehicle.branchId);
     const newlyAccepted = r.acceptedOrderIds || [];
     for (const oid of sug.orderIds) {
-      const o = state.orders.find(x => x.id === oid);
+      const o = findOrder(state, oid);
       if (!o) continue;
       if (newlyAccepted.includes(oid)) {
         o.acceptedById = dispatcher.id; o.acceptedByName = dispatcher.name;

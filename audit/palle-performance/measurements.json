@@ -1,0 +1,122 @@
+{
+  "baselineDay": {
+    "node": "v24.19.0",
+    "measurement": "Engine only; excludes startup, cloning, serialization, browser and storage",
+    "minutes": 1440,
+    "chunk": 1440,
+    "activeVehicles": 97,
+    "branches": 6,
+    "inputOrders": 30143,
+    "inputGameTime": 176436,
+    "medianMs": 129571.59173699998,
+    "maxMs": 129571.59173699998,
+    "results": [
+      {
+        "run": 1,
+        "ms": 129571.59173699998,
+        "gameTime": 177876,
+        "deliveries": 5096,
+        "hash": "06b25a2df55f155ece5f95b4c67b41e10606801c08501d0b03f1c2f189c41105",
+        "outputBytes": 46181861
+      }
+    ]
+  },
+  "optimizedDay": {
+    "node": "v24.19.0",
+    "measurement": "Engine only; excludes startup, cloning, serialization, browser and storage",
+    "minutes": 1440,
+    "chunk": 1440,
+    "activeVehicles": 97,
+    "branches": 6,
+    "inputOrders": 30143,
+    "inputGameTime": 176436,
+    "medianMs": 18413.719049,
+    "maxMs": 19267.210247999996,
+    "results": [
+      {
+        "run": 1,
+        "ms": 18091.564398000002,
+        "gameTime": 177876,
+        "deliveries": 5096,
+        "hash": "06b25a2df55f155ece5f95b4c67b41e10606801c08501d0b03f1c2f189c41105",
+        "outputBytes": 46181861
+      },
+      {
+        "run": 2,
+        "ms": 19267.210247999996,
+        "gameTime": 177876,
+        "deliveries": 5096,
+        "hash": "06b25a2df55f155ece5f95b4c67b41e10606801c08501d0b03f1c2f189c41105",
+        "outputBytes": 46181861
+      },
+      {
+        "run": 3,
+        "ms": 18413.719049,
+        "gameTime": 177876,
+        "deliveries": 5096,
+        "hash": "06b25a2df55f155ece5f95b4c67b41e10606801c08501d0b03f1c2f189c41105",
+        "outputBytes": 46181861
+      }
+    ]
+  },
+  "baselineHour": {
+    "node": "v24.19.0",
+    "measurement": "Engine only; excludes startup, cloning, serialization, browser and storage",
+    "minutes": 60,
+    "chunk": 60,
+    "activeVehicles": 97,
+    "branches": 6,
+    "inputOrders": 30143,
+    "inputGameTime": 176436,
+    "medianMs": 5191.117288000001,
+    "maxMs": 5191.117288000001,
+    "results": [
+      {
+        "run": 1,
+        "ms": 5191.117288000001,
+        "gameTime": 176496,
+        "deliveries": 5015,
+        "hash": "ced389106118d830fa8f1422405db38b8985cb4775f7f25fdb473527c05ad6cb",
+        "outputBytes": 45266556
+      }
+    ]
+  },
+  "optimizedHour": {
+    "node": "v24.19.0",
+    "measurement": "Engine only; excludes startup, cloning, serialization, browser and storage",
+    "minutes": 60,
+    "chunk": 60,
+    "activeVehicles": 97,
+    "branches": 6,
+    "inputOrders": 30143,
+    "inputGameTime": 176436,
+    "medianMs": 1165.4810270000007,
+    "maxMs": 1165.4810270000007,
+    "results": [
+      {
+        "run": 1,
+        "ms": 1165.4810270000007,
+        "gameTime": 176496,
+        "deliveries": 5015,
+        "hash": "ced389106118d830fa8f1422405db38b8985cb4775f7f25fdb473527c05ad6cb",
+        "outputBytes": 45266556
+      }
+    ]
+  },
+  "fullStateEqual": true,
+  "initialDeliveries": 5011,
+  "newDeliveriesInDay": 85,
+  "checks": {
+    "testsPassed": 481,
+    "testsSkipped": 1,
+    "build": "passed",
+    "lint": "passed"
+  },
+  "limits": [
+    "Node v24.19.0, not browser total duration",
+    "Baseline one timed run; optimized day three fresh clones in one process",
+    "Same original export for every replay, simulation Date.now fixed to 1800000000000",
+    "Startup/transpilation, cloning, JSON serialization, storage and rendering excluded",
+    "Existing 200-day baseline is separate and unchanged"
+  ]
+}

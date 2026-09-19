@@ -1,3 +1,4 @@
+import { currentOrders } from "./orderLookup.ts";
 // Extrahiert aus simulationEngine.ts: Berechnet das nächste Simulations-Ereignis.
 // Reine Lesefunktion — verändert keinen Zustand.
 
@@ -41,7 +42,7 @@ export function earliestEventAfter(state, t, maxMin) {
   cand(Math.floor(t / 1440) * 1440 + 1440); // nächste Mitternacht
   cand(Math.floor(t / 60) * 60 + 60); // nächste Marktwelle (volle Stunde)
   cand(Math.floor(t / MONTH_MIN) * MONTH_MIN + MONTH_MIN); // nächste Monatsgrenze
-  for (const o of state.orders) { if (o.status === "offered") cand(o.acceptDeadlineMin); }
+  for (const o of currentOrders(state)) { if (o.status === "offered") cand(o.acceptDeadlineMin); }
   if (!state.tutorialInviteCreated) cand(720);
   for (const d of state.drivers) { if (d.status === "resting" && d.restUntil !== null) cand(d.restUntil); }
   for (const v of state.vehicles) { if (v.status === "maintenance" && v.maintenanceUntil !== null) cand(v.maintenanceUntil); }

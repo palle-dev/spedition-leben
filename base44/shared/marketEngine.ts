@@ -1,3 +1,4 @@
+import { currentOrders } from "./orderLookup.ts";
 import { recordOrderOutcome } from "./customerEngine.ts";
 import { recordKeyAccountOrderOutcome } from "./keyAccountEngine.ts";
 import { bookExpense } from "./accountingEngine.ts";
@@ -459,7 +460,7 @@ export function generateMarketWave(state, m, log) {
 
   // 1. Abgelaufene Angebote schließen
   let expired = 0;
-  for (const o of state.orders) {
+  for (const o of currentOrders(state)) {
     if (o.status === "offered" && o.acceptDeadlineMin <= m) {
       o.status = "expired";
       expired++;
@@ -475,7 +476,7 @@ export function generateMarketWave(state, m, log) {
   const b = computeWaveBudget(n, hour);
 
   // 3. Offene Angebote zählen
-  const o = state.orders.filter(ord => ord.status === "offered").length;
+  const o = currentOrders(state).filter(ord => ord.status === "offered").length;
 
   // 4. Neue Angebote erzeugen
   const newCount = Math.min(b, Math.max(0, t - o));
@@ -496,7 +497,7 @@ export function generateMarketWave(state, m, log) {
   state.market.stats.lastN = n;
   state.market.stats.lastT = t;
   state.market.stats.lastB = b;
-  state.market.stats.lastO = state.orders.filter(ord => ord.status === "offered").length;
+  state.market.stats.lastO = currentOrders(state).filter(ord => ord.status === "offered").length;
   state.market.stats.feasibleCount = (state.market.stats.feasibleCount || 0) + feasible;
   state.market.stats.feasibilityChecked = (state.market.stats.feasibilityChecked || 0) + generated;
   state.market.stats.lastWaveMin = m;
@@ -515,7 +516,7 @@ export function generateMarketWave(state, m, log) {
 export function generateDgWave(state, m, log) {
   const { nP, nT } = computeDgFleetN(state);
 
-  const openDg = state.orders.filter(o => o.isDangerousGoods && o.status === "offered");
+  const openDg = currentOrders(state).filter(o => o.isDangerousGoods && o.status === "offered");
   const openVs = openDg.filter(o => o.dgTransportType === "versandstueck").length;
   const openTk = openDg.filter(o => o.dgTransportType === "tank").length;
 
@@ -555,7 +556,7 @@ export function fillInitialMarket(state) {
   if (!state.market) migrateMarket(state);
   const n = computePlanableFleetN(state);
   const t = computeTargetInventory(n);
-  const openCount = state.orders.filter(o => o.status === "offered").length;
+  const openCount = currentOrders(state).filter(o => o.status === "offered").length;
   const needed = Math.max(0, t - openCount);
   let feasible = 0;
   for (let i = 0; i < needed; i++) {
@@ -567,7 +568,7 @@ export function fillInitialMarket(state) {
   state.market.stats.offersGenerated = (state.market.stats.offersGenerated || 0) + needed;
   state.market.stats.lastN = n;
   state.market.stats.lastT = t;
-  state.market.stats.lastO = state.orders.filter(o => o.status === "offered").length;
+  state.market.stats.lastO = currentOrders(state).filter(o => o.status === "offered").length;
   state.market.stats.feasibleCount = (state.market.stats.feasibleCount || 0) + feasible;
   state.market.stats.feasibilityChecked = (state.market.stats.feasibilityChecked || 0) + needed;
 }
@@ -578,7 +579,7 @@ export function getMarketStats(state) {
   if (!state.market) migrateMarket(state);
   const n = computePlanableFleetN(state);
   const t = computeTargetInventory(n);
-  const openOffers = state.orders.filter(o => o.status === "offered").length;
+  const openOffers = currentOrders(state).filter(o => o.status === "offered").length;
   const hour = (state.gameTime % 1440) / 60;
   const b = computeWaveBudget(n, hour);
   const nextWave = state.market.nextWaveMin || (Math.floor(state.gameTime / 60) * 60 + 60);
@@ -639,7 +640,7 @@ export function migrateMarket(state) {
 // Einheitlicher Abschluss für überfällige Aufträge, unabhängig vom Aufrufpfad.
 export function failOverdueOrders(state, m, log) {
   let failed = 0;
-  for (const o of state.orders) {
+  for (const o of currentOrders(state)) {
     if (o.status !== "angenommen") continue;
     if (o.deliveryDeadlineMin + 240 > m) continue;
     // Prüfen, ob der Auftrag unterwegs ist (Trip läuft noch)

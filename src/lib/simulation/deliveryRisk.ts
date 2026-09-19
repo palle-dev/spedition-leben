@@ -1,3 +1,4 @@
+import { currentOrders } from "./orderLookup.ts";
 // Read-only risk detection; no random draws, events, finance, or mutation.
 export function getDeliveryRisks(state) {
  const now=state.gameTime||0, trips=new Map(), plans=new Map(), issues=new Map();
@@ -9,7 +10,7 @@ export function getDeliveryRisks(state) {
  for(const d of state.disruptions?.items||[])if(d.status!=="completed")for(const id of d.orderIds||[])issues.set(id,d);
  const vehicles=new Map((state.vehicles||[]).map(v=>[v.id,v])),drivers=new Map((state.drivers||[]).map(d=>[d.id,d]));
  const risks=[];
- for(const o of state.orders||[]){
+ for(const o of currentOrders(state)){
   if(!["angenommen","unterwegs"].includes(o.status)||!Number.isFinite(o.deliveryDeadlineMin))continue;
   const trip=trips.get(o.id),plan=plans.get(o.id),movement=trip||plan,issue=issues.get(o.id);
   const eta=Number.isFinite(movement?.endMin)?movement.endMin:null;

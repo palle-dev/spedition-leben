@@ -1,11 +1,11 @@
-import { withOrderLookup, findOrder } from "./orderLookup.ts";
-import { getPhoneProposals } from "./phoneProposals.ts";
+import { withOrderLookup, findOrder, currentOrders } from "./orderLookup.ts";
+import { getPhoneProposals, withPhoneProposalSearch } from "./phoneProposals.ts";
 import { getDeliveryRisks, getEscalatedDeliveryRisks } from "./deliveryRisk.ts";
 import { deliverMessage } from "./mailEngine.ts";
 
 // Called at simulation event boundaries; deterministic and idempotent.
 export function processPhoneCommunications(state, silent=false){
- return withOrderLookup(state, (state.orders||[]).filter(o=>o.status==="angenommen"||o.status==="unterwegs"), ()=>{
+ return withOrderLookup(state, currentOrders(state).filter(o=>o.status==="angenommen"||o.status==="unterwegs"), ()=>{
  const risks=getDeliveryRisks(state);
  for(const risk of risks){
   const order=findOrder(state,risk.orderId);
@@ -22,12 +22,14 @@ export function processPhoneCommunications(state, silent=false){
   calls.push({id:d.id,type:"disruption",title:d.cause||"Rückruf der Leitstelle",source:"Leitstelle",disruptionId:d.id});
  }
  const actionable=[];
+ withPhoneProposalSearch(state,()=>{
  for(const call of calls){
   if(getPhoneProposals(state,call,1).length)actionable.push(call);
   else deliverMessage(state,{fromId:"system",toId:"player",subject:"Lieferhinweis: "+(call.customer||call.title||"Betrieb"),
    body:(call.description||call.title||"Lieferung in Gefahr")+". Aktuell liegt kein ausführbarer Entscheidungsvorschlag vor. Dieser Hinweis erfordert keine telefonische Freigabe.",
    gameTime:state.gameTime,category:"operations",priority:"normal",linkedRefs:{type:call.type==="disruption"?"disruption":"order",id:call.disruptionId||call.orderId||call.id},dedupKey:"delivery_notice:"+call.id});
  }
+ });
  if(!silent||!actionable.length)return;
  const missed=state.missedPhoneCalls||(state.missedPhoneCalls=[]);
  const known=new Set(missed.map(c=>c.id));

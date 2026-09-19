@@ -1,4 +1,4 @@
-import { findOrder } from "./orderLookup.ts";
+import { findOrder, planningOrdersFor } from "./orderLookup.ts";
 // Tourenketten-Engine für FERNWERK.
 // Planung, Validierung, Bestätigung und automatische Ausführung von
 // Mehrfachauftrags-Ketten mit Erholung, Leerfahrten und Fristen.
@@ -33,7 +33,23 @@ function uid(state, prefix) {
 // Reduziert redundante earliestAvailable/futureLocation/nextReservationStart
 // Aufrufe innerhalb einer suggestTours-Suche (dieselben Fahrzeug/Fahrer-Paare
 // liefern identische Ergebnisse, da der Zustand sich nicht ändert).
-const _planCache = new Map();
+let _planCache = new Map();
+type PlanningResources = { vehicles: Map<any, any>, drivers: Map<any, any>, tours: any[], trips: Map<any, any>, driverTrips: Map<any, any> };
+const validationResources = new WeakMap<object, PlanningResources>();
+function planningResources(state): PlanningResources {
+  const trips = new Map(), driverTrips = new Map();
+  for (const trip of state.trips || []) {
+    if (!trips.has(trip.id)) trips.set(trip.id, trip);
+    if (trip.status === "in_progress" && !driverTrips.has(trip.driverId)) driverTrips.set(trip.driverId, trip);
+  }
+  return { vehicles: new Map(state.vehicles.map(v => [v.id, v])),
+    drivers: new Map(state.drivers.map(d => [d.id, d])), trips, driverTrips,
+    tours: (state.tours || []).filter(t => t.status === "active" || t.status === "planned") };
+}
+function planningTours(state) { return validationResources.get(state)?.tours || state.tours || []; }
+function tripById(state, id) { return validationResources.get(state)?.trips.get(id) || state.trips.find(t => t.id === id); }
+function driverTrip(state, id) { return validationResources.get(state)?.driverTrips.get(id) || state.trips.find(t => t.driverId === id && t.status === "in_progress"); }
+
 export function _clearPlanCache() { _planCache.clear(); }
 function _cached(key, fn) {
   if (_planCache.has(key)) return _planCache.get(key);
@@ -47,10 +63,12 @@ function _cached(key, fn) {
 // von buildTourPlan genutzt, wenn verfügbar. Eliminiert O(n) .find()-Aufrufe
 // bei 192K+ buildTourPlan-Aufrufen pro Tagesvorlauf.
 function _vehicleById(state, id) {
+  if (validationResources.has(state)) return validationResources.get(state)!.vehicles.get(id);
   if (state._vehicleMap) return state._vehicleMap.get(id);
   return state.vehicles.find(v => v.id === id);
 }
 function _driverById(state, id) {
+  if (validationResources.has(state)) return validationResources.get(state)!.drivers.get(id);
   if (state._driverMap) return state._driverMap.get(id);
   return state.drivers.find(d => d.id === id);
 }
@@ -67,7 +85,7 @@ export function isResourceFree(state, resource, fromMin, toMin) {
   // Prüfe Vorausplanungen: Eine geplanter Einsatz blockiert das Intervall,
   // wenn die neue Nutzung [fromMin, toMin] bis zum Einsatz-Start reicht.
   // Pausierte Touren blockieren nicht.
-  for (const tour of state.tours || []) {
+  for (const tour of planningTours(state)) {
     if (tour.status !== "active" && tour.status !== "planned") continue;
     if (tour.pauseReason) continue;
     if (tour.vehicleId !== resource.id && tour.driverId !== resource.id) continue;
@@ -88,7 +106,7 @@ export function isResourceFree(state, resource, fromMin, toMin) {
 export function earliestAvailable(state, vehicle, driver) {
   let t = state.gameTime;
   if (vehicle.status === "on_trip") {
-    const trip = state.trips.find(tr => tr.id === vehicle.tripId);
+    const trip = tripById(state, vehicle.tripId);
     if (trip) t = Math.max(t, trip.endMin);
   }
   if (vehicle.status === "maintenance" && vehicle.maintenanceUntil) {
@@ -98,7 +116,7 @@ export function earliestAvailable(state, vehicle, driver) {
     t = Math.max(t, driver.restUntil);
   }
   if (driver.status === "on_trip") {
-    const trip = state.trips.find(tr => tr.status === "in_progress" && tr.driverId === driver.id);
+    const trip = driverTrip(state, driver.id);
     if (trip) t = Math.max(t, trip.endMin);
   }
   return t;
@@ -110,7 +128,7 @@ export function earliestAvailable(state, vehicle, driver) {
 // Gibt null zurück, wenn keine Vorausplanung existiert.
 export function nextReservationStart(state, vehicle, driver) {
   let earliest = null;
-  for (const tour of state.tours || []) {
+  for (const tour of planningTours(state)) {
     if (tour.status !== "active" && tour.status !== "planned") continue;
     if (tour.pauseReason) continue;
     if (tour.vehicleId !== vehicle.id && tour.driverId !== driver.id) continue;
@@ -130,7 +148,7 @@ export function nextReservationStart(state, vehicle, driver) {
 export function futureLocation(state, vehicle) {
   // 1. Aktiver Trip: Endstadt aus Phasen ableiten
   if (vehicle.status === "on_trip" && vehicle.tripId) {
-    const trip = state.trips.find(t => t.id === vehicle.tripId);
+    const trip = tripById(state, vehicle.tripId);
     if (trip && trip.phases) {
       for (let i = trip.phases.length - 1; i >= 0; i--) {
         const p = trip.phases[i];
@@ -139,7 +157,7 @@ export function futureLocation(state, vehicle) {
     }
   }
   // 2. Aktive Tour mit geplanten Deployments: Endstadt des letzten Deployments
-  for (const tour of state.tours || []) {
+  for (const tour of planningTours(state)) {
     if (tour.status !== "active") continue;
     if (tour.vehicleId !== vehicle.id) continue;
     const allDeps = [...(tour.deployments || []), tour.returnDeployment].filter(Boolean);
@@ -157,7 +175,7 @@ export function futureLocation(state, vehicle) {
 // laufenden Touren. Entspricht futureLocation für Fahrzeuge.
 export function futureDriverLocation(state, driver) {
   if (driver.status === "on_trip") {
-    const trip = state.trips.find(t => t.driverId === driver.id && t.status === "in_progress");
+    const trip = driverTrip(state, driver.id);
     if (trip && trip.phases) {
       for (let i = trip.phases.length - 1; i >= 0; i--) {
         const p = trip.phases[i];
@@ -165,7 +183,7 @@ export function futureDriverLocation(state, driver) {
       }
     }
   }
-  for (const tour of state.tours || []) {
+  for (const tour of planningTours(state)) {
     if (tour.status !== "active") continue;
     if (tour.driverId !== driver.id) continue;
     const allDeps = [...(tour.deployments || []), tour.returnDeployment].filter(Boolean);
@@ -280,7 +298,7 @@ function planningDriverCounters(state, driver) {
     let initCounters = { workMin: rested ? 0 : (driver.workMinutesSinceRest || 0),
       driveMin: rested ? 0 : (driver.driveMinutesSinceBreak || 0) };
     if (driver.status === "on_trip") {
-      const trip = state.trips.find(t => t.driverId === driver.id && t.status === "in_progress");
+      const trip = driverTrip(state, driver.id);
       if (trip) initCounters = computeFinalCounters(trip.phases || [], trip.initialCounters || initCounters);
     }
 
@@ -523,6 +541,32 @@ export function validateTourConfirmation(state, params) {
 
   // 1. Plane die Tour (Validierung)
   const plan = buildTourPlan(state, { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin, minStartTime });
+  return validateBuiltTour(state, params, plan);
+}
+
+// Only for synchronous, read-only proposal searches. Never confirm or mutate
+// the state inside this callback; real confirmation always rebuilds its plan.
+export function withTourValidation<T>(state, action: (validate: (params: any) => any) => T): T {
+  const previousCache = _planCache;
+  const previousResources = validationResources.get(state);
+  _planCache = new Map();
+  validationResources.set(state, planningResources(state));
+  try {
+    return action(params => {
+      const plan = buildTourPlan(state, params);
+      // An infeasible candidate is expected, not an exception.
+      if (!plan.ok) return null;
+      try { return validateBuiltTour(state, params, plan); } catch { return null; }
+    });
+  } finally {
+    _planCache = previousCache;
+    if (previousResources) validationResources.set(state, previousResources);
+    else validationResources.delete(state);
+  }
+}
+
+function validateBuiltTour(state, params, plan) {
+  const { vehicleId, driverId, orderIds } = params;
   if (plan.error) throw new Error(plan.error);
   if (!("earliestStartMin" in plan)) throw new Error("Tourplanung unvollständig.");
 
@@ -1102,8 +1146,10 @@ export function suggestTours(state, opts) {
   // Bei 192K buildTourPlan-Aufrufen mit 320 Aufträgen spart das ~46M Iterationen.
   state._vehicleMap = new Map(state.vehicles.map(v => [v.id, v]));
   state._driverMap = new Map(state.drivers.map(d => [d.id, d]));
-  const planningOrders = state.orders.filter(o => o.status === "angenommen" || (acceptNew && o.status === "offered"));
+  const planningOrders = planningOrdersFor(state).filter(o => o.status === "angenommen" || (acceptNew && o.status === "offered"));
   state._orderMap = new Map(planningOrders.map(o => [o.id, o]));
+  const previousResources = validationResources.get(state);
+  validationResources.set(state, planningResources(state));
 
   try {
   const startMin = earliestStart || state.gameTime;
@@ -1289,6 +1335,9 @@ export function suggestTours(state, opts) {
     // Alle fahrerabhängigen Eingaben von buildTourPlan sind enthalten.
     const seenDriverConditions = new Set();
     for (const driver of candidateDrivers) {
+      // buildTourPlan always rejects different future locations. Avoid all
+      // single/double-order attempts for this provably infeasible pair.
+      if (_cached("futD:" + driver.id, () => futureDriverLocation(state, driver)) !== vehicleFutureCity) continue;
       const counters = planningDriverCounters(state, driver);
       const conditions = JSON.stringify([
         availabilitySensitive.has(driver.id) || driver.trainingUntil || driver.attendance === "released" ? driver.id : null,
@@ -1374,6 +1423,8 @@ export function suggestTours(state, opts) {
 
   return { suggestions };
   } finally {
+    if (previousResources) validationResources.set(state, previousResources);
+    else validationResources.delete(state);
     state._vehicleMap = null;
     state._driverMap = null;
     state._orderMap = null;

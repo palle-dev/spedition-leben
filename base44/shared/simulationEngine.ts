@@ -1,3 +1,4 @@
+import { withSimulationOrders, currentOrders, findOrder } from "./orderLookup.ts";
 import {hireInvestmentAdvisor,configureInvestmentAdvisor,stopInvestmentAdvisor,processInvestmentAdvisor} from "./investmentAdvisor.ts";
 import {processManagementReports} from "./managementResponsibilities.ts";
 import {executeStaffPhoneCommand} from "./staffPhone.ts";
@@ -403,7 +404,7 @@ function completeTrip(state, trip, m, log) {
     planSingleVehicle(state, vehicle, m, log);
     return;
   }
-  const order = state.orders.find(o => o.id === trip.orderId);
+  const order = findOrder(state, trip.orderId);
   // Alte Spielstände können zwei verschiedene Trips für denselben Auftrag
   // enthalten. Fahrzeugfreigabe ist nötig, eine zweite Leistung/Zahlung nicht.
   if (!order || order.deliveredAtMin != null || order.paidCents != null ||
@@ -583,7 +584,7 @@ function processEventsAt(state, m, log) {
       const vehicle = state.vehicles.find(v => v.id === tour?.vehicleId);
       const driver = state.drivers.find(d => d.id === tour?.driverId);
       const dep = tour?.deployments?.find(d => d.id === le.deployment);
-      const order = dep?.orderId ? state.orders.find(o => o.id === dep.orderId) : null;
+      const order = dep?.orderId ? findOrder(state, dep.orderId) : null;
       if (vehicle) le.branchId = vehicle.branchId;
       pushEvent(state, {
         type: "tour_started",
@@ -702,7 +703,7 @@ function processEventsAt(state, m, log) {
   }
   processWorld(state, m);
   // 5. Angebotsablauf
-  for (const o of state.orders) { if (o.status === "offered" && o.acceptDeadlineMin === m) { o.status = "expired"; log.push({ type: "order_expired", order: o.id }); } }
+  for (const o of currentOrders(state)) { if (o.status === "offered" && o.acceptDeadlineMin === m) { o.status = "expired"; log.push({ type: "order_expired", order: o.id }); } }
   processAcquisitionEvents(state, m, log);
   failOverdueOrders(state, m, log);
   // 5b. Marktwelle zu jeder vollen Spielstunde (Auftrag 19)
@@ -746,6 +747,9 @@ function processEventsAt(state, m, log) {
   }
 }
 function advanceTo(state, targetMin, log, reportStart, stopOnDeliveryRisk = false, silentPhoneAdvance = false) {
+  return withSimulationOrders(state, () => advanceToIndexed(state, targetMin, log, reportStart, stopOnDeliveryRisk, silentPhoneAdvance));
+}
+function advanceToIndexed(state, targetMin, log, reportStart, stopOnDeliveryRisk, silentPhoneAdvance) {
   // Flag für processDispatcher: während eines Vorlaufs (reportStart definiert)
   // wird die Skip-Cache-Schwelle von 10 auf 60 Min angehoben — der Context-Key
   // erfasst alle handlungsrelevanten Änderungen, sodass 15-Min-Ticks mit
