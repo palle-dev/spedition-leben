@@ -22,7 +22,7 @@ simWorker.onmessage = (e) => {
     return;
   }
   const resolver = _workerPending.get(id);
-  if (resolver) { _workerPending.delete(id); _workerProgress.delete(id); resolver(data); }
+  if (resolver) { _workerPending.delete(id); _workerProgress.delete(id); resolver(data, e.data.workerComputeMs); }
 };
 simWorker.onerror = (e) => {
   // Worker-Absturz: alle pending Promises mit Fehler auflösen
@@ -34,14 +34,18 @@ simWorker.onerror = (e) => {
 };
 function executeInWorker(state, command, params, onProgress, diag) {
   const id = ++_workerMsgId;
-  const tSend = performance.now();
+  const sizeStart = performance.now();
   let stateSize = 0;
   if (diag) { try { stateSize = new Blob([JSON.stringify(state)]).size; } catch(e) {} }
+  if (diag) diag.stateSizingMs = performance.now() - sizeStart;
+  const tSend = performance.now();
   return new Promise((resolve) => {
     if (onProgress) _workerProgress.set(id, onProgress);
-    _workerPending.set(id, (data) => {
+    _workerPending.set(id, (data, workerComputeMs) => {
       if (diag) {
         diag.workerMs = performance.now() - tSend;
+        diag.workerComputeMs = Number.isFinite(workerComputeMs) ? workerComputeMs : null;
+        diag.workerOtherMs = Number.isFinite(workerComputeMs) ? Math.max(0, diag.workerMs - workerComputeMs) : null;
         diag.stateSizeKb = Math.round(stateSize / 1024);
       }
       resolve(data);
@@ -986,11 +990,13 @@ export function GameProvider({ children }) {
   }, []);
 
   // ---- Entwickler-Diagnose: gemessener Tagesvorlauf ----
-  const runDiagnosedAdvance = useCallback(async () => {
+  const runDiagnosedAdvance = useCallback(async (minutes = 1440) => {
+    if (![60, 1440].includes(minutes)) throw new Error("Bitte 1 Stunde oder 1 Tag wählen.");
     const diag = {};
+    diag.requestedMinutes = minutes;
     diag.automationEnabled = automationEnabled;
     diag.gameTimeBefore = stateRef.current?.gameTime || 0;
-    await startBackgroundAdvance(1440, diag);
+    await startBackgroundAdvance(minutes, diag);
     diag.gameTimeAfter = stateRef.current?.gameTime || 0;
     diagRef.current = diag;
     return diag;
@@ -1019,6 +1025,7 @@ export function GameProvider({ children }) {
     try { stateSizeKb = Math.round(new Blob([JSON.stringify(s)]).size / 1024); } catch(e) {}
     return {
       timestamp: new Date().toISOString(),
+      requestedMinutes: diag.requestedMinutes || 1440,
       gameTimeBefore: diag.gameTimeBefore || 0,
       gameTimeAfter: diag.gameTimeAfter || 0,
       automationEnabled: diag.automationEnabled ?? false,
@@ -1026,6 +1033,9 @@ export function GameProvider({ children }) {
         waitMs: Math.round(diag.waitMs || 0),
         waitPolls: diag.waitPolls || 0,
         workerMs: Math.round(diag.workerMs || 0),
+        workerComputeMs: diag.workerComputeMs == null ? null : Math.round(diag.workerComputeMs),
+        workerOtherMs: diag.workerOtherMs == null ? null : Math.round(diag.workerOtherMs),
+        stateSizingMs: Math.round(diag.stateSizingMs || 0),
         processMs: Math.round(diag.processMs || 0),
         totalMs: Math.round(diag.totalMs || 0),
         stateSizeKb: diag.stateSizeKb || stateSizeKb,

@@ -8,11 +8,12 @@ import { X, Copy, Play, Check, Loader2 } from "lucide-react";
 // - Wartezeit vor dem Worker-Aufruf (syncAutomation/send-Überschneidungen)
 // - Worker-Rechenzeit (Tagesvorlauf in der Engine)
 // - Ergebnisverarbeitung (processNewEvents, processResult, setState)
-// - Gesamtdauer vom Klick bis zur fertigen Oberfläche
+// - Dauer bis zur Ergebnisübernahme; kein Paint-/Persistenz-Abschluss
 // - technische Mengen: Fahrzeuge, Fahrer, Disponenten, Aufträge, etc.
 export default function DiagPanel({ onClose }) {
   const { runDiagnosedAdvance, getDiagReport } = useGame();
   const [running, setRunning] = useState(false);
+  const [minutes, setMinutes] = useState(1440);
   const [report, setReport] = useState(null);
   const [copied, setCopied] = useState(false);
 
@@ -20,7 +21,7 @@ export default function DiagPanel({ onClose }) {
     setRunning(true);
     setReport(null);
     try {
-      await runDiagnosedAdvance();
+      await runDiagnosedAdvance(minutes);
       setReport(getDiagReport());
     } catch (e) {
       setReport({ error: e.message });
@@ -53,7 +54,7 @@ export default function DiagPanel({ onClose }) {
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-lime">Diagnose: Tagesvorlauf</h2>
+          <h2 className="text-lg font-semibold text-lime">Diagnose: Zeitvorlauf</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition">
             <X className="w-5 h-5" />
           </button>
@@ -61,19 +62,25 @@ export default function DiagPanel({ onClose }) {
 
         <div className="space-y-4">
           <div className="text-sm text-muted-foreground leading-relaxed">
-            Führt einen gemessenen Tagesvorlauf (1440 Min) aus und erfasst alle Zeitanteile
-            vom Klick bis zur fertigen Oberfläche. Der Spielstand wird dabei normal
+            Misst einen Stunden- oder Tagesvorlauf bis zur Ergebnisübernahme. Rechenzeit und
+            Worker-Rundlauf werden getrennt erfasst; spätere Darstellung und Speicherung sind nicht enthalten. Der Spielstand wird dabei normal
             fortgesetzt — verwende vorher eine manuelle Sicherung, falls du den
             Zustand erhalten möchtest.
           </div>
 
+          <label className="flex items-center gap-3 text-sm">
+            Zeitspanne
+            <select aria-label="Zeitspanne für Diagnose" value={minutes} onChange={e => setMinutes(Number(e.target.value))} disabled={running} className="rounded-lg bg-black/40 border border-white/15 px-3 py-2">
+              <option value={60}>1 Stunde</option><option value={1440}>1 Tag</option>
+            </select>
+          </label>
           <button
             onClick={handleRun}
             disabled={running}
             className="flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm bg-lime/10 text-lime border border-lime/20 hover:bg-lime/20 transition disabled:opacity-40 min-h-[44px]"
           >
             {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-            {running ? "Tagesvorlauf läuft…" : "Gemessenen Tagesvorlauf starten"}
+            {running ? "Messung läuft…" : "Gemessenen Vorlauf starten"}
           </button>
 
           {report && !report.error && (
@@ -98,7 +105,7 @@ export default function DiagPanel({ onClose }) {
                   </div>
                 </div>
                 <div className="glass border border-white/10 rounded-lg p-2.5">
-                  <div className="text-muted-foreground mb-0.5">Worker-Rechenzeit</div>
+                  <div className="text-muted-foreground mb-0.5">Worker-Rundlauf</div>
                   <div className="text-lg font-semibold text-foreground tabular-nums">
                     {(timings.workerMs / 1000).toFixed(1)}s
                   </div>
@@ -118,6 +125,9 @@ export default function DiagPanel({ onClose }) {
                 </div>
               </div>
 
+              {timings.workerComputeMs != null && <p className="text-xs text-muted-foreground">
+                Davon reine Berechnung: {(timings.workerComputeMs / 1000).toFixed(2)}s · Übertragung, Warteschlange und Zustellung: {(timings.workerOtherMs / 1000).toFixed(2)}s.
+              </p>}
               {/* Zeitanteile Balken */}
               <div className="glass border border-white/10 rounded-lg p-3">
                 <div className="text-xs text-muted-foreground mb-2">Zeitanteile</div>

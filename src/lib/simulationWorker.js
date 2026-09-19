@@ -13,10 +13,11 @@ self.onmessage = async (e) => {
   const { id, state, command, params } = e.data;
   // Fortschritts-Callback für lange Zeitvorläufe einrichten
   setProgressHook((progress) => self.postMessage({ id, type: "progress", progress }));
+  const computeStart = performance.now();
   try {
     const data = await executeCommand(state, command, params || {});
     setProgressHook(null);
-    self.postMessage({ id, data });
+    self.postMessage({ id, data, workerComputeMs: performance.now() - computeStart });
   } catch (err) {
     setProgressHook(null);
     self.postMessage({ id, data: { error: (err && err.message) || "Unbekannter Fehler im Worker" } });
