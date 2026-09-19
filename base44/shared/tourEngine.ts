@@ -272,16 +272,16 @@ export function buildEmptyDeployment(state, fromCity, toCity, vehicle, earliestS
 // Nur während einer unveränderlichen Tourensuche zwischenspeichern.
 function planningDriverCounters(state, driver) {
   const calculate = () => {
-  // Vorschauen ändern den Zustand nicht. Nur dokumentierte Ruhe setzt
-  // Zähler zurück; fehlendes freeSinceMin ist kein Nachweis für 12h Ruhe.
-  const rested = driver.status === "resting" || (driver.status === "free" &&
-    driver.freeSinceMin != null && state.gameTime - driver.freeSinceMin >= REST_MIN);
-  let initCounters = { workMin: rested ? 0 : (driver.workMinutesSinceRest || 0),
-    driveMin: rested ? 0 : (driver.driveMinutesSinceBreak || 0) };
-  if (driver.status === "on_trip") {
-    const trip = state.trips.find(t => t.driverId === driver.id && t.status === "in_progress");
-    if (trip) initCounters = computeFinalCounters(trip.phases || [], trip.initialCounters || initCounters);
-  }
+    // Vorschauen ändern den Zustand nicht. Nur dokumentierte Ruhe setzt
+    // Zähler zurück; fehlendes freeSinceMin ist kein Nachweis für 12h Ruhe.
+    const rested = driver.status === "resting" || (driver.status === "free" &&
+      driver.freeSinceMin != null && state.gameTime - driver.freeSinceMin >= REST_MIN);
+    let initCounters = { workMin: rested ? 0 : (driver.workMinutesSinceRest || 0),
+      driveMin: rested ? 0 : (driver.driveMinutesSinceBreak || 0) };
+    if (driver.status === "on_trip") {
+      const trip = state.trips.find(t => t.driverId === driver.id && t.status === "in_progress");
+      if (trip) initCounters = computeFinalCounters(trip.phases || [], trip.initialCounters || initCounters);
+    }
 
     return initCounters;
   };
