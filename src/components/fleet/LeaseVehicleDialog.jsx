@@ -3,6 +3,7 @@ import { useGame } from "@/lib/gameContext";
 import { formatEuro } from "@/lib/gameData";
 import { VEHICLE_BODY_TYPE_LIST } from "@/lib/gameData";
 import { FileText, Check, ArrowRight, Wallet, Gauge } from "lucide-react";
+import VehicleShowroom from "@/components/three/VehicleShowroom";
 
 const LEASE_OFFERS = [
   { id: "regional_flex", label: "Regional-Lkw", capacityTons: 8, consumptionPer100km: 22, monthlyRateCents: 54000, specialPaymentCents: 0, termMonths: 24 },
@@ -16,6 +17,7 @@ export default function LeaseVehicleDialog({ branchId, branchCity, onClose }) {
   const [offerId, setOfferId] = useState("standard_flex");
   const [bodyType, setBodyType] = useState("planen");
   const [leasing, setLeasing] = useState(false);
+  const [showroom, setShowroom] = useState(null);
 
   const offer = LEASE_OFFERS.find(o => o.id === offerId) || LEASE_OFFERS[1];
   const body = VEHICLE_BODY_TYPE_LIST.find(b => b.id === bodyType) || VEHICLE_BODY_TYPE_LIST[0];
@@ -28,7 +30,7 @@ export default function LeaseVehicleDialog({ branchId, branchCity, onClose }) {
     try {
       await send("leaseTruck", { provisionCity: branchCity, branchId, offerId: offer.id, bodyType });
       showToast(`${offer.label} (${body.label}) in ${branchCity} geleast.`, "success");
-      onClose();
+      setShowroom({ vehicleType: offerId.includes("heavy") ? "heavy" : offerId.includes("regional") ? "regional" : "standard", bodyType, label: `${offer.label} · ${body.label}` });
     } catch (e) {
       showToast(e.message, "error");
     } finally {
@@ -120,6 +122,14 @@ export default function LeaseVehicleDialog({ branchId, branchCity, onClose }) {
           </button>
         </div>
       </div>
+      {showroom && (
+        <VehicleShowroom
+          vehicleType={showroom.vehicleType}
+          bodyType={showroom.bodyType}
+          vehicleLabel={showroom.label}
+          onClose={() => { setShowroom(null); onClose(); }}
+        />
+      )}
     </div>
   );
 }
