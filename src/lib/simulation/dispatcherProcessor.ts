@@ -61,6 +61,9 @@ function isDispatcherOnShift(emp, gameMinute) {
 
 // Wird an Dienstzeitpunkten (08:00–16:00, alle 60 min) aufgerufen.
 export function processEmployees(state, m, log) {
+  // Nur innerhalb dieser Ereignisrunde: identische erfolglose Suchen teilen.
+  // Nicht im Spielstand speichern oder über Zeit-/Befehlsgrenzen verwenden.
+  const emptySearches = new Map();
   const clock = m % 1440;
   const inServiceHours = clock >= SERVICE_START_MIN && clock < SERVICE_END_MIN;
   // Inkrementelle Disposition: completeTrip löst planSingleVehicle aus,
@@ -76,10 +79,12 @@ export function processEmployees(state, m, log) {
       // während 24×60 sie innerhalb 1h aufnimmt — unterschiedliche Ergebnisse.
       // Die kontextsensitive Skip-Cache in processDispatcher verhindert
       // redundante suggestTours-Aufrufe, wenn sich die Lage nicht geändert hat.
-      processDispatcher(state, emp, m, log);
+      processDispatcher(state, emp, m, log, emptySearches);
     } else if (inServiceHours && (emp.role === "accountant" || emp.role === "accountant_senior")) {
+      emptySearches.clear();
       processAccountant(state, emp, m, log);
     } else if (inServiceHours && emp.role === "cleaner") {
+      emptySearches.clear();
       processCleaner(state, emp, m, log);
     }
   }
@@ -110,7 +115,21 @@ function processCleaner(state, emp, m, log) {
 // Disponent verarbeitet seine zugewiesenen Lkw.
 // Modus A: erstellt Vorschläge für freie Fahrzeuge mit angenommenen Aufträgen.
 // Modus B/C: nutzt suggestTours für flottenweite Planung.
-export function processDispatcher(state, emp, m, log) {
+// suggestTours ist eine reine Suche. Leere Ergebnisse dürfen weitere
+// Disponenten mit exakt denselben Suchparametern in derselben Runde nutzen.
+// Jeder nichtleere Treffer invalidiert ALLE Einträge, bevor Bestätigungen
+// Aufträge, Fahrer, Geld oder Reservierungen verändern können.
+function searchDispatcherTours(state, emptySearches, options) {
+  if (!emptySearches) return suggestTours(state, options);
+  const key = JSON.stringify(options);
+  if (emptySearches.has(key)) return emptySearches.get(key);
+  const result = suggestTours(state, options);
+  if (result.suggestions.length === 0) emptySearches.set(key, result);
+  else emptySearches.clear();
+  return result;
+}
+
+export function processDispatcher(state, emp, m, log, emptySearches = null) {
   if (emp.isTempStaff && Number.isFinite(emp.tempReturnMin) && emp.tempReturnMin <= m) return;
   let poolVehicles = state.vehicles.filter(v =>
     v.status !== "sold" && v.status !== "archived" && !v.markedForSale
@@ -141,7 +160,7 @@ export function processDispatcher(state, emp, m, log) {
     if (existingValid.length > 0) {
       if (!hasSituationChanged(state, emp, existingValid)) return;
     }
-    const result = suggestTours(state, {
+    const result = searchDispatcherTours(state, emptySearches, {
       vehicleIds: poolVehicleIds, earliestStart: m, horizonMin: 2880,
       desiredEndCity: null, latestReturnMin: null, mode: state.marketPriority || "balanced", acceptNew: false,
       fastMode: state._largeAdvance === false,
@@ -231,7 +250,7 @@ export function processDispatcher(state, emp, m, log) {
   }
   emp._lastPlanContext = contextKey;
 
-  const result = suggestTours(state, {
+  const result = searchDispatcherTours(state, emptySearches, {
     vehicleIds: poolVehicleIds, earliestStart: m, horizonMin,
     desiredEndCity: null, latestReturnMin: null, mode: state.marketPriority || "balanced", acceptNew,
     fastMode: state._largeAdvance === false,

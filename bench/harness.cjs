@@ -29,7 +29,7 @@ require.extensions[".ts"] = function (module, filename) {
   // Leichte Instrumentierung: Zähler am Funktionsanfang injizieren
   if (filename.endsWith("dispatcherProcessor.ts")) {
     src = src.replace(
-      "export function processDispatcher(state, emp, m, log) {",
+      "export function processDispatcher(state, emp, m, log, emptySearches = null) {",
       "export function processDispatcher(state, emp, m, log) { global.__BENCH.pd++;"
     );
     src = src.replace(
