@@ -30,7 +30,7 @@ require.extensions[".ts"] = function (module, filename) {
   if (filename.endsWith("dispatcherProcessor.ts")) {
     src = src.replace(
       "export function processDispatcher(state, emp, m, log, emptySearches = null) {",
-      "export function processDispatcher(state, emp, m, log) { global.__BENCH.pd++;"
+      "export function processDispatcher(state, emp, m, log, emptySearches = null) { global.__BENCH.pd++;"
     );
     src = src.replace(
       "export function planSingleVehicle(state, vehicle, m, log) {",
