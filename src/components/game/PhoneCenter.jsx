@@ -2,7 +2,6 @@ import StaffPhoneDialog from "./StaffPhoneDialog";
 import {getStaffPhoneContacts} from "@/lib/simulation/staffPhone";
 import PhoneConversation from "./PhoneConversation";
 import { getPhoneProposals } from "@/lib/simulation/phoneProposals";
-import OfficeAudioControls from "./OfficeAudioControls";
 import { setOfficeDucked } from "@/lib/officeAudio";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
@@ -13,7 +12,7 @@ import { getCommunicationQueue, deadlineLabel } from "@/lib/communicationData";
 import { getDisruptionDetail } from "@/lib/simulation/disruptionEngine";
 import { formatGameTime } from "@/lib/gameData";
 import { startPhoneRinging } from "@/lib/phoneRinging";
-import { playPhoneSound, stopPhoneSound, useSoundEnabled, useSoundVolume, usePhoneAudioStatus, phoneRingUrl, setSoundEnabled } from "@/lib/experienceSound";
+import { playPhoneSound, stopPhoneSound, useSoundEnabled } from "@/lib/experienceSound";
 import Portrait from "@/components/ui/Portrait";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
@@ -27,8 +26,6 @@ export default function PhoneCenter() {
  const [sending,setSending]=useState(false),[error,setError]=useState("");
  const ringCounts=useRef(new Map());
  const soundReady=useSoundEnabled();
- const phoneAudioStatus=usePhoneAudioStatus(), soundVolume=useSoundVolume();
- const [playerStatus,setPlayerStatus]=useState("");
  const missed=state.missedPhoneCalls||[];
  const missedIds=new Set(missed.map(c=>c.id));
  const incoming=queue.calls.find(c=>!later.includes(c.id)&&!missedIds.has(c.id));
@@ -58,12 +55,6 @@ export default function PhoneCenter() {
  orders:[{status:"angenommen",deliveryDeadlineMin:risk.deadline}],
  options:[]};
  })() : selected ? getDisruptionDetail(state,selected.id) : null,[state,selected,queue.calls]);
- function testCall(){
-  setError("");setPlayerStatus("");setShowList(false);
-  void setSoundEnabled(true,{preview:false});
-  void playPhoneSound("test");
-  setSelected({id:"demo",demo:true,source:"Leitstelle · Testanruf",title:"Verbindungstest"});
- }
  const blocked=busy || !!backgroundAdvance?.active || sending;
  const defer=()=>{stopPhoneSound("test");if(selected && !selected.demo)setLater(prev=>[...new Set([...prev.filter(id=>queue.calls.some(c=>c.id===id)),selected.id])]);setSelected(null);setError("");};
  const answer=call=>{setSelected(call);setShowList(false);setError("");};
@@ -98,8 +89,6 @@ export default function PhoneCenter() {
  {showList&&<section aria-label="Team anrufen" className="border-t border-white/10 p-3 space-y-2"><h3 className="font-semibold text-sm text-cyan-100">Team anrufen</h3><p className="text-xs text-slate-400">Status abfragen und Anweisungen im Gespräch erteilen.</p>{contacts.length===0?<p className="text-xs text-slate-300">Stelle eine Assistenz ein oder weise einem aktiven Standort eine Filialleitung zu, um hier anzurufen.</p>:contacts.map(c=><button key={c.id} disabled={blocked} onClick={()=>{setShowList(false);setStaffId(c.id);}} className="w-full text-left p-3 rounded-xl border border-white/10 bg-white/5 hover:border-cyan-300/40 disabled:opacity-40"><span className="block text-sm">{c.name}</span><span className="block text-xs text-slate-400 mt-1">{c.label}</span><span className={"block text-xs mt-1 "+(c.available?"text-emerald-300":"text-amber-200")}>{c.available?"Anrufen":c.reason}</span></button>)}</section>}
  {showList&&missed.length>0&&<section aria-label="Verpasste Anrufe" className="border-t border-white/10 p-3 space-y-2"><h3 className="text-sm font-semibold">Verpasste Anrufe im Zeitvorlauf</h3><p className="text-xs text-slate-400">Offene Anliegen kannst du oben zurückrufen. Bereits erledigte bleiben hier dokumentiert.</p><div className="max-h-40 overflow-y-auto space-y-2">{missed.slice(-20).reverse().map(c=><p key={c.id} className="text-xs text-slate-300">{formatGameTime(c.missedAtMin)} · {c.source||"Leitstelle"} · {c.title||"Lieferung in Gefahr"} · {queue.calls.some(q=>q.id===c.id)?"Rückruf offen":"Nicht mehr offen"}</p>)}</div></section>}
  {showList && <div className="border-t border-white/10 px-3 py-3 space-y-2">
- <OfficeAudioControls compact />
- <button disabled={blocked} onClick={testCall} className="w-full rounded-lg border border-cyan-300/30 py-2 text-xs text-cyan-100 disabled:opacity-40">Testanruf starten · Ton aktivieren</button>
  <p className="text-[10px] text-slate-400">Anrufe entstehen bei offenen dringenden Einsätzen. Automatisch gelöste Anliegen bleiben im Verlauf sichtbar.</p>
  {recent.length>0&&<details className="text-xs text-slate-300"><summary className="cursor-pointer">Letzte erledigte Anliegen ({recent.length})</summary>{recent.map(d=><div key={d.id} className="mt-2 border-t border-white/10 pt-2"><p>{d.cause}</p><p className="text-[10px] text-emerald-200">{d.autoResolved ? "Vom Team erledigt" : "Erledigt"}{d.autoResolvedBy ? " · "+d.autoResolvedBy : ""}</p></div>)}</details>}
  </div>}
@@ -114,16 +103,6 @@ export default function PhoneCenter() {
  <div className="flex gap-1 mt-3 items-end h-5" aria-hidden="true">{[8,16,11,20,9,14,6].map((h,i)=><motion.span key={i} className="w-1 rounded bg-emerald-300" style={{height:h}} animate={motionEnabled&&!reduced?{scaleY:[.5,1,.5]}:{scaleY:1}} transition={{duration:.7,delay:i*.07,repeat:3}}/>)}</div>
  </div></div></div>
  <div className="p-5 sm:p-6 space-y-4">
- {selected?.demo && <section className="rounded-xl border border-cyan-300/30 bg-cyan-400/5 p-4 space-y-3" aria-label="Klingelton testen">
- <p className="text-sm font-medium">Klingelton direkt abspielen</p>
- <audio controls preload="auto" src={phoneRingUrl} className="w-full" aria-label="Klingelton-Audioplayer"
- ref={node=>{if(node)node.volume=soundVolume;}}
- onPlay={()=>{stopPhoneSound("test");setPlayerStatus("Wiedergabe gestartet. Bewegt sich die Zeitanzeige, aber du hörst nichts? Bitte den Browser-Tab entstummen und die Audioausgabe prüfen.");}}
- onError={()=>setPlayerStatus("Die Audiodatei konnte nicht geladen werden. Bitte diese Spielversion erneut veröffentlichen und die Seite neu laden.")}
- onEnded={()=>setPlayerStatus("Wiedergabe beendet.")}/>
- <p role="status" className="text-xs text-cyan-100">{playerStatus || phoneAudioStatus}</p>
- <p className="text-xs text-slate-300">Dieser Test spielt einen Klingelton ab, keine gesprochenen Dialoge.</p>
- </section>}
  {!detail ? <p>Dieses Anliegen ist nicht mehr vorhanden.</p> : <>
  <div className="rounded-2xl rounded-tl-sm bg-white/5 border border-white/10 p-4"><p className="text-sm leading-relaxed">{detail.status==="completed"?detail.completionSummary:detail.status==="measure_running"?"Die Maßnahme läuft. Wir melden uns nach Abschluss wieder.":detail.cause}</p></div>
  {detail.status==="decision_open"&&<>
