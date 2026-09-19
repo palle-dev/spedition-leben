@@ -1,3 +1,4 @@
+import {getManagementPhoneActions,executeManagementPhoneAction} from "./managementResponsibilities.ts";
 import {isEmployeeAvailable,createStaffTask,deliverMessage} from "./mailEngine.ts";
 import {isPersonAvailable} from "./absenceEngine.ts";
 import {isPersonInTraining} from "./trainingEngine.ts";
@@ -54,12 +55,15 @@ export function getStaffPhoneData(state,employeeId){
    costCents:approve?d.costCents||0:0,
    params:{action:approve?"approve":"reject",decisionId:d.id,expectedCostCents:d.costCents||0}});
  }
+ actions.push(...getManagementPhoneActions(state,state.employees.find(e=>e.id===employeeId)));
  return {contact,report,actions,tasks:pending.slice(-4).reverse()};
 }
 export function executeStaffPhoneCommand(state,p){
  const data=getStaffPhoneData(state,p.employeeId);
  if(!data)throw Error("Diese Person gehört nicht mehr zu deinem Führungsteam.");
  if(!data.contact.available)throw Error("Die Person ist derzeit nicht erreichbar: "+data.contact.reason);
+ const management=executeManagementPhoneAction(state,state.employees.find(e=>e.id===p.employeeId),p);
+ if(management)return management;
  const action=data.actions.find(a=>a.params.action===p.action && (!a.params.decisionId||a.params.decisionId===p.decisionId));
  if(!action)throw Error("Diese Anweisung ist für die Person nicht verfügbar.");
  if(action.disabled)return {ok:true,queued:true,summary:"Diese Aufgabe ist bereits zur Bearbeitung angenommen."};

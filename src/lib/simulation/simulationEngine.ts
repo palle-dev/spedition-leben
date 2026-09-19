@@ -1,3 +1,4 @@
+import {processManagementReports} from "./managementResponsibilities.ts";
 import {executeStaffPhoneCommand} from "./staffPhone.ts";
 import { processPhoneCommunications } from "./phoneCommunications.ts";
 import { getEscalatedDeliveryRisks } from "./deliveryRisk.ts";
@@ -700,6 +701,7 @@ function processEventsAt(state, m, log) {
   if (m % 60 === 0) {
     generateMarketWave(state, m, log);
     generateBranchDecisions(state);
+    processManagementReports(state,m);
     migrateAssistant(state);
     for (const emp of state.employees || []) {
       if (emp.role === "assistant" && emp.employmentStatus === "employed" && isPersonAvailable(state, emp.id, m)) {

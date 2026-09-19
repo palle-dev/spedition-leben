@@ -1,3 +1,4 @@
+import {branchResponsibilityAllows} from "./managementResponsibilities.ts";
 import { deliverMessage } from "./mailEngine.ts";
 import { nextRandom } from "./randomEngine.ts";
 // Filialleiter-Engine für FERNWERK.
@@ -83,7 +84,7 @@ export function generateBranchDecisions(state: any): any {
   const managers = getBranchManagers(state);
   for (const mgr of managers) {
     const branch = (state.branches || []).find((b: any) => b.id === mgr.assignedBranchId);
-    if (!branch || branch.status !== "active") continue;
+    if (!branch || branch.status !== "active" || !isPersonAvailable(state,mgr.id,state.gameTime) || isPersonInTraining(state,mgr.id,state.gameTime)) continue;
 
     // Max 1 offene Entscheidung pro Manager
     const hasPending = state.branchDecisions.some(
@@ -102,10 +103,14 @@ export function generateBranchDecisions(state: any): any {
 
     // Autonomer Modus: kleine Entscheidungen auto-freigeben
     const autoThreshold = advanced ? AUTONOMOUS_THRESHOLD * 2 : AUTONOMOUS_THRESHOLD;
-    if (mgr.managementMode === "autonomous" && decision.costCents <= autoThreshold) {
+    const dayKey=Math.floor(state.gameTime/1440);
+    const spent=mgr.autonomousSpendDay===dayKey?(mgr.autonomousSpentCents||0):0;
+    const remaining=(mgr.autonomousDailyBudgetCents??autoThreshold)-spent;
+    if (mgr.managementMode === "autonomous" && decision.costCents <= autoThreshold && decision.costCents<=remaining && state.company.accountCents>=decision.costCents && applyDecision(state, decision)) {
       decision.status = "auto_approved";
       decision.resolvedAt = state.gameTime;
-      applyDecision(state, decision);
+      mgr.autonomousSpendDay=dayKey;mgr.autonomousSpentCents=spent+decision.costCents;
+      state.branchDecisions.push(decision);
     } else {
       state.branchDecisions.push(decision);
       deliverMessage(state, {
@@ -271,12 +276,13 @@ function createDecision(state: any, manager: any, branch: any): any | null {
 
   // Wachstumsbedarf hat Priorität — Filialleiter identifiziert Lücken
   const growthNeed = identifyGrowthNeed(state, branch);
-  if (growthNeed) {
+  if (growthNeed && branchResponsibilityAllows(manager,growthNeed)) {
     return createGrowthDecision(state, id, manager, branch, growthNeed);
   }
 
   // Kein Wachstumsbedarf — zufällige operative Entscheidung
-  const types = ["hire_driver", "accept_order", "maintenance", "cost_optimization", "staff_training"];
+  const types = ["hire_driver", "accept_order", "maintenance", "cost_optimization", "staff_training"].filter(type=>branchResponsibilityAllows(manager,type));
+  if(!types.length)return null;
   const type = types[Math.floor(nextRandom(state) * types.length)];
 
   if (type === "hire_driver") {
