@@ -269,6 +269,25 @@ export function buildEmptyDeployment(state, fromCity, toCity, vehicle, earliestS
   };
 }
 
+// Nur während einer unveränderlichen Tourensuche zwischenspeichern.
+function planningDriverCounters(state, driver) {
+  const calculate = () => {
+  // Vorschauen ändern den Zustand nicht. Nur dokumentierte Ruhe setzt
+  // Zähler zurück; fehlendes freeSinceMin ist kein Nachweis für 12h Ruhe.
+  const rested = driver.status === "resting" || (driver.status === "free" &&
+    driver.freeSinceMin != null && state.gameTime - driver.freeSinceMin >= REST_MIN);
+  let initCounters = { workMin: rested ? 0 : (driver.workMinutesSinceRest || 0),
+    driveMin: rested ? 0 : (driver.driveMinutesSinceBreak || 0) };
+  if (driver.status === "on_trip") {
+    const trip = state.trips.find(t => t.driverId === driver.id && t.status === "in_progress");
+    if (trip) initCounters = computeFinalCounters(trip.phases || [], trip.initialCounters || initCounters);
+  }
+
+    return initCounters;
+  };
+  return state._driverMap ? _cached("counters:" + driver.id, calculate) : calculate();
+}
+
 // ---------- Tourenplanung ----------
 
 // Plant eine komplette Tourenkette aus geordneten Auftrags-IDs.
@@ -406,16 +425,7 @@ export function buildTourPlan(state, opts) {
     };
   }
 
-  // Vorschauen ändern den Zustand nicht. Nur dokumentierte Ruhe setzt
-  // Zähler zurück; fehlendes freeSinceMin ist kein Nachweis für 12h Ruhe.
-  const rested = driver.status === "resting" || (driver.status === "free" &&
-    driver.freeSinceMin != null && state.gameTime - driver.freeSinceMin >= REST_MIN);
-  let initCounters = { workMin: rested ? 0 : (driver.workMinutesSinceRest || 0),
-    driveMin: rested ? 0 : (driver.driveMinutesSinceBreak || 0) };
-  if (driver.status === "on_trip") {
-    const trip = state.trips.find(t => t.driverId === driverId && t.status === "in_progress");
-    if (trip) initCounters = computeFinalCounters(trip.phases || [], trip.initialCounters || initCounters);
-  }
+  const initCounters = planningDriverCounters(state, driver);
 
   // Erster Versuch: mit aktuellen Fahrer-Zählern planen.
   let planResult = _tryPlan(earliestStart, initCounters);
@@ -1262,7 +1272,22 @@ export function suggestTours(state, opts) {
     let bestOrders = null;
     let bestDriver = null;
 
+    // Gleiche Planungsbedingungen liefern dieselbe Bewertung. Bei Gleichstand
+    // gewinnt bereits bisher der erste Fahrer (< 0); spätere identische
+    // Kandidaten können deshalb ohne Auswahländerung entfallen.
+    // Alle fahrerabhängigen Eingaben von buildTourPlan sind enthalten.
+    const seenDriverConditions = new Set();
     for (const driver of candidateDrivers) {
+      const counters = planningDriverCounters(state, driver);
+      const conditions = JSON.stringify([
+        _cached("futD:" + driver.id, () => futureDriverLocation(state, driver)),
+        _cached("ea:" + vehicleId + "|" + driver.id, () => earliestAvailable(state, vehicle, driver)),
+        _cached("nrs:" + vehicleId + "|" + driver.id, () => nextReservationStart(state, vehicle, driver)),
+        counters.workMin, counters.driveMin,
+        driver.isTempStaff && Number.isFinite(driver.tempReturnMin) ? driver.tempReturnMin : null,
+      ]);
+      if (seenDriverConditions.has(conditions)) continue;
+      seenDriverConditions.add(conditions);
       let driverBestPlan = null;
       let driverBestOrders = null;
 
