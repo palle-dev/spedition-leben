@@ -1,3 +1,5 @@
+import { dispatcherProfile } from "./dispatcherQuality.ts";
+import { isPersonInTraining } from "./trainingEngine.ts";
 import { addBooking } from "./accountingEngine.ts";
 // Störungsmanagement-Engine für FERNWERK.
 // Verwaltet betriebliche Störungen: technische Defekte, Ladeverzögerungen,
@@ -782,13 +784,19 @@ function findResolverEmployee(state, d, m) {
   const candidates = (state.employees || []).filter(e => {
     if (!isActivelyEmployed(e)) return false;
     if (e.attendance !== "present") return false;
-    if (!isPersonAvailable(state, e.id, m)) return false;
+    if (!isPersonAvailable(state, e.id, m) || isPersonInTraining(state, e.id, m)) return false;
+    if (e.role === 'dispatcher' || e.role === 'dispatcher_senior') {
+      if (!['autonomous','dispatch_accepted'].includes(e.workMode)) return false;
+      const clock=m%1440,start=e.shiftStart??480,end=e.shiftEnd??960;
+      if (!(start<=end ? clock>=start&&clock<end : clock>=start||clock<end)) return false;
+    }
     if (!["dispatcher", "dispatcher_senior", "branch_manager", "assistant"].includes(e.role)) return false;
     if (d.branchId && e.assignedBranchId && e.assignedBranchId !== d.branchId) return false;
     return true;
   });
   const priority = { branch_manager: 0, dispatcher_senior: 1, dispatcher: 2, assistant: 3 };
-  candidates.sort((a, b) => (priority[a.role] || 9) - (priority[b.role] || 9));
+  const rank = e => dispatcherProfile(state, e).lead ? -1 : (priority[e.role] ?? 9);
+  candidates.sort((a, b) => rank(a) - rank(b));
   return candidates[0] || null;
 }
 

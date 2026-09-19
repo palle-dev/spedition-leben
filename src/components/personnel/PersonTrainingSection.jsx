@@ -33,6 +33,7 @@ export default function PersonTrainingSection({ personId, kind, role }) {
     for (const req of course.requires) {
       if (req === "driver_license") { if (kind !== "driver") return false; }
       else if (req === "dispatcher_role") { if (role !== "dispatcher" && role !== "dispatcher_senior") return false; }
+      else if (req === "dispatcher_senior_role") { if (role !== "dispatcher_senior") return false; }
       else if (req === "assistant_role") { if (role !== "assistant") return false; }
       else if (req === "branch_manager_role") { if (role !== "branch_manager") return false; }
       else if (req === "mechanic_role") { if (role !== "mechanic") return false; }

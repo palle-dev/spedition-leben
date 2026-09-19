@@ -324,9 +324,7 @@ export function processDispatcher(state, emp, m, log) {
       planned++;
       const vehicle = state.vehicles.find(v => v.id === sug.vehicleId);
       const driver = state.drivers.find(d => d.id === sug.driverId);
-      tagDispatcherTour(state, r.tourId, dispatcher.id);
-    if (cost > 0) recordSpend(state, dispatcher.id, cost, vehicle.branchId);
-    const newlyAccepted = r.acceptedOrderIds || [];
+      const newlyAccepted = r.acceptedOrderIds || [];
       for (const oid of sug.orderIds) {
         const o = state.orders.find(x => x.id === oid);
         if (!o) continue;
@@ -462,7 +460,7 @@ export function planSingleVehicle(state, vehicle, m, log) {
   }
 
   // Finde autonomen/dispatch_accepted Disponenten für diese Filiale
-  const dispatcher = (state.employees || []).find(e => {
+  const eligibleDispatchers = (state.employees || []).filter(e => {
     if (isPersonInTraining(state, e.id, m)) return false;
     if (!isActivelyEmployed(e) || e.attendance !== "present") return false;
     if (e.isTempStaff && Number.isFinite(e.tempReturnMin) && e.tempReturnMin <= m) return false;
@@ -473,6 +471,7 @@ export function planSingleVehicle(state, vehicle, m, log) {
     if (dispBranch && dispBranch !== vehicle.branchId) return false;
     return true;
   });
+  const dispatcher = eligibleDispatchers.find(e => dispatcherVehicleIds(state, e.id).size < dispatcherProfile(state, e).capacity) || eligibleDispatchers[0];
   if (!dispatcher) return;
 
   const profile = dispatcherProfile(state, dispatcher);
@@ -508,6 +507,8 @@ export function planSingleVehicle(state, vehicle, m, log) {
       vehicleId: sug.vehicleId, driverId: sug.driverId, orderIds: sug.orderIds,
       desiredEndCity: sug.plan.desiredEndCity || null, latestReturnMin: sug.plan.latestReturnMin || null,
     });
+    tagDispatcherTour(state, r.tourId, dispatcher.id);
+    if (cost > 0) recordSpend(state, dispatcher.id, cost, vehicle.branchId);
     const newlyAccepted = r.acceptedOrderIds || [];
     for (const oid of sug.orderIds) {
       const o = state.orders.find(x => x.id === oid);

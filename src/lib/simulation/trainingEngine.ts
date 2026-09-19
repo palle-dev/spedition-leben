@@ -128,9 +128,17 @@ export const COURSE_CATALOG = [
     hours: 16,
     blocks: 2,
     effect: "dispo_efficiency",
-    effectDesc: "Längerer Planungshorizont (72h) und schnellere Reaktion auf neue Aufträge – weniger scheiternde Aufträge",
+    effectDesc: "72h Planung, 2 zusätzliche betreute Lkw, mindestens 16 Auftragskandidaten und 20 Minuten Mindestpuffer",
     requires: ["dispatcher_role"],
     description: "Fortgeschrittene Tourenplanung mit erweitertem Horizont und verkürzten Reaktionszeiten.",
+  },
+  {
+    id: "dispo_lead", label: "Dispositionsleitung & Krisenkoordination",
+    targetRole: "dispatcher", targetRoleSenior: "dispatcher_senior",
+    feeCents: 180000, hours: 24, blocks: 3, effect: "dispo_lead",
+    effectDesc: "18 betreute Lkw (20 mit Effizienzschulung), 96h Planung, 20 Auftragskandidaten und Vorrang bei Störungskoordination",
+    requires: ["dispatcher_senior_role"],
+    description: "Weiterbildung erfahrener Disponenten zur Leitung. Im Firmenpool filialübergreifend; bestehende Filialzuordnung und Befugnisse bleiben verbindlich.",
   },
   {
     id: "assistant_advanced",
@@ -373,6 +381,8 @@ export function checkCoursePrerequisites(state, personId, courseId) {
       if (role !== "dispatcher" && role !== "dispatcher_senior") {
         return { ok: false, reason: "Nur für Disponenten." };
       }
+    } else if (req === "dispatcher_senior_role") {
+      if (role !== "dispatcher_senior") return { ok: false, reason: "Erfahrener Disponent erforderlich – zuerst Erweiterte Disposition abschließen." };
     } else if (req === "assistant_role") {
       if (role !== "assistant") {
         return { ok: false, reason: "Nur für Assistenten." };
