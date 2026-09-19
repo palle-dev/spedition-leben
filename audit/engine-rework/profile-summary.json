@@ -1,0 +1,212 @@
+{
+  "before": {
+    "sampledSeconds": 50.894272,
+    "topSelfTime": [
+      {
+        "function": "processPhoneCommunications",
+        "module": "phoneCommunications.ts",
+        "seconds": 8.718303
+      },
+      {
+        "function": "",
+        "module": "tourEngine.ts",
+        "seconds": 7.259532
+      },
+      {
+        "function": "_orderById",
+        "module": "tourEngine.ts",
+        "seconds": 5.862874
+      },
+      {
+        "function": "dispatcherVehicleIds",
+        "module": "dispatcherQuality.ts",
+        "seconds": 4.829068
+      },
+      {
+        "function": "suggestTours",
+        "module": "tourEngine.ts",
+        "seconds": 4.249249
+      },
+      {
+        "function": "_tryPlan",
+        "module": "tourEngine.ts",
+        "seconds": 2.015022
+      },
+      {
+        "function": "getPhoneProposals",
+        "module": "phoneProposals.ts",
+        "seconds": 2.007992
+      },
+      {
+        "function": "processDispatcher",
+        "module": "dispatcherProcessor.ts",
+        "seconds": 1.947536
+      },
+      {
+        "function": "advanceTo",
+        "module": "simulationEngine.ts",
+        "seconds": 1.430298
+      },
+      {
+        "function": "",
+        "module": "dispatcherProcessor.ts",
+        "seconds": 1.256596
+      },
+      {
+        "function": "",
+        "module": "phoneProposals.ts",
+        "seconds": 1.213416
+      },
+      {
+        "function": "processEventsAt",
+        "module": "simulationEngine.ts",
+        "seconds": 1.12027
+      },
+      {
+        "function": "processEmployees",
+        "module": "dispatcherProcessor.ts",
+        "seconds": 0.965058
+      },
+      {
+        "function": "earliestEventAfter",
+        "module": "eventScheduler.ts",
+        "seconds": 0.751939
+      },
+      {
+        "function": "",
+        "module": "disruptionEngine.ts",
+        "seconds": 0.685264
+      },
+      {
+        "function": "(garbage collector)",
+        "module": "",
+        "seconds": 0.648245
+      },
+      {
+        "function": "getDeliveryRisks",
+        "module": "deliveryRisk.ts",
+        "seconds": 0.606623
+      },
+      {
+        "function": "getEscalatedDeliveryRisks",
+        "module": "deliveryRisk.ts",
+        "seconds": 0.591434
+      },
+      {
+        "function": "validateTourConfirmation",
+        "module": "tourEngine.ts",
+        "seconds": 0.574877
+      },
+      {
+        "function": "buildTourPlan",
+        "module": "tourEngine.ts",
+        "seconds": 0.569042
+      }
+    ]
+  },
+  "after-final": {
+    "sampledSeconds": 16.175114,
+    "topSelfTime": [
+      {
+        "function": "processDispatcher",
+        "module": "dispatcherProcessor.ts",
+        "seconds": 1.519462
+      },
+      {
+        "function": "advanceTo",
+        "module": "simulationEngine.ts",
+        "seconds": 1.435118
+      },
+      {
+        "function": "",
+        "module": "dispatcherProcessor.ts",
+        "seconds": 1.337558
+      },
+      {
+        "function": "",
+        "module": "disruptionEngine.ts",
+        "seconds": 1.337515
+      },
+      {
+        "function": "",
+        "module": "phoneCommunications.ts",
+        "seconds": 1.237075
+      },
+      {
+        "function": "processEventsAt",
+        "module": "simulationEngine.ts",
+        "seconds": 1.068632
+      },
+      {
+        "function": "processPhoneCommunications",
+        "module": "phoneCommunications.ts",
+        "seconds": 0.95058
+      },
+      {
+        "function": "",
+        "module": "tourEngine.ts",
+        "seconds": 0.950318
+      },
+      {
+        "function": "processEmployees",
+        "module": "dispatcherProcessor.ts",
+        "seconds": 0.796937
+      },
+      {
+        "function": "earliestEventAfter",
+        "module": "eventScheduler.ts",
+        "seconds": 0.607656
+      },
+      {
+        "function": "suggestTours",
+        "module": "tourEngine.ts",
+        "seconds": 0.59482
+      },
+      {
+        "function": "failOverdueOrders",
+        "module": "marketEngine.ts",
+        "seconds": 0.39236
+      },
+      {
+        "function": "getDeliveryRisks",
+        "module": "deliveryRisk.ts",
+        "seconds": 0.330866
+      },
+      {
+        "function": "futureDriverLocation",
+        "module": "tourEngine.ts",
+        "seconds": 0.246953
+      },
+      {
+        "function": "findOrder",
+        "module": "orderLookup.ts",
+        "seconds": 0.24007
+      },
+      {
+        "function": "post",
+        "module": "node:inspector",
+        "seconds": 0.217866
+      },
+      {
+        "function": "validateTourConfirmation",
+        "module": "tourEngine.ts",
+        "seconds": 0.20029
+      },
+      {
+        "function": "",
+        "module": "orderLookup.ts",
+        "seconds": 0.16531
+      },
+      {
+        "function": "earliestAvailable",
+        "module": "tourEngine.ts",
+        "seconds": 0.161473
+      },
+      {
+        "function": "_cached",
+        "module": "tourEngine.ts",
+        "seconds": 0.126852
+      }
+    ]
+  }
+}
