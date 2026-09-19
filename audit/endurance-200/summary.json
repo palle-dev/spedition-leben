@@ -1,5 +1,5 @@
 {
-  "completedDays": 44,
+  "completedDays": 47,
   "groups": [
     {
       "days": "1–20",
@@ -26,16 +26,16 @@
       "delivered": 1539
     },
     {
-      "days": "41–44",
+      "days": "41–47",
       "vehicles": 75,
       "branches": 3,
-      "medianSeconds": 59.129,
+      "medianSeconds": 64.927,
       "maxSeconds": 92.721,
       "minSeconds": 18.305,
-      "cloneMedianSeconds": 0.528,
-      "endMB": 25.46,
+      "cloneMedianSeconds": 0.529,
+      "endMB": 28.06,
       "meanActive": 62.3,
-      "delivered": 516
+      "delivered": 866
     }
   ],
   "thresholds": [
@@ -75,32 +75,32 @@
       "vehicles": null
     }
   ],
-  "totalSeconds": 580.296412241,
+  "totalSeconds": 812.987164413,
   "last": {
-    "day": 44,
-    "startGameDay": 44,
-    "endGameDay": 45,
-    "gameTime": 63840,
-    "engineMs": 92720.94106099999,
-    "inputCloneMs": 220.5724840000039,
-    "outputCloneMs": 336.64461600000504,
-    "serializeMs": 139.311996000004,
-    "inputBytes": 25784086,
-    "outputBytes": 26692416,
+    "day": 47,
+    "startGameDay": 47,
+    "endGameDay": 48,
+    "gameTime": 68160,
+    "engineMs": 64927.312878999976,
+    "inputCloneMs": 253.0203830000246,
+    "outputCloneMs": 337.2488220001105,
+    "serializeMs": 156.9733390000183,
+    "inputBytes": 28655054,
+    "outputBytes": 29423049,
     "before": {
       "vehicles": 75,
       "branches": 3,
       "drivers": 105,
       "dispatchers": 18,
-      "activeTrucks": 61,
-      "freeTrucks": 14,
-      "orders": 18249,
-      "offered": 546,
-      "accepted": 25,
-      "trips": 776,
-      "tours": 806,
-      "journal": 11356,
-      "mails": 899,
+      "activeTrucks": 64,
+      "freeTrucks": 11,
+      "orders": 20019,
+      "offered": 543,
+      "accepted": 23,
+      "trips": 911,
+      "tours": 959,
+      "journal": 12864,
+      "mails": 1006,
       "bookings": 200
     },
     "after": {
@@ -108,28 +108,28 @@
       "branches": 3,
       "drivers": 105,
       "dispatchers": 18,
-      "activeTrucks": 60,
-      "freeTrucks": 15,
-      "orders": 18702,
-      "offered": 396,
-      "accepted": 31,
-      "trips": 828,
-      "tours": 865,
-      "journal": 11880,
-      "mails": 941,
+      "activeTrucks": 61,
+      "freeTrucks": 14,
+      "orders": 20450,
+      "offered": 393,
+      "accepted": 20,
+      "trips": 937,
+      "tours": 998,
+      "journal": 13323,
+      "mails": 1035,
       "bookings": 200
     },
-    "delivered": 132,
-    "totalDelivered": 2851,
-    "plans": 236063,
-    "suggestions": 491,
-    "dispatcherCalls": 574,
-    "heapMB": 172.5522003173828,
+    "delivered": 112,
+    "totalDelivered": 3201,
+    "plans": 118216,
+    "suggestions": 439,
+    "dispatcherCalls": 514,
+    "heapMB": 188.15087890625,
     "controls": {
-      "conditionRestored": 64,
+      "conditionRestored": 67,
       "moraleRestored": 82
     },
-    "cashCents": 100117414729
+    "cashCents": 100131239166
   },
   "top": [
     {
@@ -138,24 +138,24 @@
       "vehicles": 75
     },
     {
+      "day": 46,
+      "seconds": 91.122685757,
+      "vehicles": 75
+    },
+    {
+      "day": 45,
+      "seconds": 76.64075353600003,
+      "vehicles": 75
+    },
+    {
+      "day": 47,
+      "seconds": 64.92731287899997,
+      "vehicles": 75
+    },
+    {
       "day": 42,
       "seconds": 60.020243257,
       "vehicles": 75
-    },
-    {
-      "day": 43,
-      "seconds": 58.23724336000002,
-      "vehicles": 75
-    },
-    {
-      "day": 34,
-      "seconds": 48.03577906599999,
-      "vehicles": 50
-    },
-    {
-      "day": 32,
-      "seconds": 25.944112036999986,
-      "vehicles": 50
     }
   ]
 }
