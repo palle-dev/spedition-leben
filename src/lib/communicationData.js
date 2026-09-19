@@ -24,7 +24,7 @@ export function getCommunicationQueue(state) {
  calls.sort((a,b)=>(a.deadline??Infinity)-(b.deadline??Infinity)||(a.createdAt||0)-(b.createdAt||0)||a.key.localeCompare(b.key));
  const actionable=[];
  for(const call of calls){
-  if(getPhoneProposals(state,call).length)actionable.push(call);
+  if(getPhoneProposals(state,call,1).length)actionable.push(call);
   else emails.push({...call,informationOnly:true,actions:[]});
  }
  return {calls:actionable,emails};

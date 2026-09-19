@@ -1,3 +1,4 @@
+import { displayedGameMinute } from "@/lib/displayClock";
 import { playExperienceSound } from "@/lib/experienceSound";
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { saveCurrent, loadCurrent, saveAutosave, loadAutosave, getAllAutosaveMetas, listManualSlots, saveManualSlot, loadManualSlot, deleteManualSlot, exportSave, importSave, getSyncMeta, setSyncMeta as persistSyncMeta } from "@/lib/persistence";
@@ -168,8 +169,17 @@ export function GameProvider({ children }) {
     document.body.classList.toggle("no-motion", !motionEnabled);
   }, [motionEnabled]);
 
-  // Display only committed simulation time; no speculative clock during worker runs.
-  useEffect(()=>{setDisplayGameTime(state?.gameTime||0);},[state?.gameTime]);
+  // Only the small clock context ticks; no simulation commands per display minute.
+  useEffect(() => {
+    const update = () => setDisplayGameTime(displayedGameMinute(
+      state?.gameTime || 0, state?.timeControl, Date.now(),
+      automationEnabled && !busy && !backgroundAdvanceRef.current && !changingStateRef.current
+    ));
+    update();
+    if (!automationEnabled || busy || backgroundAdvance?.active) return;
+    const timer = setInterval(update, 100);
+    return () => clearInterval(timer);
+  }, [state?.gameTime, state?.timeControl, automationEnabled, busy, backgroundAdvance?.active]);
 
   const toggleMotion = useCallback(() => setMotionEnabled(v => !v), []);
 
