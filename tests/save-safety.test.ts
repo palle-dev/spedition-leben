@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import ts from "typescript";
 import vm from "node:vm";
-import { CloudSyncQueue, saveCloudSave } from "@/lib/cloudSync";
+import { withCloudRetry, CloudSyncQueue, saveCloudSave } from "@/lib/cloudSync";
 import { localSaveKey, readRecoverySave, writeRecoverySave, prepareLoadedState } from "@/lib/saveSafety";
 
 const sdk = vi.hoisted(() => ({ invoke: vi.fn() }));
@@ -75,6 +75,8 @@ function uploader({ cloudId = "cloud-A", revision = 1, save, create } = {}) {
     isCurrentSession: token => token.generation === generation,
     changingStateRef: ref(false), stateRef,
     syncMetaRef: meta,
+    hasLockRef: ref(true), lockRequiresReloadRef: ref(false),
+    withCloudRetry: (task, options) => withCloudRetry(task, {...options, wait: async () => {}}),
     cloudSyncQueueRef: ref(new CloudSyncQueue()),
     assertWritable: () => { if (!writable) throw Error("Sperre verloren"); },
     changeVersionRef: ref(1), cloudDirtyRef: ref(true),
@@ -208,7 +210,9 @@ describe("Ladepfade und Ereignisse", () => {
       getSyncMeta: async () => ({ partyId: "B", cloudId: "cloud-B" }),
       isCurrentSession: () => true,
       makeSyncMeta: (partyId, cloudId, localBaseRevision, status) => ({ partyId, cloudId, localBaseRevision, status }),
-      syncMetaRef: meta, stateRef: current,
+      syncMetaRef: meta,
+    hasLockRef: ref(true), lockRequiresReloadRef: ref(false),
+    withCloudRetry: (task, options) => withCloudRetry(task, {...options, wait: async () => {}}), stateRef: current,
       setSyncMeta: noop, setState: noop, setShowStart: noop, changingStateRef: ref(true),
       setAutomationEnabled: noop, userWantsAutomationRef: ref(false),
       lastSyncGameTimeRef: ref(0), lastSyncRealMsRef: ref(0), isInitialLoadRef: ref(false),
