@@ -499,7 +499,7 @@ export function getOrderReservation(state, orderId, excludingTourId = null) {
 
 // ---------- Bestätigung (atomar) ----------
 
-export function confirmTour(state, params) {
+export function validateTourConfirmation(state, params) {
   const { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin, minStartTime } = params;
 
   // Plan-Cache löschen: suggestTours bevölkert den Cache, aber zwischen
@@ -555,7 +555,7 @@ export function confirmTour(state, params) {
       if (otherTour && otherTour.status === "active" && !otherTour.pauseReason) {
         throw new Error("Auftrag " + o.customer + " ist bereits von einer anderen Tour reserviert.");
       }
-      o.reservedByTourId = null; // Verwaiste Reservierung aufräumen
+
     }
   }
 
@@ -565,8 +565,7 @@ export function confirmTour(state, params) {
     if (!o) throw new Error("Auftrag nicht gefunden: " + orderId);
     if (o.status !== "offered") throw new Error("Auftrag " + o.customer + " ist nicht mehr verfügbar.");
     if (o.acceptDeadlineMin <= state.gameTime) throw new Error("Annahmefrist für " + o.customer + " ist abgelaufen.");
-    o.status = "angenommen";
-    o.acceptedAtMin = state.gameTime;
+
   }
 
   // 3a. DG-Validierung für alle Aufträge der Tour (Auftrag 32)
@@ -576,17 +575,21 @@ export function confirmTour(state, params) {
     if (!o || !o.isDangerousGoods) continue;
     const dgCheck = validateDgTransport(state, o, vehicle, driver, tourEndMin);
     if (!dgCheck.ok) {
-      // Aufträge zurücksetzen
-      for (const aid of plan.acceptedOrderIds) {
-        const ao = state.orders.find(x => x.id === aid);
-        if (ao && ao.status === "angenommen" && ao.acceptedAtMin === state.gameTime) {
-          ao.status = "offered";
-          ao.acceptedAtMin = null;
-        }
-      }
       const reasons = dgCheck.errors.map(e => e.reason).join("; ");
       throw new Error("Gefahrgut-Prüfung fehlgeschlagen: " + reasons);
     }
+  }
+
+  return { plan, vehicle, driver };
+}
+
+export function confirmTour(state, params) {
+  const { vehicleId, driverId, orderIds, desiredEndCity, latestReturnMin } = params;
+  const { plan, vehicle, driver } = validateTourConfirmation(state, params);
+  for (const orderId of plan.acceptedOrderIds) {
+    const order = state.orders.find(o => o.id === orderId);
+    order.status = "angenommen";
+    order.acceptedAtMin = state.gameTime;
   }
 
   // 4. Erstelle die Tourenkette

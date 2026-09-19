@@ -22,7 +22,7 @@ export function processPhoneCommunications(state, silent=false){
  }
  const actionable=[];
  for(const call of calls){
-  if(getPhoneProposals(state,call).length)actionable.push(call);
+  if(getPhoneProposals(state,call,1).length)actionable.push(call);
   else deliverMessage(state,{fromId:"system",toId:"player",subject:"Lieferhinweis: "+(call.customer||call.title||"Betrieb"),
    body:(call.description||call.title||"Lieferung in Gefahr")+". Aktuell liegt kein ausführbarer Entscheidungsvorschlag vor. Dieser Hinweis erfordert keine telefonische Freigabe.",
    gameTime:state.gameTime,category:"operations",priority:"normal",linkedRefs:{type:call.type==="disruption"?"disruption":"order",id:call.disruptionId||call.orderId||call.id},dedupKey:"delivery_notice:"+call.id});

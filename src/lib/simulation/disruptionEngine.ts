@@ -1092,7 +1092,7 @@ function completeMeasure(state, d, m, log) {
 }
 
 // ---------- Aufloesung durch Spieler ----------
-export function resolveDisruption(state, disruptionId, optionId, params) {
+export function validateDisruptionResolution(state, disruptionId, optionId, params = {}) {
   const d = (state.disruptions?.items || []).find(x => x.id === disruptionId);
   if (!d) throw new Error("Stoerung nicht gefunden.");
   if (d.status !== "decision_open") throw new Error("Stoerung ist nicht mehr offen.");
@@ -1100,8 +1100,8 @@ export function resolveDisruption(state, disruptionId, optionId, params) {
   if (!option) throw new Error("Option nicht gefunden.");
   if (!option.available) throw new Error("Option nicht verfuegbar: " + (option.unavailableReason || ""));
 
-  d.options = computeOptions(state, d, state.gameTime);
-  const refreshed = (d.options || []).find(o => o.id === optionId);
+  const options = computeOptions(state, d, state.gameTime);
+  const refreshed = options.find(o => o.id === optionId);
   if (!refreshed || !refreshed.available) {
     throw new Error("Option nicht mehr verfuegbar: " + (refreshed?.unavailableReason || "Ressource nicht mehr verfuegbar."));
   }
@@ -1114,6 +1114,30 @@ export function resolveDisruption(state, disruptionId, optionId, params) {
     }
   }
 
+  const tour = (state.tours || []).find(t => t.id === d.tourId);
+  if (["replace_vehicle","replace_driver","temp_staff","postpone","cancel_tour","replan_tour"].includes(optionId) && !tour) throw new Error("Tour nicht gefunden.");
+  if (optionId === "emergency_repair" && !(state.vehicles || []).some(v => v.id === d.vehicleId)) throw new Error("Fahrzeug nicht gefunden.");
+  if (optionId === "replace_vehicle") {
+    const replacement = findReplacementVehicle(state, tour, state.gameTime);
+    if (!replacement || replacement.status !== "free" || replacement.condition < 20 || isVehicleReserved(state, replacement.id)) throw new Error("Kein Ersatzfahrzeug mehr verfuegbar.");
+  }
+  if (optionId === "replace_driver") {
+    const replacement = findReplacementDriver(state, tour, state.gameTime);
+    if (!replacement || replacement.status !== "free" || isDriverReserved(state, replacement.id)) throw new Error("Kein Ersatzfahrer mehr verfuegbar.");
+  }
+  if (optionId === "rental_truck" || optionId === "temp_staff") {
+    const provider = SERVICE_PROVIDERS.find(p => p.type === (optionId === "rental_truck" ? "rental_truck" : "temp_driver"));
+    if (!provider) throw new Error("Kein Anbieter verfuegbar.");
+    const cost = (optionId === "rental_truck" ? provider.handoverCents : provider.provisionCents) + 2 * provider.blockRateCents;
+    if (state.company.accountCents < cost) throw new Error("Firmenkonto reicht nicht aus.");
+  }
+  if (!["replace_vehicle","rental_truck","emergency_repair","postpone","cancel_tour","accept_delay","replan_followup","inform_customer","replace_driver","temp_staff","replan_tour"].includes(optionId)) throw new Error("Unbekannte Option: " + optionId);
+  return { d, refreshed, options };
+}
+
+export function resolveDisruption(state, disruptionId, optionId, params) {
+  const { d, refreshed, options } = validateDisruptionResolution(state, disruptionId, optionId, params);
+  d.options = options;
   const log = [];
   const result = executeOption(state, d, optionId, params || {}, state.gameTime, log);
   d.chosenOptionId = optionId;
