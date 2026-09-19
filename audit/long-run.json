@@ -1,1202 +1,1202 @@
 [
   {
     "day": 1,
-    "elapsedMs": 154.4848979999997,
+    "elapsedMs": 244.96431200000006,
     "gameTime": 1920,
     "cashCents": 56605083,
     "delivered": 4,
     "orders": 77,
     "journal": 39,
-    "stateBytes": 245452
+    "stateBytes": 257306
   },
   {
     "day": 2,
-    "elapsedMs": 90.19815699999981,
+    "elapsedMs": 66.55265899999995,
     "gameTime": 3360,
     "cashCents": 56822464,
     "delivered": 8,
     "orders": 135,
     "journal": 60,
-    "stateBytes": 360870
+    "stateBytes": 381812
   },
   {
     "day": 3,
-    "elapsedMs": 61.732972999999674,
+    "elapsedMs": 86.81454699999995,
     "gameTime": 4800,
     "cashCents": 56565665,
     "delivered": 9,
     "orders": 184,
     "journal": 80,
-    "stateBytes": 477223
+    "stateBytes": 507712
   },
   {
     "day": 4,
-    "elapsedMs": 96.21279700000014,
+    "elapsedMs": 80.53447000000006,
     "gameTime": 6240,
     "cashCents": 56458375,
     "delivered": 11,
     "orders": 239,
     "journal": 101,
-    "stateBytes": 603356
+    "stateBytes": 648318
   },
   {
     "day": 5,
-    "elapsedMs": 97.99666200000001,
+    "elapsedMs": 166.3067990000004,
     "gameTime": 7680,
     "cashCents": 56364431,
     "delivered": 12,
     "orders": 301,
     "journal": 119,
-    "stateBytes": 728815
+    "stateBytes": 784684
   },
   {
     "day": 6,
-    "elapsedMs": 61.94962399999986,
+    "elapsedMs": 121.09651499999973,
     "gameTime": 9120,
     "cashCents": 56184691,
     "delivered": 13,
     "orders": 357,
     "journal": 140,
-    "stateBytes": 850942
+    "stateBytes": 923539
   },
   {
     "day": 7,
-    "elapsedMs": 132.99552700000004,
+    "elapsedMs": 79.53321199999982,
     "gameTime": 10560,
     "cashCents": 55946610,
     "delivered": 15,
     "orders": 414,
     "journal": 163,
-    "stateBytes": 980611
+    "stateBytes": 1066117
   },
   {
     "day": 8,
-    "elapsedMs": 231.26200000000017,
+    "elapsedMs": 177.59782500000028,
     "gameTime": 12000,
     "cashCents": 55827764,
     "delivered": 16,
     "orders": 475,
     "journal": 180,
-    "stateBytes": 1088937
+    "stateBytes": 1182300
   },
   {
     "day": 9,
-    "elapsedMs": 133.5518089999996,
+    "elapsedMs": 142.6096690000004,
     "gameTime": 13440,
     "cashCents": 55883049,
     "delivered": 20,
     "orders": 536,
     "journal": 205,
-    "stateBytes": 1224062
+    "stateBytes": 1333446
   },
   {
     "day": 10,
-    "elapsedMs": 144.29227400000036,
+    "elapsedMs": 109.65190899999925,
     "gameTime": 14880,
     "cashCents": 55643012,
     "delivered": 21,
     "orders": 595,
     "journal": 229,
-    "stateBytes": 1357875
+    "stateBytes": 1481235
   },
   {
     "day": 11,
-    "elapsedMs": 130.41732800000045,
+    "elapsedMs": 117.20341300000018,
     "gameTime": 16320,
     "cashCents": 55715104,
     "delivered": 25,
     "orders": 655,
     "journal": 251,
-    "stateBytes": 1492775
+    "stateBytes": 1632337
   },
   {
     "day": 12,
-    "elapsedMs": 116.69481299999916,
+    "elapsedMs": 149.52401499999996,
     "gameTime": 17760,
     "cashCents": 55549711,
     "delivered": 27,
     "orders": 712,
     "journal": 276,
-    "stateBytes": 1612614
+    "stateBytes": 1764517
   },
   {
     "day": 13,
-    "elapsedMs": 101.66580400000021,
+    "elapsedMs": 156.18771000000015,
     "gameTime": 19200,
     "cashCents": 55416258,
     "delivered": 28,
     "orders": 769,
     "journal": 291,
-    "stateBytes": 1713129
+    "stateBytes": 1871885
   },
   {
     "day": 14,
-    "elapsedMs": 89.3133340000004,
+    "elapsedMs": 191.49421600000005,
     "gameTime": 20640,
     "cashCents": 55147060,
     "delivered": 28,
     "orders": 825,
     "journal": 312,
-    "stateBytes": 1825849
+    "stateBytes": 1996831
   },
   {
     "day": 15,
-    "elapsedMs": 107.94780399999945,
+    "elapsedMs": 115.21323699999994,
     "gameTime": 22080,
     "cashCents": 55062835,
     "delivered": 31,
     "orders": 884,
     "journal": 334,
-    "stateBytes": 1953152
+    "stateBytes": 2142605
   },
   {
     "day": 16,
-    "elapsedMs": 107.0448609999994,
+    "elapsedMs": 378.03848300000027,
     "gameTime": 23520,
     "cashCents": 54783506,
     "delivered": 31,
     "orders": 943,
     "journal": 356,
-    "stateBytes": 2078915
+    "stateBytes": 2284677
   },
   {
     "day": 17,
-    "elapsedMs": 360.2212129999998,
+    "elapsedMs": 184.94721000000027,
     "gameTime": 24960,
     "cashCents": 54728571,
     "delivered": 34,
     "orders": 999,
     "journal": 374,
-    "stateBytes": 2169128
+    "stateBytes": 2378351
   },
   {
     "day": 18,
-    "elapsedMs": 114.21300500000052,
+    "elapsedMs": 167.45565699999952,
     "gameTime": 26400,
     "cashCents": 54393979,
     "delivered": 34,
     "orders": 1060,
     "journal": 397,
-    "stateBytes": 2294063
+    "stateBytes": 2517655
   },
   {
     "day": 19,
-    "elapsedMs": 128.6244630000001,
+    "elapsedMs": 144.63170499999978,
     "gameTime": 27840,
     "cashCents": 54383076,
     "delivered": 37,
     "orders": 1118,
     "journal": 420,
-    "stateBytes": 2396959
+    "stateBytes": 2628074
   },
   {
     "day": 20,
-    "elapsedMs": 61.419801999999436,
+    "elapsedMs": 98.89452099999926,
     "gameTime": 29280,
     "cashCents": 54149148,
     "delivered": 38,
     "orders": 1170,
     "journal": 439,
-    "stateBytes": 2490160
+    "stateBytes": 2729871
   },
   {
     "day": 21,
-    "elapsedMs": 75.60295900000074,
+    "elapsedMs": 152.6440480000001,
     "gameTime": 30720,
     "cashCents": 54068838,
     "delivered": 40,
     "orders": 1226,
     "journal": 460,
-    "stateBytes": 2584495
+    "stateBytes": 2836830
   },
   {
     "day": 22,
-    "elapsedMs": 80.78062499999942,
+    "elapsedMs": 146.01570100000026,
     "gameTime": 32160,
     "cashCents": 54143620,
     "delivered": 44,
     "orders": 1280,
     "journal": 479,
-    "stateBytes": 2671648
+    "stateBytes": 2931052
   },
   {
     "day": 23,
-    "elapsedMs": 92.2185529999997,
+    "elapsedMs": 133.846947,
     "gameTime": 33600,
     "cashCents": 53914601,
     "delivered": 45,
     "orders": 1337,
     "journal": 499,
-    "stateBytes": 2763398
+    "stateBytes": 3031678
   },
   {
     "day": 24,
-    "elapsedMs": 234.9795720000002,
+    "elapsedMs": 159.91484200000014,
     "gameTime": 35040,
     "cashCents": 53806235,
     "delivered": 47,
     "orders": 1394,
     "journal": 521,
-    "stateBytes": 2855727
+    "stateBytes": 3134222
   },
   {
     "day": 25,
-    "elapsedMs": 83.2455030000001,
+    "elapsedMs": 150.00941299999977,
     "gameTime": 36480,
     "cashCents": 53786017,
     "delivered": 49,
     "orders": 1453,
     "journal": 538,
-    "stateBytes": 2933995
+    "stateBytes": 3224228
   },
   {
     "day": 26,
-    "elapsedMs": 77.41665499999999,
+    "elapsedMs": 193.7985209999997,
     "gameTime": 37920,
     "cashCents": 53633466,
     "delivered": 51,
     "orders": 1508,
     "journal": 561,
-    "stateBytes": 3028444
+    "stateBytes": 3330314
   },
   {
     "day": 27,
-    "elapsedMs": 73.06869000000006,
+    "elapsedMs": 272.1500159999996,
     "gameTime": 39360,
     "cashCents": 53433896,
     "delivered": 52,
     "orders": 1562,
     "journal": 581,
-    "stateBytes": 3109895
+    "stateBytes": 3424459
   },
   {
     "day": 28,
-    "elapsedMs": 109.95523099999991,
+    "elapsedMs": 131.41075199999977,
     "gameTime": 40800,
     "cashCents": 53315317,
     "delivered": 53,
     "orders": 1621,
     "journal": 599,
-    "stateBytes": 3202449
+    "stateBytes": 3529565
   },
   {
     "day": 29,
-    "elapsedMs": 76.89469200000076,
+    "elapsedMs": 118.22367000000031,
     "gameTime": 42240,
     "cashCents": 53202129,
     "delivered": 55,
     "orders": 1675,
     "journal": 620,
-    "stateBytes": 3273221
+    "stateBytes": 3612159
   },
   {
     "day": 30,
-    "elapsedMs": 76.29946000000018,
+    "elapsedMs": 231.6659699999991,
     "gameTime": 43680,
     "cashCents": 53039510,
     "delivered": 57,
     "orders": 1725,
     "journal": 645,
-    "stateBytes": 3344413
+    "stateBytes": 3693569
   },
   {
     "day": 31,
-    "elapsedMs": 107.10956200000055,
+    "elapsedMs": 130.16164500000014,
     "gameTime": 45120,
     "cashCents": 52916358,
     "delivered": 58,
     "orders": 1760,
     "journal": 657,
-    "stateBytes": 3388040
+    "stateBytes": 3737138
   },
   {
     "day": 32,
-    "elapsedMs": 77.27520400000049,
+    "elapsedMs": 93.2387630000012,
     "gameTime": 46560,
     "cashCents": 52830650,
     "delivered": 59,
     "orders": 1758,
     "journal": 671,
-    "stateBytes": 3408781
+    "stateBytes": 3759305
   },
   {
     "day": 33,
-    "elapsedMs": 164.66441000000032,
+    "elapsedMs": 150.84105200000158,
     "gameTime": 48000,
     "cashCents": 52645294,
     "delivered": 61,
     "orders": 1764,
     "journal": 691,
-    "stateBytes": 3454468
+    "stateBytes": 3808090
   },
   {
     "day": 34,
-    "elapsedMs": 98.00165199999992,
+    "elapsedMs": 135.06435500000043,
     "gameTime": 49440,
     "cashCents": 52437751,
     "delivered": 61,
     "orders": 1761,
     "journal": 706,
-    "stateBytes": 3482947
+    "stateBytes": 3840038
   },
   {
     "day": 35,
-    "elapsedMs": 88.76621100000011,
+    "elapsedMs": 115.05388700000003,
     "gameTime": 50880,
     "cashCents": 52636152,
     "delivered": 65,
     "orders": 1768,
     "journal": 726,
-    "stateBytes": 3530889
+    "stateBytes": 3898595
   },
   {
     "day": 36,
-    "elapsedMs": 126.15466399999968,
+    "elapsedMs": 172.96188500000062,
     "gameTime": 52320,
     "cashCents": 52448403,
     "delivered": 66,
     "orders": 1768,
     "journal": 745,
-    "stateBytes": 3578983
+    "stateBytes": 3961045
   },
   {
     "day": 37,
-    "elapsedMs": 99.90022800000042,
+    "elapsedMs": 166.9400370000003,
     "gameTime": 53760,
     "cashCents": 52100548,
     "delivered": 66,
     "orders": 1772,
     "journal": 770,
-    "stateBytes": 3634661
+    "stateBytes": 4029393
   },
   {
     "day": 38,
-    "elapsedMs": 87.46084700000029,
+    "elapsedMs": 127.74094999999943,
     "gameTime": 55200,
     "cashCents": 52003980,
     "delivered": 68,
     "orders": 1773,
     "journal": 790,
-    "stateBytes": 3686013
+    "stateBytes": 4096142
   },
   {
     "day": 39,
-    "elapsedMs": 108.92649700000038,
+    "elapsedMs": 192.86164199999985,
     "gameTime": 56640,
     "cashCents": 51915196,
     "delivered": 70,
     "orders": 1766,
     "journal": 814,
-    "stateBytes": 3730857
+    "stateBytes": 4156484
   },
   {
     "day": 40,
-    "elapsedMs": 104.98201499999959,
+    "elapsedMs": 151.70634000000064,
     "gameTime": 58080,
     "cashCents": 51812019,
     "delivered": 72,
     "orders": 1768,
     "journal": 832,
-    "stateBytes": 3774683
+    "stateBytes": 4211613
   },
   {
     "day": 41,
-    "elapsedMs": 129.57287499999893,
+    "elapsedMs": 208.99894800000038,
     "gameTime": 59520,
     "cashCents": 51580453,
     "delivered": 73,
     "orders": 1769,
     "journal": 858,
-    "stateBytes": 3838236
+    "stateBytes": 4293095
   },
   {
     "day": 42,
-    "elapsedMs": 106.73962000000029,
+    "elapsedMs": 208.12366999999904,
     "gameTime": 60960,
     "cashCents": 51506747,
     "delivered": 77,
     "orders": 1767,
     "journal": 885,
-    "stateBytes": 3887710
+    "stateBytes": 4354333
   },
   {
     "day": 43,
-    "elapsedMs": 128.1049299999995,
+    "elapsedMs": 239.42303399999946,
     "gameTime": 62400,
     "cashCents": 51341004,
     "delivered": 79,
     "orders": 1771,
     "journal": 909,
-    "stateBytes": 3942639
+    "stateBytes": 4425574
   },
   {
     "day": 44,
-    "elapsedMs": 124.30544799999916,
+    "elapsedMs": 269.7761199999986,
     "gameTime": 63840,
     "cashCents": 51139497,
     "delivered": 80,
     "orders": 1776,
     "journal": 928,
-    "stateBytes": 3992227
+    "stateBytes": 4488811
   },
   {
     "day": 45,
-    "elapsedMs": 121.05194800000027,
+    "elapsedMs": 238.17930700000034,
     "gameTime": 65280,
     "cashCents": 51019167,
     "delivered": 82,
     "orders": 1772,
     "journal": 949,
-    "stateBytes": 4032502
+    "stateBytes": 4541166
   },
   {
     "day": 46,
-    "elapsedMs": 156.78127499999937,
+    "elapsedMs": 281.54651600000034,
     "gameTime": 66720,
     "cashCents": 50871693,
     "delivered": 83,
     "orders": 1780,
     "journal": 969,
-    "stateBytes": 4079399
+    "stateBytes": 4603015
   },
   {
     "day": 47,
-    "elapsedMs": 137.0391899999995,
+    "elapsedMs": 255.84737999999925,
     "gameTime": 68160,
     "cashCents": 50736582,
     "delivered": 85,
     "orders": 1771,
     "journal": 989,
-    "stateBytes": 4115481
+    "stateBytes": 4647929
   },
   {
     "day": 48,
-    "elapsedMs": 185.86257099999966,
+    "elapsedMs": 214.05911800000104,
     "gameTime": 69600,
     "cashCents": 50642974,
     "delivered": 87,
     "orders": 1774,
     "journal": 1010,
-    "stateBytes": 4154190
+    "stateBytes": 4696343
   },
   {
     "day": 49,
-    "elapsedMs": 113.03530200000023,
+    "elapsedMs": 221.699442000001,
     "gameTime": 71040,
     "cashCents": 50465377,
     "delivered": 87,
     "orders": 1762,
     "journal": 1023,
-    "stateBytes": 4176869
+    "stateBytes": 4729503
   },
   {
     "day": 50,
-    "elapsedMs": 214.92400599999928,
+    "elapsedMs": 220.34213500000078,
     "gameTime": 72480,
     "cashCents": 50271512,
     "delivered": 88,
     "orders": 1769,
     "journal": 1044,
-    "stateBytes": 4225474
+    "stateBytes": 4788493
   },
   {
     "day": 51,
-    "elapsedMs": 170.12873899999977,
+    "elapsedMs": 293.1777810000003,
     "gameTime": 73920,
     "cashCents": 50214953,
     "delivered": 91,
     "orders": 1770,
     "journal": 1070,
-    "stateBytes": 4282720
+    "stateBytes": 4855964
   },
   {
     "day": 52,
-    "elapsedMs": 121.70250099999976,
+    "elapsedMs": 191.7614649999996,
     "gameTime": 75360,
     "cashCents": 50101516,
     "delivered": 95,
     "orders": 1767,
     "journal": 1096,
-    "stateBytes": 4329243
+    "stateBytes": 4917616
   },
   {
     "day": 53,
-    "elapsedMs": 104.3316620000005,
+    "elapsedMs": 175.14033999999992,
     "gameTime": 76800,
     "cashCents": 50071009,
     "delivered": 98,
     "orders": 1762,
     "journal": 1117,
-    "stateBytes": 4362050
+    "stateBytes": 4956695
   },
   {
     "day": 54,
-    "elapsedMs": 113.47948299999916,
+    "elapsedMs": 185.2755190000007,
     "gameTime": 78240,
     "cashCents": 49902569,
     "delivered": 100,
     "orders": 1767,
     "journal": 1140,
-    "stateBytes": 4416270
+    "stateBytes": 5024234
   },
   {
     "day": 55,
-    "elapsedMs": 101.33326300000044,
+    "elapsedMs": 219.14905700000054,
     "gameTime": 79680,
     "cashCents": 49803213,
     "delivered": 102,
     "orders": 1757,
     "journal": 1161,
-    "stateBytes": 4451790
+    "stateBytes": 5069070
   },
   {
     "day": 56,
-    "elapsedMs": 77.7670849999995,
+    "elapsedMs": 155.10527300000103,
     "gameTime": 81120,
     "cashCents": 49663286,
     "delivered": 103,
     "orders": 1762,
     "journal": 1176,
-    "stateBytes": 4486522
+    "stateBytes": 5114715
   },
   {
     "day": 57,
-    "elapsedMs": 105.02769500000068,
+    "elapsedMs": 165.8353100000004,
     "gameTime": 82560,
     "cashCents": 49487739,
     "delivered": 104,
     "orders": 1766,
     "journal": 1199,
-    "stateBytes": 4540583
+    "stateBytes": 5183452
   },
   {
     "day": 58,
-    "elapsedMs": 84.95518900000025,
+    "elapsedMs": 193.1155120000003,
     "gameTime": 84000,
     "cashCents": 49315523,
     "delivered": 105,
     "orders": 1774,
     "journal": 1219,
-    "stateBytes": 4589225
+    "stateBytes": 5245635
   },
   {
     "day": 59,
-    "elapsedMs": 113.67326300000059,
+    "elapsedMs": 170.5418499999996,
     "gameTime": 85440,
     "cashCents": 49184419,
     "delivered": 107,
     "orders": 1772,
     "journal": 1242,
-    "stateBytes": 4624363
+    "stateBytes": 5292808
   },
   {
     "day": 60,
-    "elapsedMs": 103.49064999999973,
+    "elapsedMs": 191.57437500000015,
     "gameTime": 86880,
     "cashCents": 49093057,
     "delivered": 110,
     "orders": 1772,
     "journal": 1272,
-    "stateBytes": 4683800
+    "stateBytes": 5365650
   },
   {
     "day": 61,
-    "elapsedMs": 97.9249519999994,
+    "elapsedMs": 190.24698800000078,
     "gameTime": 88320,
     "cashCents": 48984569,
     "delivered": 112,
     "orders": 1778,
     "journal": 1296,
-    "stateBytes": 4735975
+    "stateBytes": 5427473
   },
   {
     "day": 62,
-    "elapsedMs": 102.08307599999898,
+    "elapsedMs": 200.0683680000002,
     "gameTime": 89760,
     "cashCents": 48934683,
     "delivered": 115,
     "orders": 1780,
     "journal": 1320,
-    "stateBytes": 4784333
+    "stateBytes": 5489786
   },
   {
     "day": 63,
-    "elapsedMs": 102.74738700000125,
+    "elapsedMs": 184.01921100000072,
     "gameTime": 91200,
     "cashCents": 48754747,
     "delivered": 117,
     "orders": 1773,
     "journal": 1341,
-    "stateBytes": 4832575
+    "stateBytes": 5549338
   },
   {
     "day": 64,
-    "elapsedMs": 197.73257899999953,
+    "elapsedMs": 242.141787999999,
     "gameTime": 92640,
     "cashCents": 48553889,
     "delivered": 118,
     "orders": 1784,
     "journal": 1361,
-    "stateBytes": 4887123
+    "stateBytes": 5614375
   },
   {
     "day": 65,
-    "elapsedMs": 133.53742799999964,
+    "elapsedMs": 203.2328010000001,
     "gameTime": 94080,
     "cashCents": 48473150,
     "delivered": 121,
     "orders": 1780,
     "journal": 1384,
-    "stateBytes": 4925477
+    "stateBytes": 5671453
   },
   {
     "day": 66,
-    "elapsedMs": 92.36742299999969,
+    "elapsedMs": 136.16492199999993,
     "gameTime": 95520,
     "cashCents": 48342150,
     "delivered": 122,
     "orders": 1765,
     "journal": 1396,
-    "stateBytes": 4935145
+    "stateBytes": 5680858
   },
   {
     "day": 67,
-    "elapsedMs": 111.87829700000111,
+    "elapsedMs": 103.43922100000054,
     "gameTime": 96960,
     "cashCents": 48173150,
     "delivered": 122,
     "orders": 1753,
     "journal": 1407,
-    "stateBytes": 4935724
+    "stateBytes": 5681197
   },
   {
     "day": 68,
-    "elapsedMs": 55.4281919999994,
+    "elapsedMs": 75.06897199999912,
     "gameTime": 98400,
     "cashCents": 48004150,
     "delivered": 122,
     "orders": 1743,
     "journal": 1418,
-    "stateBytes": 4940621
+    "stateBytes": 5689639
   },
   {
     "day": 69,
-    "elapsedMs": 62.353705000001355,
+    "elapsedMs": 136.78359099999943,
     "gameTime": 99840,
     "cashCents": 47811763,
     "delivered": 122,
     "orders": 1730,
     "journal": 1433,
-    "stateBytes": 4953760
+    "stateBytes": 5712219
   },
   {
     "day": 70,
-    "elapsedMs": 113.5756530000017,
+    "elapsedMs": 127.71674100000018,
     "gameTime": 101280,
     "cashCents": 47610603,
     "delivered": 122,
     "orders": 1721,
     "journal": 1448,
-    "stateBytes": 4973151
+    "stateBytes": 5740634
   },
   {
     "day": 71,
-    "elapsedMs": 68.17569300000105,
+    "elapsedMs": 117.91424099999858,
     "gameTime": 102720,
     "cashCents": 47436217,
     "delivered": 122,
     "orders": 1702,
     "journal": 1460,
-    "stateBytes": 4981596
+    "stateBytes": 5755714
   },
   {
     "day": 72,
-    "elapsedMs": 64.07927100000052,
+    "elapsedMs": 153.14497699999993,
     "gameTime": 104160,
     "cashCents": 47245060,
     "delivered": 122,
     "orders": 1695,
     "journal": 1474,
-    "stateBytes": 4989494
+    "stateBytes": 5774012
   },
   {
     "day": 73,
-    "elapsedMs": 44.527376000000004,
+    "elapsedMs": 76.0413899999985,
     "gameTime": 105600,
     "cashCents": 47148361,
     "delivered": 122,
     "orders": 1674,
     "journal": 1482,
-    "stateBytes": 4977477
+    "stateBytes": 5767879
   },
   {
     "day": 74,
-    "elapsedMs": 35.48423600000024,
+    "elapsedMs": 52.50344899999982,
     "gameTime": 107040,
     "cashCents": 47070361,
     "delivered": 122,
     "orders": 1655,
     "journal": 1487,
-    "stateBytes": 4966726
+    "stateBytes": 5757606
   },
   {
     "day": 75,
-    "elapsedMs": 38.78197799999907,
+    "elapsedMs": 45.94085300000006,
     "gameTime": 108480,
     "cashCents": 46992361,
     "delivered": 122,
     "orders": 1639,
     "journal": 1492,
-    "stateBytes": 4960011
+    "stateBytes": 5750597
   },
   {
     "day": 76,
-    "elapsedMs": 29.509597000000213,
+    "elapsedMs": 43.687128000001394,
     "gameTime": 109920,
     "cashCents": 46950361,
     "delivered": 122,
     "orders": 1620,
     "journal": 1495,
-    "stateBytes": 4950088
+    "stateBytes": 5740072
   },
   {
     "day": 77,
-    "elapsedMs": 29.61219700000038,
+    "elapsedMs": 46.289882999997644,
     "gameTime": 111360,
     "cashCents": 46908361,
     "delivered": 122,
     "orders": 1618,
     "journal": 1498,
-    "stateBytes": 4949382
+    "stateBytes": 5739027
   },
   {
     "day": 78,
-    "elapsedMs": 22.857074999999895,
+    "elapsedMs": 40.55651500000022,
     "gameTime": 112800,
     "cashCents": 46866361,
     "delivered": 122,
     "orders": 1605,
     "journal": 1501,
-    "stateBytes": 4944506
+    "stateBytes": 5733860
   },
   {
     "day": 79,
-    "elapsedMs": 23.1239659999992,
+    "elapsedMs": 45.33673400000043,
     "gameTime": 114240,
     "cashCents": 46846361,
     "delivered": 122,
     "orders": 1612,
     "journal": 1503,
-    "stateBytes": 4954014
+    "stateBytes": 5743107
   },
   {
     "day": 80,
-    "elapsedMs": 43.605884000000515,
+    "elapsedMs": 42.05616100000043,
     "gameTime": 115680,
     "cashCents": 46826361,
     "delivered": 122,
     "orders": 1606,
     "journal": 1505,
-    "stateBytes": 4949852
+    "stateBytes": 5738810
   },
   {
     "day": 81,
-    "elapsedMs": 28.48221299999932,
+    "elapsedMs": 41.59794200000033,
     "gameTime": 117120,
     "cashCents": 46806361,
     "delivered": 122,
     "orders": 1587,
     "journal": 1507,
-    "stateBytes": 4936047
+    "stateBytes": 5724651
   },
   {
     "day": 82,
-    "elapsedMs": 27.347909000000072,
+    "elapsedMs": 37.63717000000179,
     "gameTime": 118560,
     "cashCents": 46786361,
     "delivered": 122,
     "orders": 1575,
     "journal": 1509,
-    "stateBytes": 4927128
+    "stateBytes": 5715676
   },
   {
     "day": 83,
-    "elapsedMs": 22.214202999999543,
+    "elapsedMs": 38.750747999998566,
     "gameTime": 120000,
     "cashCents": 46766361,
     "delivered": 122,
     "orders": 1569,
     "journal": 1511,
-    "stateBytes": 4922254
+    "stateBytes": 5710482
   },
   {
     "day": 84,
-    "elapsedMs": 22.72575499999948,
+    "elapsedMs": 36.2271639999999,
     "gameTime": 121440,
     "cashCents": 46746361,
     "delivered": 122,
     "orders": 1554,
     "journal": 1513,
-    "stateBytes": 4912535
+    "stateBytes": 5700444
   },
   {
     "day": 85,
-    "elapsedMs": 23.794878000000608,
+    "elapsedMs": 44.077367000001686,
     "gameTime": 122880,
     "cashCents": 46726361,
     "delivered": 122,
     "orders": 1551,
     "journal": 1515,
-    "stateBytes": 4914034
+    "stateBytes": 5701873
   },
   {
     "day": 86,
-    "elapsedMs": 25.063482000001386,
+    "elapsedMs": 38.162639999998646,
     "gameTime": 124320,
     "cashCents": 46706361,
     "delivered": 122,
     "orders": 1533,
     "journal": 1517,
-    "stateBytes": 4901966
+    "stateBytes": 5689631
   },
   {
     "day": 87,
-    "elapsedMs": 21.39878099999987,
+    "elapsedMs": 52.47279900000285,
     "gameTime": 125760,
     "cashCents": 46686361,
     "delivered": 122,
     "orders": 1524,
     "journal": 1519,
-    "stateBytes": 4896311
+    "stateBytes": 5683538
   },
   {
     "day": 88,
-    "elapsedMs": 23.078935999999885,
+    "elapsedMs": 34.33756799999901,
     "gameTime": 127200,
     "cashCents": 46666361,
     "delivered": 122,
     "orders": 1513,
     "journal": 1521,
-    "stateBytes": 4888230
+    "stateBytes": 5675102
   },
   {
     "day": 89,
-    "elapsedMs": 22.539473999999245,
+    "elapsedMs": 37.091042000000016,
     "gameTime": 128640,
     "cashCents": 46646361,
     "delivered": 122,
     "orders": 1506,
     "journal": 1523,
-    "stateBytes": 4882407
+    "stateBytes": 5669076
   },
   {
     "day": 90,
-    "elapsedMs": 23.493297000000894,
+    "elapsedMs": 38.24863899999764,
     "gameTime": 130080,
     "cashCents": 46626361,
     "delivered": 122,
     "orders": 1495,
     "journal": 1529,
-    "stateBytes": 4879760
+    "stateBytes": 5666042
   },
   {
     "day": 91,
-    "elapsedMs": 25.671565000000555,
+    "elapsedMs": 37.651341000000684,
     "gameTime": 131520,
     "cashCents": 46606361,
     "delivered": 122,
     "orders": 1481,
     "journal": 1531,
-    "stateBytes": 4869530
+    "stateBytes": 5655635
   },
   {
     "day": 92,
-    "elapsedMs": 26.784567999999126,
+    "elapsedMs": 33.32759000000078,
     "gameTime": 132960,
     "cashCents": 46586361,
     "delivered": 122,
     "orders": 1470,
     "journal": 1533,
-    "stateBytes": 4861507
+    "stateBytes": 5647496
   },
   {
     "day": 93,
-    "elapsedMs": 28.184503000000404,
+    "elapsedMs": 35.103415999998106,
     "gameTime": 134400,
     "cashCents": 46566361,
     "delivered": 122,
     "orders": 1459,
     "journal": 1535,
-    "stateBytes": 4855528
+    "stateBytes": 5641210
   },
   {
     "day": 94,
-    "elapsedMs": 25.73433499999919,
+    "elapsedMs": 133.25426900000093,
     "gameTime": 135840,
     "cashCents": 46546361,
     "delivered": 122,
     "orders": 1451,
     "journal": 1537,
-    "stateBytes": 4850689
+    "stateBytes": 5636230
   },
   {
     "day": 95,
-    "elapsedMs": 23.801408000001175,
+    "elapsedMs": 42.327141000001575,
     "gameTime": 137280,
     "cashCents": 46526361,
     "delivered": 122,
     "orders": 1428,
     "journal": 1539,
-    "stateBytes": 4832812
+    "stateBytes": 5617969
   },
   {
     "day": 96,
-    "elapsedMs": 23.81666799999948,
+    "elapsedMs": 54.187034999999014,
     "gameTime": 138720,
     "cashCents": 46506361,
     "delivered": 122,
     "orders": 1424,
     "journal": 1541,
-    "stateBytes": 4832591
+    "stateBytes": 5617572
   },
   {
     "day": 97,
-    "elapsedMs": 34.748434000001,
+    "elapsedMs": 45.817433000000165,
     "gameTime": 140160,
     "cashCents": 46486361,
     "delivered": 122,
     "orders": 1429,
     "journal": 1543,
-    "stateBytes": 4839055
+    "stateBytes": 5624191
   },
   {
     "day": 98,
-    "elapsedMs": 25.71367399999872,
+    "elapsedMs": 55.6998620000013,
     "gameTime": 141600,
     "cashCents": 46466361,
     "delivered": 122,
     "orders": 1434,
     "journal": 1545,
-    "stateBytes": 4844727
+    "stateBytes": 5629768
   },
   {
     "day": 99,
-    "elapsedMs": 17.690457999999126,
+    "elapsedMs": 73.53535499999998,
     "gameTime": 143040,
     "cashCents": 46446361,
     "delivered": 122,
     "orders": 1430,
     "journal": 1547,
-    "stateBytes": 4844480
+    "stateBytes": 5629287
   },
   {
     "day": 100,
-    "elapsedMs": 19.78706500000044,
+    "elapsedMs": 36.43771299999935,
     "gameTime": 144480,
     "cashCents": 46426361,
     "delivered": 122,
     "orders": 1425,
     "journal": 1549,
-    "stateBytes": 4844770
+    "stateBytes": 5629314
   },
   {
     "day": 101,
-    "elapsedMs": 17.346587,
+    "elapsedMs": 32.17073200000232,
     "gameTime": 145920,
     "cashCents": 46406361,
     "delivered": 122,
     "orders": 1424,
     "journal": 1551,
-    "stateBytes": 4844127
+    "stateBytes": 5628402
   },
   {
     "day": 102,
-    "elapsedMs": 20.389687000000777,
+    "elapsedMs": 65.15382300000056,
     "gameTime": 147360,
     "cashCents": 46386361,
     "delivered": 122,
     "orders": 1431,
     "journal": 1553,
-    "stateBytes": 4852428
+    "stateBytes": 5636391
   },
   {
     "day": 103,
-    "elapsedMs": 20.20073600000069,
+    "elapsedMs": 35.09908600000199,
     "gameTime": 148800,
     "cashCents": 46366361,
     "delivered": 122,
     "orders": 1426,
     "journal": 1555,
-    "stateBytes": 4851661
+    "stateBytes": 5635394
   },
   {
     "day": 104,
-    "elapsedMs": 17.52013799999986,
+    "elapsedMs": 29.83670600000187,
     "gameTime": 150240,
     "cashCents": 46346361,
     "delivered": 122,
     "orders": 1422,
     "journal": 1557,
-    "stateBytes": 4849607
+    "stateBytes": 5633284
   },
   {
     "day": 105,
-    "elapsedMs": 18.200960000000123,
+    "elapsedMs": 34.805397000000085,
     "gameTime": 151680,
     "cashCents": 46326361,
     "delivered": 122,
     "orders": 1430,
     "journal": 1559,
-    "stateBytes": 4858403
+    "stateBytes": 5642170
   },
   {
     "day": 106,
-    "elapsedMs": 16.789495000000898,
+    "elapsedMs": 33.69894900000145,
     "gameTime": 153120,
     "cashCents": 46306361,
     "delivered": 122,
     "orders": 1432,
     "journal": 1561,
-    "stateBytes": 4862937
+    "stateBytes": 5646715
   },
   {
     "day": 107,
-    "elapsedMs": 16.709254999999757,
+    "elapsedMs": 34.04902899999797,
     "gameTime": 154560,
     "cashCents": 46286361,
     "delivered": 122,
     "orders": 1432,
     "journal": 1563,
-    "stateBytes": 4863751
+    "stateBytes": 5647529
   },
   {
     "day": 108,
-    "elapsedMs": 17.71737799999937,
+    "elapsedMs": 33.0024310000008,
     "gameTime": 156000,
     "cashCents": 46266361,
     "delivered": 122,
     "orders": 1425,
     "journal": 1565,
-    "stateBytes": 4860862
+    "stateBytes": 5644486
   },
   {
     "day": 109,
-    "elapsedMs": 18.105500000001484,
+    "elapsedMs": 31.91992300000129,
     "gameTime": 157440,
     "cashCents": 46246361,
     "delivered": 122,
     "orders": 1427,
     "journal": 1567,
-    "stateBytes": 4864778
+    "stateBytes": 5648398
   },
   {
     "day": 110,
-    "elapsedMs": 18.389650999999503,
+    "elapsedMs": 36.958512000001065,
     "gameTime": 158880,
     "cashCents": 46226361,
     "delivered": 122,
     "orders": 1429,
     "journal": 1569,
-    "stateBytes": 4867135
+    "stateBytes": 5650614
   },
   {
     "day": 111,
-    "elapsedMs": 18.57800099999986,
+    "elapsedMs": 35.85730400000102,
     "gameTime": 160320,
     "cashCents": 46206361,
     "delivered": 122,
     "orders": 1419,
     "journal": 1571,
-    "stateBytes": 4863414
+    "stateBytes": 5646762
   },
   {
     "day": 112,
-    "elapsedMs": 18.704361000000063,
+    "elapsedMs": 34.89374699999826,
     "gameTime": 161760,
     "cashCents": 46186361,
     "delivered": 122,
     "orders": 1413,
     "journal": 1573,
-    "stateBytes": 4864030
+    "stateBytes": 5647480
   },
   {
     "day": 113,
-    "elapsedMs": 17.46328800000083,
+    "elapsedMs": 34.63178600000174,
     "gameTime": 163200,
     "cashCents": 46166361,
     "delivered": 122,
     "orders": 1419,
     "journal": 1575,
-    "stateBytes": 4869928
+    "stateBytes": 5653229
   },
   {
     "day": 114,
-    "elapsedMs": 18.69879100000071,
+    "elapsedMs": 30.910524999999325,
     "gameTime": 164640,
     "cashCents": 46146361,
     "delivered": 122,
     "orders": 1414,
     "journal": 1577,
-    "stateBytes": 4868949
+    "stateBytes": 5652050
   },
   {
     "day": 115,
-    "elapsedMs": 27.61427100000037,
+    "elapsedMs": 39.084687999999005,
     "gameTime": 166080,
     "cashCents": 46126361,
     "delivered": 122,
     "orders": 1417,
     "journal": 1579,
-    "stateBytes": 4873629
+    "stateBytes": 5656645
   },
   {
     "day": 116,
-    "elapsedMs": 20.465437000000748,
+    "elapsedMs": 33.052770000002056,
     "gameTime": 167520,
     "cashCents": 46106361,
     "delivered": 122,
     "orders": 1420,
     "journal": 1581,
-    "stateBytes": 4877060
+    "stateBytes": 5660076
   },
   {
     "day": 117,
-    "elapsedMs": 18.63180099999954,
+    "elapsedMs": 36.53534199999922,
     "gameTime": 168960,
     "cashCents": 46086361,
     "delivered": 122,
     "orders": 1416,
     "journal": 1583,
-    "stateBytes": 4876595
+    "stateBytes": 5659457
   },
   {
     "day": 118,
-    "elapsedMs": 16.851464999999735,
+    "elapsedMs": 60.11199300000226,
     "gameTime": 170400,
     "cashCents": 46066361,
     "delivered": 122,
     "orders": 1408,
     "journal": 1585,
-    "stateBytes": 4873389
+    "stateBytes": 5656107
   },
   {
     "day": 119,
-    "elapsedMs": 15.968752000000677,
+    "elapsedMs": 36.54417299999841,
     "gameTime": 171840,
     "cashCents": 46046361,
     "delivered": 122,
     "orders": 1410,
     "journal": 1587,
-    "stateBytes": 4876630
+    "stateBytes": 5659253
   },
   {
     "day": 120,
-    "elapsedMs": 19.4807239999991,
+    "elapsedMs": 41.26061199999822,
     "gameTime": 173280,
     "cashCents": 46026361,
     "delivered": 122,
     "orders": 1411,
     "journal": 1593,
-    "stateBytes": 4884118
+    "stateBytes": 5666636
   }
 ]
