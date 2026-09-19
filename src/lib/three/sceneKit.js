@@ -115,69 +115,39 @@ export function buildStraightRoad(length = 400, width = 9) {
   return group;
 }
 
-// Oval-Teststrecke für die Probefahrt: zwei Geraden + zwei Kurven.
+// Oval-Teststrecke für die Probefahrt (als Ellipse aus schmalen Box-Segmenten).
 export function buildOvalTrack() {
   const group = new THREE.Group();
-  const halfLen = 80;
-  const curveR = 30;
   const width = 10;
+  const ovalB = 35;  // x-Radius (Kurvenradius)
+  const ovalA = 110; // z-Radius (Geraden + Kurven)
+  const segs = 72;
+  const asphaltMat = new THREE.MeshStandardMaterial({ color: 0x2a2e32, roughness: 0.9 });
+  const dashMat = new THREE.MeshStandardMaterial({ color: 0xc8b070, roughness: 0.6, emissive: 0x3a3020, emissiveIntensity: 0.2 });
 
-  // Zwei Geraden
-  for (const sz of [-1, 1]) {
-    const straight = new THREE.Mesh(
-      new THREE.PlaneGeometry(width, halfLen * 2),
-      new THREE.MeshStandardMaterial({ color: 0x2a2e32, roughness: 0.9 })
-    );
-    straight.rotation.x = -Math.PI / 2;
-    straight.position.set(curveR + width / 2, 0.03, sz * 0);
-    straight.position.z = 0;
-    // Verschiebe auf die Oval-Seite
-    straight.position.x = 0;
-    straight.position.z = sz * (halfLen);
-    straight.receiveShadow = true;
-    group.add(straight);
-  }
-  // Einfacherer Ansatz: ein breiter Ring (Torus-ähnlich) als Straße
-  group.clear();
-  const trackShape = new THREE.Shape();
-  const innerR = curveR;
-  const outerR = curveR + width;
-  // Oval aus zwei Halbkreisen + zwei Geraden
-  const straightLen = halfLen * 2;
-  // Wir bauen die Straße als Gruppe von Segmenten
-  const segs = 64;
-  const ovalA = straightLen / 2 + curveR; // "Radius" in z
-  const ovalB = curveR + width / 2; // Mittellinie x
   for (let i = 0; i < segs; i++) {
     const a0 = (i / segs) * Math.PI * 2;
     const a1 = ((i + 1) / segs) * Math.PI * 2;
-    // Ovalpunkt: x = ovalB * sin(a), z = ovalA * cos(a) — aber das ergibt eine Ellipse.
-    // Für eine echte Ovalstrecke mit Geraden nutzen wir einen parametrischen Ansatz:
-    // Wir approximieren das Oval als Ellipse (einfacher, gut genug für visuelle Führung).
     const p0 = ellipsePoint(ovalB, ovalA, a0);
     const p1 = ellipsePoint(ovalB, ovalA, a1);
     const mid = { x: (p0.x + p1.x) / 2, z: (p0.z + p1.z) / 2 };
     const dx = p1.x - p0.x, dz = p1.z - p0.z;
     const segLen = Math.sqrt(dx * dx + dz * dz);
-    const angle = Math.atan2(dx, dz);
-    const seg = new THREE.Mesh(
-      new THREE.PlaneGeometry(width, segLen + 0.5),
-      new THREE.MeshStandardMaterial({ color: 0x2a2e32, roughness: 0.9 })
-    );
-    seg.rotation.x = -Math.PI / 2;
-    seg.rotation.z = -angle;
-    seg.position.set(mid.x, 0.03, mid.z);
+    const yaw = Math.atan2(dx, dz);
+    const seg = new THREE.Mesh(new THREE.BoxGeometry(width, 0.1, segLen + 0.5), asphaltMat);
+    seg.position.set(mid.x, 0.05, mid.z);
+    seg.rotation.y = yaw;
     seg.receiveShadow = true;
     group.add(seg);
   }
   // Mittellinie
-  const dashMat = new THREE.MeshStandardMaterial({ color: 0xc8b070, roughness: 0.6 });
   for (let i = 0; i < segs; i += 2) {
     const a = (i / segs) * Math.PI * 2;
     const p = ellipsePoint(ovalB, ovalA, a);
-    const dash = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 2.5), dashMat);
-    dash.rotation.x = -Math.PI / 2;
-    dash.position.set(p.x, 0.05, p.z);
+    const yaw = a + Math.PI / 2;
+    const dash = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.02, 2.5), dashMat);
+    dash.position.set(p.x, 0.11, p.z);
+    dash.rotation.y = yaw;
     group.add(dash);
   }
   return group;

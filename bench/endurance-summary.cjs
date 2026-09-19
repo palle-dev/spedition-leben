@@ -1,0 +1,7 @@
+const fs=require('fs');const base='/tmp/frachtfieber-endurance';
+const rows=fs.readFileSync(base+'/days.jsonl','utf8').trim().split('\n').filter(Boolean).map(JSON.parse);
+const median=a=>{a=a.slice().sort((a,b)=>a-b);return a.length%2?a[(a.length-1)/2]:(a[a.length/2-1]+a[a.length/2])/2};
+const groups=[];for(let n=25;n<=250;n+=25){const r=rows.filter(r=>r.after.vehicles===n);if(!r.length)continue;groups.push({days:r[0].day+'–'+r.at(-1).day,vehicles:n,branches:r[0].after.branches,medianSeconds:+(median(r.map(x=>x.engineMs))/1000).toFixed(3),maxSeconds:+(Math.max(...r.map(x=>x.engineMs))/1000).toFixed(3),minSeconds:+(Math.min(...r.map(x=>x.engineMs))/1000).toFixed(3),cloneMedianSeconds:+(median(r.map(x=>x.inputCloneMs+x.outputCloneMs))/1000).toFixed(3),endMB:+(r.at(-1).outputBytes/1048576).toFixed(2),meanActive:+(r.reduce((a,x)=>a+x.after.activeTrucks,0)/r.length).toFixed(1),delivered:r.reduce((a,x)=>a+x.delivered,0)});}
+const thresholds=[5,10,30,60,120,180,300].map(seconds=>{const r=rows.find(r=>r.engineMs>=seconds*1000);return{seconds,firstDay:r?.day??null,vehicles:r?.after.vehicles??null}});
+const result={completedDays:rows.length,groups,thresholds,totalSeconds:rows.reduce((a,x)=>a+x.engineMs,0)/1000,last:rows.at(-1),top:rows.slice().sort((a,b)=>b.engineMs-a.engineMs).slice(0,5).map(r=>({day:r.day,seconds:r.engineMs/1000,vehicles:r.after.vehicles}))};
+fs.writeFileSync(base+'/summary.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2));

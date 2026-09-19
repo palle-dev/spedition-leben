@@ -8,7 +8,9 @@ const {postJournal,registerAsset}=require('../src/lib/simulation/accountingEngin
 const days=Number(process.argv[2]||200),out=process.argv[3]||'/tmp/frachtfieber-endurance';
 if(!Number.isInteger(days)||days<1||days>200)throw Error('days must be 1..200');
 fs.mkdirSync(out,{recursive:true});
-const s=createInitialState({companyName:'Lasttest 200 Tage',playerName:'Benchmark',partnerName:'Test'}).state;
+const resume=process.argv.includes('--resume');
+if(resume && fs.existsSync(out+'/done.json')){console.log('Already complete');process.exit(0);}
+let s=createInitialState({companyName:'Lasttest 200 Tage',playerName:'Benchmark',partnerName:'Test'}).state;
 applyCommand(s,'advanceTime',{minutes:0});
 postJournal(s,{text:'Lasttestkapital',lines:[{account:'1000',debit:100000000000},{account:'2020',credit:100000000000}]});
 const templates={vehicle:structuredClone(s.vehicles[0]),driver:structuredClone(s.drivers[0]),order:structuredClone(s.orders[0]),branch:structuredClone(s.branches[0])};
@@ -19,7 +21,15 @@ applyCommand(s,'applyDelegationPreset',{presetId:'daily_relief'});
 s.delegation.rules.maxSpendPerActionCents=100000000;s.delegation.rules.dailyBudgetCents=1000000000;s.delegation.rules.autoAcceptOrders=true;s.delegation.rules.autoDispatch=true;
 const cities=['Hamburg','Bremen','Kiel','Hannover','Berlin','Köln','Frankfurt','München','Leipzig','Stuttgart'];
 const metadata={startedAt:new Date().toISOString(),commit:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),days,seed:s.rngSeed,node:process.version,method:'continuous engine advanceTime(1440), every day measured; no browser/render/cloud time',growth:'25 trucks and 1 branch on days 1,21,41,61,81,101,121,141,161,181',controls:'Synthetic fleet/branch/staff provisioning outside timing; 35 drivers and 6 ordinary dispatchers per branch. Daily 2 new test offers per truck; destinations among nearest 3 cities. Capital injection, daily condition floor 85 and satisfaction floor 75 maintain load. No history removal; travel, rest, illness, disruptions and natural market remain engine-controlled.'};
-fs.writeFileSync(out+'/metadata.json',JSON.stringify(metadata,null,2));fs.writeFileSync(out+'/days.jsonl','');
+let firstDay=1;
+if(resume){
+ const checkpoint=fs.readdirSync(out).filter(f=>/^state-day[0-9]+\.json$/.test(f)).map(f=>Number(f.match(/[0-9]+/)[0])).sort((a,b)=>b-a)[0];
+ if(!checkpoint)throw Error('No checkpoint available for resume');
+ s=JSON.parse(fs.readFileSync(out+'/state-day'+checkpoint+'.json','utf8'));firstDay=checkpoint+1;
+ const rows=fs.readFileSync(out+'/days.jsonl','utf8').trim().split('\n').filter(Boolean).map(JSON.parse).filter(r=>r.day<=checkpoint);
+ fs.writeFileSync(out+'/days.jsonl',rows.map(r=>JSON.stringify(r)).join('\n')+'\n');
+ console.log(JSON.stringify({resumedFromDay:checkpoint}));
+}else{fs.writeFileSync(out+'/metadata.json',JSON.stringify(metadata,null,2));fs.writeFileSync(out+'/days.jsonl','');}
 const nearest=city=>CITIES.filter(c=>c!==city).sort((a,b)=>getDistance(city,a)-getDistance(city,b)).slice(0,3);
 function expand(index){
  const id='load_b'+index,city=cities[index];
@@ -33,7 +43,7 @@ function expand(index){
 }
 function quantities(){return{vehicles:s.vehicles.length,branches:s.branches.length,drivers:s.drivers.length,dispatchers:s.employees.filter(e=>e.role==='dispatcher').length,activeTrucks:s.vehicles.filter(v=>v.status==='on_trip').length,freeTrucks:s.vehicles.filter(v=>v.status==='free').length,orders:s.orders.length,offered:s.orders.filter(o=>o.status==='offered').length,accepted:s.orders.filter(o=>o.status==='angenommen').length,trips:s.trips.length,tours:(s.tours||[]).length,journal:(s.accounting?.journal||[]).length,mails:(s.mail?.messages||[]).length,bookings:s.bookings.length};}
 try{
- for(let day=1;day<=days;day++){
+ for(let day=firstDay;day<=days;day++){
   if((day-1)%20===0)expand(Math.floor((day-1)/20));
   let repairs=0,morale=0;
   for(const v of s.vehicles){if(v.condition<85){v.condition=85;repairs++;}}

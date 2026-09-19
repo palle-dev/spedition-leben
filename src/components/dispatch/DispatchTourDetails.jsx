@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useGame } from "@/lib/gameContext";
 import { vehicleDisplayName, driverDisplayName } from "@/lib/displayHelpers";
 import { formatGameTime, formatEuro, getVehicleProfile, getVehicleBodyType } from "@/lib/gameData";
 import { hasRealGeometry } from "@/lib/geoData";
@@ -8,7 +9,7 @@ import TourCompanionView from "@/components/three/TourCompanionView";
 import DriveMiniGame from "@/components/three/DriveMiniGame";
 
 export default function DispatchTourDetails({ trip, state, routeData, onBack, onShowOnMap, onShowVehicle }) {
-  const { send, showToast } = { send: null, showToast: null };
+  const { showToast } = useGame();
   const [companion, setCompanion] = useState(false);
   const [miniGame, setMiniGame] = useState(false);
   const vehicle = state.vehicles.find(v => v.id === trip.vehicleId);
