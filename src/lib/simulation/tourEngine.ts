@@ -1309,7 +1309,7 @@ export function suggestTours(state, opts) {
           orderIds: [o.id],
           desiredEndCity, latestReturnMin,
         });
-        if (reliable(plan) && plan.tourEndMin <= maxMin && isPersonAvailable(state, driver.id, plan.earliestStartMin) && driver.attendance !== "released" && !isPersonInTraining(state, driver.id, plan.earliestStartMin)) {
+        if (plan.ok && reliable(plan) && plan.tourEndMin <= maxMin && isPersonAvailable(state, driver.id, plan.earliestStartMin) && driver.attendance !== "released" && !isPersonInTraining(state, driver.id, plan.earliestStartMin)) {
           const isNew = o.status === "offered";
           if (isNew && plan.totalContributionCents <= 0) continue;
           if (!driverBestPlan || comparePlans(plan, driverBestPlan, mode) < 0) {
@@ -1334,7 +1334,7 @@ export function suggestTours(state, opts) {
             orderIds: [o1.id, o2.id],
             desiredEndCity, latestReturnMin,
           });
-          if (reliable(plan) && plan.tourEndMin <= maxMin && isPersonAvailable(state, driver.id, plan.earliestStartMin) && driver.attendance !== "released" && !isPersonInTraining(state, driver.id, plan.earliestStartMin)) {
+          if (plan.ok && reliable(plan) && plan.tourEndMin <= maxMin && isPersonAvailable(state, driver.id, plan.earliestStartMin) && driver.attendance !== "released" && !isPersonInTraining(state, driver.id, plan.earliestStartMin)) {
             const hasNew = o1.status === "offered" || o2.status === "offered";
             if (hasNew && plan.totalContributionCents <= 0) continue;
             if (!driverBestPlan || comparePlans(plan, driverBestPlan, mode) < 0) {

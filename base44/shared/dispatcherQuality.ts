@@ -5,13 +5,13 @@ export function dispatcherProfile(state, employee) {
   const senior = employee.role === 'dispatcher_senior';
   const capacity = (lead ? 18 : senior ? 12 : 6) + (efficient ? 2 : 0);
   return {label:lead?'Dispositionsleiter':senior?'Erfahrener Disponent':'Disponent',capacity,
-    bufferMin:lead?15:senior||efficient?20:30,
+    bufferMin:lead?60:senior||efficient?45:30,
     horizonMin:lead?96*60:efficient?72*60:48*60,
     candidateOrderLimit:lead?20:efficient||senior?16:12,
     efficiency:efficient,lead};
 }
 export function dispatcherVehicleIds(state, employeeId) {
-  const orders = new Map((state.orders || []).map(o => [o.id, o]));
+  const orders = new Map<string, any>((state.orders || []).map(o => [o.id, o]));
   const ids = new Set();
   for (const tour of state.tours || []) {
     if (!['active','planned'].includes(tour.status)) continue;

@@ -46,10 +46,10 @@ describe('Zuverlässige Disposition',()=>{
  it('erlaubt Leitung erst nach Senior-Qualifikation und vergibt die Wirkung nach Kursabschluss',()=>{
   const s=base(),e=s.employees[0];expect(checkCoursePrerequisites(s,e.id,'dispo_lead').ok).toBe(false);
   e.role='dispatcher_senior';bookCourse(s,e.id,'dispo_lead');
-  expect(dispatcherProfile(s,e).capacity).toBe(12);
+  expect(dispatcherProfile(s,e).capacity).toBe(12);expect(dispatcherProfile(s,e).bufferMin).toBe(45);
   const enrollment=s.training.enrollments.find(x=>x.courseId==='dispo_lead');
   while(s.gameTime<=enrollment.endMin) applyCommand(s,'advanceTime',{minutes:Math.min(1440,enrollment.endMin-s.gameTime+1),silentPhoneAdvance:true});
-  expect(dispatcherProfile(s,e).lead).toBe(true);expect(dispatcherProfile(s,e).capacity).toBe(18);
+  expect(dispatcherProfile(s,e).lead).toBe(true);expect(dispatcherProfile(s,e).capacity).toBe(18);expect(dispatcherProfile(s,e).bufferMin).toBe(60);
  });
  it('zeigt nur die letzten sieben Spieltage und erfindet keine Pünktlichkeitsquote',()=>{
   const s=base(),e=s.employees[0];expect(dispatcherReport(s,e).punctuality).toBeNull();s.gameTime=20*1440;

@@ -94,7 +94,7 @@ export const COURSE_CATALOG = [
     hours: 16,
     blocks: 2,
     effect: "dispo_efficiency",
-    effectDesc: "72h Planung, 2 zusätzliche betreute Lkw, mindestens 16 Auftragskandidaten und 20 Minuten Mindestpuffer",
+    effectDesc: "72h Planung, 2 zusätzliche betreute Lkw, mindestens 16 Auftragskandidaten und 45 Minuten Mindestpuffer",
     requires: ["dispatcher_role"],
     description: "Fortgeschrittene Tourenplanung mit erweitertem Horizont und verkürzten Reaktionszeiten.",
     icon: "Route",

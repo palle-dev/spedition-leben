@@ -58,7 +58,7 @@ export async function deleteCloudSave(stateId) {
 
 // Wiederholt nur vorübergehende Fehler. Payload/Revision bleiben identisch;
 // 409 und fachliche Fehler werden niemals durch Überschreiben umgangen.
-export async function withCloudRetry(task, { isCurrent = () => true, wait = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
+export async function withCloudRetry(task, { isCurrent = () => Boolean(true), wait = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
   for (let attempt = 0; attempt < 3; attempt++) {
     if (!isCurrent()) return { skipped: true };
     try { return await task(); }

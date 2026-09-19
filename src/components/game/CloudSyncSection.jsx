@@ -175,7 +175,7 @@ export default function CloudSyncSection() {
       )}
 
       <p className="text-[11px] text-muted-foreground leading-relaxed">
-        Cloud-Spielstände ermöglichen geräteübergreifendes Fortsetzen. Es werden nur manuelle Speicherpunkte synchronisiert, nicht jeder Spielschritt.
+        Cloud-Spielstände ermöglichen geräteübergreifendes Fortsetzen. Manuelles Speichern sichert sofort; Änderungen werden zusätzlich regelmäßig automatisch synchronisiert.
       </p>
     </div>
   );
