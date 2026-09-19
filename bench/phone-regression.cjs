@@ -1,4 +1,5 @@
 const {performance}=require("perf_hooks");
+if(process.argv.includes("--day")) Date.now=()=>1800000000000;
 const b=require("./harness.cjs");
 const {getDisruptionDetail}=require("../src/lib/simulation/disruptionEngine.ts");
 const {processPhoneCommunications}=require("../src/lib/simulation/phoneCommunications.ts");
@@ -9,7 +10,11 @@ for(let i=0;i<10000;i++)s.mail.messages.push({id:"history-"+i,fromId:"system",to
 const clone=global.structuredClone;let copies=0,cloneMs=0;
 global.structuredClone=(x)=>{const t=performance.now();const r=clone(x);copies++;cloneMs+=performance.now()-t;return r;};
 const bytes=JSON.stringify(s).length;const t=performance.now();
-for(let i=0;i<30;i++)processPhoneCommunications(s,true);
+if(process.argv.includes("--day")) b.applyCommand(s,"advanceTime",{minutes:1440,silentPhoneAdvance:true});
+else for(let i=0;i<30;i++)processPhoneCommunications(s,true);
 const result={fixture:"12 offene Defekte, 10000 historische Nachrichten, 30 Kommunikationsprüfungen",bytes,ms:Math.round(performance.now()-t),copies,cloneMs:Math.round(cloneMs)};
+result.mode=process.argv.includes("--day")?"day":"communications";
+result.gameTime=s.gameTime;
+result.stateHash=require("crypto").createHash("sha256").update(JSON.stringify(s)).digest("hex");
 console.log(JSON.stringify(result));
 if(process.argv[2])require("fs").writeFileSync(process.argv[2],JSON.stringify(result,null,2));
