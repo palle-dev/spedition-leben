@@ -18,6 +18,8 @@ vi.mock("@/components/office/DailyCapacity",()=>({default:()=>React.createElemen
 vi.mock("@/components/office/DisruptionPanel",()=>({default:()=>React.createElement("div",null,"Störungsdetails")}));
 vi.mock("@/components/office/ShortGoals",()=>({default:()=>React.createElement("div",null,"Zieldetails")}));
 vi.mock("@/components/scenarios/ScenarioProgressPanel",()=>({default:()=>null}));
+import {createInitialState} from "@/lib/simulation/simulationEngine";
+import StaffPhoneDialog from "@/components/game/StaffPhoneDialog";
 import Start from "@/pages/Start";
 import Office from "@/pages/Office";
 import Phone from "@/components/game/PhoneCenter";
@@ -80,4 +82,16 @@ it("zeigt Vorlaufanrufe als verpasst und klingelt nach Abschluss oder erneutem R
  expect(playPhoneSound).not.toHaveBeenCalled();
  await act(async()=>{(document.querySelector('button[aria-label*="Telefon öffnen"]') as HTMLButtonElement).click();});
  expect(document.body.textContent).toContain("Verpasster Anruf");expect(document.body.textContent).toContain("Rückruf offen");
+});
+
+it("Statusabfrage ist lesend; eine telefonische Anweisung wird erst nach Bestätigung einmal gesendet",async()=>{
+ const s=createInitialState({}).state;s.gameTime=540;s.employees.push({id:"team-assistant",name:"Alex",role:"assistant",employmentStatus:"employed",attendance:"present"});
+ fixture.game.state=s;fixture.game.send=vi.fn(async()=>({ok:true,queued:true,summary:"Auftrag angenommen."}));
+ await render(()=>React.createElement(StaffPhoneDialog,{employeeId:"team-assistant",onClose:vi.fn()}));
+ await act(async()=>button("Aktuellen Status abfragen").click());
+ expect(document.querySelector('[aria-label="Statusauskunft"]').textContent).toContain("Firmenkonto");expect(fixture.game.send).not.toHaveBeenCalled();
+ await act(async()=>button("Offene Aufträge disponieren").click());expect(fixture.game.send).not.toHaveBeenCalled();
+ await act(async()=>{button("Anweisung bestätigen").click();button("Anweisung bestätigen").click();});
+ expect(fixture.game.send).toHaveBeenCalledTimes(1);expect(fixture.game.send).toHaveBeenCalledWith("staffPhoneCommand",{employeeId:"team-assistant",action:"assistant_dispatch"});
+ expect(document.body.textContent).toContain("Auftrag angenommen.");expect(fixture.game.pauseAutomation).not.toHaveBeenCalled();
 });
