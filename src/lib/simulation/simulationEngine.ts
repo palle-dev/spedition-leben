@@ -1,3 +1,4 @@
+import {executeStaffPhoneCommand} from "./staffPhone.ts";
 import { processPhoneCommunications } from "./phoneCommunications.ts";
 import { getEscalatedDeliveryRisks } from "./deliveryRisk.ts";
 import { migrateWorld, processWorld, handleWorldCommand } from "./worldEngine.ts";
@@ -807,6 +808,12 @@ export function applyCommand(state, command, params) {
   const p = params || {};
   let result;
   switch (command) {
+
+    case "staffPhoneCommand": {
+      ensureNotBlocked(state);
+      result=executeStaffPhoneCommand(state,p);
+      break;
+    }
 
     case "setNames": {
       if (p.companyName) state.company.name = p.companyName;
