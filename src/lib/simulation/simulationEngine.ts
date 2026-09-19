@@ -207,7 +207,7 @@ import {
   migrateUsedVehicleMarket, generateUsedVehicleOffers,
 } from "./vehicleMarketEngine.ts";
 import { handleVehicleMarketCommand } from "./vehicleMarketCommands.ts";
-import { handlePlanningCommand } from "./planningCommands.ts"; import { handlePartnerCommand } from "./partnerCommands.ts"; import { migratePartners, processPartnerTransports, getPartnerTransportEventTimes } from "./partnerEngine.ts"; import { migrateSiteExpansion, processExpansionCompletion, getExpansionEventTimes, processBreakAreaDecay, checkParkingCapacity, findBranchWithCapacity } from "./siteExpansionEngine.ts"; import { handleSiteExpansionCommand } from "./siteExpansionCommands.ts";
+import { handlePlanningCommand } from "./planningCommands.ts"; import { handlePartnerCommand } from "./partnerCommands.ts"; import { migratePartners, processPartnerTransports, getPartnerTransportEventTimes } from "./partnerEngine.ts"; import { migrateSiteExpansion, processExpansionCompletion, getExpansionEventTimes, processBreakAreaDecay, checkParkingCapacity, findBranchWithCapacity } from "./siteExpansionEngine.ts"; import { handleSiteExpansionCommand } from "./siteExpansionCommands.ts"; import { migrateKeyAccounts, checkKeyAccountUnlocks, processKeyAccountDay, recordKeyAccountOrderOutcome, evaluateKeyAccountContracts } from "./keyAccountEngine.ts"; import { migrateRivalBehavior, recordTenderResult, processRivalPriceAdaptation, processRivalPoaching, resolvePoachingAttempts, processRivalCooperation, resolveCooperationOffers, processCooperationEffects } from "./rivalBehaviorEngine.ts"; import { handleKeyAccountCommand } from "./keyAccountCommands.ts";
 
 // ---------- Hilfsfunktionen ----------
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -418,7 +418,7 @@ function completeTrip(state, trip, m, log) {
   addBooking(state, m, "Vergütung: " + order.customer, payment, "company", order.id);
   order.paidCents = payment;
   // Kundenbeziehung: Reputation bei Lieferung erfassen (idempotent)
-  recordOrderOutcome(state, order, onTime ? "timely" : "late", m, payment);
+  recordOrderOutcome(state, order, onTime ? "timely" : "late", m, payment); if (order.isKeyAccountOrder) recordKeyAccountOrderOutcome(state, order, onTime ? "timely" : "late", m, payment);
   order.history = order.history || [];
   order.history.push({ type: "delivered", min: m, actor: driver.id, actorName: driver.name, details: { onTime, paymentCents: payment } });
   state.stats.totalDeliveries++;
@@ -652,9 +652,9 @@ function processEventsAt(state, m, log) {
     expireApprovals(state);
     // Rahmenverträge: Tägliche Auftragsgenerierung, Auswertung und
     // Benachrichtigung bei bevorstehendem Vertragsende.
-    processContractDay(state, m, log);
-    evaluateContracts(state, m, log);
-    notifyContractEndingSoon(state, m, log);
+    processContractDay(state, m, log); evaluateContracts(state, m, log); notifyContractEndingSoon(state, m, log);
+    checkKeyAccountUnlocks(state, m, log); processKeyAccountDay(state, m, log); evaluateKeyAccountContracts(state, m, log);
+    processRivalPriceAdaptation(state, m, log); processRivalPoaching(state, m, log); resolvePoachingAttempts(state, m, log); processRivalCooperation(state, m, log); resolveCooperationOffers(state, m, log); processCooperationEffects(state, m, log);
   }
   // Auftrag 25: Krankheitsgenesung – nur bei aktiven Krankmeldungen
   if ((state.absences?.sicknesses || []).length > 0) processSicknessRecovery(state, m);
@@ -815,7 +815,7 @@ function planTrip(state, order, vehicle, driver) {
 // ---------- Befehle ----------
 export function applyCommand(state, command, params) {
   _clearPlanCache(); migrateState(state);
-  [migrateAcquisition, migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories, migrateSegmentFields, migrateBusinessFocus, migrateSegmentStats, migrateMarketDynamics, migrateDevelopmentGoals, migrateDisruptions, migrateUsedVehicleMarket, migratePartners, migrateSiteExpansion, migrateWorld].forEach(fn => fn(state));
+  [migrateAcquisition, migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories, migrateSegmentFields, migrateBusinessFocus, migrateSegmentStats, migrateMarketDynamics, migrateDevelopmentGoals, migrateDisruptions, migrateUsedVehicleMarket, migratePartners, migrateSiteExpansion, migrateWorld, migrateKeyAccounts, migrateRivalBehavior].forEach(fn => fn(state));
   const p = params || {};
   let result;
   switch (command) {
@@ -877,7 +877,7 @@ export function applyCommand(state, command, params) {
       if (state.company.accountCents < fee) throw new Error("Firmenkonto reicht für die Stornogebühr nicht aus.");
       addBooking(state, state.gameTime, "Stornogebühr: " + o.customer, -fee, "company", "cancel:" + o.id);
       o.status = "storniert";
-      recordOrderOutcome(state, o, "cancelled", state.gameTime, 0);
+      recordOrderOutcome(state, o, "cancelled", state.gameTime, 0); if (o.isKeyAccountOrder) recordKeyAccountOrderOutcome(state, o, "cancelled", state.gameTime, 0);
       state.stats.cancelledOrders = (state.stats.cancelledOrders || 0) + 1;
       result = { ok: true, feeCents: fee };
       break;
@@ -2514,7 +2514,7 @@ export function applyCommand(state, command, params) {
       const vehicleMarketResult = handleVehicleMarketCommand(state, command, p); if (vehicleMarketResult !== null) { result = vehicleMarketResult; break; }
       const planningResult = handlePlanningCommand(state, command, p); if (planningResult !== null) { result = planningResult; break; } const partnerResult = handlePartnerCommand(state, command, p); if (partnerResult !== null) { result = partnerResult; break; }
       if (command === "startSiteExpansion") ensureNotBlocked(state);
-      const expansionResult = handleSiteExpansionCommand(state, command, p); if (expansionResult !== null) { result = expansionResult; break; }
+      const expansionResult = handleSiteExpansionCommand(state, command, p); if (expansionResult !== null) { result = expansionResult; break; } const kaResult = handleKeyAccountCommand(state, command, p); if (kaResult !== null) { result = kaResult; break; }
       throw new Error("Unbekannter Befehl: " + command);
     }
   }
