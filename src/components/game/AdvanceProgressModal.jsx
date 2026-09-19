@@ -1,6 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { Truck, Package, CheckCircle2, Loader2, MapPin } from "lucide-react";
+import { Truck, Package, CheckCircle2, Loader2, MapPin, AlertTriangle } from "lucide-react";
 import { formatEuro } from "@/lib/gameData";
 
 function branchLabel(state, branchId) {
@@ -24,17 +24,17 @@ export default function AdvanceProgressModal({ progress, onClose, state }) {
       <div className="glass border border-white/15 rounded-2xl max-w-md w-full max-h-[85vh] overflow-y-auto p-6 shadow-2xl animate-pop">
         <div className="flex items-center gap-3 mb-5">
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${done ? "bg-lime/15" : "bg-white/5"}`}>
-            {done ? <CheckCircle2 className="w-5 h-5 text-lime" /> : <Loader2 className="w-5 h-5 text-lime animate-spin" />}
+            {progress.error ? <AlertTriangle className="w-5 h-5 text-amber-300"/> : done ? <CheckCircle2 className="w-5 h-5 text-lime" /> : <Loader2 className="w-5 h-5 text-lime animate-spin" />}
           </div>
           <div className="min-w-0">
-            <h2 className="text-base font-semibold text-foreground">{done ? "Zeit fortgesetzt" : "Zeit wird fortgesetzt"}</h2>
+            <h2 className="text-base font-semibold text-foreground">{progress.error ? "Vorlauf unterbrochen" : done ? "Zeit fortgesetzt" : "Zeit wird fortgesetzt"}</h2>
             <p className="text-xs text-muted-foreground">{hoursTotal} Stunden · {progress.eventCount || 0} Vorgänge</p>
           </div>
         </div>
 
         <div className="mb-5">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-muted-foreground truncate">{progress.status}</span>
+            <span className="text-xs text-muted-foreground whitespace-normal break-words">{progress.status}</span>
             <span className="text-xs font-medium tabular-nums text-foreground ml-2 shrink-0">{pct}%</span>
           </div>
           <div className="h-2 rounded-full bg-white/10 overflow-hidden">

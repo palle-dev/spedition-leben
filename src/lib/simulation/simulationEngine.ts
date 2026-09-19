@@ -1616,7 +1616,7 @@ export function applyCommand(state, command, params) {
       const MAX_LOG = 200;
       const trimmedLog = log.length > MAX_LOG ? log.slice(-MAX_LOG) : log;
       const stoppedEvent = log.find(ev => ev.type === "advance_stopped");
-      result = { ok: true, events: trimmedLog, gameTime: state.gameTime, stats, stopped: !!stoppedEvent, stopReason: stoppedEvent?.reason || null };
+      result = { ok: true, events: trimmedLog, gameTime: state.gameTime, advancedMinutes:state.gameTime-startMin, requestedMinutes:minutes, stats, stopped: !!stoppedEvent, stopReason: stoppedEvent?.reason || null };
       break;
     }
 

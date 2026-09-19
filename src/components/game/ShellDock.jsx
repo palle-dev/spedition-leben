@@ -102,8 +102,8 @@ export default function ShellDock() {
 
   // Summary-Modal aus dem Hintergrund-Vorlauf-Ergebnis konstruieren
   const summaryModal = (backgroundAdvance?.result || backgroundAdvance?.error) ? {
-    current: 1440,
-    total: 1440,
+    current: backgroundAdvance.result?.advancedMinutes ?? (backgroundAdvance.error?0:1440),
+    total: backgroundAdvance.result?.requestedMinutes ?? 1440,
     stats: backgroundAdvance.result?.stats || null,
     eventCount: backgroundAdvance.result?.events?.length || 0,
     done: true,

@@ -1,12 +1,12 @@
 import React from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatGameTime, dayOf } from "@/lib/gameData";
-import { MapPin, Pause, Play, Wifi, WifiOff } from "lucide-react";
+import { MapPin, Wifi, WifiOff } from "lucide-react";
 
 // Kompakte, professionelle Kopfzeile: Firmenidentität, Spieltag/Uhrzeit,
 // Automatikstatus und Zeitraum-Filter in klarer Hierarchie.
 export default function OfficeHeader({ state, period, setPeriod }) {
-  const { automationEnabled, automationBusy, enableAutomation, pauseAutomation, connectionState } = useGame();
+  const { automationEnabled, connectionState } = useGame();
   const day = dayOf(state.gameTime);
 
   return (
@@ -42,20 +42,7 @@ export default function OfficeHeader({ state, period, setPeriod }) {
           ))}
         </div>
 
-        {/* Automatik-Status */}
-        <button
-          onClick={() => automationEnabled ? pauseAutomation() : enableAutomation()}
-          disabled={automationBusy}
-          className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-medium border transition disabled:opacity-50 ${
-            automationEnabled
-              ? "bg-lime/10 border-lime/30 text-lime"
-              : "bg-white/5 border-white/10 text-muted-foreground hover:text-foreground"
-          }`}
-          title={automationEnabled ? "Automatik pausieren" : "Automatik starten"}
-        >
-          {automationEnabled ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-          {automationEnabled ? "Live" : "Pausiert"}
-        </button>
+        <span className="text-xs text-muted-foreground" title="Steuerung unten neben +1 Tag">{automationEnabled?"Live · 15 Min / 5 Sek":"Pausiert"}</span>
 
         {/* Sync-Status */}
         <div className={`flex items-center gap-1.5 text-[10px] px-2 py-1 rounded ${connectionState === "connected" ? "text-lime" : "text-amber-300"}`}>
