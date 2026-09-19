@@ -115,7 +115,7 @@ it("verpasste Anrufe lassen sich aus dem Verpasst-Bereich zurückrufen",async()=
  fixture.calls=[{id:"risk_1",type:"delivery_risk",orderId:"1",source:"Leitstelle",title:"Lieferung in Gefahr"}];
  fixture.game.state={orders:[],vehicles:[],drivers:[],disruptions:{items:[]},gameTime:90,missedPhoneCalls:[{...fixture.calls[0],missedAtMin:60}]};
  await render(Phone);await act(async()=>{(document.querySelector('button[aria-label*="Telefon öffnen"]') as HTMLButtonElement).click();});
- await act(async()=>button("Verpasst").click());
+ await act(async()=>{const tab=[...document.querySelectorAll('[aria-label="Telefonnavigation"] button')].find(b=>b.textContent?.includes("Verpasst")) as HTMLButtonElement;tab.click();});
  await act(async()=>button("Rückruf offen").click());
  expect(document.querySelector(".ff-phone-call")).not.toBeNull();
  expect(fixture.game.pauseAutomation).not.toHaveBeenCalled();
