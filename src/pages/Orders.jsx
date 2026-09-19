@@ -36,7 +36,7 @@ export default function Orders() {
   const [filterDg, setFilterDg] = useState("");
   const [filterBranch, setFilterBranch] = useState("");
   const [sortBy, setSortBy] = useState("deadline");
-  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(true);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [partnerOrder, setPartnerOrder] = useState(null);
