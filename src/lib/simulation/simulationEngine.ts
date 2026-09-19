@@ -1,3 +1,4 @@
+import {hireInvestmentAdvisor,configureInvestmentAdvisor,stopInvestmentAdvisor,processInvestmentAdvisor} from "./investmentAdvisor.ts";
 import {processManagementReports} from "./managementResponsibilities.ts";
 import {executeStaffPhoneCommand} from "./staffPhone.ts";
 import { processPhoneCommunications } from "./phoneCommunications.ts";
@@ -712,6 +713,7 @@ function processEventsAt(state, m, log) {
     // Investment-Markt-Tick bei jeder vollen Stunde (Auftrag 33)
     if (state.investment?.market) {
       processMarketTick(state, m, log);
+      processInvestmentAdvisor(state,m);
     }
   }
   // 6. Tutorial-Einladung erscheint
@@ -811,6 +813,15 @@ export function applyCommand(state, command, params) {
   let result;
   switch (command) {
 
+    case "hireInvestmentAdvisor": {
+      ensureNotBlocked(state);result=hireInvestmentAdvisor(state);break;
+    }
+    case "configureInvestmentAdvisor": {
+      ensureNotBlocked(state);result=configureInvestmentAdvisor(state,p);break;
+    }
+    case "stopInvestmentAdvisor": {
+      ensureNotBlocked(state);result=stopInvestmentAdvisor(state);break;
+    }
     case "staffPhoneCommand": {
       ensureNotBlocked(state);
       result=executeStaffPhoneCommand(state,p);

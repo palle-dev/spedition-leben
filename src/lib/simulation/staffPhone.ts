@@ -1,3 +1,4 @@
+import {ADVISOR_ID,getAdvisorPhoneData,configureInvestmentAdvisor} from "./investmentAdvisor.ts";
 import {getManagementPhoneActions,executeManagementPhoneAction} from "./managementResponsibilities.ts";
 import {isEmployeeAvailable,createStaffTask,deliverMessage} from "./mailEngine.ts";
 import {isPersonAvailable} from "./absenceEngine.ts";
@@ -17,9 +18,10 @@ export function getStaffPhoneContacts(state){
   if(!isPersonAvailable(state,e.id,state.gameTime)||isPersonInTraining({...state,training:{...state.training,enrollments:state.training?.enrollments||[],apprenticeships:state.training?.apprenticeships||[]}},e.id,state.gameTime))availability={available:false,reason:"in Abwesenheit oder Weiterbildung"};
   if(e.role==="branch_manager"&&!branch)availability={available:false,reason:"kein aktiver Standort zugewiesen"};
   return {id:e.id,name:e.name,portraitId:e.portraitId,role:e.role,branchId:branch?.id,label:e.role==="assistant"?"Assistenz der Geschäftsführung":"Filialleitung · "+(branch?.name||branch?.city||"ohne Standort"),...availability};
- }).sort((a,b)=>a.role.localeCompare(b.role)||a.name.localeCompare(b.name));
+ }).concat(getAdvisorPhoneData(state)?[getAdvisorPhoneData(state).contact]:[]).sort((a,b)=>a.role.localeCompare(b.role)||a.name.localeCompare(b.name));
 }
 export function getStaffPhoneData(state,employeeId){
+ if(employeeId===ADVISOR_ID)return getAdvisorPhoneData(state);
  const contact=getStaffPhoneContacts(state).find(c=>c.id===employeeId);
  if(!contact)return null;
  const branchId=contact.branchId;
@@ -59,6 +61,7 @@ export function getStaffPhoneData(state,employeeId){
  return {contact,report,actions,tasks:pending.slice(-4).reverse()};
 }
 export function executeStaffPhoneCommand(state,p){
+ if(p.employeeId===ADVISOR_ID){if(p.action!=="advisor_policy")throw Error("Ungültige Berateranweisung.");return configureInvestmentAdvisor(state,p);}
  const data=getStaffPhoneData(state,p.employeeId);
  if(!data)throw Error("Diese Person gehört nicht mehr zu deinem Führungsteam.");
  if(!data.contact.available)throw Error("Die Person ist derzeit nicht erreichbar: "+data.contact.reason);
