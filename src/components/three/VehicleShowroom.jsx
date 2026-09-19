@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import * as THREE from "three";
-import { buildTruck, truckDimensions } from "@/lib/three/truckModel";
+import { buildTruck } from "@/lib/three/truckModel";
 import { createBaseScene, buildOvalTrack } from "@/lib/three/sceneKit";
 import { useDrivingControls, updateVehicle, DEFAULT_VEHICLE_PARAMS } from "@/lib/three/useDrivingControls";
 import { motion } from "framer-motion";
