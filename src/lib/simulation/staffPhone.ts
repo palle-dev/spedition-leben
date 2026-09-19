@@ -13,7 +13,7 @@ export function getStaffPhoneContacts(state){
  return (state.employees||[]).filter(e=>e.employmentStatus==="employed"&&["assistant","branch_manager"].includes(e.role)).map(e=>{
   const branch=e.role==="branch_manager"?(state.branches||[]).find(b=>b.id===e.assignedBranchId&&b.status==="active"):null;
   let availability=isEmployeeAvailable(state,e.id,state.gameTime);
-  if(!isPersonAvailable(state,e.id,state.gameTime)||isPersonInTraining(state,e.id,state.gameTime))availability={available:false,reason:"in Abwesenheit oder Weiterbildung"};
+  if(!isPersonAvailable(state,e.id,state.gameTime)||isPersonInTraining({...state,training:{...state.training,enrollments:state.training?.enrollments||[],apprenticeships:state.training?.apprenticeships||[]}},e.id,state.gameTime))availability={available:false,reason:"in Abwesenheit oder Weiterbildung"};
   if(e.role==="branch_manager"&&!branch)availability={available:false,reason:"kein aktiver Standort zugewiesen"};
   return {id:e.id,name:e.name,portraitId:e.portraitId,role:e.role,branchId:branch?.id,label:e.role==="assistant"?"Assistenz der Geschäftsführung":"Filialleitung · "+(branch?.name||branch?.city||"ohne Standort"),...availability};
  }).sort((a,b)=>a.role.localeCompare(b.role)||a.name.localeCompare(b.name));
