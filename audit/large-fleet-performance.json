@@ -1,0 +1,234 @@
+{
+  "baselineCommit": "767bacd8300c59b6677953b07400499b49930a5a",
+  "measurement": "Node.js engine, not browser wall time",
+  "before": [
+    {
+      "minutes": 60,
+      "run": 0,
+      "ms": 1236.577465,
+      "hash": "558a5ff5711c817718e10017686cf398e5879e4d0ec3ba9d38ab8804fec913ce",
+      "counters": {
+        "pd": 40,
+        "st": 10,
+        "btp": 47280,
+        "psv": 0
+      }
+    },
+    {
+      "minutes": 60,
+      "run": 1,
+      "ms": 1111.8569109999999,
+      "hash": "558a5ff5711c817718e10017686cf398e5879e4d0ec3ba9d38ab8804fec913ce",
+      "counters": {
+        "pd": 40,
+        "st": 10,
+        "btp": 47280,
+        "psv": 0
+      }
+    },
+    {
+      "minutes": 60,
+      "run": 2,
+      "ms": 1110.9621539999998,
+      "hash": "558a5ff5711c817718e10017686cf398e5879e4d0ec3ba9d38ab8804fec913ce",
+      "counters": {
+        "pd": 40,
+        "st": 10,
+        "btp": 47280,
+        "psv": 0
+      }
+    },
+    {
+      "minutes": 1440,
+      "run": 0,
+      "ms": 15710.943201000002,
+      "hash": "9fa778618021fc8ae68e04001d2f55d6631a758c58b687e685a2bd5bc7d47677",
+      "counters": {
+        "pd": 320,
+        "st": 281,
+        "btp": 852077,
+        "psv": 111
+      }
+    },
+    {
+      "minutes": 1440,
+      "run": 1,
+      "ms": 15101.581548999999,
+      "hash": "9fa778618021fc8ae68e04001d2f55d6631a758c58b687e685a2bd5bc7d47677",
+      "counters": {
+        "pd": 320,
+        "st": 281,
+        "btp": 852077,
+        "psv": 111
+      }
+    },
+    {
+      "minutes": 1440,
+      "run": 2,
+      "ms": 14933.350721000003,
+      "hash": "9fa778618021fc8ae68e04001d2f55d6631a758c58b687e685a2bd5bc7d47677",
+      "counters": {
+        "pd": 320,
+        "st": 281,
+        "btp": 852077,
+        "psv": 111
+      }
+    }
+  ],
+  "after": [
+    {
+      "fixture": {
+        "vehicles": 100,
+        "active": 100,
+        "orders": 500,
+        "dispatchers": 10,
+        "bytes": 869701
+      }
+    },
+    {
+      "minutes": 60,
+      "medianMs": 532.8710110000002,
+      "cloneMs": 15.17450000000008,
+      "runs": [
+        {
+          "engineMs": 594.5396730000002,
+          "inputCloneMs": 6.204623999999967,
+          "outputCloneMs": 8.88363500000014,
+          "plans": 23880,
+          "delivered": 0,
+          "hash": "558a5ff5711c817718e10017686cf398e5879e4d0ec3ba9d38ab8804fec913ce"
+        },
+        {
+          "engineMs": 532.8710110000002,
+          "inputCloneMs": 6.3359049999999115,
+          "outputCloneMs": 9.369390999999723,
+          "plans": 23880,
+          "delivered": 0,
+          "hash": "558a5ff5711c817718e10017686cf398e5879e4d0ec3ba9d38ab8804fec913ce"
+        },
+        {
+          "engineMs": 527.3628269999999,
+          "inputCloneMs": 6.29086499999994,
+          "outputCloneMs": 8.701543000000129,
+          "plans": 23880,
+          "delivered": 0,
+          "hash": "558a5ff5711c817718e10017686cf398e5879e4d0ec3ba9d38ab8804fec913ce"
+        }
+      ]
+    },
+    {
+      "minutes": 1440,
+      "medianMs": 5157.323984000001,
+      "cloneMs": 22.288508000001457,
+      "runs": [
+        {
+          "engineMs": 5253.35349,
+          "inputCloneMs": 7.818343000000368,
+          "outputCloneMs": 13.281997000000047,
+          "plans": 351605,
+          "delivered": 111,
+          "hash": "9fa778618021fc8ae68e04001d2f55d6631a758c58b687e685a2bd5bc7d47677"
+        },
+        {
+          "engineMs": 5157.323984000001,
+          "inputCloneMs": 5.600772000001598,
+          "outputCloneMs": 16.028098000000682,
+          "plans": 351605,
+          "delivered": 111,
+          "hash": "9fa778618021fc8ae68e04001d2f55d6631a758c58b687e685a2bd5bc7d47677"
+        },
+        {
+          "engineMs": 4904.743027,
+          "inputCloneMs": 6.260410000000775,
+          "outputCloneMs": 16.14158899999893,
+          "plans": 351605,
+          "delivered": 111,
+          "hash": "9fa778618021fc8ae68e04001d2f55d6631a758c58b687e685a2bd5bc7d47677"
+        }
+      ]
+    }
+  ],
+  "agedBefore": [
+    {
+      "fixture": {
+        "vehicles": 100,
+        "active": 100,
+        "orders": 500,
+        "dispatchers": 10,
+        "bytes": 3007481
+      }
+    },
+    {
+      "minutes": 60,
+      "medianMs": 1255.585267,
+      "cloneMs": 56.6777639999998,
+      "runs": [
+        {
+          "engineMs": 1255.585267,
+          "inputCloneMs": 28.420452999999952,
+          "outputCloneMs": 28.257310999999845,
+          "plans": 47280,
+          "delivered": 0,
+          "hash": "098a6eaa938dcfb886f6d44f24c5747f8f4a0eb890a35c941162a48c3b97d8a4"
+        }
+      ]
+    },
+    {
+      "minutes": 1440,
+      "medianMs": 15994.206477,
+      "cloneMs": 39.4737319999972,
+      "runs": [
+        {
+          "engineMs": 15994.206477,
+          "inputCloneMs": 21.66563499999984,
+          "outputCloneMs": 17.80809699999736,
+          "plans": 852077,
+          "delivered": 111,
+          "hash": "f93cc065d3958e9f74fa87767f128713d85ef307522d624278bd373ceb4788fa"
+        }
+      ]
+    }
+  ],
+  "agedAfter": [
+    {
+      "fixture": {
+        "vehicles": 100,
+        "active": 100,
+        "orders": 500,
+        "dispatchers": 10,
+        "bytes": 3007481
+      }
+    },
+    {
+      "minutes": 60,
+      "medianMs": 597.497852,
+      "cloneMs": 57.21930400000019,
+      "runs": [
+        {
+          "engineMs": 597.497852,
+          "inputCloneMs": 26.87131700000009,
+          "outputCloneMs": 30.347987000000103,
+          "plans": 23880,
+          "delivered": 0,
+          "hash": "098a6eaa938dcfb886f6d44f24c5747f8f4a0eb890a35c941162a48c3b97d8a4"
+        }
+      ]
+    },
+    {
+      "minutes": 1440,
+      "medianMs": 5568.389189,
+      "cloneMs": 43.29090100000076,
+      "runs": [
+        {
+          "engineMs": 5568.389189,
+          "inputCloneMs": 29.72832200000039,
+          "outputCloneMs": 13.562579000000369,
+          "plans": 351605,
+          "delivered": 111,
+          "hash": "f93cc065d3958e9f74fa87767f128713d85ef307522d624278bd373ceb4788fa"
+        }
+      ]
+    }
+  ],
+  "fullStateEquality": true
+}
