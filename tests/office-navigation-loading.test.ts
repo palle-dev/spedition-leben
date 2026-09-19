@@ -95,3 +95,28 @@ it("Statusabfrage ist lesend; eine telefonische Anweisung wird erst nach Bestät
  expect(fixture.game.send).toHaveBeenCalledTimes(1);expect(fixture.game.send).toHaveBeenCalledWith("staffPhoneCommand",{employeeId:"team-assistant",action:"assistant_dispatch"});
  expect(document.body.textContent).toContain("Auftrag angenommen.");expect(fixture.game.pauseAutomation).not.toHaveBeenCalled();
 });
+
+it("iPhone-Navigation öffnet Kontakte und einen Team-Anruf ohne Änderung der Spielzeit",async()=>{
+ const s=createInitialState({}).state;s.gameTime=540;s.employees.push({id:"phone-contact",name:"Alex",role:"assistant",employmentStatus:"employed",attendance:"present"});
+ fixture.game.state=s;fixture.game.send=vi.fn();
+ await render(Phone);
+ await act(async()=>{(document.querySelector('button[aria-label*="Telefon öffnen"]') as HTMLButtonElement).click();});
+ expect(document.querySelector(".ff-phone")).not.toBeNull();
+ expect(document.querySelector('[aria-label="Telefonnavigation"]')).not.toBeNull();
+ await act(async()=>button("Kontakte").click());
+ expect(document.querySelector('button[aria-pressed="true"]').textContent).toContain("Kontakte");
+ await act(async()=>button("Alex").click());
+ expect(document.querySelector(".ff-phone-call")).not.toBeNull();
+ expect(document.body.textContent).toContain("Aktuellen Status abfragen");
+ expect(fixture.game.send).not.toHaveBeenCalled();expect(fixture.game.state.gameTime).toBe(540);
+ await act(async()=>button("Gespräch beenden").click());expect(document.querySelector('[role="dialog"]')).toBeNull();
+});
+it("verpasste Anrufe lassen sich aus dem Verpasst-Bereich zurückrufen",async()=>{
+ fixture.calls=[{id:"risk_1",type:"delivery_risk",orderId:"1",source:"Leitstelle",title:"Lieferung in Gefahr"}];
+ fixture.game.state={orders:[],vehicles:[],drivers:[],disruptions:{items:[]},gameTime:90,missedPhoneCalls:[{...fixture.calls[0],missedAtMin:60}]};
+ await render(Phone);await act(async()=>{(document.querySelector('button[aria-label*="Telefon öffnen"]') as HTMLButtonElement).click();});
+ await act(async()=>button("Verpasst").click());
+ await act(async()=>button("Rückruf offen").click());
+ expect(document.querySelector(".ff-phone-call")).not.toBeNull();
+ expect(fixture.game.pauseAutomation).not.toHaveBeenCalled();
+});
