@@ -1,0 +1,36 @@
+{
+  "node": "v24.19.0",
+  "vehicles": 97,
+  "branches": 6,
+  "rows": [
+    {
+      "minutes": 60,
+      "gameTime": 176496,
+      "baselineMs": 472.4921400000003,
+      "engineMs": 333.73903000000064,
+      "exactStateEquality": true
+    },
+    {
+      "minutes": 1440,
+      "gameTime": 177936,
+      "baselineMs": 7779.184767,
+      "engineMs": 5382.028206000001,
+      "exactStateEquality": true
+    },
+    {
+      "minutes": 1440,
+      "gameTime": 179376,
+      "baselineMs": 4418.795738000001,
+      "engineMs": 3396.4922939999997,
+      "exactStateEquality": true
+    },
+    {
+      "minutes": 1440,
+      "gameTime": 180816,
+      "baselineMs": 3853.4571990000004,
+      "engineMs": 3123.2234739999985,
+      "exactStateEquality": true
+    }
+  ],
+  "measurement": "Single sequential controlled engine comparisons on a copied real save. Entire state deeply equal, including RNG, booking rows, decisions and retention queues; no production writes. Browser, worker transport, persistence and rendering excluded. No 250-truck or thousands-of-days guarantee."
+}

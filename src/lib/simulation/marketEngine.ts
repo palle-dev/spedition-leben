@@ -282,6 +282,8 @@ function computeTimeWindows(state, m, offerType, fromCity, toCity, km, rng) {
 // Berechnet die Leerfahrzeit vom nächsten Flottenstandort zur Abholstadt.
 // Flottenstandorte: Fahrzeugpositionen und aktive Filialen.
 function computeNearestApproach(state, fromCity) {
+  const context = marketResources.get(state);
+  if (context?.approaches.has(fromCity)) return context.approaches.get(fromCity);
   const fleetCities = new Set();
   for (const v of state.vehicles || []) {
     if (v.status !== "archived") fleetCities.add(v.locationCity);
@@ -294,7 +296,26 @@ function computeNearestApproach(state, fromCity) {
     const min = driveMinutes(getDistance(city, fromCity));
     if (nearest === 0 || min < nearest) nearest = min;
   }
+  if (context) context.approaches.set(fromCity, nearest);
   return nearest;
+}
+
+// A market batch only creates offers: fleet, staff and trips stay unchanged.
+// Scope this cache to that batch; never reuse it after a simulation event.
+const marketResources = new WeakMap<object, any>();
+function withMarketResources(state, action) {
+  const previous = marketResources.get(state);
+  const driversByCity = new Map(), driverAvailability = new Map(), vehicleAvailability = new Map();
+  for (const d of state.drivers || []) {
+    if (d.employmentStatus !== "employed" || d.attendance === "released") continue;
+    if (!driversByCity.has(d.locationCity)) driversByCity.set(d.locationCity, []);
+    driversByCity.get(d.locationCity).push(d);
+    driverAvailability.set(d, earliestAvailable(state, {}, d));
+  }
+  for (const v of state.vehicles || []) vehicleAvailability.set(v, earliestAvailable(state, v, {}));
+  marketResources.set(state, { driversByCity, driverAvailability, vehicleAvailability, approaches: new Map() });
+  try { return action(); }
+  finally { if (previous) marketResources.set(state, previous); else marketResources.delete(state); }
 }
 
 // ---------- Machbarkeitsprüfung (begrenzte Suche) ----------
@@ -303,6 +324,7 @@ function computeNearestApproach(state, fromCity) {
 // abholen und pünktlich liefern könnte. Vereinfachte Prüfung ohne vollständige
 // Phasenplanung – ausreichend für die Generator-Vorauswahl.
 function checkOfferFeasibility(state, offer) {
+  const context = marketResources.get(state);
   const maxPickup = state.gameTime + 48 * 60;
   const loadedKm = getDistance(offer.fromCity, offer.toCity);
   const opMin = LOAD_MIN + driveMinutes(loadedKm) + UNLOAD_MIN;
@@ -318,11 +340,11 @@ function checkOfferFeasibility(state, offer) {
     const emptyDriveMin = driveMinutes(emptyKm);
     const totalWorkMin = emptyDriveMin + opMin;
 
-    for (const d of state.drivers || []) {
+    for (const d of (context ? context.driversByCity.get(v.locationCity) || [] : state.drivers || [])) {
       if (d.employmentStatus !== "employed" || d.attendance === "released") continue;
       if (d.locationCity !== v.locationCity) continue;
 
-      const avail = earliestAvailable(state, v, d);
+      const avail = context ? Math.max(context.vehicleAvailability.get(v), context.driverAvailability.get(d)) : earliestAvailable(state, v, d);
       if (avail > maxPickup) continue;
 
       // Fahrzeug reist erst leer zur Abholung, dann beginnt der Ladungsprozess.
@@ -482,12 +504,15 @@ export function generateMarketWave(state, m, log) {
   const newCount = Math.min(b, Math.max(0, t - o));
   let generated = 0;
   let feasible = 0;
+  withMarketResources(state, () => {
   for (let i = 0; i < newCount; i++) {
     const offer = makeMarketOffer(state, m);
     state.orders.push(offer);
     generated++;
     if (offer.feasible) feasible++;
   }
+
+  });
 
   // 5. Statistik aktualisieren
   state.market.stats.wavesProcessed = (state.market.stats.wavesProcessed || 0) + 1;
@@ -559,11 +584,13 @@ export function fillInitialMarket(state) {
   const openCount = currentOrders(state).filter(o => o.status === "offered").length;
   const needed = Math.max(0, t - openCount);
   let feasible = 0;
+  withMarketResources(state, () => {
   for (let i = 0; i < needed; i++) {
     const offer = makeMarketOffer(state, state.gameTime);
     state.orders.push(offer);
     if (offer.feasible) feasible++;
   }
+  });
   state.market.stats = state.market.stats || {};
   state.market.stats.offersGenerated = (state.market.stats.offersGenerated || 0) + needed;
   state.market.stats.lastN = n;

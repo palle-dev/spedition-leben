@@ -1,0 +1,125 @@
+{
+  "ms": 5985.038756,
+  "top": [
+    [
+      "suggestTours tourEngine.ts:1187",
+      742627
+    ],
+    [
+      "checkOfferFeasibility marketEngine.ts:279",
+      349675
+    ],
+    [
+      "_cached tourEngine.ts:81",
+      267614
+    ],
+    [
+      "_tryPlan tourEngine.ts:371",
+      209358
+    ],
+    [
+      "processDispatcher dispatcherProcessor.ts:118",
+      202097
+    ],
+    [
+      "buildTourPlan tourEngine.ts:332",
+      191148
+    ],
+    [
+      "getDistance gameRules.ts:67",
+      165491
+    ],
+    [
+      "deliverMessage mailEngine.ts:225",
+      155409
+    ],
+    [
+      "post node:inspector:114",
+      155240
+    ],
+    [
+      "planningResources tourEngine.ts:46",
+      153888
+    ],
+    [
+      "processEventsAt simulationEngine.ts:374",
+      143034
+    ],
+    [
+      "buildDeployment tourEngine.ts:226",
+      135330
+    ],
+    [
+      "makeMarketOffer marketEngine.ts:329",
+      133299
+    ],
+    [
+      "buildPhases driverTimeEngine.ts:66",
+      129442
+    ],
+    [
+      " mailEngine.ts:231",
+      128093
+    ],
+    [
+      "advanceToIndexed simulationEngine.ts:697",
+      122000
+    ],
+    [
+      " tourEngine.ts:1370",
+      110751
+    ],
+    [
+      " tourEngine.ts:78",
+      109963
+    ],
+    [
+      " tourEngine.ts:79",
+      100431
+    ],
+    [
+      "(garbage collector) :-1",
+      100121
+    ],
+    [
+      "processTours tourEngine.ts:886",
+      98643
+    ],
+    [
+      " tourEngine.ts:1340",
+      94524
+    ],
+    [
+      "driverTrip tourEngine.ts:79",
+      88672
+    ],
+    [
+      "getDeliveryRisks deliveryRisk.ts:7",
+      79465
+    ],
+    [
+      "earliestEventAfter eventScheduler.ts:27",
+      76940
+    ],
+    [
+      "hasPendingTour tourEngine.ts:70",
+      69538
+    ],
+    [
+      " dispatcherProcessor.ts:437",
+      66932
+    ],
+    [
+      "tripById tourEngine.ts:78",
+      61073
+    ],
+    [
+      " phoneCommunications.ts:9",
+      59023
+    ],
+    [
+      " tourEngine.ts:1364",
+      41831
+    ]
+  ]
+}

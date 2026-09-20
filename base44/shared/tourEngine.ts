@@ -63,8 +63,8 @@ export function hasPendingTour(state, resourceId) {
     (t.vehicleId === resourceId || t.driverId === resourceId) && hasPendingDeployment(t));
 }
 function planningTours(state) { return validationResources.get(state)?.tours || state.tours || []; }
-function tripById(state, id) { return validationResources.get(state)?.trips.get(id) || state.trips.find(t => t.id === id); }
-function driverTrip(state, id) { return validationResources.get(state)?.driverTrips.get(id) || state.trips.find(t => t.driverId === id && t.status === "in_progress"); }
+function tripById(state, id) { const context = validationResources.get(state); return context ? context.trips.get(id) : state.trips.find(t => t.id === id); }
+function driverTrip(state, id) { const context = validationResources.get(state); return context ? context.driverTrips.get(id) : state.trips.find(t => t.driverId === id && t.status === "in_progress"); }
 
 export function _clearPlanCache() { _planCache.clear(); }
 function _cached(key, fn) {
@@ -1166,12 +1166,13 @@ export function suggestTours(state, opts) {
 
   // Lookup-Maps aufbauen: O(1) Zugriff für buildTourPlan statt O(n) .find().
   // Bei 192K buildTourPlan-Aufrufen mit 320 Aufträgen spart das ~46M Iterationen.
-  state._vehicleMap = new Map(state.vehicles.map(v => [v.id, v]));
-  state._driverMap = new Map(state.drivers.map(d => [d.id, d]));
+  const resources = planningResources(state);
+  state._vehicleMap = resources.vehicles;
+  state._driverMap = resources.drivers;
   const planningOrders = planningOrdersFor(state).filter(o => o.status === "angenommen" || (acceptNew && o.status === "offered"));
   state._orderMap = new Map(planningOrders.map(o => [o.id, o]));
   const previousResources = validationResources.get(state);
-  validationResources.set(state, planningResources(state));
+  validationResources.set(state, resources);
 
   try {
   const startMin = earliestStart || state.gameTime;
@@ -1198,7 +1199,7 @@ export function suggestTours(state, opts) {
   // erreicht, wenn die freien Lkw nicht ausreichen. Das ermöglicht
   // Vorausplanung für Rückkehrer an Filialen, statt Aufträge aufzustauen.
   const allCandidateVehicles = (vehicleIds || state.vehicles.map(v => v.id))
-    .map(vid => state.vehicles.find(v => v.id === vid))
+    .map(vid => resources.vehicles.get(vid))
     .filter(v => v && (v.status === "free" || v.status === "resting" || v.status === "on_trip"));
   const effectiveVehicleIds = allCandidateVehicles
     .sort((a, b) => {
@@ -1220,13 +1221,17 @@ export function suggestTours(state, opts) {
     (!restrictSet || restrictSet.has(o.id))
   ).length;
 
+  const eligibleDrivers = state.drivers.filter(d => d.employmentStatus === "employed" &&
+    !resources.committed.has(d.id) && ["free", "resting", "on_trip"].includes(d.status));
+  const driverCities = new Map(eligibleDrivers.map(d => [d.id, _cached("futD:" + d.id, () => futureDriverLocation(state, d))]));
+
   // Early-Exit reicht als Performance-Optimierung: sobald alle Aufträge
   // verplant sind, wird abgebrochen. Ein festes Fahrzeug-Limit würde
   // Fahrzeuge an entfernten Standorten überspringen, wenn die ersten N
   // Lkw alle am Hauptsitz stehen — das würde Filial-Disposition brechen.
   for (let vi = 0; vi < effectiveVehicleIds.length; vi++) {
     const vehicleId = effectiveVehicleIds[vi];
-    const vehicle = state.vehicles.find(v => v.id === vehicleId);
+    const vehicle = resources.vehicles.get(vehicleId);
     if (!vehicle) continue;
     if (vehicle.status !== "free" && vehicle.status !== "resting" && vehicle.status !== "on_trip") continue;
     if (hasPendingTour(state, vehicle.id)) continue;
@@ -1241,11 +1246,11 @@ export function suggestTours(state, opts) {
     // wenn die zukünftige Stadt übereinstimmt). Probiere mehrere Fahrer, da
     // verschiedene Fahrer unterschiedliche Arbeitszeit-Zähler haben — der
     // erste Fahrer könnte erschöpft sein, während ein anderer noch Kapazität hat.
-    const sameCityDrivers = state.drivers.filter(d => {
+    const sameCityDrivers = eligibleDrivers.filter(d => {
       if (d.employmentStatus !== "employed") return false;
       if (usedDriverIds.has(d.id) || hasPendingTour(state, d.id)) return false;
       if (d.status !== "free" && d.status !== "resting" && d.status !== "on_trip") return false;
-      const driverFutureCity = _cached("futD:" + d.id, () => futureDriverLocation(state, d));
+      const driverFutureCity = driverCities.get(d.id);
       if (driverFutureCity !== vehicleFutureCity) return false;
       if (d.status === "on_trip" || vehicle.status === "on_trip") {
         const driverAvail = _cached("eaD:" + d.id, () => earliestAvailable(state, { id: null }, d));
@@ -1257,11 +1262,11 @@ export function suggestTours(state, opts) {
     // suche freie Fahrer an anderen Orten. Diese reisen per Bahn/Bus zum
     // Fahrzeug (buildTourPlan addiert die Reisezeit). Dadurch können Lkw
     // an entfernten Orten von freien Fahrern vom Hauptsitz genutzt werden.
-    const crossCityDrivers = sameCityDrivers.length < 4 ? state.drivers.filter(d => {
+    const crossCityDrivers = sameCityDrivers.length < 4 ? eligibleDrivers.filter(d => {
       if (d.employmentStatus !== "employed") return false;
       if (usedDriverIds.has(d.id) || hasPendingTour(state, d.id)) return false;
       if (d.status !== "free") return false; // Nur freie Fahrer für Cross-City
-      const driverFutureCity = _cached("futD:" + d.id, () => futureDriverLocation(state, d));
+      const driverFutureCity = driverCities.get(d.id);
       if (driverFutureCity === vehicleFutureCity) return false; // bereits in sameCityDrivers
       return true;
     }) : [];
