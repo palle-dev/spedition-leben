@@ -1,3 +1,4 @@
+import {withSimulationOrders} from "@/lib/simulation/orderLookup";
 import {describe,it,expect} from 'vitest';
 import {createInitialState,applyCommand} from '@/lib/simulation/simulationEngine';
 import {getDisruptionDetail,getValidatedDisruptionOptions,validateDisruptionResolution} from '@/lib/simulation/disruptionEngine';
@@ -37,5 +38,22 @@ describe('Read-only disruption option batching',()=>{
  });
  it('returns no options for missing or resolved disruptions',()=>{
   const {s,d}=setup('loading_delay');d.status='completed';expect(getValidatedDisruptionOptions(s,d.id)).toEqual([]);expect(getValidatedDisruptionOptions(s,'missing')).toEqual([]);
+ });
+});
+
+describe('Disruption proposals using the advance order index',()=>{
+ it.each(['technical_defect','loading_delay','personnel_absence'])('matches direct search before and after order changes: %s',type=>{
+  const {s,d}=setup(type);
+  const direct=()=>getDisruptionDetail(s,d.id);
+  const compare=()=>{const expected=direct();expect(withSimulationOrders(s,direct)).toEqual(expected);};
+  compare();
+  const old=s.orders[0],newOrder={...old,id:'appended-order',tons:2};
+  withSimulationOrders(s,()=>{
+   direct();s.orders.push(newOrder);s.tours[0].deployments[0].orderId=newOrder.id;d.orderIds=[newOrder.id];
+   const indexed=direct();const independent=structuredClone(s);expect(indexed).toEqual(getDisruptionDetail(independent,d.id));
+   newOrder.tons=22;expect(direct()).toEqual(getDisruptionDetail(structuredClone(s),d.id));
+   s.orders=s.orders.filter(o=>o.id!==newOrder.id);expect(direct()).toEqual(getDisruptionDetail(structuredClone(s),d.id));
+  });
+  compare();
  });
 });

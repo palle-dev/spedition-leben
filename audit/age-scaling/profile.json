@@ -1,0 +1,146 @@
+{
+  "engineMs": 26225.837211000035,
+  "units": "sampled self microseconds",
+  "top": [
+    [
+      " disruptionEngine.ts:140",
+      3470085
+    ],
+    [
+      "computePlanableFleetN marketEngine.ts:66",
+      3138903
+    ],
+    [
+      "computeOptions disruptionEngine.ts:203",
+      3031712
+    ],
+    [
+      "validateResolution disruptionEngine.ts:1083",
+      1579983
+    ],
+    [
+      "planningResources tourEngine.ts:50",
+      1383708
+    ],
+    [
+      " disruptionEngine.ts:1139",
+      830442
+    ],
+    [
+      "getValidatedDisruptionOptions disruptionEngine.ts:1134",
+      822649
+    ],
+    [
+      " disruptionEngine.ts:267",
+      663675
+    ],
+    [
+      "processDispatcher dispatcherProcessor.ts:118",
+      652021
+    ],
+    [
+      "processDisruptions disruptionEngine.ts:674",
+      598697
+    ],
+    [
+      "processEventsAt simulationEngine.ts:374",
+      517311
+    ],
+    [
+      " disruptionEngine.ts:205",
+      491422
+    ],
+    [
+      "advanceToIndexed simulationEngine.ts:697",
+      463075
+    ],
+    [
+      " planningOrderRanking.ts:20",
+      428276
+    ],
+    [
+      "suggestTours tourEngine.ts:1242",
+      411757
+    ],
+    [
+      "futureDriverLocation tourEngine.ts:235",
+      398189
+    ],
+    [
+      "getDeliveryRisks deliveryRisk.ts:7",
+      370370
+    ],
+    [
+      "processTours tourEngine.ts:937",
+      321637
+    ],
+    [
+      "startDeployment tourEngine.ts:798",
+      301014
+    ],
+    [
+      " phoneCommunications.ts:9",
+      272761
+    ],
+    [
+      "withMarketResources marketEngine.ts:283",
+      269461
+    ],
+    [
+      "earliestEventAfter eventScheduler.ts:27",
+      258388
+    ],
+    [
+      "findResolverEmployee disruptionEngine.ts:746",
+      253050
+    ],
+    [
+      "generateMarketWave marketEngine.ts:459",
+      240337
+    ],
+    [
+      "processEmployeesIndexed dispatcherProcessor.ts:65",
+      235274
+    ],
+    [
+      " tourEngine.ts:96",
+      216013
+    ],
+    [
+      "isPersonInTraining trainingEngine.ts:1483",
+      190483
+    ],
+    [
+      " tourEngine.ts:722",
+      176443
+    ],
+    [
+      "computeAnchorCities marketEngine.ts:113",
+      169161
+    ],
+    [
+      "confirmTour tourEngine.ts:714",
+      164539
+    ],
+    [
+      "post node:inspector:114",
+      162439
+    ],
+    [
+      "pendingTourResources tourEngine.ts:83",
+      153081
+    ],
+    [
+      "compare planningOrderRanking.ts:12",
+      139652
+    ],
+    [
+      " dispatcherQuality.ts:61",
+      131163
+    ],
+    [
+      "tagDispatcherTour dispatcherQuality.ts:55",
+      130984
+    ]
+  ]
+}

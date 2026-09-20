@@ -1,3 +1,4 @@
+import { findOrder } from "./orderLookup.ts";
 import { retainHistory } from "./historyRetention.ts";
 import { pendingTourChecker } from "./tourEngine.ts";
 import { dispatcherProfile } from "./dispatcherQuality.ts";
@@ -134,7 +135,7 @@ function findReplacementVehicle(state, tour, m) {
   const startCity = tour.startCity || (state.vehicles.find(v => v.id === tour.vehicleId) || {}).locationCity;
   const orders = (tour.deployments || [])
     .filter(d => d.orderId)
-    .map(d => state.orders.find(o => o.id === d.orderId))
+    .map(d => findOrder(state, d.orderId))
     .filter(Boolean);
   const maxTons = orders.length > 0 ? Math.max(...orders.map(o => o.tons)) : 12;
 
@@ -261,7 +262,7 @@ function computeOptions(state, disruption, m) {
     }
 
     if (tour) {
-      const firstOrder = affectedOrders.length > 0 ? state.orders.find(o => o.id === affectedOrders[0]) : null;
+      const firstOrder = affectedOrders.length > 0 ? findOrder(state, affectedOrders[0]) : null;
       const deadlineImpact = firstOrder ? firstOrder.deliveryDeadlineMin - m : 0;
       const willMissDeadline = firstOrder && deadlineImpact < 240;
       options.push({
@@ -336,7 +337,7 @@ function computeOptions(state, disruption, m) {
       });
     }
 
-    const firstOrder = affectedOrders.length > 0 ? state.orders.find(o => o.id === affectedOrders[0]) : null;
+    const firstOrder = affectedOrders.length > 0 ? findOrder(state, affectedOrders[0]) : null;
     options.push({
       id: "inform_customer",
       label: "Kunden informieren",
@@ -412,7 +413,7 @@ function computeOptions(state, disruption, m) {
     }
 
     if (tour) {
-      const firstOrder = affectedOrders.length > 0 ? state.orders.find(o => o.id === affectedOrders[0]) : null;
+      const firstOrder = affectedOrders.length > 0 ? findOrder(state, affectedOrders[0]) : null;
       const deadlineImpact = firstOrder ? firstOrder.deliveryDeadlineMin - m : 0;
       const willMissDeadline = firstOrder && deadlineImpact < 240;
       options.push({
