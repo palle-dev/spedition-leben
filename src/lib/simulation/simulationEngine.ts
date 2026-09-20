@@ -1,3 +1,4 @@
+import { retainHistory } from "./historyRetention.ts";
 import { withSimulationOrders, currentOrders, findOrder } from "./orderLookup.ts";
 import {hireInvestmentAdvisor,configureInvestmentAdvisor,stopInvestmentAdvisor,processInvestmentAdvisor} from "./investmentAdvisor.ts";
 import {processManagementReports} from "./managementResponsibilities.ts";
@@ -903,11 +904,11 @@ export function applyCommand(state, command, params) {
       const before = state.orders.length;
       // Lösche: offene Marktangebote (offered) und ungesplante angenommene Aufträge.
       // Behalte: unterwegs/abgeschlossen/storniert/abgelaufen + bereits disponierte Aufträge.
-      state.orders = state.orders.filter(o => {
+      state.orders = retainHistory(state,"orders",state.orders,state.orders.filter(o => {
         if (o.status !== "offered" && o.status !== "angenommen") return true;
         if (o.status === "angenommen" && (busyOrderIds.has(o.id) || o.worldTenderId)) return true;
         return false;
-      });
+      }));
       const removed = before - state.orders.length;
       result = { ok: true, removedCount: removed };
       break;
@@ -1238,7 +1239,7 @@ export function applyCommand(state, command, params) {
       const d = { id: uid(state, "d"), name: app.name, branchId: hireBranchId, costPerDayCents: DRIVER_COST_PER_DAY, locationCity: hireCity, status: "free", restUntil: null, employedDay: dayOf(state.gameTime), portraitId: app.portraitId || null, satisfaction: 70, satisfactionReasons: [], employmentStatus: "employed", attendance: "present", consecutiveLowSatisfactionDays: 0 };
       state.drivers.push(d);
       state.hiredApplicantNames.push(app.name);
-      state.availableApplicants = state.availableApplicants.filter(a => a.id !== app.id);
+      state.availableApplicants = retainHistory(state,"applicants",state.availableApplicants,state.availableApplicants.filter(a => a.id !== app.id));
       // Offene Stelle erfuellen und bedarfsbezogene Welle ausloesen (Auftrag 29)
       fulfillPosting(state, "driver", app.id);
       scheduleDemandWave(state, state.gameTime);
@@ -1299,7 +1300,7 @@ export function applyCommand(state, command, params) {
         result = { ok: true, employeeId: emp.id, role };
       }
       state.hiredApplicantNames.push(app.name + ":" + app.role);
-      state.availableApplicants = state.availableApplicants.filter(a => a.id !== app.id);
+      state.availableApplicants = retainHistory(state,"applicants",state.availableApplicants,state.availableApplicants.filter(a => a.id !== app.id));
       // Offene Stelle erfuellen (Auftrag 29)
       fulfillPosting(state, role, app.id);
       // Bedarfsbezogene Welle ausloesen (Auftrag 29)
@@ -1586,7 +1587,7 @@ export function applyCommand(state, command, params) {
           paid += pay;
           paidItems.push({ id: o.id, paid: pay, remaining: o.amountCents });
         }
-        state.openCosts = state.openCosts.filter(o => o.amountCents > 0);
+        state.openCosts = retainHistory(state,"settledCosts",state.openCosts,state.openCosts.filter(o => o.amountCents > 0));
         result = { ok: true, paidCents: paid, paidItems, remainingOpenCents: state.openCosts.filter(o => o.account === "private").reduce((s, o) => s + o.amountCents, 0) };
         break;
       }

@@ -1,3 +1,4 @@
+import { retainLatestHistory } from "./historyRetention.ts";
 // Kundenbeziehungs- und Rahmenvertrag-Engine für FERNWERK.
 // Dauerkundenbeziehungen mit Vertrauen, Statistiken und Rahmenverträgen.
 // Reine Logik – keine Auth, keine Speicherung. Wird von simulationEngine importiert.
@@ -178,7 +179,7 @@ export function recordOrderOutcome(state, order, outcome, m, paymentCents) {
   r.history = r.history || [];
   r.history.push({ min: m, type: outcome, delta, reason, orderId: order.id, trustAfter: r.trust });
   // Historie begrenzen (letzte 50 Einträge)
-  if (r.history.length > 50) r.history = r.history.slice(-50);
+  if (r.history.length > 50) r.history = retainLatestHistory(state, "customerRelations", r.history, 50, r.customerId);
 
   const becameStammkunde = checkStammkundeStatus(state, order.customerId);
   if (becameStammkunde) {
@@ -398,7 +399,7 @@ export function terminateContractEarly(state, contractId) {
     r.trust = clamp(r.trust + TRUST_CANCELLED_DELTA, 0, 100);
     r.history = r.history || [];
     r.history.push({ min: state.gameTime, type: "contract_terminated", delta: TRUST_CANCELLED_DELTA, reason: "Vorzeitige Vertragsbeendigung", contractId, trustAfter: r.trust });
-    if (r.history.length > 50) r.history = r.history.slice(-50);
+    if (r.history.length > 50) r.history = retainLatestHistory(state, "customerRelations", r.history, 50, r.customerId);
     checkStammkundeStatus(state, contract.customerId);
   }
 

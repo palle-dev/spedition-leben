@@ -1,3 +1,4 @@
+import { retainHistory } from "./historyRetention.ts";
 import {branchResponsibilityAllows} from "./managementResponsibilities.ts";
 import { deliverMessage } from "./mailEngine.ts";
 import { nextRandom } from "./randomEngine.ts";
@@ -125,9 +126,9 @@ export function generateBranchDecisions(state: any): any {
 
   // Alte Entscheidungen aufräumen (> 7 Tage resolved)
   const cutoff = state.gameTime - 7 * 1440;
-  state.branchDecisions = state.branchDecisions.filter(
+  state.branchDecisions = retainHistory(state,"branchDecisions",state.branchDecisions,state.branchDecisions.filter(
     (d: any) => d.status === "pending" || d.createdAt > cutoff
-  );
+  ));
 
   return state;
 }

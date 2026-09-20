@@ -1,3 +1,4 @@
+import { retainHistory } from "./historyRetention.ts";
 // Markt-Dynamik-Engine für FERNWERK.
 // Verwaltet Regionen, saisonale Nachfrage, zeitlich begrenzte Marktereignisse
 // und die daraus resultierenden Nachfrage- und Preisfaktoren.
@@ -194,9 +195,9 @@ export function migrateMarketDynamics(state: any) {
 
   // Abgelaufene Ereignisse bereinigen (Ended > 30 Tage)
   const cutoff = (state.gameTime || 0) - 30 * 1440;
-  state.marketDynamics.events = state.marketDynamics.events.filter((e: any) =>
+  state.marketDynamics.events = retainHistory(state, "marketEvents", state.marketDynamics.events, state.marketDynamics.events.filter((e: any) =>
     e.status === "announced" || e.status === "active" || (e.endMin || 0) > cutoff
-  );
+  ), null);
 }
 
 // ---------- Zufallsstrom ----------

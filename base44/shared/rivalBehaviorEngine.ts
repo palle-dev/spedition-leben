@@ -1,3 +1,5 @@
+import { retainHistory } from "./historyRetention.ts";
+import { retainLatestHistory } from "./historyRetention.ts";
 // Konkurrenten-Verhaltens-Engine für Frachtfieber.
 // Erweitert die KI-Rivalen der Spielwelt mit adaptivem Verhalten:
 // - Preisanpassung bei Unterbietung durch den Spieler
@@ -166,9 +168,9 @@ export function processRivalPoaching(state, m, log) {
   state.rivalBehavior.lastPoachingCheckMin = m;
 
   // Abgelaufene Abwerbungsversuche entfernen
-  state.rivalBehavior.pendingPoachingAttempts = state.rivalBehavior.pendingPoachingAttempts.filter(a =>
+  state.rivalBehavior.pendingPoachingAttempts = retainHistory(state, "poachingAttempts", state.rivalBehavior.pendingPoachingAttempts, state.rivalBehavior.pendingPoachingAttempts.filter(a =>
     a.status === "pending" && a.deadlineMin > m
-  );
+  ), null);
 
   if (state.rivalBehavior.pendingPoachingAttempts.length > 0) return; // Nur ein Versuch gleichzeitig
 
@@ -264,11 +266,11 @@ export function resolvePoachingAttempts(state, m, log) {
     if (currentSatisfaction >= 75 && currentWage >= attempt.offerDailyWageCents * 0.9) {
       // Fahrer bleibt — Zufriedenheit und Lohn reichen
       attempt.status = "retained";
-      driver.satisfactionReasons = [...(driver.satisfactionReasons || []), {
+      driver.satisfactionReasons = retainHistory(state, "driverSatisfaction", driver.satisfactionReasons, [...(driver.satisfactionReasons || []), {
         reason: "Abwerbung abgewehrt: " + attempt.rivalName,
         delta: +5,
         atMin: m,
-      }].slice(-20);
+      }].slice(-20), driver.id);
       driver.satisfaction = clamp((driver.satisfaction || 70) + 5, 0, 100);
 
       deliverMessage(state, {
@@ -320,7 +322,7 @@ export function resolvePoachingAttempts(state, m, log) {
 
   // Abgeschlossene Versuche aufräumen (letzte 50 behalten)
   if (state.rivalBehavior.pendingPoachingAttempts.length > 50) {
-    state.rivalBehavior.pendingPoachingAttempts = state.rivalBehavior.pendingPoachingAttempts.slice(-50);
+    state.rivalBehavior.pendingPoachingAttempts = retainLatestHistory(state, "poachingAttempts", state.rivalBehavior.pendingPoachingAttempts, 50, null);
   }
 }
 
@@ -339,11 +341,11 @@ export function respondToPoachingAttempt(state, attemptId, response) {
     const newWage = attempt.offerDailyWageCents;
     driver.costPerDayCents = newWage;
     driver.satisfaction = clamp((driver.satisfaction || 70) + 15, 0, 100);
-    driver.satisfactionReasons = [...(driver.satisfactionReasons || []), {
+    driver.satisfactionReasons = retainHistory(state, "driverSatisfaction", driver.satisfactionReasons, [...(driver.satisfactionReasons || []), {
       reason: "Gehaltserhöhung durch Abwerbung: " + attempt.rivalName,
       delta: +15,
       atMin: state.gameTime,
-    }].slice(-20);
+    }].slice(-20), driver.id);
     attempt.status = "retained";
 
     deliverMessage(state, {
@@ -362,11 +364,11 @@ export function respondToPoachingAttempt(state, attemptId, response) {
   if (response === "conversation") {
     // Gespräch führen — kostet Zeit aber kein Geld
     driver.satisfaction = clamp((driver.satisfaction || 70) + 10, 0, 100);
-    driver.satisfactionReasons = [...(driver.satisfactionReasons || []), {
+    driver.satisfactionReasons = retainHistory(state, "driverSatisfaction", driver.satisfactionReasons, [...(driver.satisfactionReasons || []), {
       reason: "Gespräch wegen Abwerbung: " + attempt.rivalName,
       delta: +10,
       atMin: state.gameTime,
-    }].slice(-20);
+    }].slice(-20), driver.id);
     attempt.status = "retained";
 
     deliverMessage(state, {
@@ -420,9 +422,9 @@ export function processRivalCooperation(state, m, log) {
   state.rivalBehavior.lastCooperationCheckMin = m;
 
   // Abgelaufene Kooperationsangebote aufräumen
-  state.rivalBehavior.pendingCooperationOffers = state.rivalBehavior.pendingCooperationOffers.filter(o =>
+  state.rivalBehavior.pendingCooperationOffers = retainHistory(state, "cooperationOffers", state.rivalBehavior.pendingCooperationOffers, state.rivalBehavior.pendingCooperationOffers.filter(o =>
     o.status === "pending" && o.deadlineMin > m
-  );
+  ), null);
 
   if (state.rivalBehavior.pendingCooperationOffers.length > 0) return;
 
@@ -675,9 +677,9 @@ export function processCooperationEffects(state, m, log) {
   }
 
   // Abgelaufene Kooperationen entfernen
-  state.rivalBehavior.activeCooperations = state.rivalBehavior.activeCooperations.filter(c =>
+  state.rivalBehavior.activeCooperations = retainHistory(state, "cooperations", state.rivalBehavior.activeCooperations, state.rivalBehavior.activeCooperations.filter(c =>
     c.status !== "expired" && c.status !== "rival_gone"
-  );
+  ), null);
 }
 
 // Abgelaufene Kooperationsangebote auflösen
@@ -707,7 +709,7 @@ export function resolveCooperationOffers(state, m, log) {
 
   // Aufräumen
   if (state.rivalBehavior.pendingCooperationOffers.length > 50) {
-    state.rivalBehavior.pendingCooperationOffers = state.rivalBehavior.pendingCooperationOffers.slice(-50);
+    state.rivalBehavior.pendingCooperationOffers = retainLatestHistory(state, "cooperationOffers", state.rivalBehavior.pendingCooperationOffers, 50, null);
   }
 }
 

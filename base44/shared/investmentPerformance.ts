@@ -1,3 +1,4 @@
+import { retainLatestHistory } from "./historyRetention.ts";
 import type { InvestmentPosition } from "./investmentEngine.ts";
 // Performance-Tracking für Investment.
 // Auftrag 34 – I15 (Einzahlungen nicht als Rendite zählen).
@@ -36,7 +37,7 @@ export function recordDepotSnapshot(state, min) {
     });
 
     if (depot.history.length > HISTORY_MAX) {
-      depot.history = depot.history.slice(-HISTORY_MAX);
+      depot.history = retainLatestHistory(state, "investmentPerformance", depot.history, HISTORY_MAX, Object.keys(state.investment?.depots || {}).find(k => state.investment.depots[k] === depot));
     }
   }
 }

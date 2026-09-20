@@ -1,3 +1,4 @@
+import { retainHistory } from "./historyRetention.ts";
 // Entwicklungs-Engine für FERNWERK.
 // Verwaltet Entwicklungsschwerpunkte, geführten Einstieg (Onboarding),
 // Unternehmensmeilensteine und tägliche Auto-Entscheidungs-Statistik.
@@ -206,7 +207,7 @@ export function recordAutoDecisionDay(state, midnight) {
     entry.hadOverdue = hadOverdue;
   }
   if (state.stats.autoDecisionDays.length > 30) {
-    state.stats.autoDecisionDays = state.stats.autoDecisionDays.slice(-30);
+    state.stats.autoDecisionDays = retainHistory(state,"autoDecisionDays",state.stats.autoDecisionDays,state.stats.autoDecisionDays.slice(-30));
   }
 }
 

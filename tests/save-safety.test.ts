@@ -206,7 +206,7 @@ describe("Ladepfade und Ereignisse", () => {
     const meta = ref({ partyId: "B", cloudId: "cloud-B" });
     const current = ref(valid("B"));
     const env = {
-      processSaveFile: async (_command, raw) => prepareLoadedState(raw), ensurePartyId: noop,
+      stageHistory: async (_userId, s) => s, processSaveFile: async (_command, raw) => prepareLoadedState(raw), ensurePartyId: noop,
       getSyncMeta: async () => ({ partyId: "B", cloudId: "cloud-B" }),
       isCurrentSession: () => true,
       makeSyncMeta: (partyId, cloudId, localBaseRevision, status) => ({ partyId, cloudId, localBaseRevision, status }),

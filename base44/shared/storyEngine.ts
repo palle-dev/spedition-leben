@@ -1,3 +1,5 @@
+import { retainHistory } from "./historyRetention.ts";
+import { retainLatestHistory } from "./historyRetention.ts";
 import { nextRandom } from "./randomEngine.ts";
 // Geschichten-Engine für FERNWERK.
 // Verwaltet persönliche Geschichten mit Szenen, Entscheidungen, Versprechen
@@ -84,7 +86,7 @@ function addChronicleEntry(state, entry) {
     ...entry,
   });
   if (state.private.chronicle.length > CHRONICLE_MAX) {
-    state.private.chronicle = state.private.chronicle.slice(-CHRONICLE_MAX);
+    state.private.chronicle = retainLatestHistory(state, "privateChronicle", state.private.chronicle, CHRONICLE_MAX, null);
   }
 }
 
@@ -104,7 +106,7 @@ function createPromise(state, storyRunId, description, personId, personName, due
   };
   state.private.promises.push(promise);
   if (state.private.promises.length > PROMISES_MAX) {
-    state.private.promises = state.private.promises.slice(-PROMISES_MAX);
+    state.private.promises = retainLatestHistory(state, "promises", state.private.promises, PROMISES_MAX, null);
   }
   return promise;
 }
@@ -978,12 +980,12 @@ export function processDailyStories(state, midnight, log) {
   maybeOfferStory(state, midnight, log);
   // Abgelaufene Geschichten bereinigen (älter als 30 Tage)
   const cutoff = midnight - 30 * DAY_MIN;
-  state.private.stories.runs = state.private.stories.runs.filter(r =>
+  state.private.stories.runs = retainHistory(state, "storyRuns", state.private.stories.runs, state.private.stories.runs.filter(r =>
     r.status === "offered" || r.status === "active" || (r.completedAtMin != null && r.completedAtMin >= cutoff)
-  );
+  ), null);
   if (state.private.stories.runs.length > 50) {
-    state.private.stories.runs = state.private.stories.runs
+    state.private.stories.runs = retainHistory(state, "storyRuns", state.private.stories.runs, state.private.stories.runs
       .filter(r => r.status === "offered" || r.status === "active")
-      .concat(state.private.stories.runs.filter(r => r.status !== "offered" && r.status !== "active").slice(-20));
+      .concat(state.private.stories.runs.filter(r => r.status !== "offered" && r.status !== "active").slice(-20)), null);
   }
 }

@@ -1,3 +1,4 @@
+import { retainHistory } from "./historyRetention.ts";
 import type { InvestmentPosition } from "./investmentEngine.ts";
 // Staking-Engine für Krypto-Investments.
 // Auftrag 34 – I13 (Staking).
@@ -150,7 +151,7 @@ export function processStaking(state, min, log) {
       }
 
       // Abgeschlossene Staking-Einträge aufräumen
-      pos.staking = pos.staking.filter(s => s.status !== "released" || s.accumulatedRewardQty > 0);
+      pos.staking = retainHistory(state, "investmentStaking", pos.staking, pos.staking.filter(s => s.status !== "released" || s.accumulatedRewardQty > 0), depotId + ":" + instId);
     }
   }
 }

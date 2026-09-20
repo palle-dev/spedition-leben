@@ -1,3 +1,4 @@
+import { retainLatestHistory } from "./historyRetention.ts";
 import { getDepot, getFreeSettlement, placeOrder, cancelOrder, isOpenInvestmentOrder, isStockTradingHour, roundQty } from "./investmentEngine.ts";
 import { addBooking } from "./accountingEngine.ts";
 import { deliverMessage } from "./mailEngine.ts";
@@ -60,7 +61,7 @@ function totalValue(state,id){
 }
 function record(state,a,id,order,reason,budget){
  const entry={id:order.id,depotId:id,atMin:state.gameTime,side:order.side,instrumentId:order.instrumentId,qty:order.qty,reason,budgetCents:budget||0,status:order.status};
- a.activity.push(entry);if(a.activity.length>100)a.activity=a.activity.slice(-100);
+ a.activity.push(entry);if(a.activity.length>100)a.activity = retainLatestHistory(state, "investmentAdvisor", a.activity, 100, null);
 }
 export function processInvestmentAdvisor(state,m){
  const a=state.investment?.advisor;

@@ -1,3 +1,5 @@
+import { retainHistory } from "./historyRetention.ts";
+import { retainLatestHistory } from "./historyRetention.ts";
 // Investment-Engine für FERNWERK – Auftrag 33.
 // Fiktiver Markt mit Aktien und Krypto, zwei Depots (Firma/Privat),
 // Orderverwaltung, FIFO-Kostenbasis, Buchhaltung, Zeitverarbeitung.
@@ -314,7 +316,7 @@ export function processMarketTick(state, min, log) {
     inst.currentQuote = makeQuote(newMid, def.type, status, m.tickCounter, min);
     inst.priceHistory.push(newMid);
     if (inst.priceHistory.length > HISTORY_MAX_TICKS) {
-      inst.priceHistory = inst.priceHistory.slice(-HISTORY_MAX_TICKS);
+      inst.priceHistory = retainLatestHistory(state, "investmentPrices", inst.priceHistory, HISTORY_MAX_TICKS, inst.id);
     }
     // Broker-Liquidität pro Tick zurücksetzen
     inst.brokerLiquidityShares = STOCK_MAX_SHARES_PER_TICK;
@@ -402,7 +404,7 @@ export function depositToDepot(state, { depotId, amountCents }) {
   }
   depot.settlementCents += amountCents;
   depot.transfers.push({ id: uid(state, "it"), direction: "in", amountCents, min: state.gameTime });
-  if (depot.transfers.length > 100) depot.transfers = depot.transfers.slice(-100);
+  if (depot.transfers.length > 100) depot.transfers = retainLatestHistory(state, "investmentTransfers", depot.transfers, 100, Object.keys(state.investment?.depots || {}).find(k => state.investment.depots[k] === depot));
   return { ok: true, settlementCents: depot.settlementCents };
 }
 
@@ -423,7 +425,7 @@ export function withdrawFromDepot(state, { depotId, amountCents }) {
     state.private.accountCents += amountCents;
   }
   depot.transfers.push({ id: uid(state, "it"), direction: "out", amountCents, min: state.gameTime });
-  if (depot.transfers.length > 100) depot.transfers = depot.transfers.slice(-100);
+  if (depot.transfers.length > 100) depot.transfers = retainLatestHistory(state, "investmentTransfers", depot.transfers, 100, Object.keys(state.investment?.depots || {}).find(k => state.investment.depots[k] === depot));
   return { ok: true, settlementCents: depot.settlementCents };
 }
 
@@ -457,11 +459,11 @@ export function validateInvestmentOrder(state, p, allowedTypes) {
     if (partner.instrumentId !== p.instrumentId || partner.side !== p.side || partner.ocoPartnerId) throw new Error("OCO-Partner passt nicht zu dieser Order.");
   }
 }
-export function trimInvestmentOrders(depot) {
+export function trimInvestmentOrders(depot, state) {
   const open = depot.orders.filter(isOpenInvestmentOrder);
   const closed = depot.orders.filter(o => !isOpenInvestmentOrder(o)).slice(-Math.max(1, ORDERS_MAX - open.length));
   const keep = new Set([...open, ...closed].map(o => o.id));
-  depot.orders = depot.orders.filter(o => keep.has(o.id));
+  depot.orders = retainHistory(state, "investmentOrders", depot.orders, depot.orders.filter(o => keep.has(o.id)), Object.keys(state.investment?.depots || {}).find(k => state.investment.depots[k] === depot));
 }
 
 // ---------- Orders ----------
@@ -590,7 +592,7 @@ export function placeOrder(state, p) {
   }
 
   depot.orders.push(order);
-  trimInvestmentOrders(depot);
+  trimInvestmentOrders(depot, state);
 
   // Sofortausführung versuchen, wenn Markt offen
   const fillResult = tryExecuteOrder(state, order, state.gameTime);
@@ -765,7 +767,7 @@ function tryExecuteOrder(state, order, min) {
     id: uid(state, "if"), orderId: order.id, instrumentId: order.instrumentId,
     side: order.side, qty: fillQty, priceCents: execPrice, feeCents: incrementalFee, min,
   });
-  if (depot.fills.length > FILLS_MAX) depot.fills = depot.fills.slice(-FILLS_MAX);
+  if (depot.fills.length > FILLS_MAX) depot.fills = retainLatestHistory(state, "investmentFills", depot.fills, FILLS_MAX, Object.keys(state.investment?.depots || {}).find(k => state.investment.depots[k] === depot));
 
   return { filled: true, fillQty, execPrice, feeCents: incrementalFee, fullyFilled: order.filledQty >= order.qty };
 }

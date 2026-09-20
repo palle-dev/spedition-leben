@@ -6,31 +6,16 @@ import { readRecoverySave, MAX_SAVE_BYTES, prepareLoadedState } from "./saveSafe
 // Benutzergetrennt: alle Keys werden mit user_<userId>: prefixiert.
 // Sync-Metadaten werden separat vom Spielzustand gespeichert.
 
-const DB_NAME = "fernwerk";
-const DB_VERSION = 1;
-const STORE_KV = "kv";
+import { openDB, STORE_KV } from "./saveDatabase";
+import { writeHistoryBlocks } from "./historyRepository";
 
-let dbPromise = null;
-
-function openDB() {
-  if (dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE_KV)) db.createObjectStore(STORE_KV);
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => { dbPromise = null; reject(req.error); };
-  });
-  return dbPromise;
-}
-
-async function idbPut(key, value) {
+async function idbPut(key, value, userId = null) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_KV, "readwrite");
-    tx.objectStore(STORE_KV).put(value, key);
+    const store = tx.objectStore(STORE_KV);
+    const record = value?.state && userId ? { ...value, state: writeHistoryBlocks(store, userId, value.state) } : value;
+    store.put(record, key);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error || new Error("Speichern wurde abgebrochen."));
@@ -90,10 +75,10 @@ function fullKey(userId, key) {
 export async function saveCurrent(userId, state, syncMeta = null, savedAt = Date.now()) {
   if (!userId) throw new Error("Zum Speichern bitte anmelden.");
   const db = await openDB();
-  const record = { state, savedAt };
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_KV, "readwrite");
     const store = tx.objectStore(STORE_KV);
+    const record = { state: writeHistoryBlocks(store, userId, state), savedAt };
     store.put(record, fullKey(userId, nsPrefix(state) + "current"));
     // Zustand und aktive Auswahl werden in derselben Transaktion geschrieben.
     store.put(record, fullKey(userId, "active_current"));
@@ -139,7 +124,7 @@ export async function clearScenarioCurrent(userId) {
 
 export async function saveAutosave(userId, index, state) {
   const prefix = nsPrefix(state);
-  await idbPut(fullKey(userId, prefix + "autosave_" + index), { state, savedAt: Date.now() });
+  await idbPut(fullKey(userId, prefix + "autosave_" + index), { state, savedAt: Date.now() }, userId);
 }
 
 export async function loadAutosave(userId, index, isScenario) {
@@ -169,7 +154,7 @@ export async function deleteAutosave(userId, index, isScenario) {
 
 export async function saveManualSlot(userId, name, state) {
   const prefix = nsPrefix(state);
-  await idbPut(fullKey(userId, prefix + "slot_" + name), { state, savedAt: Date.now(), name });
+  await idbPut(fullKey(userId, prefix + "slot_" + name), { state, savedAt: Date.now(), name }, userId);
 }
 
 export async function loadManualSlot(userId, name, isScenario) {
@@ -249,7 +234,7 @@ export async function claimUnassignedSaves(userId) {
   for (const oldKey of legacyKeys) {
     const v = await idbGet(oldKey);
     if (v) {
-      await idbPut(fullKey(userId, oldKey), v);
+      await idbPut(fullKey(userId, oldKey), v, userId);
       claimed++;
     }
   }

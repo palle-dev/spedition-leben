@@ -162,7 +162,7 @@ export function placeAdvancedOrder(state, p) {
   }
 
   depot.orders.push(order);
-  trimInvestmentOrders(depot);
+  trimInvestmentOrders(depot, state);
   return { ok: true, order };
 }
 

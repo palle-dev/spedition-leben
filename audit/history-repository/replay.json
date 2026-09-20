@@ -1,0 +1,55 @@
+{
+  "baselineEngine": "simulation",
+  "node": "v24.19.0",
+  "activeVehicles": 97,
+  "branches": 6,
+  "days": [
+    {
+      "day": 1,
+      "gameTime": 177876,
+      "baselineMs": 5195.533511,
+      "engineMs": 6118.929794,
+      "compressionMs": 71.29973400000017,
+      "newRetainedOriginalRows": 1921,
+      "archive": {
+        "records": 36342,
+        "rawBytes": 21830943,
+        "compressedBytes": 1448205
+      },
+      "sameGameState": true
+    },
+    {
+      "day": 2,
+      "gameTime": 179316,
+      "baselineMs": 3584.0187650000007,
+      "engineMs": 3978.870347,
+      "compressionMs": 56.696601999999984,
+      "newRetainedOriginalRows": 1718,
+      "archive": {
+        "records": 39243,
+        "rawBytes": 23545482,
+        "compressedBytes": 1593681
+      },
+      "sameGameState": true
+    },
+    {
+      "day": 3,
+      "gameTime": 180756,
+      "baselineMs": 3471.579007999997,
+      "engineMs": 3750.6235080000006,
+      "compressionMs": 59.71852199999921,
+      "newRetainedOriginalRows": 1638,
+      "archive": {
+        "records": 42052,
+        "rawBytes": 25276514,
+        "compressedBytes": 1742506
+      },
+      "sameGameState": true
+    }
+  ],
+  "activeBytes": 26409193,
+  "immutableBlocks": 89,
+  "blobBytes": 1742506,
+  "allHistoryOutsideActiveState": true,
+  "measurement": "Engine and compression on private local copies; no browser, IndexedDB, cloud or production writes. In-memory immutable block adapter checks references only. Not a 1000-truck or 10000-day test."
+}

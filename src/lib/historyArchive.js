@@ -37,10 +37,10 @@ function decode(value) {
 function chunksOf(state) {
   const archive = state?.historyArchive;
   if (!archive) return [];
-  if (archive.version !== ARCHIVE_VERSION || !Array.isArray(archive.chunks) || archive.chunks.length > 20000) throw Error("Unbekanntes oder ungültiges Spielstandsarchiv.");
+  if (archive.version !== ARCHIVE_VERSION || !Array.isArray(archive.chunks)) throw Error("Unbekanntes oder ungültiges Spielstandsarchiv.");
   const ids = new Set();
   for (const c of archive.chunks) {
-    if (!KINDS.has(c.kind) || !/^[a-f0-9]{64}$/.test(c.id) || ids.has(c.id) ||
+    if (!(KINDS.has(c.kind) || /^history:[a-zA-Z0-9_.-]+$/.test(c.kind)) || !/^[a-f0-9]{64}$/.test(c.id) || ids.has(c.id) ||
         !Number.isSafeInteger(c.count) || c.count < 1 || !Number.isSafeInteger(c.rawBytes) || c.rawBytes < 1 || c.rawBytes > MAX_RAW) throw Error("Ungültiger Archivindex.");
     ids.add(c.id);
   }
@@ -52,20 +52,28 @@ export async function portableHistory(state) {
   const portable = [];
   for (const c of chunks) {
     if (!(c.data instanceof Blob)) throw Error("Archivdaten fehlen. Bitte den ursprünglichen Spielstand erneut laden.");
+    if (await hash(c.data) !== c.id) throw Error("Archiv-Prüfsumme stimmt nicht überein.");
     portable.push({ ...c, data: await encode(c.data) });
   }
-  return { ...state, historyArchive: { ...state.historyArchive, chunks: portable } };
+  const archive = { ...state.historyArchive, chunks: portable };
+  delete archive.storage;
+  return { ...state, historyArchive: archive };
 }
-export async function restoreHistory(state) {
-  const chunks = chunksOf(state), restored = [];
-  // Inflate one chunk at a time; never hold the entire historical object tree.
-  for (const c of chunks) {
-    const data = c.data instanceof Blob ? c.data : decode(c.data);
+export async function readArchiveRecords(c, data) {
     if (await hash(data) !== c.id) throw Error("Archiv-Prüfsumme stimmt nicht überein.");
     const raw = await readLimited(data.stream().pipeThrough(new DecompressionStream("gzip")), c.rawBytes);
     if (raw.size !== c.rawBytes) throw Error("Archiv ist unvollständig.");
     const records = JSON.parse(await raw.text());
     if (!Array.isArray(records) || records.length !== c.count || records.some(r => !r || typeof r !== "object" || Array.isArray(r))) throw Error("Archiv enthält ungültige Datensätze.");
+  return records;
+}
+export async function restoreHistory(state, { allowReferences = false } = {}) {
+  const chunks = chunksOf(state), restored = [];
+  // Inflate one chunk at a time; never hold the entire historical object tree.
+  for (const c of chunks) {
+    if (c.data == null && allowReferences && state.historyArchive.storage === "indexeddb") { restored.push(c); continue; }
+    const data = c.data instanceof Blob ? c.data : decode(c.data);
+    await readArchiveRecords(c, data);
     restored.push({ ...c, data });
   }
   return chunks.length ? { ...state, historyArchive: { ...state.historyArchive, chunks: restored } } : state;
@@ -80,7 +88,7 @@ function referencedOrders(state) {
     if (Array.isArray(value)) { for (const item of value) visit(item, key); return; }
     for (const [k, item] of Object.entries(value)) visit(item, k);
   }
-  for (const [key, value] of Object.entries(state)) if (key !== "orders" && key !== "historyArchive") visit(value, key);
+  for (const [key, value] of Object.entries(state)) if (key !== "orders" && key !== "historyArchive" && key !== "historyOutbox") visit(value, key);
   return ids;
 }
 export function partitionHistory(state) {
@@ -101,28 +109,34 @@ export function partitionHistory(state) {
 export async function compactHistory(state) {
   if (!state || !Array.isArray(state.orders) || typeof CompressionStream === "undefined") return state;
   const day = Math.floor(state.gameTime / DAY);
-  if (state.historyArchive?.checkedDay === day) return state;
+  if (state.historyArchive?.checkedDay === day && !state.historyOutbox?.length) return state;
   const old = chunksOf(state);
   const p = partitionHistory(state), additions = [];
-  for (const [kind, records] of [["expiredOffers", p.offers], ["accountingTasks", p.tasks]]) {
+  const groups = new Map([["expiredOffers", p.offers], ["accountingTasks", p.tasks]]);
+  for (const record of state.historyOutbox || []) {
+    const kind = "history:" + record.kind;
+    if (!groups.has(kind)) groups.set(kind, []);
+    groups.get(kind).push(record);
+  }
+  for (const [kind, records] of groups) {
     // Bounded chunks make export/validation/archive browsing memory independent
     // of the total age of a game.
     for (let offset = 0; offset < records.length; offset += 1000) {
       const rows = records.slice(offset, offset + 1000);
       const raw = new Blob([JSON.stringify(rows)]);
       const data = await readLimited(raw.stream().pipeThrough(new CompressionStream("gzip")));
-      additions.push({ id: await hash(data), kind, count: rows.length, rawBytes: raw.size, data });
+      additions.push({ id: await hash(data), kind, count: rows.length, rawBytes: raw.size, storedBytes: data.size, data });
     }
   }
   // Only exchange arrays after ALL compression has succeeded. A failure leaves
   // the original snapshot intact, including every historical record.
-  return { ...state, orders: p.orders,
+  return { ...state, historyOutbox: [], orders: p.orders,
     ...(state.accounting ? { accounting: { ...state.accounting, taskQueue: p.taskQueue } } : {}),
-    historyArchive: { version: ARCHIVE_VERSION, checkedDay: day, chunks: [...old, ...additions] } };
+    historyArchive: { ...(state.historyArchive?.storage ? { storage: state.historyArchive.storage } : {}), version: ARCHIVE_VERSION, checkedDay: day, chunks: [...old, ...additions] } };
 }
 export function archiveStats(state) {
   const chunks = state?.historyArchive?.chunks || [];
   return { records: chunks.reduce((n, c) => n + c.count, 0),
     rawBytes: chunks.reduce((n, c) => n + c.rawBytes, 0),
-    compressedBytes: chunks.reduce((n, c) => n + (c.data?.size || 0), 0) };
+    compressedBytes: chunks.reduce((n, c) => n + (c.data?.size || c.storedBytes || 0), 0) };
 }

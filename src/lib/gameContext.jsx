@@ -1,3 +1,4 @@
+import { stageHistory, hydrateHistory } from "@/lib/historyRepository";
 import { archiveStats } from "@/lib/historyArchive";
 import { processSaveFile } from "@/lib/saveFileClient";
 import { displayedGameMinute } from "@/lib/displayClock";
@@ -362,8 +363,8 @@ export function GameProvider({ children }) {
         }
         if (!stillCurrent()) return { skipped: true };
         const res = await withCloudRetry(() => meta.cloudId
-          ? saveCloudSave(meta.cloudId, snapshot, expectedRevision, saveLabel, saveType || "auto")
-          : createCloudSave(snapshot, partyId, saveLabel, saveType || "new"),
+          ? saveCloudSave(meta.cloudId, snapshot, expectedRevision, saveLabel, saveType || "auto", token.userId)
+          : createCloudSave(snapshot, partyId, saveLabel, saveType || "new", token.userId),
           { isCurrent: () => stillCurrent() && hasLockRef.current && !lockRequiresReloadRef.current });
         if (res.skipped) return res;
         if (!stillCurrent()) return { skipped: true };
@@ -416,7 +417,8 @@ export function GameProvider({ children }) {
 
   // Ein Ladeweg für Startup, Cloud, Slots, Autosaves und Import.
   const activateState = useCallback(async (raw, token, providedMeta = null, keepStart = false) => {
-    const loaded = await processSaveFile("prepare", raw);
+    let loaded = await processSaveFile("prepare", raw);
+    loaded = await stageHistory(token.userId, loaded, true);
     if (providedMeta?.partyId) loaded.meta.partyId = providedMeta.partyId;
     ensurePartyId(loaded);
     let savedMeta = providedMeta;
@@ -570,7 +572,9 @@ export function GameProvider({ children }) {
       assertWritable();
       if (!data) throw new Error("Simulations-Worker hat keine Antwort gesendet.");
       if (data.error) throw new Error(data.error);
-      const newState = data.state; const result = data.result;
+      const newState = await stageHistory(token.userId, data.state); const result = data.result;
+      if (!isCurrentSession(token)) return;
+      assertWritable();
       stateRef.current = newState; setState(newState);
       markDirty();
       processNewEvents(newState);
@@ -620,7 +624,9 @@ export function GameProvider({ children }) {
       const tRecv = performance.now();
       if (!data) throw new Error("Simulations-Worker hat keine Antwort gesendet.");
       if (data.error) throw new Error(data.error);
-      const newState = data.state; const result = data.result;
+      const newState = await stageHistory(token.userId, data.state); const result = data.result;
+      if (!isCurrentSession(token)) return;
+      assertWritable();
       stateRef.current = newState; setState(newState);
       markDirty();
       processNewEvents(newState);
@@ -652,6 +658,9 @@ export function GameProvider({ children }) {
       if (!isCurrentSession(token)) return;
       assertWritable();
       if (!data || data.error) throw new Error(data?.error || "Simulations-Worker antwortet nicht.");
+      data.state = await stageHistory(token.userId, data.state);
+      if (!isCurrentSession(token)) return;
+      assertWritable();
       stateRef.current = data.state; setState(data.state);
       markDirty();
       processNewEvents(data.state);
@@ -930,8 +939,16 @@ export function GameProvider({ children }) {
   // ---- Export / Import / Manuelle Slots ----
   const exportGame = useCallback(async () => {
     if (!stateRef.current) return null;
-    return processSaveFile("export", stateRef.current);
+    return processSaveFile("export", await hydrateHistory(userIdRef.current, stateRef.current));
   }, []);
+
+  const queryHistory = useCallback(async (snapshot, options = {}) => {
+    const token = sessionToken();
+    const result = await processSaveFile("historyPage", { ...options, state: { historyArchive: snapshot.historyArchive }, userId: token.userId });
+    if (!isCurrentSession(token)) throw Error("Spielstand wurde inzwischen gewechselt.");
+    return result;
+  }, [sessionToken, isCurrentSession]);
+  const exportHistory = useCallback(async () => processSaveFile("archive", await hydrateHistory(userIdRef.current, stateRef.current)), []);
 
   const importGame = useCallback(async (exportStr) => {
     let token;
@@ -1073,7 +1090,7 @@ export function GameProvider({ children }) {
     runDiagnosedAdvance, getDiagReport,
     markAllEventsSeen,
     showToast, dismissToast, dismissOverlay, dismissStart, openStartScreen, toggleMotion,
-    exportGame, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
+    exportGame, exportHistory, queryHistory, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
     uploadToCloud, retryCloudSync, refreshCloudSaves, loadCloudGame, deleteCloudGame,
     resolveConflictKeepBoth, resolveConflictKeepLocal, resolveConflictKeepCloud,
   }), [
@@ -1083,7 +1100,7 @@ export function GameProvider({ children }) {
     runDiagnosedAdvance, getDiagReport,
     markAllEventsSeen,
     showToast, dismissToast, dismissOverlay, dismissStart, openStartScreen, toggleMotion,
-    exportGame, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
+    exportGame, exportHistory, queryHistory, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
     uploadToCloud, retryCloudSync, refreshCloudSaves, loadCloudGame, deleteCloudGame,
     resolveConflictKeepBoth, resolveConflictKeepLocal, resolveConflictKeepCloud,
   ]);

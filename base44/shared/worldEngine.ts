@@ -1,3 +1,5 @@
+import { retainHistory } from "./historyRetention.ts";
+import { retainLatestHistory } from "./historyRetention.ts";
 import { addBooking } from "./accountingEngine.ts";
 import { getDistance, checkBodyTypeCompatibility } from "./gameRules.ts";
 import { isActivelyEmployed } from "./terminationEngine.ts";
@@ -21,7 +23,7 @@ function note(state, title, text, cause = null, kind = "world") {
   const w = state.world;
   const item = { id: "world_event_" + (++w.sequence), atMin: state.gameTime, title, text, cause, kind };
   w.chronicle.push(item);
-  if (w.chronicle.length > 180) w.chronicle.splice(0, w.chronicle.length - 180);
+  if (w.chronicle.length > 180) w.chronicle = retainLatestHistory(state, "worldChronicle", w.chronicle, 180);
   return item.id;
 }
 function effect(state, run, e: any = {}) {
@@ -37,7 +39,7 @@ function effect(state, run, e: any = {}) {
     const d = state.drivers.find(p => p.id === run.actorId && activeDriver(p));
     if (d) {
       d.satisfaction = clamp((d.satisfaction ?? 70) + e.driver);
-      d.satisfactionReasons = [...(d.satisfactionReasons || []), { reason: "Spielwelt: " + run.actorName, delta: e.driver, atMin: state.gameTime }].slice(-20);
+      d.satisfactionReasons = retainHistory(state, "driverSatisfaction", d.satisfactionReasons, [...(d.satisfactionReasons || []), { reason: "Spielwelt: " + run.actorName, delta: e.driver, atMin: state.gameTime }].slice(-20), d.id);
     }
   }
   if (e.friend) {

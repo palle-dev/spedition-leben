@@ -1,3 +1,4 @@
+import { retainLatestHistory } from "./historyRetention.ts";
 // Dauerhaftes Ereignisprotokoll für FERNWERK – Auftrag 23.
 // Speichert bestätigte Geschäftsereignisse mit stabiler ID, Revision und Sequenz.
 // Ereignisse überleben Neuladen, Verbindungsabbruch und Offline-Zeit.
@@ -77,7 +78,7 @@ export function pushEvent(state, {
 
   // Begrenzung: älteste Ereignisse entfernen, aber nie die letzten 200
   if (state.events.length > MAX_EVENTS) {
-    state.events = state.events.slice(-MAX_EVENTS);
+    state.events = retainLatestHistory(state, "events", state.events, MAX_EVENTS, null);
   }
 
   return ev;

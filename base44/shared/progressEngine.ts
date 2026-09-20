@@ -1,3 +1,4 @@
+import { retainHistory } from "./historyRetention.ts";
 // Fortschritts-Engine für FERNWERK.
 // Berechnet Unternehmensvermögen, privates Nettovermögen, XP-Stufen,
 // Entwicklungsstufen, Erfolgsprüfung, Zielfortschritt und Migration.
@@ -336,28 +337,28 @@ export function cleanupOldData(state) {
   const TOUR_CUTOFF = 7 * 1440;
 
   if (state.orders) {
-    state.orders = state.orders.filter(o => {
+    state.orders = retainHistory(state,"orders",state.orders,state.orders.filter(o => {
       if (o.status === "offered" || o.status === "angenommen" || o.status === "unterwegs") return true;
       const refMin = o.deliveredAtMin || o.failedAtMin || o.cancelledAtMin;
       if (refMin == null) return true;
       return now - refMin < ORDER_CUTOFF;
-    });
+    }));
   }
 
   if (state.trips) {
-    state.trips = state.trips.filter(t => {
+    state.trips = retainHistory(state,"trips",state.trips,state.trips.filter(t => {
       if (t.status === "in_progress") return true;
       if (t.endMin == null) return true;
       return now - t.endMin < TRIP_CUTOFF;
-    });
+    }));
   }
 
   if (state.tours) {
-    state.tours = state.tours.filter(t => {
+    state.tours = retainHistory(state,"tours",state.tours,state.tours.filter(t => {
       if (t.status === "active" || t.status === "planned") return true;
       const refMin = t.completedAtMin || t.cancelledAtMin || t.confirmedAt || t.createdAt;
       if (refMin == null) return true;
       return now - refMin < TOUR_CUTOFF;
-    });
+    }));
   }
 }

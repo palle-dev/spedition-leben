@@ -1,3 +1,4 @@
+import { retainLatestHistory } from "./historyRetention.ts";
 // Führungs- und Delegations-Engine für FERNWERK.
 // Zentrale Verwaltung von Befugnissen, finanziellen Grenzen, Freigaben
 // und Entscheidungsgründen für alle automatisierten Mitarbeiter.
@@ -397,7 +398,7 @@ export function expireApprovals(state) {
 function moveResolved(state, req) {
   state.approvals.pending = state.approvals.pending.filter(a => a.id !== req.id);
   state.approvals.resolved.push({ id: req.id, type: req.type, title: req.title, status: req.status, employeeName: req.employeeName, costCents: req.costCents, resolvedAtMin: req.resolvedAtMin, supersedeReason: req.supersedeReason });
-  if (state.approvals.resolved.length > MAX_RESOLVED_APPROVALS) state.approvals.resolved = state.approvals.resolved.slice(-MAX_RESOLVED_APPROVALS);
+  if (state.approvals.resolved.length > MAX_RESOLVED_APPROVALS) state.approvals.resolved = retainLatestHistory(state, "approvals", state.approvals.resolved, MAX_RESOLVED_APPROVALS, null);
   state.delegation.stats.pendingApprovals = state.approvals.pending.filter(a => a.status === "pending").length;
 }
 
@@ -416,7 +417,7 @@ export function logDecision(state, opts) {
     auto: opts.auto !== false,
   });
   if (state.delegation.decisionLog.length > MAX_DECISION_LOG) {
-    state.delegation.decisionLog = state.delegation.decisionLog.slice(-MAX_DECISION_LOG);
+    state.delegation.decisionLog = retainLatestHistory(state, "delegationDecisions", state.delegation.decisionLog, MAX_DECISION_LOG, null);
   }
   if (opts.auto !== false) state.delegation.stats.autoResolved++;
 }

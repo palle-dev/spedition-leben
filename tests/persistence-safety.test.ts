@@ -94,7 +94,9 @@ it("speichert Blob-Archive atomar mit dem Spielstand und benutzergetrennt", asyn
  const archived=await compactHistory(original);
  await p.saveCurrent("alice",archived);
  const loaded=await p.loadCurrent("alice");
- expect(await loaded.historyArchive.chunks[0].data.arrayBuffer()).toEqual(await archived.historyArchive.chunks[0].data.arrayBuffer());
+ const {readHistoryBlock}=await import("@/lib/historyRepository");
+ expect(loaded.historyArchive.chunks[0].data).toBeUndefined();
+ expect(await (await readHistoryBlock("alice",loaded.historyArchive.chunks[0])).arrayBuffer()).toEqual(await archived.historyArchive.chunks[0].data.arrayBuffer());
  expect(await p.loadCurrent("bob")).toBeNull();
  failTransactions=true;
  await expect(p.saveCurrent("alice",state("B"))).rejects.toThrow();

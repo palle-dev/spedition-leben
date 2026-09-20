@@ -1,3 +1,4 @@
+import { retainLatestHistory } from "./historyRetention.ts";
 import { nextRandom } from "./randomEngine.ts";
 // Beziehungs-Engine für FERNWERK.
 // Verwaltet Beziehungsstatus (Dating → Verlobt → Verheiratet), Heirat,
@@ -60,7 +61,7 @@ export function giveGift(state, { giftId }) {
   state.private.happiness = Math.min(100, (state.private.happiness || 0) + gift.happinessDelta);
   state.private.stress = Math.max(0, (state.private.stress || 0) - 1);
   state.private.giftLog.push({ giftId, min: state.gameTime });
-  if (state.private.giftLog.length > 100) state.private.giftLog = state.private.giftLog.slice(-100);
+  if (state.private.giftLog.length > 100) state.private.giftLog = retainLatestHistory(state, "gifts", state.private.giftLog, 100, null);
   state.bookings.push({ min: state.gameTime, cause: "Geschenk: " + gift.label, amountCents: -gift.costCents, account: "private", refId: "gift:" + giftId });
   pushEvent(state, {
     type: "gift_given", gameTime: state.gameTime, isSystem: true,

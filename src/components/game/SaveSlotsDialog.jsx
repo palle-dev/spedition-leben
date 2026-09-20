@@ -1,4 +1,4 @@
-import { processSaveFile } from "@/lib/saveFileClient";
+import HistoryBrowser from "./HistoryBrowser";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useGame } from "@/lib/gameContext";
 import {
@@ -14,7 +14,7 @@ import CloudSyncSection from "@/components/game/CloudSyncSection";
 export default function SaveSlotsDialog({ open, onOpenChange }) {
   const {
     state, saveSlot, loadSlot, deleteSlot, listSlots,
-    loadAutosaveSlot, autosaveMetas, exportGame, importGame,
+    loadAutosaveSlot, autosaveMetas, exportGame, exportHistory, importGame,
     deleteAutosaveSlot, deleteCurrentGame, deleteAllSaves,
   } = useGame();
   const [slots, setSlots] = useState([]);
@@ -68,7 +68,7 @@ export default function SaveSlotsDialog({ open, onOpenChange }) {
     if (busy) return;
     setBusy("exporting"); setError(null);
     try {
-      const blob = archiveOnly ? await processSaveFile("archive", state) : await exportGame();
+      const blob = archiveOnly ? await exportHistory() : await exportGame();
       if (!blob) return;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -242,6 +242,7 @@ export default function SaveSlotsDialog({ open, onOpenChange }) {
         {!!busy && ["importing", "exporting"].includes(busy) && <p role="status" aria-live="polite" className="text-sm text-lime">
           {busy === "importing" ? "Spielstand wird geprüft und aufbereitet …" : "Spielstand und Archiv werden komprimiert …"}
         </p>}
+        <HistoryBrowser key={state?.meta?.partyId || "none"} />
         {/* Gefahrenzone */}
         <div className="space-y-2">
           <div className="text-xs font-semibold uppercase tracking-wider text-destructive/80 flex items-center gap-1.5">

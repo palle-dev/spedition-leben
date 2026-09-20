@@ -1,3 +1,4 @@
+import { hydrateHistory } from "./historyRepository";
 // Cloud-Synchronisations-Manager für FERNWERK.
 // Nutzt die vorhandene GameState-Entity über die cloudSync-Backend-Funktion.
 // Der Client ist die einzige Simulationsinstanz — die Cloud speichert bestätigte
@@ -37,16 +38,16 @@ export async function loadCloudSave(stateId) {
   return await invokeCloudSync({ command: "load", stateId });
 }
 
-export async function createCloudSave(state, partyId, saveLabel, saveType) {
+export async function createCloudSave(state, partyId, saveLabel, saveType, userId = null) {
   return await invokeCloudSync({
-    command: "create", state: await portableHistory(state), party_id: partyId,
+    command: "create", state: await portableHistory(await hydrateHistory(userId, state)), party_id: partyId,
     save_label: saveLabel, save_type: saveType,
   });
 }
 
-export async function saveCloudSave(stateId, state, expectedRevision, saveLabel, saveType) {
+export async function saveCloudSave(stateId, state, expectedRevision, saveLabel, saveType, userId = null) {
   return await invokeCloudSync({
-    command: "save", stateId, state: await portableHistory(state), expected_revision: expectedRevision,
+    command: "save", stateId, state: await portableHistory(await hydrateHistory(userId, state)), expected_revision: expectedRevision,
     save_label: saveLabel, save_type: saveType,
   });
 }

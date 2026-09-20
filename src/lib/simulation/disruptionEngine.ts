@@ -1,3 +1,4 @@
+import { retainHistory } from "./historyRetention.ts";
 import { hasPendingTour } from "./tourEngine.ts";
 import { dispatcherProfile } from "./dispatcherQuality.ts";
 import { isPersonInTraining } from "./trainingEngine.ts";
@@ -732,9 +733,9 @@ export function processDisruptions(state, m, log) {
   }
 
   const cutoff = m - 7 * DAY_MIN;
-  state.disruptions.items = items.filter(d =>
+  state.disruptions.items = retainHistory(state, "disruptions", state.disruptions.items, items.filter(d =>
     d.status !== "completed" || (d.completedAtMin || 0) > cutoff
-  );
+  ), null);
 }
 
 export function getRoutineDelayResolver(state,d,m){

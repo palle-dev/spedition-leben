@@ -1,3 +1,4 @@
+import { retainLatestHistory } from "./historyRetention.ts";
 import { currentOrders, findOrder } from "./orderLookup.ts";
 import { onOrderAccepted, onTourConfirmed } from "./mailReports.ts";
 // Assistent der Geschäftsführung – Engine für FERNWERK.
@@ -66,7 +67,7 @@ function logAssistantActivity(state, entry) {
   });
   // Begrenzen für Speichereffizienz
   if (state.assistantLog.length > 300) {
-    state.assistantLog = state.assistantLog.slice(-300);
+    state.assistantLog = retainLatestHistory(state, "assistantDecisions", state.assistantLog, 300, null);
   }
 }
 

@@ -1,3 +1,4 @@
+import { retainLatestHistory } from "./historyRetention.ts";
 // Buchhaltungs-Engine für FERNWERK.
 // Doppelte Buchführung, Kontenplan, Belege, offene Posten, Anlagen,
 // Abschreibung, Periodenabschluss, Buchhaltungspersonal, Auswertungen, Migration.
@@ -218,7 +219,7 @@ export function addBooking(state, min, cause, amountCents, account, refId) {
   if (!Number.isSafeInteger(amountCents)) throw new Error("Ungültiger Centbetrag.");
   if (amountCents === 0) return;
   state.bookings.push({ min, cause, amountCents, account, refId });
-  if (state.bookings.length > 200) state.bookings = state.bookings.slice(-200);
+  if (state.bookings.length > 200) state.bookings = retainLatestHistory(state, "bookings", state.bookings, 200, null);
   if (account === "private") {
     state.private.accountCents += amountCents;
     return;

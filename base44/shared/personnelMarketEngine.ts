@@ -1,3 +1,4 @@
+import { retainHistory } from "./historyRetention.ts";
 // Personalmarkt-Engine für FERNWERK – Auftrag 29.
 // Deutlich erweiterter Bewerbermarkt mit skaliendem Zielbestand,
 // regelmäßigen Wellen, bedarfsbezogenem Nachschub, Stellen-Ausschreibungen
@@ -241,13 +242,13 @@ export function expireApplicants(state, m, log) {
   if (!state.personnelMarket) migratePersonnelMarket(state);
   const before = (state.availableApplicants || []).length;
   const expiredIds = [];
-  state.availableApplicants = (state.availableApplicants || []).filter(a => {
+  state.availableApplicants = retainHistory(state, "applicants", state.availableApplicants, (state.availableApplicants || []).filter(a => {
     if (a.expiresAtMin && a.expiresAtMin <= m) {
       expiredIds.push(a.id);
       return false;
     }
     return true;
-  });
+  }), null);
   const expired = expiredIds.length;
   if (expired > 0) {
     state.personnelMarket.stats.applicantsExpired = (state.personnelMarket.stats.applicantsExpired || 0) + expired;

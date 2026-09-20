@@ -1,3 +1,4 @@
+import { retainLatestHistory } from "./historyRetention.ts";
 // Dating-App-Engine für FERNWERK.
 // Simuliert eine Dating-App im Privatleben: Profile durchsuchen, liken,
 // Matches treffen, Dates gehen und eine neue Partnerschaft aufbauen.
@@ -238,7 +239,7 @@ export function processDateOutcome(state, appointment, m) {
     state.private.stress = Math.min(100, (state.private.stress || 0) + 1);
   }
   dating.dateHistory.push({ matchId: match.id, matchName: match.name, atMin: m, success: Math.round(success * 100), progressDelta });
-  if (dating.dateHistory.length > 50) dating.dateHistory = dating.dateHistory.slice(-50);
+  if (dating.dateHistory.length > 50) dating.dateHistory = retainLatestHistory(state, "dates", dating.dateHistory, 50, null);
   pushEvent(state, {
     type: "date_completed", gameTime: m, isSystem: true,
     details: { matchName: match.name, success: Math.round(success * 100), progressDelta, relationshipProgress: match.relationshipProgress },
