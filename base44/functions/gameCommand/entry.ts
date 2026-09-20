@@ -1,3 +1,4 @@
+import { hydrateCloudArchive } from "../../shared/cloudArchiveStore.ts";
 // Zentraler serverseitiger Einstieg für alle Spielbefehle in "Frachtfieber".
 // Prüft Anmeldung, Eigentum und alle Spielregeln. Der Browser sendet Absichten und IDs,
 // keine verbindlichen Preise/Kontostände. Atomare Konfliktbehandlung über bedingtes updateMany
@@ -92,7 +93,7 @@ export default async function handleGameCommand(req) {
       if (!stateId) return Response.json({ error: "stateId erforderlich" }, { status: 400 });
       const rec = await S.get(stateId);
       if (!rec || rec.owner_id !== user.id) return Response.json({ error: "Kein Zugriff auf diesen Spielstand" }, { status: 403 });
-      return Response.json({ state: migrateState(rec.state || {}), revision: rec.revision, stateId: rec.id });
+      return Response.json({ state: migrateState(await hydrateCloudArchive(base44.asServiceRole.entities.GameArchiveBlock, user.id, rec.state || {}, rec.archive_blocks)), revision: rec.revision, stateId: rec.id });
     }
 
     // ---- Backup erstellen (Hybrid-Modell: Client erstellt State, Server speichert Kopie) ----
@@ -167,7 +168,7 @@ export default async function handleGameCommand(req) {
     if (!rec || rec.owner_id !== user.id) {
       return Response.json({ error: "Kein Zugriff auf diesen Spielstand" }, { status: 403 });
     }
-    const state = rec.state || {};
+    const state = await hydrateCloudArchive(base44.asServiceRole.entities.GameArchiveBlock, user.id, rec.state || {}, rec.archive_blocks);
     const cmdHash = hash({ command, params: params || {} });
 
     // Idempotenz: gleiche action_id + gleicher Inhalt -> vorhandenes Ergebnis.

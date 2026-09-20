@@ -1,3 +1,5 @@
+import { createInitialState } from "../base44/shared/simulationEngine";
+import { createHash } from "node:crypto";
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mock = vi.hoisted(() => ({ client: null }));
 vi.mock('@base44/sdk', () => ({ createClientFromRequest: () => mock.client }));
@@ -12,7 +14,7 @@ const snapshot = (gameTime, meta?) => ({
 
 // Diese Tests prüfen Handler-Verträge mit einem Datenbankersatz.
 // Sie belegen keine produktive RLS-Konfiguration oder Datenbank-Atomarität.
-let records, entities;
+let records, entities, archiveRecords, archiveEntity;
 beforeEach(() => {
   records = new Map([
     ['own', { id: 'own', owner_id: 'alice', revision: 3, state: snapshot(41135) }],
@@ -29,7 +31,13 @@ beforeEach(() => {
       Object.assign(r, op.$set); return { updated: 1 };
     }),
   };
-  mock.client = { auth: { me: vi.fn(async () => ({ id: 'alice' })) }, asServiceRole: { entities: { GameState: entities } } };
+  archiveRecords = new Map();
+  archiveEntity = {
+    filter: vi.fn(async q => [...archiveRecords.values()].filter(r => Object.entries(q).every(([k,v]) => r[k] === v))),
+    get: vi.fn(async id => archiveRecords.get(id)),
+    create: vi.fn(async data => { const r = { ...data, id: 'block-' + archiveRecords.size }; archiveRecords.set(r.id, r); return r; }),
+  };
+  mock.client = { auth: { me: vi.fn(async () => ({ id: 'alice' })) }, asServiceRole: { entities: { GameState: entities, GameArchiveBlock: archiveEntity } } };
 });
 const req = body => new Request('https://local.invalid/test', { method: 'POST', body: JSON.stringify(body) });
 
@@ -117,7 +125,7 @@ describe("Cloud-Partiebindung", () => {
   });
 });
 describe('Cloud archive references', () => {
-  const chunk = { id: 'a'.repeat(64), kind: 'expiredOffers', count: 1, rawBytes: 12, data: 'compressed-original' };
+  const chunk = { id: createHash('sha256').update('original').digest('hex'), kind: 'expiredOffers', count: 1, rawBytes: 12, data: btoa('original') };
   const archived = chunks => ({ ...snapshot(100), historyArchive: { version: 1, chunks } });
   it('resolves immutable references before persistence and retains complete load/export data', async () => {
     records.get('own').state = archived([chunk]);
@@ -125,7 +133,8 @@ describe('Cloud archive references', () => {
     const response = await cloud(req({ command: 'save', stateId: 'own', expected_revision: 3, state: archived([ref]) }));
     expect(response.status).toBe(200);
     expect((await response.json()).archive_delta).toBe(1);
-    expect(records.get('own').state.historyArchive.chunks).toEqual([chunk]);
+    expect(records.get('own').state.historyArchive.chunks).toEqual([ref]);
+    expect(archiveRecords.size).toBe(1);
     const loaded = await cloud(req({ command: 'load', stateId: 'own' }));
     expect((await loaded.json()).state.historyArchive.chunks).toEqual([chunk]);
   });
@@ -150,5 +159,39 @@ describe('Cloud archive references', () => {
     expect((await cloud(req({ command: 'create', party_id: 'new', state }))).status).toBe(400);
     state = { ...archived([chunk]), meta: { partyId: 'new' } };
     expect((await cloud(req({ command: 'create', party_id: 'new', state }))).status).toBe(200);
+  });
+});
+
+describe('Separate archive storage lifecycle', () => {
+  const c = { id: createHash('sha256').update('original').digest('hex'), kind: 'expiredOffers', count: 1, rawBytes: 8, data: btoa('original') };
+  const full = () => ({ ...createInitialState({ companyName: 'Archive test' }).state, historyArchive: { version: 1, chunks: [c] } });
+  it('never commits a snapshot when block storage fails', async () => {
+    archiveEntity.create.mockRejectedValueOnce(Error('storage offline'));
+    const response = await cloud(req({ command: 'save', stateId: 'own', expected_revision: 3, state: full() }));
+    expect(response.status).toBe(500);
+    expect(entities.updateMany).not.toHaveBeenCalled();
+    expect(records.get('own').revision).toBe(3);
+  });
+  it('preserves valid old state after CAS failure and can retry staged blocks', async () => {
+    entities.updateMany.mockResolvedValueOnce({ updated: 0 });
+    const body = { command: 'save', stateId: 'own', expected_revision: 3, state: full() };
+    expect((await cloud(req(body))).status).toBe(409);
+    expect(records.get('own').state.gameTime).toBe(41135);
+    expect((await cloud(req(body))).status).toBe(200);
+    expect(archiveEntity.create).toHaveBeenCalledTimes(1);
+  });
+  it('loads complete data through both cloudSync and the legacy gameCommand path', async () => {
+    await cloud(req({ command: 'save', stateId: 'own', expected_revision: 3, state: full() }));
+    for (const handler of [cloud, commands]) {
+      const response = await handler(req({ command: 'load', stateId: 'own' }));
+      const body = await response.json();
+      expect(response.status, JSON.stringify(body)).toBe(200);
+      expect(body.state.historyArchive.chunks).toEqual([c]);
+    }
+  });
+  it('keeps immutable blocks when deleting a save, protecting other slots and in-flight saves', async () => {
+    await cloud(req({ command: 'save', stateId: 'own', expected_revision: 3, state: full() }));
+    expect((await cloud(req({ command: 'delete', stateId: 'own' }))).status).toBe(200);
+    expect(archiveRecords.size).toBe(1);
   });
 });

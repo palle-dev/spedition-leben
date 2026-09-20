@@ -9,7 +9,7 @@
 // die Eigentümerprüfung erfolgt manuell im Filter und im Code.
 
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
-import { resolveCloudArchive } from "../../shared/cloudArchive.ts";
+import { stageCloudArchive, hydrateCloudArchive, CloudArchiveError } from "../../shared/cloudArchiveStore.ts";
 import { isCompleteSnapshot, isWritableRevision } from "../../shared/snapshotValidation.ts";
 
 // Extrahiert Synchron-Metadaten aus dem Spielzustand (read-only).
@@ -36,6 +36,7 @@ export default async function handleCloudSync(req) {
     const body = await req.json();
     const { command } = body || {};
     const S = base44.asServiceRole.entities.GameState;
+    const B = base44.asServiceRole.entities.GameArchiveBlock;
     if (body?.stateId != null && (typeof body.stateId !== "string" || !body.stateId.trim())) {
       return Response.json({ error: "Ungültige stateId" }, { status: 400 });
     }
@@ -78,7 +79,7 @@ export default async function handleCloudSync(req) {
       }
       return Response.json({
         archive_delta: 1,
-        state: rec.state || {},
+        state: await hydrateCloudArchive(B, user.id, rec.state || {}, rec.archive_blocks),
         revision: rec.revision,
         stateId: rec.id,
         party_id: rec.party_id || null,
@@ -99,8 +100,7 @@ export default async function handleCloudSync(req) {
     if (command === "create") {
       const { party_id, save_label, save_type } = body;
       let state = body.state;
-      try { state = resolveCloudArchive(state, null); }
-      catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
+
       if (!state) return Response.json({ error: "state erforderlich" }, { status: 400 });
       if (typeof party_id !== "string" || !party_id || state.meta?.partyId !== party_id) {
         return Response.json({ error: "Partiekennung fehlt oder passt nicht zum Spielstand" }, { status: 400 });
@@ -113,9 +113,10 @@ export default async function handleCloudSync(req) {
           stateId: existing[0].id, current_revision: existing[0].revision,
         }, { status: 409 });
       }
+      const staged = await stageCloudArchive(B, user.id, state);
       const meta = extractMeta(state);
       const rec = await S.create({
-        state,
+        ...staged,
         revision: 1,
         owner_id: user.id,
         party_id,
@@ -158,12 +159,11 @@ export default async function handleCloudSync(req) {
             save_type: rec.save_type || null, cloud_saved_at: rec.cloud_saved_at || null },
         }, { status: 409 });
       }
-      try { state = resolveCloudArchive(state, rec.state); }
-      catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
+      const staged = await stageCloudArchive(B, user.id, state, rec.state, rec.archive_blocks);
       const meta = extractMeta(state);
       const newRev = expected_revision + 1;
       const updateSet = {
-        state,
+        ...staged,
         revision: newRev,
         ...meta,
         cloud_saved_at: Date.now(),
@@ -226,7 +226,7 @@ export default async function handleCloudSync(req) {
 
     return Response.json({ error: "Unbekannter Befehl: " + command }, { status: 400 });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: error.message }, { status: error instanceof CloudArchiveError ? 400 : 500 });
   }
 }
 

@@ -1,0 +1,30 @@
+{
+  "name": "GameArchiveBlock",
+  "type": "object",
+  "properties": {
+    "owner_id": {
+      "type": "string"
+    },
+    "content_hash": {
+      "type": "string"
+    },
+    "descriptor": {
+      "type": "object"
+    },
+    "data": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "owner_id",
+    "content_hash",
+    "descriptor",
+    "data"
+  ],
+  "rls": {
+    "create": false,
+    "read": false,
+    "update": false,
+    "delete": false
+  }
+}

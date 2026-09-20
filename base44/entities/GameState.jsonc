@@ -50,6 +50,10 @@
     },
     "cloud_saved_at": {
       "type": "number"
+    },
+    "archive_blocks": {
+      "type": "object",
+      "description": "Server-owned content-hash to immutable archive entity ID map."
     }
   },
   "rls": {
