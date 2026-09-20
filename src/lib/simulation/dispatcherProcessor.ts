@@ -10,7 +10,7 @@ import {
   SERVICE_START_MIN, SERVICE_END_MIN, SERVICE_INTERVAL_MIN,
 } from "./gameRules.ts";
 import {
-  suggestTours, confirmTour as doConfirmTour,
+  hasPendingTour, suggestTours, confirmTour as doConfirmTour,
   futureLocation, futureDriverLocation,
 } from "./tourEngine.ts";
 import { isActivelyEmployed } from "./terminationEngine.ts";
@@ -396,6 +396,11 @@ export function processDispatcher(state, emp, m, log) {
   for (const v of poolVehicles) {
     if (usedVehicleIds.has(v.id)) { v.idleReason = null; continue; }
     if (v.status === "on_trip") { v.idleReason = "Unterwegs"; continue; }
+    if (hasPendingTour(state, v.id)) {
+      v.idleReason = "Für eine zugesagte Tour reserviert (einschließlich Warte- und Ruhezeit)";
+      v.idleReasonAtMin = m;
+      continue;
+    }
     if (v.status === "maintenance") {
       v.idleReason = v.maintenanceUntil
         ? "Wartung bis " + formatGameTime(v.maintenanceUntil)

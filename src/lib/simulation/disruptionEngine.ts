@@ -1,3 +1,4 @@
+import { hasPendingTour } from "./tourEngine.ts";
 import { dispatcherProfile } from "./dispatcherQuality.ts";
 import { isPersonInTraining } from "./trainingEngine.ts";
 import { addBooking } from "./accountingEngine.ts";
@@ -143,7 +144,7 @@ function findReplacementVehicle(state, tour, m) {
     if (v.ownership_type === "sold" || v.ownership_type === "archived") return false;
     if (v.capacityTons < maxTons) return false;
     if (v.locationCity !== startCity) return false; // Diese Version: nur am selben Ort
-    if (isVehicleReserved(state, v.id)) return false;
+    if (isVehicleReserved(state, v.id) || hasPendingTour(state, v.id)) return false;
     return true;
   });
 
@@ -180,7 +181,7 @@ function findReplacementDriver(state, tour, m) {
     if (d.restUntil && d.restUntil > m) return false;
     if (d.locationCity !== startCity) return false;
     if (!isPersonAvailable(state, d.id, m)) return false;
-    if (isDriverReserved(state, d.id)) return false;
+    if (isDriverReserved(state, d.id) || hasPendingTour(state, d.id)) return false;
     return true;
   });
 

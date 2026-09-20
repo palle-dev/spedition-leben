@@ -15,8 +15,8 @@ import { bookExpense } from "./accountingEngine.ts";
 const DAY_MIN = 1440;
 const SERVICE_START_MIN = 480;   // 08:00
 const SERVICE_END_MIN = 960;     // 16:00
-const BLOCK_MIN = 480;           // 8 Stunden pro Block
-const REST_AFTER_BLOCK_MIN = 720; // 12h Ruhe nach vollem 8h-Block
+export const BLOCK_MIN = 480;           // 8 Stunden pro Block
+export const REST_AFTER_BLOCK_MIN = 720; // 12h Ruhe nach vollem 8h-Block
 
 const ADR_VALIDITY_DAYS = 1800;
 const ADR_REFRESH_WINDOW_DAYS = 360;
@@ -544,10 +544,10 @@ function findConflicts(state, personId, fromMin, toMin, kind) {
   }
   // Geplante Touren
   for (const tour of (state.tours || [])) {
-    if (tour.status !== "active") continue;
-    for (const dep of (tour.deployments || [])) {
-      if (dep.driverId === personId && dep.status === "planned" &&
-          dep.startMin < toMin && dep.startMin + 1440 > fromMin) {
+    if (!["active", "planned"].includes(tour.status) || tour.driverId !== personId) continue;
+    for (const dep of [...(tour.deployments || []), tour.returnDeployment].filter(Boolean)) {
+      if (dep.status === "planned" && dep.startMin < toMin &&
+          (dep.endMin ?? dep.startMin + 1440) > fromMin) {
         conflicts.push({ type: "planned_tour", label: "Geplante Tour", startMin: dep.startMin });
       }
     }

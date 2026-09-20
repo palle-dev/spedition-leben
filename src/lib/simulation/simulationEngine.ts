@@ -26,7 +26,7 @@ import {
   VEHICLE_BODY_TYPES, getVehicleBodyType, getVehicleEffectiveMaintenanceCost,
   checkBodyTypeCompatibility,
 } from "./gameRules.ts";
-import { getOrderReservation, buildDeployment, buildTourPlan, confirmTour as doConfirmTour, cancelTour as doCancelTour, processTours, onTripCompleted, findReturnLoads, suggestTours, futureLocation, futureDriverLocation, _clearPlanCache } from "./tourEngine.ts";
+import { hasPendingTour, getOrderReservation, buildDeployment, buildTourPlan, confirmTour as doConfirmTour, cancelTour as doCancelTour, processTours, onTripCompleted, findReturnLoads, suggestTours, futureLocation, futureDriverLocation, _clearPlanCache } from "./tourEngine.ts";
 import {
   buildPhases, buildWorkSteps, buildEmptyWorkSteps,
   computeFinalCounters, resetCounters, needsRest, migrateTripPhases,
@@ -929,6 +929,7 @@ export function applyCommand(state, command, params) {
       if (!d) throw new Error("Fahrer nicht gefunden.");
       if (v.status !== "free") throw new Error("Fahrzeug ist nicht frei.");
       if (d.status !== "free") throw new Error("Fahrer ist nicht frei.");
+      if (hasPendingTour(state, v.id) || hasPendingTour(state, d.id)) throw new Error("Fahrzeug oder Fahrer ist bereits für einen zugesagten Folgeeinsatz reserviert.");
       if (!isActivelyEmployed(d)) throw new Error("Dieser Fahrer ist nicht mehr aktiv beschäftigt.");
       if (!isPersonAvailable(state, d.id, state.gameTime) || isPersonInTraining(state, d.id, state.gameTime)) throw new Error("Fahrer ist krank, im Urlaub oder in Weiterbildung.");
       if (d.attendance === "released") throw new Error("Dieser Fahrer wurde freigestellt und ist nicht für neue Touren verfügbar.");
@@ -991,6 +992,7 @@ export function applyCommand(state, command, params) {
       if (!v || !d) throw new Error("Fahrzeug oder Fahrer nicht gefunden.");
       if (v.status !== "free") throw new Error("Fahrzeug ist nicht frei.");
       if (d.status !== "free") throw new Error("Fahrer ist nicht frei.");
+      if (hasPendingTour(state, v.id) || hasPendingTour(state, d.id)) throw new Error("Fahrzeug oder Fahrer ist bereits für einen zugesagten Folgeeinsatz reserviert.");
       if (v.condition < 20) throw new Error("Fahrzeugzustand zu schlecht für einen Einsatz.");
       if (!isPersonAvailable(state, d.id, state.gameTime) || d.attendance === "released" || isPersonInTraining(state, d.id, state.gameTime)) throw new Error("Fahrer ist nicht verfügbar.");
       if (d.restUntil !== null && d.restUntil > state.gameTime) throw new Error("Fahrer ist noch in der Erholung.");

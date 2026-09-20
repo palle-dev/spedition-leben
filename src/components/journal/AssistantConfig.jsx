@@ -16,7 +16,7 @@ const SECTIONS = [
     icon: Package,
     accent: "lime",
     items: [
-      { key: "autoAcceptOrders", label: "Auto-Auftragsannahme", icon: Package, desc: "Profitable Marktangebote automatisch annehmen" },
+      { key: "autoAcceptOrders", label: "Auto-Auftragsannahme", icon: Package, desc: "Nur mit passendem Team und pünktlich geplanter Tour annehmen" },
       { key: "orderMonitoring", label: "Auftragsüberwachung", icon: Clock, desc: "Lieferfristen überwachen und warnen" },
       { key: "autoDispatch", label: "Auto-Disposition", icon: Truck, desc: "Gefährdete Aufträge automatisch disponieren" },
     ],

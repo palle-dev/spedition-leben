@@ -1,3 +1,5 @@
+import { currentOrders, findOrder } from "./orderLookup.ts";
+import { onOrderAccepted, onTourConfirmed } from "./mailReports.ts";
 // Assistent der Geschäftsführung – Engine für FERNWERK.
 // Kapselt fünf automatisierte Management-Funktionen:
 //   A) Tagesbericht – tägliche Zusammenfassung per Mail an den GF
@@ -17,7 +19,7 @@ import {
 } from "./gameRules.ts";
 import { deliverMessage } from "./mailEngine.ts";
 import { pushEvent } from "./eventLog.ts";
-import { suggestTours, confirmTour as doConfirmTour } from "./tourEngine.ts";
+import { hasPendingTour, suggestTours, confirmTour as doConfirmTour } from "./tourEngine.ts";
 import { previewCourseBooking, bookCourse, COURSE_CATALOG, hasQualification, isPersonInTraining, hasAssistantAdvanced } from "./trainingEngine.ts";
 import { isActivelyEmployed } from "./terminationEngine.ts";
 import { isPersonAvailable } from "./absenceEngine.ts";
@@ -144,7 +146,7 @@ export function autoAcceptOrders(state, emp, m, log, force) {
   const acceptedThisHour = state.assistantState[hourBucket] || 0;
   if (acceptedThisHour >= maxPerHour) return;
 
-  const offered = (state.orders || []).filter(o =>
+  const offered = currentOrders(state).filter(o =>
     o.status === "offered" && o.acceptDeadlineMin > m
   );
   if (offered.length === 0) return;
@@ -161,73 +163,56 @@ export function autoAcceptOrders(state, emp, m, log, force) {
   const maxBacklog = (config.maxBacklogOrders ?? 5) + (advanced ? 3 : 0);
   if (unplannedBacklog >= maxBacklog) return;
 
+  // Acceptance is a binding promise: only accept together with a feasible,
+  // reserved transport. A price estimate alone cannot establish capacity.
+  const branchId = emp.assignedBranchId || emp.branchId;
+  const vehicleIds = state.vehicles.filter(v => !v.markedForSale &&
+    !["sold", "archived"].includes(v.status) && (!branchId || v.branchId === branchId)).map(v => v.id);
+  const result = suggestTours(state, { vehicleIds, earliestStart: m, horizonMin: 2880,
+    acceptNew: true, restrictOrderIds: offered.map(o => o.id), minNewOrderBufferMin: advanced ? 60 : 45,
+    candidateOrderLimit: advanced ? 20 : 16, maxSuggestions: maxPerHour - acceptedThisHour,
+    mode: state.marketPriority || "balanced" });
   let accepted = 0;
-  for (const o of offered) {
-    if (acceptedThisHour + accepted >= maxPerHour) break;
-
-    // Rentabilitätsschwelle: Beitrag muss positiv sein
-    // Grobe Schätzung: 30% der Zahlung als Kosten (Kraftstoff + Maut)
-    const estimatedCostCents = Math.round(o.paymentCents * 0.3);
-    const marginCents = o.paymentCents - estimatedCostCents;
-    const marginPct = o.paymentCents > 0 ? marginCents / o.paymentCents : 0;
-
-    // Nur annehmen, wenn Marge >= Schwelle und Firma flüssig genug
-    if (marginPct < minMarginPct) continue;
-    if ((state.company?.accountCents || 0) - estimatedCostCents < minLiquidityCents) continue;
-
-    // Delegation: Budget-Prüfung für geschätzte Kraftstoff-/Mautkosten
-    const authCheck = checkSpendAuthority(state, emp.id, estimatedCostCents, { branchId: emp.assignedBranchId || emp.branchId });
-    if (!authCheck.allowed) continue;
-
-    // Auftrag annehmen
-    o.status = "angenommen";
-    o.acceptedAtMin = m;
-    o.acceptedById = emp.id;
-    o.acceptedByName = emp.name;
-    o.history = o.history || [];
-    o.history.push({ type: "accepted", min: m, actor: emp.id, actorName: emp.name, auto: true });
-
-    logAssistantActivity(state, {
-      gameTime: m,
-      type: "order_accepted",
-      assistantId: emp.id,
-      assistantName: emp.name,
-      details: {
-        orderId: o.id,
-        customer: o.customer,
-        fromCity: o.fromCity,
-        toCity: o.toCity,
-        paymentCents: o.paymentCents,
-        marginCents,
-        marginPct: Math.round(marginPct * 100),
-      },
-    });
-
-    pushEvent(state, {
-      type: "order_accepted_by_assistant",
-      gameTime: m,
-      employeeId: emp.id,
-      employeeName: emp.name,
-      portraitId: emp.portraitId,
-      orderIds: [o.id],
-      details: {
-        customer: o.customer,
-        fromCity: o.fromCity,
-        toCity: o.toCity,
-        paymentCents: o.paymentCents,
-        marginPct: Math.round(marginPct * 100),
-      },
-    });
-
-    log.push({ type: "assistant_order_accepted", employee: emp.id, order: o.id, atMin: m });
-    if (estimatedCostCents > 0) recordSpend(state, emp.id, estimatedCostCents, emp.assignedBranchId || emp.branchId);
-    logDecision(state, {
-      employeeId: emp.id, employeeName: emp.name,
-      type: "order_accepted", summary: `Auftrag ${o.customer} angenommen`,
-      reasoning: `Marge ${Math.round(marginPct*100)}%, geschätzte Kosten ${(estimatedCostCents/100).toFixed(0)} €`,
-      costCents: estimatedCostCents,
-    });
-    accepted++;
+  for (const suggestion of result.suggestions) {
+    const ids = suggestion.plan.acceptedOrderIds || [];
+    if (!ids.length || acceptedThisHour + accepted + ids.length > maxPerHour) continue;
+    const cost = suggestion.plan.totalVariableCostCents;
+    const payment = suggestion.plan.totalPaymentCents;
+    const marginPct = payment > 0 ? (payment - cost) / payment : 0;
+    if (marginPct < minMarginPct || state.company.accountCents - cost < minLiquidityCents) continue;
+    const vehicle = state.vehicles.find(v => v.id === suggestion.vehicleId);
+    if (!checkSpendAuthority(state, emp.id, cost, { branchId: vehicle?.branchId }).allowed) continue;
+    let confirmed;
+    try {
+      confirmed = doConfirmTour(state, { vehicleId: suggestion.vehicleId, driverId: suggestion.driverId,
+        orderIds: suggestion.orderIds, desiredEndCity: null, latestReturnMin: null });
+    } catch { continue; }
+    const tour = state.tours.find(t => t.id === confirmed.tourId);
+    if (tour) tour.dispatcherId = emp.id;
+    for (const id of confirmed.acceptedOrderIds) {
+      const o = findOrder(state, id);
+      o.acceptedById = emp.id; o.acceptedByName = emp.name;
+      o.plannedById = emp.id; o.plannedByName = emp.name;
+      o.history = o.history || [];
+      o.history.push({ type: "accepted", min: m, actor: emp.id, actorName: emp.name, auto: true });
+      o.history.push({ type: "planned", min: m, actor: emp.id, actorName: emp.name,
+        details: { vehicleId: suggestion.vehicleId, driverId: suggestion.driverId, auto: true } });
+      onOrderAccepted(state, o, emp.id, m);
+      logAssistantActivity(state, { gameTime: m, type: "order_accepted", assistantId: emp.id,
+        assistantName: emp.name, details: { orderId: o.id, customer: o.customer,
+          fromCity: o.fromCity, toCity: o.toCity, paymentCents: o.paymentCents, marginPct: Math.round(marginPct * 100) } });
+      pushEvent(state, { type: "order_accepted_by_assistant", gameTime: m, employeeId: emp.id,
+        employeeName: emp.name, portraitId: emp.portraitId, orderIds: [o.id],
+        details: { customer: o.customer, fromCity: o.fromCity, toCity: o.toCity,
+          paymentCents: o.paymentCents, marginPct: Math.round(marginPct * 100) } });
+      log.push({ type: "assistant_order_accepted", employee: emp.id, order: o.id, atMin: m });
+      accepted++;
+    }
+    if (cost > 0) recordSpend(state, emp.id, cost, vehicle?.branchId);
+    onTourConfirmed(state, tour, emp.id, m);
+    logDecision(state, { employeeId: emp.id, employeeName: emp.name, type: "tour_planned",
+      summary: `${confirmed.acceptedOrderIds.length} Auftrag/Aufträge angenommen und verbindlich disponiert`,
+      reasoning: `Geprüfte Tour mit ${Math.round(marginPct * 100)}% Marge und Pünktlichkeitspuffer`, costCents: cost });
   }
 
   state.assistantState[hourBucket] = acceptedThisHour + accepted;
@@ -676,7 +661,7 @@ export function manageStaffDevelopment(state, emp, m, log) {
   const suggestedCourses = [];
 
   for (const p of allPersons) {
-    if (isPersonInTraining(state, p.id)) continue;
+    if (isPersonInTraining(state, p.id) || hasPendingTour(state, p.id)) continue;
     if (!isPersonAvailable(state, p.id, m)) continue;
 
     // Relevante Kurse für diese Rolle finden
@@ -693,7 +678,7 @@ export function manageStaffDevelopment(state, emp, m, log) {
 
       // Voraussetzungen prüfen
       const preview = previewCourseBooking(state, p.id, course.id);
-      if (!preview.ok) continue;
+      if (!preview.ok || preview.conflicts?.length) continue;
 
       // Promotions nur vorschlagen (brauchen Bestätigung)
       if (course.isPromotion) {

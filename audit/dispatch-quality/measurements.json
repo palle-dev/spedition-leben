@@ -1,0 +1,193 @@
+{
+  "before": {
+    "node": "v24.19.0",
+    "days": 5,
+    "initialGameTime": 176436,
+    "finalGameTime": 183636,
+    "activeVehicles": 97,
+    "branches": 6,
+    "daily": [
+      {
+        "day": 1,
+        "ms": 18418.227092,
+        "gameTime": 177876,
+        "delivered": 85,
+        "onTime": 49,
+        "late": 36,
+        "failed": 30,
+        "expiredOffers": 1001
+      },
+      {
+        "day": 2,
+        "ms": 17894.209205000003,
+        "gameTime": 179316,
+        "delivered": 92,
+        "onTime": 59,
+        "late": 33,
+        "failed": 21,
+        "expiredOffers": 1048
+      },
+      {
+        "day": 3,
+        "ms": 16739.584734999997,
+        "gameTime": 180756,
+        "delivered": 102,
+        "onTime": 67,
+        "late": 35,
+        "failed": 26,
+        "expiredOffers": 1046
+      },
+      {
+        "day": 4,
+        "ms": 20989.539596000002,
+        "gameTime": 182196,
+        "delivered": 89,
+        "onTime": 61,
+        "late": 28,
+        "failed": 34,
+        "expiredOffers": 1094
+      },
+      {
+        "day": 5,
+        "ms": 30737.117226999995,
+        "gameTime": 183636,
+        "delivered": 86,
+        "onTime": 45,
+        "late": 41,
+        "failed": 20,
+        "expiredOffers": 1018
+      }
+    ],
+    "newCommitments": {
+      "accepted": 561,
+      "delivered": 353,
+      "onTime": 227,
+      "late": 126,
+      "failed": 86,
+      "open": 122
+    },
+    "matureNewCommitments": {
+      "accepted": 427,
+      "delivered": 333,
+      "onTime": 209,
+      "late": 124,
+      "failed": 86,
+      "open": 8
+    },
+    "cancelledNewTours": {
+      "Pausiert: Fahrer und Fahrzeug sind nicht am selben Ort.": 61,
+      "Einsätze in der Vergangenheit nicht gestartet": 73,
+      "Pausiert: Fahrzeug ist nicht am erwarteten Ort (Hamburg, aktuell Magdeburg).": 1,
+      "Pausiert: Fahrzeug ist nicht am erwarteten Ort (Bremen, aktuell Hamburg).": 1,
+      "Pausiert: Fahrzeug ist nicht am erwarteten Ort (Lübeck, aktuell Bremen).": 1,
+      "Pausiert: Fahrzeug ist nicht am erwarteten Ort (Hannover, aktuell Magdeburg).": 1,
+      "Pausiert: Fahrzeug ist nicht am erwarteten Ort (Lübeck, aktuell Hamburg).": 2,
+      "Wegen Personalausfall umgeplant": 1,
+      "Pausiert: Fahrzeug ist nicht am erwarteten Ort (Hamburg, aktuell Braunschweig).": 1,
+      "Pausiert: Fahrzeug ist nicht am erwarteten Ort (Kiel, aktuell Kassel).": 1,
+      "Pausiert: Auftrag ist mit den aktuellen Ressourcen oder Ladezeiten nicht mehr ausführbar.": 3,
+      "Pausiert: Fahrzeug ist nicht am erwarteten Ort (Kiel, aktuell Hamburg).": 2,
+      "Pausiert: Fahrzeug ist nicht am erwarteten Ort (Mannheim, aktuell Stuttgart).": 1,
+      "Pausiert: Fahrzeug ist nicht am erwarteten Ort (Braunschweig, aktuell Hamburg).": 1,
+      "Pausiert: Fahrzeug ist nicht am erwarteten Ort (Dortmund, aktuell Köln).": 1,
+      "Pausiert: Fahrzeug ist nicht am erwarteten Ort (Köln, aktuell Bielefeld).": 1,
+      "Pausiert: Fahrzeug ist nicht am erwarteten Ort (Berlin, aktuell Magdeburg).": 1,
+      "Pausiert: Fahrzeug ist nicht am erwarteten Ort (Berlin, aktuell Hannover).": 1
+    },
+    "finalAccountCents": 26570802,
+    "finalPoorCondition": 0,
+    "limits": "Engine-only time. Same unmodified original save, natural simulation, different decisions intentionally change RNG evolution. Open commitments are not counted as successful."
+  },
+  "after": {
+    "node": "v24.19.0",
+    "days": 5,
+    "initialGameTime": 176436,
+    "finalGameTime": 183636,
+    "activeVehicles": 97,
+    "branches": 6,
+    "daily": [
+      {
+        "day": 1,
+        "ms": 11439.894621000001,
+        "gameTime": 177876,
+        "delivered": 96,
+        "onTime": 59,
+        "late": 37,
+        "failed": 28,
+        "expiredOffers": 1019
+      },
+      {
+        "day": 2,
+        "ms": 8225.589986000003,
+        "gameTime": 179316,
+        "delivered": 90,
+        "onTime": 86,
+        "late": 4,
+        "failed": 7,
+        "expiredOffers": 1061
+      },
+      {
+        "day": 3,
+        "ms": 7545.503558,
+        "gameTime": 180756,
+        "delivered": 95,
+        "onTime": 94,
+        "late": 1,
+        "failed": 3,
+        "expiredOffers": 1111
+      },
+      {
+        "day": 4,
+        "ms": 8240.980940000001,
+        "gameTime": 182196,
+        "delivered": 88,
+        "onTime": 88,
+        "late": 0,
+        "failed": 1,
+        "expiredOffers": 1055
+      },
+      {
+        "day": 5,
+        "ms": 10680.824982999999,
+        "gameTime": 183636,
+        "delivered": 94,
+        "onTime": 94,
+        "late": 0,
+        "failed": 1,
+        "expiredOffers": 1087
+      }
+    ],
+    "newCommitments": {
+      "accepted": 457,
+      "delivered": 353,
+      "onTime": 353,
+      "late": 0,
+      "failed": 4,
+      "open": 100
+    },
+    "matureNewCommitments": {
+      "accepted": 325,
+      "delivered": 321,
+      "onTime": 321,
+      "late": 0,
+      "failed": 4,
+      "open": 0
+    },
+    "cancelledNewTours": {
+      "Wegen Personalausfall umgeplant": 1,
+      "Pausiert: Auftrag ist mit den aktuellen Ressourcen oder Ladezeiten nicht mehr ausführbar.": 2,
+      "Pausiert: Fahrer und Fahrzeug sind nicht am selben Ort.": 4
+    },
+    "finalAccountCents": 30832099,
+    "finalPoorCondition": 0,
+    "limits": "Engine-only time. Same unmodified original save, natural simulation, different decisions intentionally change RNG evolution. Open commitments are not counted as successful."
+  },
+  "checks": {
+    "passed": 491,
+    "skipped": 1,
+    "build": "passed",
+    "lint": "passed"
+  },
+  "simulationDateNow": 1800000000000,
+  "comparison": "Same original export, no intervention in fleet/capital/condition/satisfaction; intentional simulation changes, not state equality"
+}
