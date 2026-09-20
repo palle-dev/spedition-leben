@@ -1,0 +1,59 @@
+{
+  "node": "v24.19.0",
+  "gameTime": 176436,
+  "activeVehicles": 97,
+  "branches": 6,
+  "fullPayloadBytes": 24800618,
+  "repeatPayloadBytes": 22875404,
+  "bytesAvoided": 1925214,
+  "archive": {
+    "records": 37908,
+    "rawBytes": 22595278,
+    "compressedBytes": 1443583
+  },
+  "repeatedArchiveReads": 0,
+  "identicalReconstructedSnapshot": true,
+  "largestActiveFields": [
+    {
+      "key": "accounting",
+      "bytes": 10801656
+    },
+    {
+      "key": "orders",
+      "bytes": 5992375
+    },
+    {
+      "key": "tours",
+      "bytes": 1995692
+    },
+    {
+      "key": "trips",
+      "bytes": 818061
+    },
+    {
+      "key": "mail",
+      "bytes": 678329
+    },
+    {
+      "key": "satisfaction",
+      "bytes": 563457
+    },
+    {
+      "key": "events",
+      "bytes": 307555
+    },
+    {
+      "key": "investment",
+      "bytes": 290325
+    },
+    {
+      "key": "approvals",
+      "bytes": 227830
+    },
+    {
+      "key": "drivers",
+      "bytes": 208073
+    }
+  ],
+  "limits": "Offline payload measurement on copied save. No cloud request or production change. Cloud still stores/loads a full snapshot; active state and archive manifest still transmitted. No browser or network timing."
+}

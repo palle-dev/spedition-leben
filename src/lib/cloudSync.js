@@ -1,4 +1,4 @@
-import { hydrateHistory } from "./historyRepository";
+import { readHistoryBlock } from "./historyRepository";
 // Cloud-Synchronisations-Manager für FERNWERK.
 // Nutzt die vorhandene GameState-Entity über die cloudSync-Backend-Funktion.
 // Der Client ist die einzige Simulationsinstanz — die Cloud speichert bestätigte
@@ -12,6 +12,7 @@ import { hydrateHistory } from "./historyRepository";
 //   - Nur ein Upload gleichzeitig (Queue). Verspätete Antworten werden verworfen.
 //   - localBaseRevision wird nur nach bestätigter Antwort aktualisiert.
 
+import { archiveIdentity } from "./cloudArchive";
 import { portableHistory } from "./historyArchive";
 import { base44 } from "@/api/base44Client";
 
@@ -34,26 +35,49 @@ export async function listCloudSaves() {
   return await invokeCloudSync({ command: "list" });
 }
 
+// Bounded metadata-only acknowledgements. No cached bodies or cross-user reuse.
+const archiveAcks = new Map();
+function acknowledge(key, state, result) {
+  archiveAcks.delete(key);
+  if (!result?.ok || result.archive_delta !== 1) return;
+  archiveAcks.set(key, { revision: result.revision, partyId: state.meta?.partyId,
+    chunks: new Map((state.historyArchive?.chunks || []).map(c => [c.id, archiveIdentity(c)])) });
+  if (archiveAcks.size > 8) archiveAcks.delete(archiveAcks.keys().next().value);
+}
+function ackKey(userId, stateId) { return JSON.stringify([userId, stateId]); }
 export async function loadCloudSave(stateId) {
-  return await invokeCloudSync({ command: "load", stateId });
+  // First save after loading is deliberately full; only confirmed writes enable reuse.
+  return invokeCloudSync({ command: "load", stateId });
 }
-
 export async function createCloudSave(state, partyId, saveLabel, saveType, userId = null) {
-  return await invokeCloudSync({
-    command: "create", state: await portableHistory(await hydrateHistory(userId, state)), party_id: partyId,
-    save_label: saveLabel, save_type: saveType,
+  const result = await invokeCloudSync({
+    command: "create",
+    state: await portableHistory(state, { loadBlock: c => readHistoryBlock(userId, c) }),
+    party_id: partyId, save_label: saveLabel, save_type: saveType,
   });
+  if (userId && result?.stateId) acknowledge(ackKey(userId, result.stateId), state, result);
+  return result;
 }
-
 export async function saveCloudSave(stateId, state, expectedRevision, saveLabel, saveType, userId = null) {
-  return await invokeCloudSync({
-    command: "save", stateId, state: await portableHistory(await hydrateHistory(userId, state)), expected_revision: expectedRevision,
-    save_label: saveLabel, save_type: saveType,
+  const key = ackKey(userId, stateId), ack = userId && archiveAcks.get(key);
+  const references = new Set();
+  if (ack?.revision === expectedRevision && ack.partyId === state.meta?.partyId) {
+    for (const c of state.historyArchive?.chunks || []) {
+      if (ack.chunks.get(c.id) === archiveIdentity(c)) references.add(c.id);
+    }
+  }
+  const result = await invokeCloudSync({
+    command: "save", stateId,
+    state: await portableHistory(state, { references, loadBlock: c => readHistoryBlock(userId, c) }),
+    expected_revision: expectedRevision, save_label: saveLabel, save_type: saveType,
   });
+  if (userId) acknowledge(key, state, result);
+  return result;
 }
-
 export async function deleteCloudSave(stateId) {
-  return await invokeCloudSync({ command: "delete", stateId });
+  const result = await invokeCloudSync({ command: "delete", stateId });
+  for (const key of archiveAcks.keys()) if (JSON.parse(key)[1] === stateId) archiveAcks.delete(key);
+  return result;
 }
 
 // Wiederholt nur vorübergehende Fehler. Payload/Revision bleiben identisch;

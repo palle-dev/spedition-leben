@@ -53,11 +53,17 @@ function chunksOf(state) {
   if (journalCount !== (state.accounting?.journalProjection?.count || 0)) throw Error("Finanzarchiv und Auswertung sind unvollständig.");
   return archive.chunks;
 }
-export async function portableHistory(state) {
+export async function portableHistory(state, { references = new Set(), loadBlock = null } = {}) {
   const chunks = chunksOf(state);
   if (!chunks.length) return state;
   const portable = [];
-  for (const c of chunks) {
+  for (const original of chunks) {
+    if (references.has(original.id)) {
+      const { data, ...reference } = original;
+      portable.push(reference);
+      continue;
+    }
+    const c = loadBlock ? { ...original, data: await loadBlock(original) } : original;
     if (!(c.data instanceof Blob)) throw Error("Archivdaten fehlen. Bitte den ursprünglichen Spielstand erneut laden.");
     if (await hash(c.data) !== c.id) throw Error("Archiv-Prüfsumme stimmt nicht überein.");
     portable.push({ ...c, data: await encode(c.data) });

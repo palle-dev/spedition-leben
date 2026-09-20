@@ -116,3 +116,39 @@ describe("Cloud-Partiebindung", () => {
     expect(entities.create).not.toHaveBeenCalled();
   });
 });
+describe('Cloud archive references', () => {
+  const chunk = { id: 'a'.repeat(64), kind: 'expiredOffers', count: 1, rawBytes: 12, data: 'compressed-original' };
+  const archived = chunks => ({ ...snapshot(100), historyArchive: { version: 1, chunks } });
+  it('resolves immutable references before persistence and retains complete load/export data', async () => {
+    records.get('own').state = archived([chunk]);
+    const { data, ...ref } = chunk;
+    const response = await cloud(req({ command: 'save', stateId: 'own', expected_revision: 3, state: archived([ref]) }));
+    expect(response.status).toBe(200);
+    expect((await response.json()).archive_delta).toBe(1);
+    expect(records.get('own').state.historyArchive.chunks).toEqual([chunk]);
+    const loaded = await cloud(req({ command: 'load', stateId: 'own' }));
+    expect((await loaded.json()).state.historyArchive.chunks).toEqual([chunk]);
+  });
+  it.each(['missing', 'changed', 'foreign'])('rejects %s archive reuse without writing', async mode => {
+    records.get(mode === 'foreign' ? 'foreign' : 'own').state = archived(mode === 'missing' ? [] : [chunk]);
+    const { data, ...ref } = chunk;
+    if (mode === 'changed') ref.count = 2;
+    const response = await cloud(req({ command: 'save', stateId: 'own', expected_revision: 3, state: archived([ref]) }));
+    expect(response.status).toBe(400);
+    expect(entities.updateMany).not.toHaveBeenCalled();
+  });
+  it('keeps the CAS guard when a concurrent writer advances after the initial read', async () => {
+    records.get('own').state = archived([chunk]);
+    entities.updateMany.mockResolvedValueOnce({ updated: 0 });
+    const { data, ...ref } = chunk;
+    expect((await cloud(req({ command: 'save', stateId: 'own', expected_revision: 3, state: archived([ref]) }))).status).toBe(409);
+    expect(records.get('own').revision).toBe(3);
+  });
+  it('rejects references on create, accepts legacy full payloads', async () => {
+    const { data, ...ref } = chunk;
+    let state = { ...archived([ref]), meta: { partyId: 'new' } };
+    expect((await cloud(req({ command: 'create', party_id: 'new', state }))).status).toBe(400);
+    state = { ...archived([chunk]), meta: { partyId: 'new' } };
+    expect((await cloud(req({ command: 'create', party_id: 'new', state }))).status).toBe(200);
+  });
+});

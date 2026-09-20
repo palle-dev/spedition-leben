@@ -9,6 +9,7 @@
 // die Eigentümerprüfung erfolgt manuell im Filter und im Code.
 
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
+import { resolveCloudArchive } from "../../shared/cloudArchive.ts";
 import { isCompleteSnapshot, isWritableRevision } from "../../shared/snapshotValidation.ts";
 
 // Extrahiert Synchron-Metadaten aus dem Spielzustand (read-only).
@@ -76,6 +77,7 @@ export default async function handleCloudSync(req) {
         return Response.json({ error: "Kein Zugriff auf diesen Spielstand" }, { status: 403 });
       }
       return Response.json({
+        archive_delta: 1,
         state: rec.state || {},
         revision: rec.revision,
         stateId: rec.id,
@@ -95,7 +97,10 @@ export default async function handleCloudSync(req) {
 
     // ---- Neuen Cloud-Spielstand erstellen (neue Partie) ----
     if (command === "create") {
-      const { state, party_id, save_label, save_type } = body;
+      const { party_id, save_label, save_type } = body;
+      let state = body.state;
+      try { state = resolveCloudArchive(state, null); }
+      catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
       if (!state) return Response.json({ error: "state erforderlich" }, { status: 400 });
       if (typeof party_id !== "string" || !party_id || state.meta?.partyId !== party_id) {
         return Response.json({ error: "Partiekennung fehlt oder passt nicht zum Spielstand" }, { status: 400 });
@@ -122,12 +127,13 @@ export default async function handleCloudSync(req) {
         last_result: { ok: true, command: "cloudSync_create" },
         automation_enabled: false,
       });
-      return Response.json({ ok: true, stateId: rec.id, revision: 1, party_id });
+      return Response.json({ ok: true, archive_delta: 1, stateId: rec.id, revision: 1, party_id });
     }
 
     // ---- Spielstand mit Revisionsprüfung aktualisieren (atomar) ----
     if (command === "save") {
-      const { stateId, state, expected_revision, save_label, save_type } = body;
+      const { stateId, expected_revision, save_label, save_type } = body;
+      let state = body.state;
       if (!stateId || !state) return Response.json({ error: "stateId und state erforderlich" }, { status: 400 });
       if (!isWritableRevision(expected_revision)) return Response.json({ error: "Gültige expected_revision erforderlich" }, { status: 400 });
 
@@ -142,6 +148,18 @@ export default async function handleCloudSync(req) {
           code: "PARTY_MISMATCH",
         }, { status: 409 });
       }
+      // Only reuse the owner's exact expected revision; never merge a stale save.
+      if (rec.revision !== expected_revision) {
+        return Response.json({ conflict: true, current_revision: rec.revision,
+          error: "Konflikt: Cloud-Stand wurde zwischenzeitlich geändert",
+          cloud_meta: { company_name: rec.company_name || null, game_day: rec.game_day || 0,
+            game_time_min: rec.game_time_min || 0, scenario_id: rec.scenario_id || null,
+            difficulty_profile: rec.difficulty_profile || "standard", save_label: rec.save_label || null,
+            save_type: rec.save_type || null, cloud_saved_at: rec.cloud_saved_at || null },
+        }, { status: 409 });
+      }
+      try { state = resolveCloudArchive(state, rec.state); }
+      catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
       const meta = extractMeta(state);
       const newRev = expected_revision + 1;
       const updateSet = {
@@ -190,7 +208,7 @@ export default async function handleCloudSync(req) {
         }, { status: 409 });
       }
 
-      return Response.json({ ok: true, revision: newRev, stateId });
+      return Response.json({ ok: true, archive_delta: 1, revision: newRev, stateId });
     }
 
     // ---- Cloud-Spielstand löschen ----
