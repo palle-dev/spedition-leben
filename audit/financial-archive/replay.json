@@ -1,0 +1,59 @@
+{
+  "node": "v24.19.0",
+  "activeVehicles": 97,
+  "branches": 6,
+  "initial": {
+    "rawExportStateBytes": 45227555,
+    "beforeJournalRows": 22957,
+    "activeJournalRows": 18207,
+    "archivedJournalRows": 4750,
+    "projectionBytes": 236969,
+    "beforeActiveBytes": 25281085,
+    "afterActiveBytes": 22875426,
+    "initialCompactionMs": 378.9669100000001
+  },
+  "days": [
+    {
+      "day": 1,
+      "gameTime": 177876,
+      "baselineMs": 5973.028259,
+      "engineMs": 5635.639684000002,
+      "compressionMs": 120.01051300000108,
+      "activeJournalRows": 18449,
+      "archivedJournalRows": 4940,
+      "equalFinancialReports": true,
+      "equalCompanyPeopleFleetAndDeliveredOrders": true
+    },
+    {
+      "day": 2,
+      "gameTime": 179316,
+      "baselineMs": 4191.371918000001,
+      "engineMs": 3861.437686000001,
+      "compressionMs": 133.68247300000075,
+      "activeJournalRows": 18691,
+      "archivedJournalRows": 5132,
+      "equalFinancialReports": true,
+      "equalCompanyPeopleFleetAndDeliveredOrders": true
+    },
+    {
+      "day": 3,
+      "gameTime": 180756,
+      "baselineMs": 3784.595349000003,
+      "engineMs": 3884.6504700000005,
+      "compressionMs": 177.22313599999325,
+      "activeJournalRows": 18961,
+      "archivedJournalRows": 5308,
+      "equalFinancialReports": true,
+      "equalCompanyPeopleFleetAndDeliveredOrders": true
+    }
+  ],
+  "originalJournalEntriesPreserved": 22957,
+  "totalJournalRows": 24269,
+  "activeBytes": 23751588,
+  "archive": {
+    "records": 47360,
+    "rawBytes": 28230895,
+    "compressedBytes": 1919798
+  },
+  "measurement": "Local controlled engine comparison on copied save. Financial reports and listed business fields compared, all original pre-existing journal entries verified. No browser/IndexedDB/network timing, no production writes. Baseline uses prior non-financial compaction and retains full journal; current additionally archives old entries. Not a long-term or 250-truck proof."
+}

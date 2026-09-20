@@ -1,8 +1,10 @@
+import { ACCOUNTS } from "./simulation/accountingEngine.ts";
+import { projectJournal } from "./simulation/financialProjection.ts";
 // Immutable gzip Blobs are stored by IndexedDB and shared cheaply by structured
 // clone. The engine never inflates them. Portable saves embed verified base64.
 const DAY = 1440;
 const MAX_RAW = 256 * 1024 * 1024;
-const KINDS = new Set(["expiredOffers", "accountingTasks"]);
+const KINDS = new Set(["expiredOffers", "accountingTasks", "accountingJournal"]);
 export const ARCHIVE_VERSION = 1;
 
 export async function readLimited(stream, limit = MAX_RAW) {
@@ -36,7 +38,10 @@ function decode(value) {
 }
 function chunksOf(state) {
   const archive = state?.historyArchive;
-  if (!archive) return [];
+  if (!archive) {
+    if (state.accounting?.journalProjection?.count) throw Error("Finanzarchiv fehlt.");
+    return [];
+  }
   if (archive.version !== ARCHIVE_VERSION || !Array.isArray(archive.chunks)) throw Error("Unbekanntes oder ungültiges Spielstandsarchiv.");
   const ids = new Set();
   for (const c of archive.chunks) {
@@ -44,6 +49,8 @@ function chunksOf(state) {
         !Number.isSafeInteger(c.count) || c.count < 1 || !Number.isSafeInteger(c.rawBytes) || c.rawBytes < 1 || c.rawBytes > MAX_RAW) throw Error("Ungültiger Archivindex.");
     ids.add(c.id);
   }
+  const journalCount = archive.chunks.filter(c => c.kind === "accountingJournal").reduce((n, c) => n + c.count, 0);
+  if (journalCount !== (state.accounting?.journalProjection?.count || 0)) throw Error("Finanzarchiv und Auswertung sind unvollständig.");
   return archive.chunks;
 }
 export async function portableHistory(state) {
@@ -65,6 +72,8 @@ export async function readArchiveRecords(c, data) {
     if (raw.size !== c.rawBytes) throw Error("Archiv ist unvollständig.");
     const records = JSON.parse(await raw.text());
     if (!Array.isArray(records) || records.length !== c.count || records.some(r => !r || typeof r !== "object" || Array.isArray(r))) throw Error("Archiv enthält ungültige Datensätze.");
+  if (c.kind === "accountingJournal" && (records.some(e => !Number.isSafeInteger(e.entryNo) || e.entryNo < 1 || !Array.isArray(e.lines)) ||
+      Math.min(...records.map(e => e.entryNo)) !== c.minEntryNo || Math.max(...records.map(e => e.entryNo)) !== c.maxEntryNo)) throw Error("Ungültiger Journalindex.");
   return records;
 }
 export async function restoreHistory(state, { allowReferences = false } = {}) {
@@ -104,7 +113,13 @@ export function partitionHistory(state) {
   for (const t of state.accounting?.taskQueue || []) {
     (t.status === "done" && Number.isFinite(t.completedAtMin) && t.completedAtMin < state.gameTime - 7 * DAY ? tasks : taskQueue).push(t);
   }
-  return { offers, orders, tasks, taskQueue };
+  // Cancellable prepaid services must retain their reversal source.
+  const services = new Set((state.serviceContracts || []).filter(c => c.startMin > state.gameTime && !['completed', 'cancelled'].includes(c.status)).map(c => c.id));
+  const archivedJournal = [], journal = [];
+  for (const e of state.accounting?.journal || []) {
+    (Number.isFinite(e.gameTime) && e.gameTime < state.gameTime - 60 * DAY && !services.has(e.sourceEventId) ? archivedJournal : journal).push(e);
+  }
+  return { offers, orders, tasks, taskQueue, archivedJournal, journal };
 }
 export async function compactHistory(state) {
   if (!state || !Array.isArray(state.orders) || typeof CompressionStream === "undefined") return state;
@@ -112,7 +127,7 @@ export async function compactHistory(state) {
   if (state.historyArchive?.checkedDay === day && !state.historyOutbox?.length) return state;
   const old = chunksOf(state);
   const p = partitionHistory(state), additions = [];
-  const groups = new Map([["expiredOffers", p.offers], ["accountingTasks", p.tasks]]);
+  const groups = new Map([["expiredOffers", p.offers], ["accountingTasks", p.tasks], ["accountingJournal", p.archivedJournal]]);
   for (const record of state.historyOutbox || []) {
     const kind = "history:" + record.kind;
     if (!groups.has(kind)) groups.set(kind, []);
@@ -125,13 +140,13 @@ export async function compactHistory(state) {
       const rows = records.slice(offset, offset + 1000);
       const raw = new Blob([JSON.stringify(rows)]);
       const data = await readLimited(raw.stream().pipeThrough(new CompressionStream("gzip")));
-      additions.push({ id: await hash(data), kind, count: rows.length, rawBytes: raw.size, storedBytes: data.size, data });
+      additions.push({ id: await hash(data), kind, count: rows.length, rawBytes: raw.size, storedBytes: data.size, ...(kind === "accountingJournal" ? { minEntryNo: Math.min(...rows.map(e => e.entryNo)), maxEntryNo: Math.max(...rows.map(e => e.entryNo)) } : {}), data });
     }
   }
   // Only exchange arrays after ALL compression has succeeded. A failure leaves
   // the original snapshot intact, including every historical record.
   return { ...state, historyOutbox: [], orders: p.orders,
-    ...(state.accounting ? { accounting: { ...state.accounting, taskQueue: p.taskQueue } } : {}),
+    ...(state.accounting ? { accounting: { ...state.accounting, taskQueue: p.taskQueue, journal: p.journal, ...(p.archivedJournal.length ? { journalProjection: projectJournal(state.accounting.journalProjection, p.archivedJournal, ACCOUNTS) } : {}) } } : {}),
     historyArchive: { ...(state.historyArchive?.storage ? { storage: state.historyArchive.storage } : {}), version: ARCHIVE_VERSION, checkedDay: day, chunks: [...old, ...additions] } };
 }
 export function archiveStats(state) {

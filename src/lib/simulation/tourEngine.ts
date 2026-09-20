@@ -770,6 +770,7 @@ function startDeployment(state, tour, dep, depIndex) {
   const tripId = uid(state, "t");
   const trip = {
     id: tripId,
+    branchId: vehicle.branchId,
     type: dep.orderId ? "loaded" : "empty",
     orderId: dep.orderId,
     tourId: tour.id,
@@ -790,8 +791,8 @@ function startDeployment(state, tour, dep, depIndex) {
   };
 
   // Kraftstoff und Maut einmal beim Start buchen (nicht pro Pause-Block)
-  addBooking(state, state.gameTime, "Kraftstoff: " + (dep.customer || "Leerfahrt"), -dep.fuelCents, "company", "fuel:" + tripId);
-  addBooking(state, state.gameTime, "Maut: " + (dep.customer || "Leerfahrt"), -dep.tollCents, "company", "toll:" + tripId);
+  addBooking(state, state.gameTime, "Kraftstoff: " + (dep.customer || "Leerfahrt"), -dep.fuelCents, "company", "fuel:" + tripId, { branchId: vehicle.branchId, vehicleId: vehicle.id, orderId: dep.orderId });
+  addBooking(state, state.gameTime, "Maut: " + (dep.customer || "Leerfahrt"), -dep.tollCents, "company", "toll:" + tripId, { branchId: vehicle.branchId, vehicleId: vehicle.id, orderId: dep.orderId });
 
   // DG-Abwicklungsgebühr beim tatsächlichen Ladungsbeginn (Auftrag 32)
   if (dep.orderId) {

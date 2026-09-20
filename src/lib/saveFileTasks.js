@@ -1,9 +1,11 @@
+import { journalPage } from "./journalQuery";
 import { readHistoryBlock } from "./historyRepository";
 import { exportSave, importSave } from "./persistence";
 import { MAX_SAVE_BYTES, prepareLoadedState } from "./saveSafety";
 import { compactHistory, portableHistory, restoreHistory, readLimited, readArchiveRecords } from "./historyArchive";
 
 export async function runSaveFileTask(command, input) {
+  if (command === "journalPage") return journalPage(input);
   if (command === "historyPage") {
     const { state, userId, kind = "", search = "", cursor = null } = input;
     const chunks = state?.historyArchive?.chunks || [];

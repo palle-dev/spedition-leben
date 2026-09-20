@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from "react";
+import { useGame } from "@/lib/gameContext";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { formatEuro, formatGameTime } from "@/lib/gameData";
-import { getJournal, ACCOUNT_LIST, accountName } from "@/lib/accountingData";
+import { ACCOUNT_LIST, accountName } from "@/lib/accountingData";
 import { Search, ChevronRight } from "lucide-react";
 
 export default function JournalView({ state }) {
@@ -9,21 +10,53 @@ export default function JournalView({ state }) {
   const [typeFilter, setTypeFilter] = useState("");
   const [selected, setSelected] = useState(null);
 
-  const journal = useMemo(() => {
-    return getJournal(state, {
-      search: search || undefined,
-      account: accountFilter || undefined,
-      type: typeFilter || undefined,
-    });
-  }, [state, search, accountFilter, typeFilter]);
+  const { queryJournal } = useGame();
+  const [snapshot, setSnapshot] = useState(state);
+  const [page, setPage] = useState({ rows: [], before: null });
+  const [busy, setBusy] = useState(false), [error, setError] = useState(null);
+  const request = useRef(0);
+  useEffect(() => {
+    if (state.meta?.partyId !== snapshot.meta?.partyId) {
+      request.current++; setSnapshot(state); setPage({ rows: [], before: null }); setSelected(null);
+    }
+  }, [state, snapshot]);
+  const filters = useMemo(() => ({ search, account: accountFilter, type: typeFilter }), [search, accountFilter, typeFilter]);
+  const filterKey = JSON.stringify(filters);
+  useEffect(() => {
+    const id = ++request.current;
+    setBusy(true); setError(null); setSelected(null);
+    const timer = setTimeout(() => {
+      queryJournal(snapshot, { filters }).then(result => {
+        if (request.current === id) setPage({ ...result, filterKey });
+      }).catch(e => { if (request.current === id) setError(e.message); })
+        .finally(() => { if (request.current === id) setBusy(false); });
+    }, 200);
+    return () => { clearTimeout(timer); request.current++; };
+  }, [snapshot, filters, filterKey, queryJournal]);
+  async function nextPage() {
+    const id = ++request.current;
+    setBusy(true); setError(null); setSelected(null);
+    try {
+      const result = await queryJournal(snapshot, { filters, before: page.before });
+      if (request.current === id) setPage({ ...result, filterKey });
+    } catch (e) { if (request.current === id) setError(e.message); }
+    finally { if (request.current === id) setBusy(false); }
+  }
+  const journal = page.rows;
 
   const types = useMemo(() => {
-    const set = new Set((state.accounting?.journal || []).map(e => e.type));
+    const set = new Set([...(snapshot.accounting?.journal || []).map(e => e.type), ...(snapshot.accounting?.journalProjection?.types || [])]);
     return Array.from(set).sort();
-  }, [state]);
+  }, [snapshot]);
 
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+        <span>Vollständiges Journal einschließlich archivierter Buchungen · Stand {formatGameTime(snapshot.gameTime)}</span>
+        <button disabled={busy} onClick={() => setSnapshot({ ...state })} className="text-lime">Aktualisieren / erste Seite</button>
+      </div>
+      {busy && <p role="status" className="text-sm text-muted-foreground">Journal wird geladen …</p>}
+      {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
       {/* Filter */}
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[200px]">
@@ -57,13 +90,13 @@ export default function JournalView({ state }) {
 
       {/* Journal-Tabelle */}
       <div className="glass border border-white/10 rounded-xl overflow-hidden">
-        {journal.length === 0 ? (
+        {!busy && !error && journal.length === 0 ? (
           <div className="text-sm text-muted-foreground/50 py-8 text-center">
             Keine Buchungen gefunden.
           </div>
         ) : (
           <div className="divide-y divide-white/5">
-            {journal.slice(0, 100).map((entry) => (
+            {(!busy && !error && snapshot.meta?.partyId === state.meta?.partyId && page.filterKey === filterKey ? journal : []).map((entry) => (
               <button
                 key={entry.id}
                 onClick={() => setSelected(entry)}
@@ -78,11 +111,10 @@ export default function JournalView({ state }) {
             ))}
           </div>
         )}
-        {journal.length > 100 && (
-          <div className="px-4 py-2 text-xs text-muted-foreground/50 border-t border-white/5">
-            Zeige 100 von {journal.length} Einträgen. Verfeinere die Suche für mehr.
-          </div>
-        )}
+        <div className="px-4 py-2 text-xs text-muted-foreground border-t border-white/5 flex justify-between">
+          <span>Bis zu 50 Buchungen pro Seite</span>
+          <button className="text-lime disabled:opacity-40" disabled={busy || !!error || page.before == null || page.filterKey !== filterKey} onClick={nextPage}>Ältere Buchungen</button>
+        </div>
       </div>
 
       {/* Detail-Drawer */}

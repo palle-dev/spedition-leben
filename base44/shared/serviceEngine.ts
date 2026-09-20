@@ -450,7 +450,7 @@ export function cancelService(state, { contractId }) {
     const original = (state.accounting?.journal || []).find(e => e.sourceEventId === c.id && e.lines.some(l => l.account === "1000" && l.creditCents > 0));
     const refundCents = original ? original.lines.filter(l => l.account === "1000").reduce((n, l) => n + l.creditCents - l.debitCents, 0) : 0;
     if (refundCents > 0 && !c.refundedCents) {
-      postJournal(state, { text: "Dienstleistung storniert: " + c.id, type: "service_refund", sourceEventId: "refund:" + c.id, correctionOf: original.id,
+      postJournal(state, { text: "Dienstleistung storniert: " + c.id, type: "service_refund", sourceEventId: "refund:" + c.id, correctionOf: original.id, branchId: original.branchId,
         lines: original.lines.map(l => ({ account: l.account, debit: l.creditCents, credit: l.debitCents })) });
       state.bookings.push({ min: state.gameTime, cause: "Dienstleistung erstattet: " + c.id, amountCents: refundCents, account: "company", refId: c.id });
     }

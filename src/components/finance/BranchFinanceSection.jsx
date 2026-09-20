@@ -26,14 +26,15 @@ export default function BranchFinanceSection({ state }) {
     acc.directCosts += r.directCosts;
     acc.personnelCosts += r.personnelCosts;
     acc.branchCosts += r.branchCosts;
+    acc.otherCosts += r.otherCosts;
     acc.totalCosts += r.totalCosts;
     acc.profit += r.profit;
     return acc;
-  }, { revenue: 0, directCosts: 0, personnelCosts: 0, branchCosts: 0, totalCosts: 0, profit: 0 });
+  }, { revenue: 0, directCosts: 0, personnelCosts: 0, branchCosts: 0, otherCosts: 0, totalCosts: 0, profit: 0 });
 
   return (
     <div className="glass border border-white/10 rounded-xl p-4">
-      <p className="text-xs text-muted-foreground mb-3">Schätzung anhand der aktuellen Standortzuordnung und Kosten. Frühere Personalwechsel und archivierte Fahrten können den Vergleich beeinflussen.</p>
+      <p className="text-xs text-muted-foreground mb-3">Gebuchte Beträge im Zeitraum. Die Standortzuordnung bleibt ab der Buchung erhalten. Alte Buchungen ohne Standort sowie zentrale Beträge erscheinen als „Nicht zugeordnet / Zentrale“. Fahrzeug- und Personalzahlen zeigen den heutigen Bestand.</p>
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-medium text-sm flex items-center gap-2">
           <Building2 className="w-4 h-4 text-lime/70" /> Filialvergleich
@@ -50,6 +51,7 @@ export default function BranchFinanceSection({ state }) {
               <th className="text-right font-medium px-2 py-2">Direkte Kosten</th>
               <th className="text-right font-medium px-2 py-2">Personal</th>
               <th className="text-right font-medium px-2 py-2">Standort</th>
+              <th className="text-right font-medium px-2 py-2">Sonstige Kosten</th>
               <th className="text-right font-medium px-2 py-2">Gewinn</th>
               <th className="text-right font-medium px-2 py-2">Marge</th>
             </tr>
@@ -74,6 +76,7 @@ export default function BranchFinanceSection({ state }) {
                 <td className="px-2 py-2.5 text-right tabular-nums text-red-300/70">−{formatEuro(r.directCosts)}</td>
                 <td className="px-2 py-2.5 text-right tabular-nums text-red-300/70">−{formatEuro(r.personnelCosts)}</td>
                 <td className="px-2 py-2.5 text-right tabular-nums text-red-300/70">−{formatEuro(r.branchCosts)}</td>
+                <td className="px-2 py-2.5 text-right tabular-nums text-red-300/70">−{formatEuro(r.otherCosts)}</td>
                 <td className={`px-2 py-2.5 text-right tabular-nums font-medium ${r.profit >= 0 ? "text-lime" : "text-red-300"}`}>
                   {r.profit >= 0 ? "+" : "−"}{formatEuro(Math.abs(r.profit))}
                 </td>
@@ -90,6 +93,7 @@ export default function BranchFinanceSection({ state }) {
               <td className="px-2 py-2.5 text-right tabular-nums text-red-300/70">−{formatEuro(totals.directCosts)}</td>
               <td className="px-2 py-2.5 text-right tabular-nums text-red-300/70">−{formatEuro(totals.personnelCosts)}</td>
               <td className="px-2 py-2.5 text-right tabular-nums text-red-300/70">−{formatEuro(totals.branchCosts)}</td>
+              <td className="px-2 py-2.5 text-right tabular-nums text-red-300/70">−{formatEuro(totals.otherCosts)}</td>
               <td className={`px-2 py-2.5 text-right tabular-nums font-medium ${totals.profit >= 0 ? "text-lime" : "text-red-300"}`}>
                 {totals.profit >= 0 ? "+" : "−"}{formatEuro(Math.abs(totals.profit))}
               </td>

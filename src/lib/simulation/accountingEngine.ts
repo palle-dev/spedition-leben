@@ -1,3 +1,4 @@
+import { projectionRange, financialRange } from "./financialProjection.ts";
 import { retainLatestHistory } from "./historyRetention.ts";
 // Buchhaltungs-Engine für FERNWERK.
 // Doppelte Buchführung, Kontenplan, Belege, offene Posten, Anlagen,
@@ -142,7 +143,10 @@ export function postJournal(state, data) {
     tourId: data.tourId || null,
     vehicleId: data.vehicleId || null,
     employeeId: data.employeeId || null,
-    branchId: data.branchId || null,
+    branchId: data.branchId || (data.gameTime == null || data.gameTime === state.gameTime
+      ? ((data.vehicleId && (state.vehicles || []).find(v => v.id === data.vehicleId)?.branchId) ||
+        (data.employeeId && ((state.employees || []).find(e => e.id === data.employeeId)?.assignedBranchId || (state.employees || []).find(e => e.id === data.employeeId)?.branchId)) ||
+        (data.employeeId && (state.drivers || []).find(d => d.id === data.employeeId)?.branchId) || null) : null),
     partnerName: data.partnerName || null,
     actor: data.actor || "system",
     status: "posted",
@@ -215,7 +219,7 @@ export const CAUSE_ACCOUNT_MAP = {
 // Zentrale Buchungsroutine: Legacy-Array + doppelte Buchführung über Journal.
 // Wird von simulationEngine UND tourEngine verwendet, damit jede Geldbewegung
 // eine konsistente Journal-Zeile erhält (Paket 2: keine Buchung ohne Journal).
-export function addBooking(state, min, cause, amountCents, account, refId) {
+export function addBooking(state, min, cause, amountCents, account, refId, context = {}) {
   if (!Number.isSafeInteger(amountCents)) throw new Error("Ungültiger Centbetrag.");
   if (amountCents === 0) return;
   state.bookings.push({ min, cause, amountCents, account, refId });
@@ -229,16 +233,16 @@ export function addBooking(state, min, cause, amountCents, account, refId) {
   const causeKey = cause.split(":")[0].trim();
   const matchAcct = CAUSE_ACCOUNT_MAP[causeKey] || (isPositive ? "4000" : "5700");
   if (matchAcct === "2010") {
-    postJournal(state, { text: cause, sourceEventId: refId, type: "withdrawal", gameTime: min,
+    postJournal(state, { ...context, text: cause, sourceEventId: refId, type: "withdrawal", gameTime: min,
       lines: [{ account: "2010", debit: abs }, { account: "1000", credit: abs }] });
   } else if (matchAcct === "1200") {
-    postJournal(state, { text: cause, sourceEventId: refId, type: "vehicle_purchase", gameTime: min,
+    postJournal(state, { ...context, text: cause, sourceEventId: refId, type: "vehicle_purchase", gameTime: min,
       lines: [{ account: "1200", debit: abs }, { account: "1000", credit: abs }] });
   } else if (isPositive) {
-    postJournal(state, { text: cause, sourceEventId: refId, type: "revenue", gameTime: min,
+    postJournal(state, { ...context, text: cause, sourceEventId: refId, type: "revenue", gameTime: min,
       lines: [{ account: "1000", debit: abs }, { account: matchAcct, credit: abs }] });
   } else {
-    postJournal(state, { text: cause, sourceEventId: refId, type: "expense", gameTime: min,
+    postJournal(state, { ...context, text: cause, sourceEventId: refId, type: "expense", gameTime: min,
       lines: [{ account: matchAcct, debit: abs }, { account: "1000", credit: abs }] });
   }
 }
@@ -452,6 +456,7 @@ export function book(state, templateName, params) {
   if (!tpl) throw new Error("Unbekannte Buchungsvorlage: " + templateName);
   const data = tpl(state, params || {});
   if (params?.gameTime !== undefined) data.gameTime = params.gameTime;
+  if (params?.branchId) data.branchId = params.branchId;
   data.sourceEventId = data.sourceEventId || params?.sourceEventId || params?.refId || null;
   const entry = postJournal(state, data);
   createReceipt(state, entry);
@@ -751,31 +756,30 @@ export function processAccountant(state, emp, m, log) {
 }
 
 // ---------- Auswertungen ----------
+function balancesAt(state, upToMin) {
+  if (!state.accounting || upToMin < 0) return {};
+  const balances = { ...state.accounting.accountBalances };
+  if (upToMin === undefined || upToMin >= state.gameTime) return balances;
+  const newer = projectionRange(state.accounting.journalProjection, upToMin, Infinity).accounts;
+  const boundary = projectionRange(state.accounting.journalProjection, upToMin, upToMin).accounts;
+  for (const [a, n] of Object.entries(newer)) balances[a] = (balances[a] || 0) - Number(n);
+  for (const [a, n] of Object.entries(boundary)) balances[a] = (balances[a] || 0) + Number(n);
+  for (const e of state.accounting.journal) if (e.gameTime > upToMin) {
+    for (const l of e.lines) balances[l.account] = (balances[l.account] || 0) - l.debitCents + l.creditCents;
+  }
+  return balances;
+}
 export function getAccountBalance(state, accountNo, upToMin) {
   if (!state.accounting || upToMin < 0) return 0;
-  // Fast path: cumulative balance from accountBalances cache (maintained
-  // incrementally by postJournal). O(1) instead of O(journal).
-  if (upToMin === undefined || upToMin >= state.gameTime) {
-    return state.accounting.accountBalances?.[accountNo] || 0;
-  }
-  // Historical balance: start from cumulative cache and subtract entries
-  // newer than upToMin. Iterates from the end (newest first), so cost is
-  // O(recent_entries) — typically just the current period.
-  const cum = state.accounting.accountBalances?.[accountNo] || 0;
-  const journal = state.accounting.journal;
-  let bal = cum;
-  for (let i = journal.length - 1; i >= 0; i--) {
-    const e = journal[i];
-    if (e.gameTime <= upToMin) continue;
-    for (const l of e.lines) {
-      if (l.account === accountNo) bal -= l.debitCents - l.creditCents;
-    }
-  }
-  return bal;
+  if (upToMin === undefined || upToMin >= state.gameTime) return state.accounting.accountBalances?.[accountNo] || 0;
+  return balancesAt(state, upToMin)[accountNo] || 0;
 }
 
 export function getAccountMovements(state, accountNo, fromMin, toMin) {
   if (!state.accounting) return [];
+  if (state.accounting.journalProjection?.count && fromMin <= state.accounting.journalProjection.lastMin && toMin >= state.accounting.journalProjection.firstMin) {
+    throw Error("Ältere Einzelbuchungen bitte über die vollständige Journalabfrage laden.");
+  }
   return state.accounting.journal
     .filter(e => e.gameTime >= fromMin && e.gameTime <= toMin)
     .flatMap(e => e.lines.filter(l => l.account === accountNo).map(l => ({ ...l, entryId: e.id, gameTime: e.gameTime, text: e.text, type: e.type })));
@@ -783,12 +787,13 @@ export function getAccountMovements(state, accountNo, fromMin, toMin) {
 
 export function getPnL(state, fromMin, toMin) {
   if (!state.accounting) return { revenue: 0, expenses: 0, result: 0, lines: [] };
+  const atEnd = balancesAt(state, toMin), atStart = balancesAt(state, fromMin - 1);
   const lines = [];
   const revAccounts = ACCOUNT_LIST.filter(a => a.type === "revenue");
   const expAccounts = ACCOUNT_LIST.filter(a => a.type === "expense");
   let totalRev = 0, totalExp = 0;
   for (const acc of revAccounts) {
-    const bal = getAccountBalance(state, acc.no, toMin) - getAccountBalance(state, acc.no, fromMin - 1);
+    const bal = (atEnd[acc.no] || 0) - (atStart[acc.no] || 0);
     if (bal !== 0) {
       const signed = -bal; // Erträge sind Haben (negativ im Saldo), contra positiv
       lines.push({ account: acc.no, name: acc.name, amountCents: -bal, type: "revenue", contra: acc.contra });
@@ -796,7 +801,7 @@ export function getPnL(state, fromMin, toMin) {
     }
   }
   for (const acc of expAccounts) {
-    const bal = getAccountBalance(state, acc.no, toMin) - getAccountBalance(state, acc.no, fromMin - 1);
+    const bal = (atEnd[acc.no] || 0) - (atStart[acc.no] || 0);
     if (bal !== 0) {
       lines.push({ account: acc.no, name: acc.name, amountCents: bal, type: "expense", contra: acc.contra });
       totalExp += bal;
@@ -808,10 +813,11 @@ export function getPnL(state, fromMin, toMin) {
 export function getBalanceSheet(state, atMin) {
   if (!state.accounting) return { assets: [], liabilities: [], equity: [], total: {} };
   const cap = atMin === undefined ? Infinity : atMin;
+  const balances = balancesAt(state, cap);
   const assets = [], liabilities = [], equity = [];
   let totalAssets = 0, totalLiab = 0, totalEquity = 0;
   for (const acc of ACCOUNT_LIST) {
-    const bal = getAccountBalance(state, acc.no, cap);
+    const bal = balances[acc.no] || 0;
     if (bal === 0) continue;
     if (acc.type === "asset") {
       assets.push({ account: acc.no, name: acc.name, amountCents: bal });
@@ -844,22 +850,7 @@ export function getBalanceSheet(state, atMin) {
 
 export function getCashFlow(state, fromMin, toMin) {
   if (!state.accounting) return { operating: 0, investing: 0, financing: 0, total: 0 };
-  let operating = 0, investing = 0, financing = 0;
-  for (const e of state.accounting.journal) {
-    if (e.gameTime < fromMin || e.gameTime > toMin) continue;
-    for (const l of e.lines) {
-      if (l.account !== "1000") continue;
-      const delta = l.debitCents - l.creditCents;
-      if (delta === 0) continue;
-      // Klassifizieren
-      const otherAccounts = e.lines.filter(x => x.account !== "1000").map(x => x.account);
-      const isInvesting = otherAccounts.some(a => ACCOUNTS[a]?.group === "fixed_assets");
-      const isFinancing = otherAccounts.some(a => a === "2010" || a === "2020" || a === "2200" || a === "2210" || a === "2230" || a === "5610" || a === "1300");
-      if (isInvesting) investing += delta;
-      else if (isFinancing) financing += delta;
-      else operating += delta;
-    }
-  }
+  const [operating, investing, financing] = financialRange(state, ACCOUNTS, fromMin, toMin).cash;
   return { operating, investing, financing, total: operating + investing + financing };
 }
 
@@ -943,7 +934,8 @@ export function migrateAccounting(state) {
   if (!a.accountBalances) a.accountBalances = {};
   // Cache aus Journal rekonstruieren falls leer aber Journal hat Einträge
   // (alte Spielstände vor dem Balance-Cache). O(journal) einmalig beim Laden.
-  if (a.journal.length > 0 && Object.keys(a.accountBalances).length === 0) {
+  if ((a.journal.length > 0 || a.journalProjection?.count) && Object.keys(a.accountBalances).length === 0) {
+    a.accountBalances = { ...projectionRange(a.journalProjection).accounts };
     for (const e of a.journal) {
       for (const l of e.lines) {
         a.accountBalances[l.account] = (a.accountBalances[l.account] || 0) + l.debitCents - l.creditCents;
@@ -961,7 +953,7 @@ export function migrateAccounting(state) {
   if (a.dailySummaryRebuilt === undefined) a.dailySummaryRebuilt = false;
 
   // Wenn noch keine Journal-Einträge existieren: Eröffnungsbilanz aus aktuellem Zustand
-  if (a.journal.length === 0 && !a.migrationDone) {
+  if (a.journal.length === 0 && !a.journalProjection?.count && !a.migrationDone) {
     const bankCents = state.company?.accountCents || 0;
     const assetCents = (state.vehicles || []).reduce((s, v) => s + (v.bookValueCents || 0), 0);
     const liabilityCents = (state.openCosts || []).filter(o => o.account === "company").reduce((s, o) => s + o.amountCents, 0);
@@ -1004,7 +996,8 @@ export function migrateAccounting(state) {
   // dabei verloren, waren aber bereits korrupt.
   if (!a.dailySummaryRebuilt) {
     a.dailySummary = {};
-    for (const e of a.journal) {
+    const archivedDays = Object.entries(a.journalProjection?.days || {}).map(([day, d]: any) => ({ gameTime: Number(day) * 1440, lines: Object.entries(d.total.accounts).map(([account, n]) => ({ account, debitCents: Math.max(0, Number(n)), creditCents: Math.max(0, -Number(n)) })) }));
+    for (const e of [...archivedDays, ...a.journal]) {
       if (!e || !e.lines) continue;
       const day = Math.floor(e.gameTime / 1440) + 1;
       const d = a.dailySummary[day] || (a.dailySummary[day] = { revenue: 0, expenses: 0, directCosts: 0, personnel: 0, operations: 0, depreciation: 0, finance: 0 });
@@ -1030,7 +1023,8 @@ export function migrateAccounting(state) {
   // Alte, bereits gekürzte Exporte kennzeichnen; fehlende Buchungen lassen
   // sich aus dem Kontostand nicht zuverlässig rekonstruieren.
   if (a.historyChecked !== true) {
-    a.historyIncompleteBeforeMin = a.journal[0]?.entryNo > 1 ? a.journal[0].gameTime : null;
+    const first = a.journalProjection?.firstEntryNo < (a.journal[0]?.entryNo ?? Infinity) ? { entryNo: a.journalProjection.firstEntryNo, gameTime: a.journalProjection.firstEntryMin } : a.journal[0];
+    a.historyIncompleteBeforeMin = first?.entryNo > 1 ? first.gameTime : null;
     a.historyChecked = true;
   }
   return state;

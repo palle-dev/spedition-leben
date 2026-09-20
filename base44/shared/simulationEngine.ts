@@ -262,6 +262,7 @@ function payCost(state, account, amountCents, cause, refId, min, opts) {
     amountCents, text: cause, type: causeKey.toLowerCase().replace(/\s/g, "_"),
     gameTime: min, refId,
     employeeId: opts?.employeeId || null,
+    branchId: opts?.branchId || null,
   });
   return { paid: r.paidCents, unpaid: r.unpaidCents };
 }
@@ -305,12 +306,12 @@ function doDailyAccounting(state, midnight) {
   const drivers = [...state.drivers].sort((a, b) => (a.id < b.id ? -1 : 1));
   for (const d of drivers) {
     if (!isActivelyEmployed(d)) continue;
-    const r = payCost(state, "company", d.costPerDayCents ?? DRIVER_COST_PER_DAY, "Fahrerlohn: " + d.name, d.id, midnight, { employeeId: d.id });
+    const r = payCost(state, "company", d.costPerDayCents ?? DRIVER_COST_PER_DAY, "Fahrerlohn: " + d.name, d.id, midnight, { employeeId: d.id, branchId: d.branchId });
     log.push({ cause: "Fahrerlohn", driver: d.name, paid: r.paid, unpaid: r.unpaid });
   }
   for (const b of state.branches) {
     if (b.status === "closed") continue;
-    const r = payCost(state, "company", b.costPerDayCents ?? BRANCH_COST_PER_DAY, "Standort: " + b.name, b.id, midnight);
+    const r = payCost(state, "company", b.costPerDayCents ?? BRANCH_COST_PER_DAY, "Standort: " + b.name, b.id, midnight, { branchId: b.id });
     log.push({ cause: "Standort", branch: b.name, paid: r.paid, unpaid: r.unpaid });
   }
   // Löhne für alle Angestellten (nicht fahrende Rollen) – rollenspezifische Konten
@@ -320,7 +321,7 @@ function doDailyAccounting(state, midnight) {
       : emp.role === "cleaner" || emp.role === "mechanic" ? "Reinigung und Werkstatt"
       : emp.role === "accountant" || emp.role === "accountant_senior" ? "Buchhaltung"
       : emp.role === "assistant" || emp.role === "branch_manager" ? "Geschäftsführung" : "Lohn";
-    const r = payCost(state, "company", emp.costPerDayCents, causeLabel + ": " + emp.name, emp.id, midnight, { employeeId: emp.id });
+    const r = payCost(state, "company", emp.costPerDayCents, causeLabel + ": " + emp.name, emp.id, midnight, { employeeId: emp.id, branchId: emp.assignedBranchId || emp.branchId });
     log.push({ cause: causeLabel, employee: emp.name, role: emp.role, paid: r.paid, unpaid: r.unpaid });
   }
   const w = doWithdrawal(state, midnight);
@@ -417,7 +418,7 @@ function completeTrip(state, trip, m, log) {
   order.status = "geliefert"; order.deliveredAtMin = m;
   const onTime = m <= order.deliveryDeadlineMin;
   const payment = onTime ? trip.paymentCents : Math.round(trip.paymentCents * 0.9);
-  addBooking(state, m, "Vergütung: " + order.customer, payment, "company", order.id);
+  addBooking(state, m, "Vergütung: " + order.customer, payment, "company", order.id, { orderId: order.id, vehicleId: vehicle.id, branchId: trip.branchId || vehicle.branchId });
   order.paidCents = payment;
   // Kundenbeziehung: Reputation bei Lieferung erfassen (idempotent)
   recordOrderOutcome(state, order, onTime ? "timely" : "late", m, payment); if (order.isKeyAccountOrder) recordKeyAccountOrderOutcome(state, order, onTime ? "timely" : "late", m, payment);
@@ -961,10 +962,10 @@ export function applyCommand(state, command, params) {
       const toll = tollCents(plan.totalKm);
       const totalCost = fuel + toll;
       if (state.company.accountCents < totalCost) throw new Error("Firmenkonto reicht für Kraftstoff und Maut (" + (totalCost / 100).toFixed(2) + " €) nicht aus.");
-      addBooking(state, state.gameTime, "Kraftstoff: " + o.customer, -fuel, "company", "fuel:" + o.id);
-      addBooking(state, state.gameTime, "Maut: " + o.customer, -toll, "company", "toll:" + o.id);
+      addBooking(state, state.gameTime, "Kraftstoff: " + o.customer, -fuel, "company", "fuel:" + o.id, { vehicleId: v.id, orderId: o.id, branchId: v.branchId });
+      addBooking(state, state.gameTime, "Maut: " + o.customer, -toll, "company", "toll:" + o.id, { vehicleId: v.id, orderId: o.id, branchId: v.branchId });
       const trip = {
-        id: uid(state, "t"), type: "loaded", orderId: o.id, vehicleId: v.id, driverId: d.id,
+        id: uid(state, "t"), branchId: v.branchId, type: "loaded", orderId: o.id, vehicleId: v.id, driverId: d.id,
         phases: plan.phases, initialCounters: { workMin: d.workMinutesSinceRest || 0, driveMin: d.driveMinutesSinceBreak || 0 }, currentPhase: 0, startMin: state.gameTime, endMin: plan.endMin,
         status: "in_progress", paymentCents: plan.paymentCents, fuelCents: fuel, tollCents: toll,
         totalKm: plan.totalKm, drivenKm: 0,
@@ -1009,10 +1010,10 @@ export function applyCommand(state, command, params) {
       const fuel = fuelCents(dist, v.consumptionPer100km);
       const toll = tollCents(dist);
       if (state.company.accountCents < fuel + toll) throw new Error("Firmenkonto reicht für Kraftstoff und Maut nicht aus.");
-      addBooking(state, state.gameTime, "Kraftstoff (Leerfahrt)", -fuel, "company", "emptyfuel");
-      addBooking(state, state.gameTime, "Maut (Leerfahrt)", -toll, "company", "emptytoll");
+      addBooking(state, state.gameTime, "Kraftstoff (Leerfahrt)", -fuel, "company", "emptyfuel", { vehicleId: v.id, branchId: v.branchId });
+      addBooking(state, state.gameTime, "Maut (Leerfahrt)", -toll, "company", "emptytoll", { vehicleId: v.id, branchId: v.branchId });
       const trip = {
-        id: uid(state, "t"), type: "empty", orderId: null, vehicleId: v.id, driverId: d.id,
+        id: uid(state, "t"), branchId: v.branchId, type: "empty", orderId: null, vehicleId: v.id, driverId: d.id,
         phases: phaseResult.phases, initialCounters: counters, currentPhase: 0, startMin: state.gameTime, endMin: phaseResult.endMin,
         status: "in_progress", paymentCents: 0, fuelCents: fuel, tollCents: toll, totalKm: dist, drivenKm: 0,
       };
@@ -1035,7 +1036,7 @@ export function applyCommand(state, command, params) {
       const stressed = state.private.stress >= STRESS_MAINT_THRESHOLD;
       if (stressed) cost = Math.round(cost * MAINT_STRESS_FACTOR);
       if (state.company.accountCents < cost) throw new Error("Firmenkonto reicht für die Wartung (" + (cost / 100).toFixed(2) + " €) nicht aus.");
-      addBooking(state, state.gameTime, "Wartung: " + v.id, -cost, "company", "maintain:" + v.id);
+      addBooking(state, state.gameTime, "Wartung: " + v.id, -cost, "company", "maintain:" + v.id, { vehicleId: v.id, branchId: v.branchId });
       v.status = "maintenance"; v.maintenanceUntil = state.gameTime + maintDuration;
       result = { ok: true, vehicleId: v.id, costCents: cost, stressed, until: v.maintenanceUntil };
       break;

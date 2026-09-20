@@ -1,3 +1,4 @@
+import { financialRange } from "./simulation/financialProjection.ts";
 // Einheitlicher Kontenplan und einheitliche Auswertungen für UI und Simulation.
 import { ACCOUNTS, MONTH_MIN } from "./simulation/accountingEngine.ts";
 export { ACCOUNTS, ACCOUNT_LIST, MONTH_MIN, MONTH_DAYS, accountName, accountType,
@@ -29,55 +30,29 @@ export function getLiquidityProjection(state, days) {
 // Filialbezogene Finanzdaten für einen Zeitraum: Umsatz, direkte Kosten,
 // Personalkosten, Standortkosten und Gewinn pro aktiver Filiale.
 export function getBranchFinancials(state, fromMin, toMin) {
-  const billedDaysSince = start => Math.max(0, Math.floor(toMin / 1440) -
-    Math.max(Math.ceil(fromMin / 1440), Math.floor((start || 0) / 1440) + 1) + 1);
-  const branches = (state.branches || []).filter(b => b.status === "active");
-
-  // Pre-build Maps für O(1) Lookups (statt O(orders × trips × vehicles))
-  const tripByOrderId = new Map();
-  for (const t of (state.trips || [])) {
-    if (t.orderId && t.type === "loaded" && !tripByOrderId.has(t.orderId)) tripByOrderId.set(t.orderId, t);
-  }
-  const vehicleById = new Map();
-  for (const v of (state.vehicles || [])) vehicleById.set(v.id, v);
-
-  return branches.map(b => {
-    const branchVehicles = (state.vehicles || []).filter(v => v.branchId === b.id && v.status !== "sold" && v.status !== "archived");
-    const branchDrivers = (state.drivers || []).filter(d => d.branchId === b.id && d.employmentStatus === "employed");
-    const branchEmployees = (state.employees || []).filter(e => (e.assignedBranchId || e.branchId) === b.id && e.employmentStatus === "employed");
-
-    let revenue = 0;
-    for (const o of (state.orders || [])) {
-      if (o.status !== "geliefert" || !o.paidCents) continue;
-      if (o.deliveredAtMin < fromMin || o.deliveredAtMin > toMin) continue;
-      const trip = tripByOrderId.get(o.id);
-      const vehicle = trip ? vehicleById.get(trip.vehicleId) : null;
-      if (vehicle?.branchId === b.id) revenue += o.paidCents;
+  const totals = financialRange(state, ACCOUNTS, fromMin, toMin).branches;
+  const branches = [...(state.branches || [])];
+  for (const id of Object.keys(totals)) if (!branches.some(b => b.id === id)) branches.push({ id, name: id === '__unallocated__' ? 'Nicht zugeordnet / Zentrale' : 'Früherer Standort ' + id, city: '', status: 'historical' });
+  return branches.filter(b => b.status === 'active' || totals[b.id]).map(b => {
+    const amounts = totals[b.id] || {};
+    let revenue = 0, directCosts = 0, personnelCosts = 0, branchCosts = 0, otherCosts = 0;
+    for (const [account, delta] of Object.entries(amounts)) {
+      const a = ACCOUNTS[account];
+      if (a?.type === 'revenue') revenue -= Number(delta);
+      else if (a?.type === 'expense') {
+        if (a.group === 'direct_costs') directCosts += Number(delta);
+        else if (a.group === 'personnel') personnelCosts += Number(delta);
+        else if (account === '5200') branchCosts += Number(delta);
+        else otherCosts += Number(delta);
+      }
     }
-
-    let directCosts = 0;
-    for (const t of (state.trips || [])) {
-      if (t.type !== "loaded" || t.endMin == null || t.endMin < fromMin || t.endMin > toMin) continue;
-      const vehicle = vehicleById.get(t.vehicleId);
-      if (vehicle?.branchId === b.id) directCosts += (t.fuelCents || 0) + (t.tollCents || 0);
-    }
-
-    const driverWages = branchDrivers.reduce((sum, d) => sum + (d.costPerDayCents ?? 10000) * billedDaysSince(Math.max(b.openedAtMin || 0, d.hiredAtMin ?? ((d.employedDay || 1) - 1) * 1440)), 0);
-    const employeeWages = branchEmployees.reduce((sum, e) => sum + (e.costPerDayCents || 0) * billedDaysSince(Math.max(b.openedAtMin || 0, e.hiredAtMin ?? ((e.employedDay || 1) - 1) * 1440)), 0);
-    const branchCosts = (b.costPerDayCents || 0) * billedDaysSince(b.openedAtMin);
-    const personnelCosts = driverWages + employeeWages;
-    const totalCosts = directCosts + personnelCosts + branchCosts;
-    const contribution = revenue - directCosts;
+    const totalCosts = directCosts + personnelCosts + branchCosts + otherCosts;
     const profit = revenue - totalCosts;
-    const margin = revenue > 0 ? Math.round(profit / revenue * 100) : 0;
-
-    return {
-      branch: b, revenue, directCosts, personnelCosts, branchCosts, totalCosts,
-      contribution, profit, margin,
-      vehicleCount: branchVehicles.length,
-      driverCount: branchDrivers.length,
-      employeeCount: branchEmployees.length,
-    };
+    return { branch: b, revenue, directCosts, personnelCosts, branchCosts, otherCosts, totalCosts,
+      contribution: revenue - directCosts, profit, margin: revenue > 0 ? Math.round(profit / revenue * 100) : 0,
+      vehicleCount: (state.vehicles || []).filter(v => v.branchId === b.id && !['sold','archived'].includes(v.status)).length,
+      driverCount: (state.drivers || []).filter(d => d.branchId === b.id && d.employmentStatus === 'employed').length,
+      employeeCount: (state.employees || []).filter(e => (e.assignedBranchId || e.branchId) === b.id && e.employmentStatus === 'employed').length };
   });
 }
 
@@ -90,6 +65,7 @@ export function getOpenItems(state) {
 }
 
 export function getJournal(state, filters) {
+  if (state?.accounting?.journalProjection?.count) throw Error("Für das vollständige Journal bitte queryJournal verwenden.");
   if (!state?.accounting?.journal) return [];
   let journal = [...state.accounting.journal].reverse();
   if (filters) {

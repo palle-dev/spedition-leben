@@ -948,6 +948,12 @@ export function GameProvider({ children }) {
     if (!isCurrentSession(token)) throw Error("Spielstand wurde inzwischen gewechselt.");
     return result;
   }, [sessionToken, isCurrentSession]);
+  const queryJournal = useCallback(async (snapshot, options = {}) => {
+    const token = sessionToken();
+    const result = await processSaveFile("journalPage", { ...options, state: { historyArchive: snapshot.historyArchive, accounting: { journal: snapshot.accounting?.journal } }, userId: token.userId });
+    if (!isCurrentSession(token)) throw Error("Spielstand wurde inzwischen gewechselt.");
+    return result;
+  }, [sessionToken, isCurrentSession]);
   const exportHistory = useCallback(async () => processSaveFile("archive", await hydrateHistory(userIdRef.current, stateRef.current)), []);
 
   const importGame = useCallback(async (exportStr) => {
@@ -1090,7 +1096,7 @@ export function GameProvider({ children }) {
     runDiagnosedAdvance, getDiagReport,
     markAllEventsSeen,
     showToast, dismissToast, dismissOverlay, dismissStart, openStartScreen, toggleMotion,
-    exportGame, exportHistory, queryHistory, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
+    exportGame, exportHistory, queryHistory, queryJournal, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
     uploadToCloud, retryCloudSync, refreshCloudSaves, loadCloudGame, deleteCloudGame,
     resolveConflictKeepBoth, resolveConflictKeepLocal, resolveConflictKeepCloud,
   }), [
@@ -1100,7 +1106,7 @@ export function GameProvider({ children }) {
     runDiagnosedAdvance, getDiagReport,
     markAllEventsSeen,
     showToast, dismissToast, dismissOverlay, dismissStart, openStartScreen, toggleMotion,
-    exportGame, exportHistory, queryHistory, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
+    exportGame, exportHistory, queryHistory, queryJournal, importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
     uploadToCloud, retryCloudSync, refreshCloudSaves, loadCloudGame, deleteCloudGame,
     resolveConflictKeepBoth, resolveConflictKeepLocal, resolveConflictKeepCloud,
   ]);
