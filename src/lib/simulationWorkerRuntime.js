@@ -1,3 +1,4 @@
+import { captureOrders, packOrderResult } from './orderTransport';
 import { coldPart, withCold, packResult } from './simulationTransport';
 
 // The worker retains the last response's financial originals and orders. Reuse is
@@ -17,13 +18,14 @@ export function createSimulationRuntime(execute, compact) {
     const base = source ? { ...source, journal: source.journal.slice() } : null;
     retained = null;
     try {
+      const orderBase = captureOrders(state);
       const data = await execute(state, command, params || {});
       if (data.error) return { id, data };
       if (data.state) {
         try { data.state = await compact(data.state); }
         catch { /* Keep complete originals and outbox if compaction fails. */ }
       }
-      const packet = packResult(data, base);
+      const packet = packOrderResult(packResult(data, base), orderBase);
       const cold = coldPart(data.state);
       if (cold) retained = { ...cold, orders: data.state.orders, revision: id };
       return { id, ...packet };

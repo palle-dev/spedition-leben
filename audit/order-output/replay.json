@@ -1,0 +1,72 @@
+{
+  "node": "v24.19.0",
+  "vehicles": 97,
+  "branches": 6,
+  "rows": [
+    {
+      "command": "setOwnerSalary",
+      "minutes": 0,
+      "coldStart": true,
+      "oldMs": 1711.3068750000002,
+      "newMs": 1812.9892209999998,
+      "oldInputBytes": 15138354,
+      "newInputBytes": 15138354,
+      "oldOutputBytes": 12462981,
+      "newOutputBytes": 6499180,
+      "reusedInput": false,
+      "reusedOrders": false,
+      "reusedOrderRows": 5924,
+      "reusedRows": 3169,
+      "exactStateEquality": true
+    },
+    {
+      "command": "advanceTime",
+      "minutes": 60,
+      "coldStart": false,
+      "oldMs": 599.2007039999999,
+      "newMs": 632.9317730000002,
+      "oldInputBytes": 6455813,
+      "newInputBytes": 6455813,
+      "oldOutputBytes": 13393140,
+      "newOutputBytes": 7497811,
+      "reusedInput": true,
+      "reusedOrders": true,
+      "reusedOrderRows": 5834,
+      "reusedRows": 3159,
+      "exactStateEquality": true
+    },
+    {
+      "command": "advanceTime",
+      "minutes": 1440,
+      "coldStart": false,
+      "oldMs": 4818.3897640000005,
+      "newMs": 4795.766518,
+      "oldInputBytes": 6458510,
+      "newInputBytes": 6458510,
+      "oldOutputBytes": 13821280,
+      "newOutputBytes": 9267959,
+      "reusedInput": true,
+      "reusedOrders": true,
+      "reusedOrderRows": 4115,
+      "reusedRows": 2778,
+      "exactStateEquality": true
+    },
+    {
+      "command": "advanceTime",
+      "minutes": 60,
+      "coldStart": false,
+      "oldMs": 590.6720660000028,
+      "newMs": 552.6272199999985,
+      "oldInputBytes": 6656342,
+      "newInputBytes": 6656342,
+      "oldOutputBytes": 13601240,
+      "newOutputBytes": 7774490,
+      "reusedInput": true,
+      "reusedOrders": true,
+      "reusedOrderRows": 5725,
+      "reusedRows": 3206,
+      "exactStateEquality": true
+    }
+  ],
+  "measurement": "Real Node worker threads, structured clone and actual browser-worker module via a Node bridge. Single sequential comparisons, including engine and compaction. First command includes cold-start/transpilation. JSON byte sizes are logical payload estimates, not browser wire bytes; Blob payload sizes excluded. No React, actual IndexedDB writes, cloud or production writes. Entire resulting states equal. Not a browser end-to-end or large-fleet long-term guarantee."
+}

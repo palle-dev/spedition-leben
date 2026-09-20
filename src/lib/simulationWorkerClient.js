@@ -1,3 +1,4 @@
+import { unpackOrderResult } from './orderTransport';
 import { coldPart, freezeFinancialSnapshot, freezeOrderSnapshot, withoutCold, unpackResult } from './simulationTransport';
 import { archiveStats } from './historyArchive';
 
@@ -26,7 +27,7 @@ export function createSimulationClient(createWorker) {
         return;
       }
       try {
-        const data = unpackResult(packet, request.source);
+        const data = unpackOrderResult(packet, unpackResult(packet, request.source), request.orderSource);
         if (data.state && !data.error) {
           freezeFinancialSnapshot(data.state);
           freezeOrderSnapshot(data.state);
@@ -37,6 +38,7 @@ export function createSimulationClient(createWorker) {
           workerComputeMs: packet.workerComputeMs ?? null,
           workerOtherMs: Number.isFinite(packet.workerComputeMs) ? Math.max(0, performance.now() - request.started - packet.workerComputeMs) : null,
           reusedJournalRows: packet.reusedRows || 0,
+          reusedOrderRows: packet.reusedOrders || 0,
           reusedFinancialInput: request.reuseCold && !request.retried,
           reusedOrdersInput: request.reuseOrders && !request.retried,
         });
@@ -76,7 +78,7 @@ export function createSimulationClient(createWorker) {
       diag.stateSizingMs = performance.now() - sizeStart;
     }
     return new Promise(resolve => {
-      const request = { id, state, source, command, params, onProgress, diag, resolve, reuseCold, reuseOrders, retried: false, started: performance.now() };
+      const request = { id, state, source, orderSource: state?.orders, command, params, onProgress, diag, resolve, reuseCold, reuseOrders, retried: false, started: performance.now() };
       pending.set(id, request);
       try { getWorker().postMessage(message); }
       catch (error) { accepted = null; finish(request, { error: error.message || 'Spielzustand konnte nicht übertragen werden.' }); }
