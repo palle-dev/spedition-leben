@@ -19,7 +19,7 @@ import {
   SERVICE_START_MIN,
   pickCargoCategory, checkBodyTypeCompatibility,
 } from "./gameRules.ts";
-import { earliestAvailable } from "./tourEngine.ts";
+import { earliestAvailable, createAvailabilityReader } from "./tourEngine.ts";
 import {
   DG_PROFILES, makeDgOffer, computeDgFleetN,
 } from "./dangerousGoodsEngine.ts";
@@ -72,6 +72,7 @@ export function relationFactor(state, fromCity, toCity) {
 // Berücksichtigt aktuelle Bindungen, Ruhezeiten und Wartung.
 // Keine Doppelbelegung von Person oder Fahrzeug.
 export function computePlanableFleetN(state) {
+  const available = createAvailabilityReader(state);
   const horizon = 72 * 60;
   const maxAvail = state.gameTime + horizon;
 
@@ -105,11 +106,11 @@ export function computePlanableFleetN(state) {
   for (const v of sortedVehicles) {
     let bestDriver = null;
     let bestAvail = Infinity;
-    const vehicleAvailable = earliestAvailable(state, v, {});
+    const vehicleAvailable = available(v, {});
     for (const d of driversByCity.get(v.locationCity) || []) {
       if (usedDrivers.has(d.id)) continue;
       if (d.locationCity !== v.locationCity) continue;
-      if (!driverAvailability.has(d)) driverAvailability.set(d, earliestAvailable(state, {}, d));
+      if (!driverAvailability.has(d)) driverAvailability.set(d, available({}, d));
       const avail = Math.max(vehicleAvailable, driverAvailability.get(d));
       if (avail <= maxAvail && avail < bestAvail) {
         bestDriver = d;
@@ -315,15 +316,16 @@ function computeNearestApproach(state, fromCity) {
 // Scope this cache to that batch; never reuse it after a simulation event.
 const marketResources = new WeakMap<object, any>();
 function withMarketResources(state, action) {
+  const available = createAvailabilityReader(state);
   const previous = marketResources.get(state);
   const driversByCity = new Map(), driverAvailability = new Map(), vehicleAvailability = new Map();
   for (const d of state.drivers || []) {
     if (d.employmentStatus !== "employed" || d.attendance === "released") continue;
     if (!driversByCity.has(d.locationCity)) driversByCity.set(d.locationCity, []);
     driversByCity.get(d.locationCity).push(d);
-    driverAvailability.set(d, earliestAvailable(state, {}, d));
+    driverAvailability.set(d, available({}, d));
   }
-  for (const v of state.vehicles || []) vehicleAvailability.set(v, earliestAvailable(state, v, {}));
+  for (const v of state.vehicles || []) vehicleAvailability.set(v, available(v, {}));
   marketResources.set(state, { driversByCity, driverAvailability, vehicleAvailability, approaches: new Map() });
   try { return action(); }
   finally { if (previous) marketResources.set(state, previous); else marketResources.delete(state); }

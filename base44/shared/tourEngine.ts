@@ -142,9 +142,28 @@ export function isResourceFree(state, resource, fromMin, toMin) {
 // NICHT die Verfügbarkeit — stattdessen prüft buildTourPlan über
 // nextReservationStart, ob eine neue Tour vor der Vorausplanung endet.
 export function earliestAvailable(state, vehicle, driver) {
+  return availabilityTime(state, vehicle, driver, tripById, driverTrip);
+}
+// One synchronous read-only fleet calculation owns this lazy trip index.
+// Discard the reader before any mutation of trips or resource state.
+export function createAvailabilityReader(state) {
+  let trips = null, drivers = null;
+  const index = () => {
+    if (trips) return;
+    trips = new Map(); drivers = new Map();
+    for (const trip of state.trips || []) {
+      if (!trips.has(trip.id)) trips.set(trip.id, trip);
+      if (trip.status === "in_progress" && !drivers.has(trip.driverId)) drivers.set(trip.driverId, trip);
+    }
+  };
+  const byId = (_state, id) => { index(); return id === id ? trips.get(id) : undefined; };
+  const byDriver = (_state, id) => { index(); return id === id ? drivers.get(id) : undefined; };
+  return (vehicle, driver) => availabilityTime(state, vehicle, driver, byId, byDriver);
+}
+function availabilityTime(state, vehicle, driver, findTrip, findDriverTrip) {
   let t = state.gameTime;
   if (vehicle.status === "on_trip") {
-    const trip = tripById(state, vehicle.tripId);
+    const trip = findTrip(state, vehicle.tripId);
     if (trip) t = Math.max(t, trip.endMin);
   }
   if (vehicle.status === "maintenance" && vehicle.maintenanceUntil) {
@@ -154,7 +173,7 @@ export function earliestAvailable(state, vehicle, driver) {
     t = Math.max(t, driver.restUntil);
   }
   if (driver.status === "on_trip") {
-    const trip = driverTrip(state, driver.id);
+    const trip = findDriverTrip(state, driver.id);
     if (trip) t = Math.max(t, trip.endMin);
   }
   return t;
