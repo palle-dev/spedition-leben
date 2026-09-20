@@ -1,0 +1,146 @@
+{
+  "engineMs": 11780.184553,
+  "units": "sampled self microseconds",
+  "top": [
+    [
+      "suggestTours tourEngine.ts:1242",
+      1959055
+    ],
+    [
+      "planningResources tourEngine.ts:50",
+      1062499
+    ],
+    [
+      "computeOptions disruptionEngine.ts:203",
+      856307
+    ],
+    [
+      "computePlanableFleetN marketEngine.ts:66",
+      643172
+    ],
+    [
+      "processDispatcher dispatcherProcessor.ts:118",
+      564849
+    ],
+    [
+      "futureDriverLocation tourEngine.ts:235",
+      337510
+    ],
+    [
+      "advanceToIndexed simulationEngine.ts:697",
+      321710
+    ],
+    [
+      "validateResolution disruptionEngine.ts:1083",
+      321548
+    ],
+    [
+      "startDeployment tourEngine.ts:798",
+      292383
+    ],
+    [
+      "processEventsAt simulationEngine.ts:374",
+      276735
+    ],
+    [
+      "getDeliveryRisks deliveryRisk.ts:7",
+      269365
+    ],
+    [
+      "processEmployeesIndexed dispatcherProcessor.ts:65",
+      250007
+    ],
+    [
+      "isPersonInTraining trainingEngine.ts:1483",
+      215750
+    ],
+    [
+      "findResolverEmployee disruptionEngine.ts:746",
+      197437
+    ],
+    [
+      "getValidatedDisruptionOptions disruptionEngine.ts:1134",
+      195726
+    ],
+    [
+      "processDisruptions disruptionEngine.ts:674",
+      194607
+    ],
+    [
+      "processTours tourEngine.ts:937",
+      190001
+    ],
+    [
+      "buildTourPlan tourEngine.ts:358",
+      185778
+    ],
+    [
+      "tagDispatcherTour dispatcherQuality.ts:55",
+      165419
+    ],
+    [
+      " disruptionEngine.ts:1139",
+      154654
+    ],
+    [
+      "post node:inspector:114",
+      153143
+    ],
+    [
+      "earliestEventAfter eventScheduler.ts:27",
+      144707
+    ],
+    [
+      " phoneCommunications.ts:9",
+      143674
+    ],
+    [
+      "getOrderReservation tourEngine.ts:570",
+      143040
+    ],
+    [
+      "confirmTour tourEngine.ts:714",
+      142591
+    ],
+    [
+      "_cached tourEngine.ts:107",
+      134706
+    ],
+    [
+      " disruptionEngine.ts:182",
+      123303
+    ],
+    [
+      "(garbage collector) :-1",
+      123244
+    ],
+    [
+      "generateMarketWave marketEngine.ts:459",
+      99668
+    ],
+    [
+      " disruptionEngine.ts:143",
+      80326
+    ],
+    [
+      " dispatcherProcessor.ts:440",
+      79147
+    ],
+    [
+      "computeAnchorCities marketEngine.ts:113",
+      74786
+    ],
+    [
+      "isPersonAvailable absenceEngine.ts:651",
+      73187
+    ],
+    [
+      "suitable tourEngine.ts:1397",
+      72543
+    ],
+    [
+      "withTourValidation tourEngine.ts:612",
+      70512
+    ]
+  ]
+}

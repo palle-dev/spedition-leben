@@ -1,0 +1,146 @@
+{
+  "engineMs": 14601.167636999999,
+  "units": "sampled self microseconds",
+  "top": [
+    [
+      "suggestTours tourEngine.ts:1218",
+      2041066
+    ],
+    [
+      "hasPendingTour tourEngine.ts:72",
+      1942642
+    ],
+    [
+      "planningResources tourEngine.ts:48",
+      1112548
+    ],
+    [
+      "computeOptions disruptionEngine.ts:201",
+      861531
+    ],
+    [
+      "computePlanableFleetN marketEngine.ts:66",
+      650350
+    ],
+    [
+      "processDispatcher dispatcherProcessor.ts:118",
+      643258
+    ],
+    [
+      "validateResolution disruptionEngine.ts:1081",
+      433720
+    ],
+    [
+      "advanceToIndexed simulationEngine.ts:697",
+      387863
+    ],
+    [
+      "futureDriverLocation tourEngine.ts:211",
+      385979
+    ],
+    [
+      "processEventsAt simulationEngine.ts:374",
+      375584
+    ],
+    [
+      "processEmployeesIndexed dispatcherProcessor.ts:65",
+      349629
+    ],
+    [
+      "getDeliveryRisks deliveryRisk.ts:7",
+      285733
+    ],
+    [
+      "startDeployment tourEngine.ts:774",
+      267600
+    ],
+    [
+      "processDisruptions disruptionEngine.ts:672",
+      234270
+    ],
+    [
+      "buildTourPlan tourEngine.ts:334",
+      214037
+    ],
+    [
+      "getValidatedDisruptionOptions disruptionEngine.ts:1132",
+      203254
+    ],
+    [
+      "isPersonInTraining trainingEngine.ts:1483",
+      195194
+    ],
+    [
+      "processTours tourEngine.ts:913",
+      190221
+    ],
+    [
+      "findResolverEmployee disruptionEngine.ts:744",
+      188761
+    ],
+    [
+      " phoneCommunications.ts:9",
+      183615
+    ],
+    [
+      "tagDispatcherTour dispatcherQuality.ts:55",
+      177318
+    ],
+    [
+      " disruptionEngine.ts:1137",
+      175988
+    ],
+    [
+      "confirmTour tourEngine.ts:690",
+      175525
+    ],
+    [
+      "_cached tourEngine.ts:83",
+      168798
+    ],
+    [
+      "getOrderReservation tourEngine.ts:546",
+      164277
+    ],
+    [
+      "earliestEventAfter eventScheduler.ts:27",
+      163429
+    ],
+    [
+      "post node:inspector:114",
+      163174
+    ],
+    [
+      "(garbage collector) :-1",
+      139754
+    ],
+    [
+      "generateMarketWave marketEngine.ts:459",
+      109763
+    ],
+    [
+      " disruptionEngine.ts:180",
+      108028
+    ],
+    [
+      "findReplacementVehicle disruptionEngine.ts:135",
+      83827
+    ],
+    [
+      "computeAnchorCities marketEngine.ts:113",
+      78377
+    ],
+    [
+      "isPersonAvailable absenceEngine.ts:651",
+      76309
+    ],
+    [
+      "suitable tourEngine.ts:1373",
+      74306
+    ],
+    [
+      " dispatcherProcessor.ts:437",
+      73320
+    ]
+  ]
+}

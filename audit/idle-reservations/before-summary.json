@@ -1,0 +1,207 @@
+{
+  "node": "v24.19.0",
+  "baseCommit": "4a08bc011862beec5ee43829cefe47f64ee2550c",
+  "medianMs": 8269.055829999998,
+  "maxMs": 15236.439433000003,
+  "rows": [
+    {
+      "day": 1,
+      "warmup": true,
+      "profiled": false,
+      "engineMs": 4182.842869,
+      "compactionMs": 66.816554,
+      "before": {
+        "vehicles": 250,
+        "branches": 10,
+        "drivers": 350,
+        "dispatchers": 60,
+        "activeTrucks": 0,
+        "orders": 500,
+        "trips": 0,
+        "tours": 0,
+        "journal": 3
+      },
+      "after": {
+        "vehicles": 250,
+        "branches": 10,
+        "drivers": 350,
+        "dispatchers": 60,
+        "activeTrucks": 168,
+        "orders": 4386,
+        "trips": 646,
+        "tours": 723,
+        "journal": 2194
+      },
+      "delivered": 478,
+      "activeBytes": 7739960,
+      "archivedBlocks": 7,
+      "stateHash": "de9b2825a7f7825270159ee4de55a90c73c701bdc4d9dcc5b73a38031f33dd4a"
+    },
+    {
+      "day": 2,
+      "warmup": true,
+      "profiled": false,
+      "engineMs": 4187.095351999999,
+      "compactionMs": 50.77439299999969,
+      "before": {
+        "vehicles": 250,
+        "branches": 10,
+        "drivers": 350,
+        "dispatchers": 60,
+        "activeTrucks": 168,
+        "orders": 4886,
+        "trips": 646,
+        "tours": 723,
+        "journal": 2194
+      },
+      "after": {
+        "vehicles": 250,
+        "branches": 10,
+        "drivers": 350,
+        "dispatchers": 60,
+        "activeTrucks": 170,
+        "orders": 7463,
+        "trips": 1054,
+        "tours": 1130,
+        "journal": 3837
+      },
+      "delivered": 406,
+      "activeBytes": 12256776,
+      "archivedBlocks": 13,
+      "stateHash": "bfe2966f9d0f4f976f221f557e085d3a8cf2af88583abc17fda47223265b4a38"
+    },
+    {
+      "day": 3,
+      "warmup": false,
+      "profiled": false,
+      "engineMs": 5862.506659000001,
+      "compactionMs": 104.48407599999882,
+      "before": {
+        "vehicles": 250,
+        "branches": 10,
+        "drivers": 350,
+        "dispatchers": 60,
+        "activeTrucks": 170,
+        "orders": 7963,
+        "trips": 1054,
+        "tours": 1130,
+        "journal": 3837
+      },
+      "after": {
+        "vehicles": 250,
+        "branches": 10,
+        "drivers": 350,
+        "dispatchers": 60,
+        "activeTrucks": 175,
+        "orders": 8799,
+        "trips": 1480,
+        "tours": 1556,
+        "journal": 5531
+      },
+      "delivered": 421,
+      "activeBytes": 15638792,
+      "archivedBlocks": 21,
+      "stateHash": "ddef3e5a617f0d484dd5cdc85d968ce064f6b02f5574458a2c131dff1e9f52ce"
+    },
+    {
+      "day": 4,
+      "warmup": false,
+      "profiled": false,
+      "engineMs": 8269.055829999998,
+      "compactionMs": 98.27869099999953,
+      "before": {
+        "vehicles": 250,
+        "branches": 10,
+        "drivers": 350,
+        "dispatchers": 60,
+        "activeTrucks": 175,
+        "orders": 9299,
+        "trips": 1480,
+        "tours": 1556,
+        "journal": 5531
+      },
+      "after": {
+        "vehicles": 250,
+        "branches": 10,
+        "drivers": 350,
+        "dispatchers": 60,
+        "activeTrucks": 170,
+        "orders": 9288,
+        "trips": 1905,
+        "tours": 1952,
+        "journal": 7232
+      },
+      "delivered": 430,
+      "activeBytes": 18360830,
+      "archivedBlocks": 30,
+      "stateHash": "9604ee73fabbf1a4bfae7c35b5cdcbdf81a244981c7089b5bfdf6be8a68db2db"
+    },
+    {
+      "day": 5,
+      "warmup": false,
+      "profiled": false,
+      "engineMs": 15236.439433000003,
+      "compactionMs": 106.36524500000087,
+      "before": {
+        "vehicles": 250,
+        "branches": 10,
+        "drivers": 350,
+        "dispatchers": 60,
+        "activeTrucks": 170,
+        "orders": 9788,
+        "trips": 1905,
+        "tours": 1952,
+        "journal": 7232
+      },
+      "after": {
+        "vehicles": 250,
+        "branches": 10,
+        "drivers": 350,
+        "dispatchers": 60,
+        "activeTrucks": 152,
+        "orders": 9756,
+        "trips": 2367,
+        "tours": 2413,
+        "journal": 9057
+      },
+      "delivered": 480,
+      "activeBytes": 21344285,
+      "archivedBlocks": 40,
+      "stateHash": "9d65c5743f594db839a9dc9cea9e6184d9b4976a0f54a1d84c7f1e9dd95a6ffa"
+    },
+    {
+      "day": 6,
+      "warmup": false,
+      "profiled": true,
+      "engineMs": 14601.167636999999,
+      "compactionMs": 120.94576899999811,
+      "before": {
+        "vehicles": 250,
+        "branches": 10,
+        "drivers": 350,
+        "dispatchers": 60,
+        "activeTrucks": 152,
+        "orders": 10256,
+        "trips": 2367,
+        "tours": 2413,
+        "journal": 9057
+      },
+      "after": {
+        "vehicles": 250,
+        "branches": 10,
+        "drivers": 350,
+        "dispatchers": 60,
+        "activeTrucks": 169,
+        "orders": 10215,
+        "trips": 2805,
+        "tours": 2813,
+        "journal": 10775
+      },
+      "delivered": 421,
+      "activeBytes": 24096653,
+      "archivedBlocks": 50,
+      "stateHash": "cc0c0b347a7ac7ce56002d8c037589277ef5182435f12abd8f81aa9c44efc5c1"
+    }
+  ],
+  "method": "Isolated synthetic 250 trucks / 10 branches, 350 drivers, 60 ordinary dispatchers, capital and daily condition/morale floors. 500 synthetic offers/day plus natural market; real engine simulation and deliveries. Two warmup days, three measured consecutive days, one additional sampled day. Compaction and simulated archive staging outside engine time; no browser, actual IndexedDB, cloud, production saves or historical endurance process. Not a long-game proof; fleet size and game age need separate tests."
+}

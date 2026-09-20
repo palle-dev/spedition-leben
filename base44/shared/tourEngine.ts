@@ -64,6 +64,26 @@ export function hasPendingTour(state, resourceId) {
   return (state.tours || []).some(t => (t.status === "active" || t.status === "planned") &&
     (t.vehicleId === resourceId || t.driverId === resourceId) && hasPendingDeployment(t));
 }
+// A fresh snapshot for one read-only reservation check batch. Do not keep it
+// across tour confirmations, cancellations or deployment status changes.
+export function pendingTourResources(state) {
+  const committed = new Set();
+  for (const tour of state.tours || []) {
+    if ((tour.status === "active" || tour.status === "planned") && hasPendingDeployment(tour)) {
+      committed.add(tour.vehicleId); committed.add(tour.driverId);
+    }
+  }
+  return committed;
+}
+// Use only within one synchronous resource search that does not change tours.
+export function pendingTourChecker(state) {
+  let committed = null;
+  return resourceId => {
+    const context = validationResources.get(state);
+    if (context) return context.committed.has(resourceId);
+    return (committed ||= pendingTourResources(state)).has(resourceId);
+  };
+}
 function planningTours(state) { return validationResources.get(state)?.tours || state.tours || []; }
 function tripById(state, id) { const context = validationResources.get(state); return context ? context.trips.get(id) : state.trips.find(t => t.id === id); }
 function driverTrip(state, id) { const context = validationResources.get(state); return context ? context.driverTrips.get(id) : state.trips.find(t => t.driverId === id && t.status === "in_progress"); }

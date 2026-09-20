@@ -10,7 +10,7 @@ import {
   SERVICE_START_MIN, SERVICE_END_MIN, SERVICE_INTERVAL_MIN,
 } from "./gameRules.ts";
 import {
-  hasPendingTour, suggestTours, confirmTour as doConfirmTour,
+  pendingTourResources, suggestTours, confirmTour as doConfirmTour,
   futureLocation, futureDriverLocation,
 } from "./tourEngine.ts";
 import { isActivelyEmployed } from "./terminationEngine.ts";
@@ -393,10 +393,13 @@ export function processDispatcher(state, emp, m, log) {
 
   // Stillstandsgründe für ungenutzte Fahrzeuge dokumentieren.
   const suggestedVehicleIds = new Set(result.suggestions.map(s => s.vehicleId));
+  // Confirmations above are complete; this loop only writes idle annotations.
+  // Build lazily once, so fully working fleets incur no reservation scan.
+  let reservedResources = null;
   for (const v of poolVehicles) {
     if (usedVehicleIds.has(v.id)) { v.idleReason = null; continue; }
     if (v.status === "on_trip") { v.idleReason = "Unterwegs"; continue; }
-    if (hasPendingTour(state, v.id)) {
+    if ((reservedResources ||= pendingTourResources(state)).has(v.id)) {
       v.idleReason = "Für eine zugesagte Tour reserviert (einschließlich Warte- und Ruhezeit)";
       v.idleReasonAtMin = m;
       continue;
