@@ -1,0 +1,23 @@
+{
+  "node": "v24.19.0",
+  "samplesPerVersion": 9,
+  "metrics": [
+    {
+      "version": "before",
+      "medianMs": 144.72784300000012,
+      "minMs": 138.12862199999972,
+      "maxMs": 156.4826109999999,
+      "clonedLogicalJsonBytes": 15138232
+    },
+    {
+      "version": "after",
+      "medianMs": 70.61522500000046,
+      "minMs": 67.2056190000003,
+      "maxMs": 96.71343900000011,
+      "clonedLogicalJsonBytes": 12448055
+    }
+  ],
+  "identicalSnapshots": true,
+  "isolatedFromLaterChanges": true,
+  "limits": "Private save copy. Node structuredClone microbenchmark of snapshot capture only, no browser UI, IndexedDB, cloud or day simulation timing. Immutable financial trees are shared only within the JS process; persistence/transport still serialize complete values. Logical JSON bytes are not heap measurements. Cold/imported states use full clone."
+}

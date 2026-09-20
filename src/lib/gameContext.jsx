@@ -1,3 +1,4 @@
+import { cloneSaveSnapshot } from "@/lib/simulationTransport";
 import { stageHistory, hydrateHistory } from "@/lib/historyRepository";
 import { createSimulationClient } from "@/lib/simulationWorkerClient";
 import { archiveStats } from "@/lib/historyArchive";
@@ -171,7 +172,7 @@ export function GameProvider({ children }) {
     const token = sessionToken();
     const version = changeVersionRef.current;
     if (!s || changingStateRef.current || !isCurrentSession(token)) return { skipped: true };
-    const snapshot = structuredClone(s);
+    const snapshot = cloneSaveSnapshot(s);
     const partyId = snapshot.meta?.partyId;
     const meta = syncMetaRef.current?.partyId === partyId ? { ...syncMetaRef.current } : null;
     const task = async () => {
@@ -294,7 +295,7 @@ export function GameProvider({ children }) {
     const token = sessionToken();
     const partyId = s?.meta?.partyId;
     if (!partyId || !isCurrentSession(token) || changingStateRef.current) return { skipped: true };
-    const snapshot = structuredClone(s);
+    const snapshot = cloneSaveSnapshot(s);
     const stillCurrent = () => isCurrentSession(token) &&
       !changingStateRef.current && stateRef.current?.meta?.partyId === partyId;
     // Die Queue-Aufgabe umfasst auch die Übernahme der bestätigten Revision.
@@ -487,7 +488,7 @@ export function GameProvider({ children }) {
       const cloudId = syncMetaRef.current?.cloudId;
       if (!cloudId) return { ok: false, error: "Kein Cloud-Spielstand" };
       if (stateRef.current) {
-        await saveManualSlot(userIdRef.current, "Backup_vor_Cloud_" + Date.now(), structuredClone(stateRef.current));
+        await saveManualSlot(userIdRef.current, "Backup_vor_Cloud_" + Date.now(), cloneSaveSnapshot(stateRef.current));
       }
       if (!isCurrentSession(token)) return { skipped: true };
       return await loadCloudGame(cloudId);
@@ -715,7 +716,7 @@ export function GameProvider({ children }) {
       if (!dirtyAutosaveRef.current || !stateRef.current || !hasLockRef.current || changingStateRef.current) return;
       const token = sessionToken();
       const version = changeVersionRef.current;
-      const snapshot = structuredClone(stateRef.current);
+      const snapshot = cloneSaveSnapshot(stateRef.current);
       const index = autosaveIndexRef.current;
       try {
         assertWritable();
@@ -824,7 +825,7 @@ export function GameProvider({ children }) {
   // Vor dem Ersetzen bleibt jede Partie als eigener, wieder ladbarer Slot erhalten.
   const preserveCurrentParty = useCallback(async (token) => {
     if (!stateRef.current) return;
-    const snapshot = structuredClone(stateRef.current);
+    const snapshot = cloneSaveSnapshot(stateRef.current);
     ensurePartyId(snapshot);
     await saveManualSlot(token.userId, "Partie · " + snapshot.company.name + " · " + snapshot.meta.partyId, snapshot);
     if (!isCurrentSession(token)) throw new Error("Die Sitzung hat sich geändert. Bitte erneut versuchen.");
@@ -940,7 +941,7 @@ export function GameProvider({ children }) {
     const snapshot = stateRef.current;
     try {
       assertWritable();
-      await saveManualSlot(token.userId, name, structuredClone(snapshot));
+      await saveManualSlot(token.userId, name, cloneSaveSnapshot(snapshot));
       if (!isCurrentSession(token)) return { skipped: true };
       if (navigator.onLine) {
         const result = await uploadToCloud(snapshot, name, "manual");

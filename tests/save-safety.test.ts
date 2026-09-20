@@ -1,3 +1,4 @@
+import { cloneSaveSnapshot } from "@/lib/simulationTransport";
 import { summarizeRoutineToasts, CRITICAL_EVENT_TYPES } from "@/lib/eventNotifications";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -13,6 +14,7 @@ const source = fs.readFileSync("src/lib/gameContext.jsx", "utf8");
 const ast = ts.createSourceFile("gameContext.jsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JSX);
 // Führt die tatsächlichen Provider-Callbacks mit kontrollierten IO-Grenzen aus.
 function callback(name, deps) {
+  deps = { cloneSaveSnapshot, ...deps };
   let node;
   function visit(n) {
     if (ts.isVariableDeclaration(n) && n.name.getText(ast) === name) node = n;

@@ -55,3 +55,13 @@ export function unpackResult(packet, source) {
     projection: packet.cold.reuseProjection ? source.projection : packet.cold.projection,
   }) };
 }
+
+// A queued save needs a stable point-in-time view, not mutable engine input.
+// Reuse only trees frozen by this module (a shallow Object.freeze is not enough).
+// Imported/legacy/unconfirmed states take the ordinary full-copy path.
+export function cloneSaveSnapshot(state) {
+  const cold = coldPart(state);
+  const safeTree = value => value === null || typeof value !== 'object' || frozen.has(value);
+  if (!cold || !frozen.has(cold.journal) || !safeTree(cold.projection)) return structuredClone(state);
+  return withCold(structuredClone(withoutCold(state)), cold);
+}
