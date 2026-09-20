@@ -7,20 +7,22 @@ let records, storage, failTransactions, reads, failPutKey;
 function installStore() {
   const db = {
     transaction() {
-      const pending = [];
+      const pending = []; let requests = 0;
       const tx = {
         aborted: false, abort() { this.aborted = true; },
         objectStore: () => ({
-          get(key) { reads.push(key); const req = {}; setTimeout(() => { req.result = structuredClone(records.get(key)); req.onsuccess?.(); }, 0); return req; },
+          get(key) { reads.push(key); requests++; const req = {}; setTimeout(() => { req.result = structuredClone(records.get(key)); req.onsuccess?.(); requests--; }, 0); return req; },
           getAllKeys() { const req = {}; setTimeout(() => { req.result = [...records.keys()]; req.onsuccess?.(); }, 0); return req; },
           put(value, key) { if (key === failPutKey) throw Error("DataCloneError"); pending.push(() => records.set(key, structuredClone(value))); },
           delete(key) { pending.push(() => records.delete(key)); },
         }),
       };
-      setTimeout(() => {
+      const complete = () => {
+        if (requests) { setTimeout(complete, 0); return; }
         if (failTransactions || tx.aborted) { tx.error = new Error("QuotaExceededError"); tx.onabort?.(); return; }
         pending.forEach(apply => apply()); tx.oncomplete?.();
-      }, 0);
+      };
+      setTimeout(complete, 0);
       return tx;
     },
   };
@@ -77,7 +79,7 @@ describe("Aktive Partie und getrennte Sync-Metadaten", () => {
     await p.saveCurrent("alice", state("A"));
     failTransactions = true;
     await expect(p.saveCurrent("alice", state("B"))).rejects.toThrow("QuotaExceededError");
-    expect(records.get("user_alice:active_current").state.meta.partyId).toBe("A");
+    expect(records.get("user_alice:active_current").partyId).toBe("A");
   });
   it("Import entfernt alte Partei- und Cloud-Kennungen", async () => {
     const p = await import("@/lib/persistence");
@@ -158,4 +160,52 @@ it("bricht bei synchronem Metadatenfehler auch den schon vorgemerkten Snapshot a
  await expect(p.saveAutosave("alice",0,state("B"))).rejects.toThrow("DataCloneError");
  await new Promise(r=>setTimeout(r,5));
  expect(records).toEqual(before);
+});
+
+
+describe("Atomarer Verweis auf die aktive Partie",()=>{
+ it("schreibt nur einen Vollzustand und lädt denselben Zustand vollständig",async()=>{
+  const p=await import("@/lib/persistence"),s=state("A");
+  await p.saveCurrent("alice",s,{partyId:"A",localBaseRevision:7},100);
+  expect([...records.values()].filter(r=>r.state)).toHaveLength(1);
+  expect(records.get("user_alice:active_current")).toEqual({format:"active-save-reference-v1",target:"current",partyId:"A",savedAt:100});
+  expect(await p.loadCurrent("alice")).toEqual(s);
+  expect(records.get("user_alice:sync_meta_A").localBaseRevision).toBe(7);
+ });
+ it.each(["missing","timestamp","party","foreignTarget","unknownFormat"])("weist einen %s-Verweis zurück",async mode=>{
+  const p=await import("@/lib/persistence");await p.saveCurrent("alice",state("A"),null,100);
+  const ref=records.get("user_alice:active_current");
+  if(mode==="missing")records.delete("user_alice:current");
+  if(mode==="timestamp")ref.savedAt=101;
+  if(mode==="party")ref.partyId="B";
+  if(mode==="foreignTarget")ref.target="user_bob:current";
+  if(mode==="unknownFormat")ref.format="future-format";
+  await expect(p.loadCurrent("alice")).rejects.toThrow();
+ });
+ it("liest alte eingebettete Auswahlen und ersetzt sie erst bei erfolgreichem Speichern",async()=>{
+  const p=await import("@/lib/persistence");
+  records.set("user_alice:active_current",{state:state("old"),savedAt:10});
+  expect((await p.loadCurrent("alice")).meta.partyId).toBe("old");
+  failTransactions=true;
+  await expect(p.saveCurrent("alice",state("new"))).rejects.toThrow();
+  failTransactions=false;expect((await p.loadCurrent("alice")).meta.partyId).toBe("old");
+  await p.saveCurrent("alice",state("new"));
+  expect((await p.loadCurrent("alice")).meta.partyId).toBe("new");
+ });
+ it("entfernt beim Szenariolöschen dessen Auswahl und erhält die freie Partie",async()=>{
+  const p=await import("@/lib/persistence");
+  await p.saveCurrent("alice",state("free"),null,10);
+  await p.saveCurrent("alice",state("scenario",true),null,20);
+  await p.clearScenarioCurrent("alice");
+  expect((await p.loadCurrent("alice")).meta.partyId).toBe("free");
+  expect(records.has("user_alice:scenario_current")).toBe(false);
+ });
+ it("behält bei synchronem Fehler an der Auswahl den bisherigen Snapshot und die Metadaten",async()=>{
+  const p=await import("@/lib/persistence");
+  await p.saveCurrent("alice",state("A"),{partyId:"A",localBaseRevision:7},100);
+  const old=structuredClone(records);
+  failPutKey="user_alice:active_current";
+  await expect(p.saveCurrent("alice",state("B"),{partyId:"B",localBaseRevision:9},200)).rejects.toThrow();
+  await new Promise(r=>setTimeout(r,5));expect(records).toEqual(old);
+ });
 });

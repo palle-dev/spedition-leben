@@ -94,16 +94,51 @@ export async function saveCurrent(userId, state, syncMeta = null, savedAt = Date
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_KV, "readwrite");
     const store = tx.objectStore(STORE_KV);
-    const record = { state: writeHistoryBlocks(store, userId, state), savedAt };
-    store.put(record, fullKey(userId, nsPrefix(state) + "current"));
-    // Zustand und aktive Auswahl werden in derselben Transaktion geschrieben.
-    store.put(record, fullKey(userId, "active_current"));
-    if (syncMeta?.partyId && syncMeta.partyId === state.meta?.partyId) {
-      store.put(syncMeta, fullKey(userId, "sync_meta_" + syncMeta.partyId));
-    }
+    try {
+      const target = nsPrefix(state) + "current";
+      const record = { state: writeHistoryBlocks(store, userId, state), savedAt };
+      store.put(record, fullKey(userId, target));
+      // Both records commit atomically; the active selector contains no snapshot.
+      store.put({ format: "active-save-reference-v1", target, savedAt,
+        partyId: state.meta?.partyId ?? null }, fullKey(userId, "active_current"));
+      if (syncMeta?.partyId && syncMeta.partyId === state.meta?.partyId) {
+        store.put(syncMeta, fullKey(userId, "sync_meta_" + syncMeta.partyId));
+      }
+    } catch (error) { tx.abort(); reject(error); return; }
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error || new Error("Speichern wurde abgebrochen."));
+  });
+}
+
+// Resolve selection and snapshot in ONE readonly transaction. A concurrent save
+// cannot switch the selected slot between two independent database reads.
+async function readActiveCurrent(userId) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_KV, "readonly"), store = tx.objectStore(STORE_KV);
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || Error("Lesen des Spielstands wurde abgebrochen."));
+    const request = store.get(fullKey(userId, "active_current"));
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const selection = request.result;
+      if (!selection || selection.state) { resolve(selection); return; } // Legacy embedded snapshot.
+      if (selection.format !== "active-save-reference-v1" ||
+          !["current", "scenario_current"].includes(selection.target)) {
+        reject(Error("Ungültiger Verweis auf die aktive Partie.")); return;
+      }
+      const target = store.get(fullKey(userId, selection.target));
+      target.onerror = () => reject(target.error);
+      target.onsuccess = () => {
+        const record = target.result;
+        if (!record?.state || record.savedAt !== selection.savedAt ||
+            (record.state.meta?.partyId ?? null) !== selection.partyId) {
+          reject(Error("Die aktive Sicherung fehlt oder passt nicht zur ausgewählten Partie.")); return;
+        }
+        resolve(record);
+      };
+    };
   });
 }
 
@@ -112,7 +147,7 @@ export async function loadCurrent(userId) {
   let recovery = null;
   try { recovery = readRecoverySave(userId); } catch { /* IndexedDB kann weiterhin funktionieren. */ }
   try {
-    let current = await idbGet(fullKey(userId, "active_current"));
+    let current = await readActiveCurrent(userId);
     if (!current) {
       const candidates = await Promise.all([
         idbGet(fullKey(userId, "scenario_current")), idbGet(fullKey(userId, "current")),
@@ -133,7 +168,24 @@ export async function loadCurrentFree(userId) {
 }
 
 export async function clearScenarioCurrent(userId) {
-  await idbDelete(fullKey(userId, "scenario_current"));
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_KV, "readwrite"), store = tx.objectStore(STORE_KV);
+    const req = store.get(fullKey(userId, "active_current"));
+    req.onsuccess = () => {
+      const selected = req.result;
+      try {
+        store.delete(fullKey(userId, "scenario_current"));
+        store.delete(snapshotMetaKey(fullKey(userId, "scenario_current")));
+        if ((selected?.format === "active-save-reference-v1" && selected.target === "scenario_current") ||
+            selected?.state?.scenario) store.delete(fullKey(userId, "active_current"));
+      } catch (error) { tx.abort(); reject(error); }
+    };
+    req.onerror = () => reject(req.error);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || Error("Löschen wurde abgebrochen."));
+  });
 }
 
 // ---- Rotierende Autosaves (3 Slots) ----

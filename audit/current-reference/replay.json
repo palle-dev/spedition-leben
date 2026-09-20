@@ -1,0 +1,21 @@
+{
+  "node": "v24.19.0",
+  "metrics": [
+    {
+      "version": "before",
+      "snapshotWrites": 2,
+      "writeCount": 2,
+      "serializedWriteBytes": 30276532,
+      "ms": 512.1799139999998
+    },
+    {
+      "version": "after",
+      "snapshotWrites": 1,
+      "writeCount": 2,
+      "serializedWriteBytes": 15138395,
+      "ms": 228.5175220000001
+    }
+  ],
+  "identicalLoadedState": true,
+  "limits": "Private save copy; compacted archive references already persisted. Transactional in-memory IndexedDB adapter using real structuredClone. Timings include JSON byte counting and are not browser measurements. JSON logical bytes are not exact disk usage. Archive block contents are unchanged; test covers recurring snapshot saves, not first archive ingestion."
+}
