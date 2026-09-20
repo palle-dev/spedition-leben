@@ -1,0 +1,21 @@
+{
+  "node": "v24.19.0",
+  "inputBytes": 45227555,
+  "beforeMedianMs": 868.6725450000004,
+  "afterMedianMs": 590.1593429999994,
+  "samples": {
+    "before": [
+      868.6725450000004,
+      860.8908880000008,
+      880.2708250000005
+    ],
+    "after": [
+      648.959308,
+      590.1593429999994,
+      548.1956850000006
+    ]
+  },
+  "exactNormalizedState": true,
+  "originalUnchanged": true,
+  "method": "Private exported save copy. Simulated worker input structuredClone + normalization + output structuredClone, comparing three full copies versus two. One warmup pair, three measured pairs, alternating order. No real Worker scheduling/browser, IndexedDB, archive restoration/compaction, production writes or full simulation-day measurement. No private contents in report."
+}

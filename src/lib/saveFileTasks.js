@@ -1,10 +1,10 @@
 import { journalPage } from "./journalQuery";
 import { readHistoryBlock } from "./historyRepository";
 import { exportSave, importSave } from "./persistence";
-import { MAX_SAVE_BYTES, prepareLoadedState } from "./saveSafety";
+import { MAX_SAVE_BYTES, prepareLoadedState, prepareOwnedLoadedState } from "./saveSafety";
 import { compactHistory, portableHistory, restoreHistory, readLimited, readArchiveRecords } from "./historyArchive";
 
-export async function runSaveFileTask(command, input, readRecords = async (id, c) => readArchiveRecords(c, await readHistoryBlock(id, c))) {
+export async function runSaveFileTask(command, input, readRecords = async (id, c) => readArchiveRecords(c, await readHistoryBlock(id, c)), { ownedInput = false } = {}) {
   if (command === "journalPage") return journalPage(input, readRecords);
   if (command === "historyPage") {
     const { state, userId, kind = "", search = "", cursor = null } = input;
@@ -25,7 +25,7 @@ export async function runSaveFileTask(command, input, readRecords = async (id, c
     }
     return { rows, cursor: null };
   }
-  if (command === "prepare") return compactHistory(await restoreHistory(prepareLoadedState(input), { allowReferences: true }));
+  if (command === "prepare") return compactHistory(await restoreHistory((ownedInput ? prepareOwnedLoadedState : prepareLoadedState)(input), { allowReferences: true }));
   if (command === "archive") {
     const parts = ['{"version":1,"chunks":['];
     let first = true;

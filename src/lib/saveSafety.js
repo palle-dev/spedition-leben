@@ -28,7 +28,15 @@ export function prepareLoadedState(raw) {
   if (!isCompleteSnapshot(raw)) {
     throw new Error("Der Spielstand ist unvollständig oder hat ein ungültiges Format.");
   }
-  const state = structuredClone(raw);
+  return prepareOwnedLoadedState(structuredClone(raw));
+}
+
+// Only for a state exclusively owned by this operation (e.g. postMessage copy).
+// On failure this owned value is discarded; never pass a live UI state here.
+export function prepareOwnedLoadedState(state) {
+  if (!isCompleteSnapshot(state)) {
+    throw new Error("Der Spielstand ist unvollständig oder hat ein ungültiges Format.");
+  }
   for (const key of ["appointments", "branches", "trips", "tours", "events", "achievements", "bookings"]) {
     if (state[key] == null) state[key] = [];
     if (!Array.isArray(state[key])) throw new Error("Ungültiger Spielstand: " + key);
