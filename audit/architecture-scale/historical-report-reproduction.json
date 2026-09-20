@@ -1,0 +1,46 @@
+{
+  "baselineCommit": "73db1ff9fc90160aa402c4ca5a840692b63746b6",
+  "test": "Synthetic read-only historical branch revenue reproduction; not a scale/performance test",
+  "period": [
+    0,
+    2000
+  ],
+  "before": [
+    {
+      "branch": "a",
+      "revenueCents": 10000,
+      "directCostsCents": 1100
+    },
+    {
+      "branch": "b",
+      "revenueCents": 0,
+      "directCostsCents": 0
+    }
+  ],
+  "afterVehicleMove": [
+    {
+      "branch": "a",
+      "revenueCents": 0,
+      "directCostsCents": 0
+    },
+    {
+      "branch": "b",
+      "revenueCents": 10000,
+      "directCostsCents": 1100
+    }
+  ],
+  "afterHistoryCleanup": [
+    {
+      "branch": "a",
+      "revenueCents": 0,
+      "directCostsCents": 0
+    },
+    {
+      "branch": "b",
+      "revenueCents": 0,
+      "directCostsCents": 0
+    }
+  ],
+  "remainingOrders": 1,
+  "remainingTrips": 0
+}
