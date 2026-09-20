@@ -1,0 +1,146 @@
+{
+  "engineMs": 17638.113671999992,
+  "units": "sampled self microseconds",
+  "top": [
+    [
+      "computeOptions disruptionEngine.ts:200",
+      2110000
+    ],
+    [
+      "hasPendingTour tourEngine.ts:72",
+      1885264
+    ],
+    [
+      "suggestTours tourEngine.ts:1218",
+      1877960
+    ],
+    [
+      "validateDisruptionResolution disruptionEngine.ts:1074",
+      1525930
+    ],
+    [
+      "planningResources tourEngine.ts:48",
+      1112740
+    ],
+    [
+      "getDisruptionDetail disruptionEngine.ts:1161",
+      1067315
+    ],
+    [
+      "computePlanableFleetN marketEngine.ts:66",
+      618582
+    ],
+    [
+      "processDispatcher dispatcherProcessor.ts:118",
+      615084
+    ],
+    [
+      "futureDriverLocation tourEngine.ts:211",
+      384675
+    ],
+    [
+      "advanceToIndexed simulationEngine.ts:697",
+      333923
+    ],
+    [
+      "processEmployeesIndexed dispatcherProcessor.ts:65",
+      332927
+    ],
+    [
+      "processEventsAt simulationEngine.ts:374",
+      329423
+    ],
+    [
+      "startDeployment tourEngine.ts:774",
+      303686
+    ],
+    [
+      "processDisruptions disruptionEngine.ts:671",
+      293715
+    ],
+    [
+      "getPhoneProposals phoneProposals.ts:35",
+      292801
+    ],
+    [
+      "getDeliveryRisks deliveryRisk.ts:7",
+      282875
+    ],
+    [
+      "isPersonInTraining trainingEngine.ts:1483",
+      221390
+    ],
+    [
+      "findResolverEmployee disruptionEngine.ts:743",
+      217932
+    ],
+    [
+      "buildTourPlan tourEngine.ts:334",
+      206006
+    ],
+    [
+      "isPersonAvailable absenceEngine.ts:651",
+      197380
+    ],
+    [
+      "findReplacementVehicle disruptionEngine.ts:134",
+      193004
+    ],
+    [
+      "processTours tourEngine.ts:913",
+      188033
+    ],
+    [
+      "earliestEventAfter eventScheduler.ts:27",
+      173347
+    ],
+    [
+      "post node:inspector:114",
+      172013
+    ],
+    [
+      "confirmTour tourEngine.ts:690",
+      156574
+    ],
+    [
+      "tagDispatcherTour dispatcherQuality.ts:55",
+      152382
+    ],
+    [
+      " phoneCommunications.ts:9",
+      141674
+    ],
+    [
+      "getOrderReservation tourEngine.ts:546",
+      131437
+    ],
+    [
+      "_cached tourEngine.ts:83",
+      130496
+    ],
+    [
+      "(garbage collector) :-1",
+      124936
+    ],
+    [
+      " disruptionEngine.ts:179",
+      107152
+    ],
+    [
+      "earliestAvailable tourEngine.ts:146",
+      107114
+    ],
+    [
+      "generateMarketWave marketEngine.ts:459",
+      104990
+    ],
+    [
+      "computeAnchorCities marketEngine.ts:113",
+      72596
+    ],
+    [
+      "searchCandidates phoneProposals.ts:28",
+      70011
+    ]
+  ]
+}

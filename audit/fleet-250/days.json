@@ -1,0 +1,194 @@
+[
+  {
+    "day": 1,
+    "warmup": true,
+    "profiled": false,
+    "engineMs": 3931.847942,
+    "compactionMs": 61.532538000000386,
+    "before": {
+      "vehicles": 250,
+      "branches": 10,
+      "drivers": 350,
+      "dispatchers": 60,
+      "activeTrucks": 0,
+      "orders": 500,
+      "trips": 0,
+      "tours": 0,
+      "journal": 3
+    },
+    "after": {
+      "vehicles": 250,
+      "branches": 10,
+      "drivers": 350,
+      "dispatchers": 60,
+      "activeTrucks": 168,
+      "orders": 4386,
+      "trips": 646,
+      "tours": 723,
+      "journal": 2194
+    },
+    "delivered": 478,
+    "activeBytes": 7739960,
+    "archivedBlocks": 7
+  },
+  {
+    "day": 2,
+    "warmup": true,
+    "profiled": false,
+    "engineMs": 4795.196247999999,
+    "compactionMs": 57.137409000000844,
+    "before": {
+      "vehicles": 250,
+      "branches": 10,
+      "drivers": 350,
+      "dispatchers": 60,
+      "activeTrucks": 168,
+      "orders": 4886,
+      "trips": 646,
+      "tours": 723,
+      "journal": 2194
+    },
+    "after": {
+      "vehicles": 250,
+      "branches": 10,
+      "drivers": 350,
+      "dispatchers": 60,
+      "activeTrucks": 170,
+      "orders": 7463,
+      "trips": 1054,
+      "tours": 1130,
+      "journal": 3837
+    },
+    "delivered": 406,
+    "activeBytes": 12256776,
+    "archivedBlocks": 13
+  },
+  {
+    "day": 3,
+    "warmup": false,
+    "profiled": false,
+    "engineMs": 8120.991780999999,
+    "compactionMs": 76.6707499999975,
+    "before": {
+      "vehicles": 250,
+      "branches": 10,
+      "drivers": 350,
+      "dispatchers": 60,
+      "activeTrucks": 170,
+      "orders": 7963,
+      "trips": 1054,
+      "tours": 1130,
+      "journal": 3837
+    },
+    "after": {
+      "vehicles": 250,
+      "branches": 10,
+      "drivers": 350,
+      "dispatchers": 60,
+      "activeTrucks": 175,
+      "orders": 8799,
+      "trips": 1480,
+      "tours": 1556,
+      "journal": 5531
+    },
+    "delivered": 421,
+    "activeBytes": 15638792,
+    "archivedBlocks": 21
+  },
+  {
+    "day": 4,
+    "warmup": false,
+    "profiled": false,
+    "engineMs": 13122.013330000002,
+    "compactionMs": 103.18902099999832,
+    "before": {
+      "vehicles": 250,
+      "branches": 10,
+      "drivers": 350,
+      "dispatchers": 60,
+      "activeTrucks": 175,
+      "orders": 9299,
+      "trips": 1480,
+      "tours": 1556,
+      "journal": 5531
+    },
+    "after": {
+      "vehicles": 250,
+      "branches": 10,
+      "drivers": 350,
+      "dispatchers": 60,
+      "activeTrucks": 170,
+      "orders": 9288,
+      "trips": 1905,
+      "tours": 1952,
+      "journal": 7232
+    },
+    "delivered": 430,
+    "activeBytes": 18360830,
+    "archivedBlocks": 30
+  },
+  {
+    "day": 5,
+    "warmup": false,
+    "profiled": false,
+    "engineMs": 22096.362327,
+    "compactionMs": 108.6764170000024,
+    "before": {
+      "vehicles": 250,
+      "branches": 10,
+      "drivers": 350,
+      "dispatchers": 60,
+      "activeTrucks": 170,
+      "orders": 9788,
+      "trips": 1905,
+      "tours": 1952,
+      "journal": 7232
+    },
+    "after": {
+      "vehicles": 250,
+      "branches": 10,
+      "drivers": 350,
+      "dispatchers": 60,
+      "activeTrucks": 152,
+      "orders": 9756,
+      "trips": 2367,
+      "tours": 2413,
+      "journal": 9057
+    },
+    "delivered": 480,
+    "activeBytes": 21344285,
+    "archivedBlocks": 40
+  },
+  {
+    "day": 6,
+    "warmup": false,
+    "profiled": true,
+    "engineMs": 17638.113671999992,
+    "compactionMs": 130.70518799999263,
+    "before": {
+      "vehicles": 250,
+      "branches": 10,
+      "drivers": 350,
+      "dispatchers": 60,
+      "activeTrucks": 152,
+      "orders": 10256,
+      "trips": 2367,
+      "tours": 2413,
+      "journal": 9057
+    },
+    "after": {
+      "vehicles": 250,
+      "branches": 10,
+      "drivers": 350,
+      "dispatchers": 60,
+      "activeTrucks": 169,
+      "orders": 10215,
+      "trips": 2805,
+      "tours": 2813,
+      "journal": 10775
+    },
+    "delivered": 421,
+    "activeBytes": 24096653,
+    "archivedBlocks": 50
+  }
+]
