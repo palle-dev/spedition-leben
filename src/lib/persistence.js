@@ -1,5 +1,5 @@
 import { packStoredProjection, unpackStoredProjection } from "./projectionStorage";
-import { readRecoverySave, MAX_SAVE_BYTES, prepareLoadedState } from "./saveSafety";
+import { readRecoverySave, MAX_SAVE_BYTES, prepareOwnedLoadedState } from "./saveSafety";
 
 // IndexedDB-Persistenz für FERNWERK.
 // Verwaltet: aktueller Spielstand, drei rotierende Autosaves, manuelle Slots,
@@ -361,7 +361,8 @@ export function importSave(exportStr) {
   }
   // Import wird als eigene Partie angelegt: fremde partyId/cloudId/Benutzerzuordnung
   // werden NICHT übernommen. Der Import erhält eine neue partyId beim Speichern.
-  const imported = prepareLoadedState(parsed.state);
+  // JSON.parse created a private tree; no live state can alias this input.
+  const imported = prepareOwnedLoadedState(parsed.state);
   delete imported.meta.partyId;
   delete imported.meta.ownerId;
   delete imported.meta.owner_id;

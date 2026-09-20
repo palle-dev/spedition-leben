@@ -1,0 +1,21 @@
+{
+  "node": "v24.19.0",
+  "inputBytes": 45227615,
+  "beforeMedianMs": 1156.4416439999995,
+  "afterMedianMs": 839.1907110000002,
+  "samples": {
+    "before": [
+      1156.4416439999995,
+      1340.435891,
+      1105.1600579999995
+    ],
+    "after": [
+      839.1907110000002,
+      851.2006509999992,
+      797.6929899999996
+    ]
+  },
+  "exactImportedState": true,
+  "originalUnchanged": true,
+  "method": "Private export copy serialized to the unchanged v2 envelope. Timed importSave: size check, JSON parse, checksum, state normalization and identity reset. One warmup pair, three measured pairs, alternating order. No file I/O, gzip decompression, archive restoration/compaction, Worker scheduling, browser UI, persistence or simulation day in timing. No private contents in report."
+}
