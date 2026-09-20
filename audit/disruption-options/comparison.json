@@ -1,0 +1,69 @@
+{
+  "rows": [
+    {
+      "day": 1,
+      "warmup": true,
+      "profiled": false,
+      "beforeMs": 3774.9160899999997,
+      "afterMs": 3692.1035549999997,
+      "delivered": 478,
+      "stateHash": "de9b2825a7f7825270159ee4de55a90c73c701bdc4d9dcc5b73a38031f33dd4a",
+      "identicalState": true
+    },
+    {
+      "day": 2,
+      "warmup": true,
+      "profiled": false,
+      "beforeMs": 4569.7654919999995,
+      "afterMs": 4093.9405150000002,
+      "delivered": 406,
+      "stateHash": "bfe2966f9d0f4f976f221f557e085d3a8cf2af88583abc17fda47223265b4a38",
+      "identicalState": true
+    },
+    {
+      "day": 3,
+      "warmup": false,
+      "profiled": false,
+      "beforeMs": 7908.563204999999,
+      "afterMs": 6282.744532000001,
+      "delivered": 421,
+      "stateHash": "ddef3e5a617f0d484dd5cdc85d968ce064f6b02f5574458a2c131dff1e9f52ce",
+      "identicalState": true
+    },
+    {
+      "day": 4,
+      "warmup": false,
+      "profiled": false,
+      "beforeMs": 11730.330698000002,
+      "afterMs": 8692.613140000001,
+      "delivered": 430,
+      "stateHash": "9604ee73fabbf1a4bfae7c35b5cdcbdf81a244981c7089b5bfdf6be8a68db2db",
+      "identicalState": true
+    },
+    {
+      "day": 5,
+      "warmup": false,
+      "profiled": false,
+      "beforeMs": 20417.156339,
+      "afterMs": 15634.414716000003,
+      "delivered": 480,
+      "stateHash": "9d65c5743f594db839a9dc9cea9e6184d9b4976a0f54a1d84c7f1e9dd95a6ffa",
+      "identicalState": true
+    },
+    {
+      "day": 6,
+      "warmup": false,
+      "profiled": true,
+      "beforeMs": 17286.710359999997,
+      "afterMs": 14941.485834,
+      "delivered": 421,
+      "stateHash": "cc0c0b347a7ac7ce56002d8c037589277ef5182435f12abd8f81aa9c44efc5c1",
+      "identicalState": true
+    }
+  ],
+  "measuredMedianBeforeMs": 11730.330698000002,
+  "measuredMedianAfterMs": 8692.613140000001,
+  "measuredMaximumBeforeMs": 20417.156339,
+  "measuredMaximumAfterMs": 15634.414716000003,
+  "allSixStateHashesIdentical": true
+}

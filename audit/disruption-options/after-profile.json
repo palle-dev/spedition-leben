@@ -1,0 +1,146 @@
+{
+  "engineMs": 14941.485834,
+  "units": "sampled self microseconds",
+  "top": [
+    [
+      "hasPendingTour tourEngine.ts:72",
+      1526871
+    ],
+    [
+      "planningResources tourEngine.ts:48",
+      1174445
+    ],
+    [
+      "computeOptions disruptionEngine.ts:201",
+      808946
+    ],
+    [
+      " planningOrderRanking.ts:20",
+      712526
+    ],
+    [
+      "computePlanableFleetN marketEngine.ts:66",
+      660136
+    ],
+    [
+      " tourEngine.ts:76",
+      657423
+    ],
+    [
+      "processDispatcher dispatcherProcessor.ts:118",
+      651594
+    ],
+    [
+      "suggestTours tourEngine.ts:1218",
+      631576
+    ],
+    [
+      "futureDriverLocation tourEngine.ts:211",
+      390890
+    ],
+    [
+      "advanceToIndexed simulationEngine.ts:697",
+      385281
+    ],
+    [
+      "validateResolution disruptionEngine.ts:1081",
+      382026
+    ],
+    [
+      "processEventsAt simulationEngine.ts:374",
+      344494
+    ],
+    [
+      "getDeliveryRisks deliveryRisk.ts:7",
+      309472
+    ],
+    [
+      "processEmployeesIndexed dispatcherProcessor.ts:65",
+      305755
+    ],
+    [
+      "processDisruptions disruptionEngine.ts:672",
+      240751
+    ],
+    [
+      "compare planningOrderRanking.ts:12",
+      235760
+    ],
+    [
+      "getValidatedDisruptionOptions disruptionEngine.ts:1132",
+      227658
+    ],
+    [
+      "processTours tourEngine.ts:913",
+      201722
+    ],
+    [
+      "_cached tourEngine.ts:83",
+      198941
+    ],
+    [
+      "findResolverEmployee disruptionEngine.ts:744",
+      197239
+    ],
+    [
+      "isPersonInTraining trainingEngine.ts:1483",
+      195325
+    ],
+    [
+      " phoneCommunications.ts:9",
+      187325
+    ],
+    [
+      " disruptionEngine.ts:1137",
+      177644
+    ],
+    [
+      "earliestEventAfter eventScheduler.ts:27",
+      164974
+    ],
+    [
+      "startDeployment tourEngine.ts:774",
+      162679
+    ],
+    [
+      "getDistance gameRules.ts:67",
+      158996
+    ],
+    [
+      "getOrderReservation tourEngine.ts:546",
+      142428
+    ],
+    [
+      "(garbage collector) :-1",
+      138976
+    ],
+    [
+      "post node:inspector:114",
+      135598
+    ],
+    [
+      "generateMarketWave marketEngine.ts:459",
+      108379
+    ],
+    [
+      "earliestAvailable tourEngine.ts:146",
+      103107
+    ],
+    [
+      "confirmTour tourEngine.ts:690",
+      99196
+    ],
+    [
+      "isPersonAvailable absenceEngine.ts:651",
+      94294
+    ],
+    [
+      " disruptionEngine.ts:407",
+      82876
+    ],
+    [
+      "suitable tourEngine.ts:1373",
+      82118
+    ]
+  ]
+}

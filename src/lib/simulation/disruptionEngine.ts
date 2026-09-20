@@ -1104,13 +1104,19 @@ function completeMeasure(state, d, m, log) {
 // ---------- Aufloesung durch Spieler ----------
 export function validateDisruptionResolution(state, disruptionId, optionId, params = {}) {
   const d = (state.disruptions?.items || []).find(x => x.id === disruptionId);
+  // Executing a decision always recomputes from the current state.
+  return validateResolution(state, d, optionId, params);
+}
+
+// Private prepared options are only used inside the read-only batch below.
+function validateResolution(state, d, optionId, params, preparedOptions = null) {
   if (!d) throw new Error("Stoerung nicht gefunden.");
   if (d.status !== "decision_open") throw new Error("Stoerung ist nicht mehr offen.");
   const option = (d.options || []).find(o => o.id === optionId);
   if (!option) throw new Error("Option nicht gefunden.");
   if (!option.available) throw new Error("Option nicht verfuegbar: " + (option.unavailableReason || ""));
 
-  const options = computeOptions(state, d, state.gameTime);
+  const options = preparedOptions || computeOptions(state, d, state.gameTime);
   const refreshed = options.find(o => o.id === optionId);
   if (!refreshed || !refreshed.available) {
     throw new Error("Option nicht mehr verfuegbar: " + (refreshed?.unavailableReason || "Ressource nicht mehr verfuegbar."));
@@ -1143,6 +1149,19 @@ export function validateDisruptionResolution(state, disruptionId, optionId, para
   }
   if (!["replace_vehicle","rental_truck","emergency_repair","postpone","cancel_tour","accept_delay","replan_followup","inform_customer","replace_driver","temp_staff","replan_tour"].includes(optionId)) throw new Error("Unbekannte Option: " + optionId);
   return { d, refreshed, options };
+}
+
+// A phone proposal query is synchronous and read-only. Compute the full set
+// once, then apply the same validation to each option. Nothing survives this call.
+export function getValidatedDisruptionOptions(state, disruptionId) {
+  const d = (state.disruptions?.items || []).find(x => x.id === disruptionId);
+  if (!d || d.status !== "decision_open") return [];
+  const options = computeOptions(state, d, state.gameTime);
+  return options.filter(o => {
+    if (!o.available || o.id === "inform_customer" || (o.costCents || 0) > state.company.accountCents) return false;
+    try { validateResolution(state, d, o.id, {}, options); return true; }
+    catch { return false; }
+  });
 }
 
 export function resolveDisruption(state, disruptionId, optionId, params) {

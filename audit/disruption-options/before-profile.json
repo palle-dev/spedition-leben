@@ -1,0 +1,146 @@
+{
+  "engineMs": 17286.710359999997,
+  "units": "sampled self microseconds",
+  "top": [
+    [
+      "computeOptions disruptionEngine.ts:200",
+      1717497
+    ],
+    [
+      "validateDisruptionResolution disruptionEngine.ts:1074",
+      1466631
+    ],
+    [
+      "hasPendingTour tourEngine.ts:72",
+      1354794
+    ],
+    [
+      "planningResources tourEngine.ts:48",
+      1160619
+    ],
+    [
+      " tourEngine.ts:76",
+      717687
+    ],
+    [
+      " planningOrderRanking.ts:20",
+      687173
+    ],
+    [
+      "processDispatcher dispatcherProcessor.ts:118",
+      675411
+    ],
+    [
+      "computePlanableFleetN marketEngine.ts:66",
+      643277
+    ],
+    [
+      "suggestTours tourEngine.ts:1218",
+      623757
+    ],
+    [
+      " disruptionEngine.ts:1170",
+      439388
+    ],
+    [
+      "advanceToIndexed simulationEngine.ts:697",
+      385410
+    ],
+    [
+      "futureDriverLocation tourEngine.ts:211",
+      380931
+    ],
+    [
+      "processEventsAt simulationEngine.ts:374",
+      352412
+    ],
+    [
+      "getDisruptionDetail disruptionEngine.ts:1161",
+      292930
+    ],
+    [
+      "getDeliveryRisks deliveryRisk.ts:7",
+      291974
+    ],
+    [
+      "processEmployeesIndexed dispatcherProcessor.ts:65",
+      288632
+    ],
+    [
+      "processDisruptions disruptionEngine.ts:671",
+      240127
+    ],
+    [
+      "_cached tourEngine.ts:83",
+      238030
+    ],
+    [
+      " phoneProposals.ts:42",
+      237742
+    ],
+    [
+      "compare planningOrderRanking.ts:12",
+      235671
+    ],
+    [
+      "isPersonInTraining trainingEngine.ts:1483",
+      209830
+    ],
+    [
+      "isPersonAvailable absenceEngine.ts:651",
+      186106
+    ],
+    [
+      "earliestEventAfter eventScheduler.ts:27",
+      182769
+    ],
+    [
+      " phoneCommunications.ts:9",
+      177086
+    ],
+    [
+      "processTours tourEngine.ts:913",
+      174311
+    ],
+    [
+      "findReplacementVehicle disruptionEngine.ts:134",
+      160072
+    ],
+    [
+      "(garbage collector) :-1",
+      159133
+    ],
+    [
+      "findResolverEmployee disruptionEngine.ts:743",
+      151236
+    ],
+    [
+      "startDeployment tourEngine.ts:774",
+      150690
+    ],
+    [
+      "post node:inspector:114",
+      144903
+    ],
+    [
+      "getDistance gameRules.ts:67",
+      141649
+    ],
+    [
+      " disruptionEngine.ts:1166",
+      122674
+    ],
+    [
+      "getOrderReservation tourEngine.ts:546",
+      112632
+    ],
+    [
+      " disruptionEngine.ts:179",
+      103208
+    ],
+    [
+      "generateMarketWave marketEngine.ts:459",
+      101996
+    ]
+  ]
+}

@@ -2,7 +2,7 @@ import { checkBodyTypeCompatibility } from "./gameRules.ts";
 import { findOrder } from "./orderLookup.ts";
 import { withTourValidation, getOrderReservation } from "./tourEngine.ts";
 import { isLeasingOverdueBlocked } from "./financingEngine.ts";
-import { getDisruptionDetail, validateDisruptionResolution } from "./disruptionEngine.ts";
+import { getValidatedDisruptionOptions } from "./disruptionEngine.ts";
 
 // One event-boundary evaluation is read-only for tour planning. Share its
 // resource calculations across calls, and discard them before the next event.
@@ -26,12 +26,7 @@ export function proposalSignature(option) {
 export function getPhoneProposals(state, call, limit = 2) {
  if (!call || call.demo || (state.appointments||[]).some(a=>a.status==="active"&&a.type!=="scenario_timeoff")) return [];
  if (call.type !== "delivery_risk") {
-  const detail=getDisruptionDetail(state,call.id);
-  if(detail?.status!=="decision_open")return [];
-  return detail.options.filter(o=>{
-   if(!o.available || o.id==="inform_customer" || (o.costCents||0)>state.company.accountCents)return false;
-   try{validateDisruptionResolution(state,call.id,o.id,{});return true;}catch{return false;}
-  }).map(o=>({...o,command:"resolveDisruption",params:{disruptionId:call.id,optionId:o.id,params:{phoneQuote:{cost:o.costCents,duration:o.estimatedDurationMin,description:o.description}}},informationOnly:o.id==="inform_customer"}));
+  return getValidatedDisruptionOptions(state,call.id).map(o=>({...o,command:"resolveDisruption",params:{disruptionId:call.id,optionId:o.id,params:{phoneQuote:{cost:o.costCents,duration:o.estimatedDurationMin,description:o.description}}},informationOnly:o.id==="inform_customer"}));
  }
  const order=findOrder(state,call.orderId);
  if(!order || !["angenommen","unterwegs"].includes(order.status))return [];
