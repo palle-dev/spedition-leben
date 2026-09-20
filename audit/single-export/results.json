@@ -1,0 +1,25 @@
+{
+  "node": "v24.19.0",
+  "bytes": 45227615,
+  "samples": {
+    "before": [
+      890.1902800000003,
+      897.3575969999997,
+      955.6491959999994,
+      946.7515480000002,
+      924.9560520000014
+    ],
+    "after": [
+      652.5621880000003,
+      644.0681160000004,
+      640.4822119999999,
+      682.0461769999993,
+      665.7156080000004
+    ]
+  },
+  "beforeMedianMs": 924.9560520000014,
+  "afterMedianMs": 652.5621880000003,
+  "byteIdentical": true,
+  "originalUnchanged": true,
+  "method": "One warmup pair and five alternating measured pairs. exportSave plus construction of the output Blob, including JSON serialization, checksum, UTF-8 byte count and materialization of concatenated text. Excludes archive embedding, gzip, I/O, real Worker scheduling, browser rendering, persistence and simulation time."
+}

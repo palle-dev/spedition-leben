@@ -336,7 +336,9 @@ export function exportSave(state) {
   const json = JSON.stringify(state);
   const cs = checksum(json);
   const size = new Blob([json]).size;
-  return JSON.stringify({ version: EXPORT_VERSION, checksum: cs, size, state });
+  // Reuse exactly the JSON covered by the checksum; do not traverse the state twice.
+  const header = JSON.stringify({ version: EXPORT_VERSION, checksum: cs, size });
+  return header.slice(0, -1) + (json === undefined ? "}" : ",\"state\":" + json + "}");
 }
 
 export function importSave(exportStr) {
