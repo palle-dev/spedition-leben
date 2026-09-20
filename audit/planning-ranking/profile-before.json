@@ -1,0 +1,125 @@
+{
+  "ms": 4919.878243000001,
+  "top": [
+    [
+      "suggestTours tourEngine.ts:1217",
+      689071
+    ],
+    [
+      "_cached tourEngine.ts:82",
+      229279
+    ],
+    [
+      "_tryPlan tourEngine.ts:372",
+      216459
+    ],
+    [
+      "processDispatcher dispatcherProcessor.ts:118",
+      202625
+    ],
+    [
+      "planningResources tourEngine.ts:47",
+      184712
+    ],
+    [
+      "buildTourPlan tourEngine.ts:333",
+      159369
+    ],
+    [
+      "post node:inspector:114",
+      151177
+    ],
+    [
+      "buildPhases driverTimeEngine.ts:66",
+      147571
+    ],
+    [
+      "processEventsAt simulationEngine.ts:374",
+      139960
+    ],
+    [
+      "deliverMessage mailEngine.ts:225",
+      135614
+    ],
+    [
+      "buildDeployment tourEngine.ts:227",
+      128273
+    ],
+    [
+      "advanceToIndexed simulationEngine.ts:697",
+      115142
+    ],
+    [
+      "processTours tourEngine.ts:912",
+      112359
+    ],
+    [
+      " mailEngine.ts:231",
+      111569
+    ],
+    [
+      "getDistance gameRules.ts:67",
+      111554
+    ],
+    [
+      "getDeliveryRisks deliveryRisk.ts:7",
+      91507
+    ],
+    [
+      "(garbage collector) :-1",
+      90140
+    ],
+    [
+      "earliestEventAfter eventScheduler.ts:27",
+      83773
+    ],
+    [
+      " dispatcherProcessor.ts:437",
+      83659
+    ],
+    [
+      " phoneCommunications.ts:9",
+      72777
+    ],
+    [
+      " tourEngine.ts:1396",
+      69050
+    ],
+    [
+      " tourEngine.ts:80",
+      62406
+    ],
+    [
+      "suitable tourEngine.ts:1371",
+      57933
+    ],
+    [
+      "hasPendingTour tourEngine.ts:71",
+      49737
+    ],
+    [
+      " disruptionEngine.ts:138",
+      48739
+    ],
+    [
+      "driverTrip tourEngine.ts:80",
+      48422
+    ],
+    [
+      "startDeployment tourEngine.ts:773",
+      42617
+    ],
+    [
+      "isPersonAvailable absenceEngine.ts:651",
+      42552
+    ],
+    [
+      "processEmployeesIndexed dispatcherProcessor.ts:65",
+      38612
+    ],
+    [
+      " tourEngine.ts:1436",
+      32826
+    ]
+  ]
+}

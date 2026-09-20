@@ -1,3 +1,4 @@
+import { createPlanningOrderRanking } from './planningOrderRanking.ts';
 import { preserveHistory } from "./historyRetention.ts";
 import { findOrder, planningOrdersFor } from "./orderLookup.ts";
 // Tourenketten-Engine für FERNWERK.
@@ -1251,6 +1252,8 @@ export function suggestTours(state, opts) {
   const offeredPool = acceptNew ? availableOrders.filter(o => o.status === "offered" &&
     o.acceptDeadlineMin > startMin && o.deliveryDeadlineMin > startMin) : [];
 
+  const rankOrders = createPlanningOrderRanking([...acceptedPool, ...offeredPool]);
+
   const eligibleDrivers = state.drivers.filter(d => d.employmentStatus === "employed" &&
     !resources.committed.has(d.id) && ["free", "resting", "on_trip"].includes(d.status));
   const driverCities = new Map(eligibleDrivers.map(d => [d.id, _cached("futD:" + d.id, () => futureDriverLocation(state, d))]));
@@ -1344,21 +1347,9 @@ export function suggestTours(state, opts) {
     // Konstanter Wert (unabhängig von fastMode) — siehe maxDrivers-Kommentar.
     const orderLimit = Math.max(12, Math.min(24, candidateOrderLimit));
     if (allOrders.length > orderLimit) {
-      const vehicleCity = vehicleFutureCity;
-      const scored = allOrders.map(o => {
-        const emptyKm = getDistance(vehicleCity, o.fromCity);
-        const loadedKm = getDistance(o.fromCity, o.toCity);
-        const totalKm = (emptyKm + loadedKm) || 1;
-        return { o, score: (o.paymentCents || 0) / totalKm };
-      });
-      scored.sort((a, b) => {
-        const aAccepted = a.o.status === "angenommen", bAccepted = b.o.status === "angenommen";
-        if (aAccepted !== bAccepted) return aAccepted ? -1 : 1;
-        if (aAccepted && a.o.deliveryDeadlineMin !== b.o.deliveryDeadlineMin) return a.o.deliveryDeadlineMin - b.o.deliveryDeadlineMin;
-        return b.score - a.score;
-      });
+      const ranked = rankOrders(allOrders, vehicleFutureCity, orderLimit);
       allOrders.length = 0;
-      for (const s of scored.slice(0, orderLimit)) allOrders.push(s.o);
+      allOrders.push(...ranked);
     }
 
     // Probiere jeden Kandidaten-Fahrer und wähle den mit dem besten Plan.

@@ -1,0 +1,59 @@
+{
+  "node": "v24.19.0",
+  "activeVehicles": 97,
+  "branches": 6,
+  "initial": {
+    "rawExportStateBytes": 45227555,
+    "beforeJournalRows": 3169,
+    "activeJournalRows": 3169,
+    "archivedJournalRows": 19788,
+    "projectionBytes": 915465,
+    "beforeActiveBytes": 15138750,
+    "afterActiveBytes": 15138232,
+    "initialCompactionMs": 525.3218709999996
+  },
+  "days": [
+    {
+      "day": 1,
+      "gameTime": 177876,
+      "baselineMs": 4688.056608999999,
+      "engineMs": 4581.0453099999995,
+      "compressionMs": 122.062942999999,
+      "activeJournalRows": 3224,
+      "archivedJournalRows": 20165,
+      "equalFinancialReports": true,
+      "equalCompanyPeopleFleetAndDeliveredOrders": true
+    },
+    {
+      "day": 2,
+      "gameTime": 179316,
+      "baselineMs": 3318.713856999999,
+      "engineMs": 3273.4534239999994,
+      "compressionMs": 113.11566700000185,
+      "activeJournalRows": 3239,
+      "archivedJournalRows": 20584,
+      "equalFinancialReports": true,
+      "equalCompanyPeopleFleetAndDeliveredOrders": true
+    },
+    {
+      "day": 3,
+      "gameTime": 180756,
+      "baselineMs": 3135.9825180000007,
+      "engineMs": 3114.3387299999995,
+      "compressionMs": 179.6624950000005,
+      "activeJournalRows": 3275,
+      "archivedJournalRows": 20994,
+      "equalFinancialReports": true,
+      "equalCompanyPeopleFleetAndDeliveredOrders": true
+    }
+  ],
+  "originalJournalEntriesPreserved": 22957,
+  "totalJournalRows": 24269,
+  "activeBytes": 15685465,
+  "archive": {
+    "records": 63050,
+    "rawBytes": 37023956,
+    "compressedBytes": 2429803
+  },
+  "measurement": "Local controlled engine comparison on copied save. Financial reports and listed business fields compared, all original pre-existing journal entries verified. No browser/IndexedDB/network timing, no production writes. Baseline/current retain seven days of journal originals. All fields except archive descriptor arrays and journal/projection compared, with exact finance/original-journal verification. All operational fields including tours, history outbox and sequence compared. Not a long-term or 250-truck proof."
+}
