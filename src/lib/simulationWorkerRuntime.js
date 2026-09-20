@@ -1,13 +1,14 @@
 import { coldPart, withCold, packResult } from './simulationTransport';
 
-// The worker retains ONLY the last response's financial originals. Reuse is
+// The worker retains the last response's financial originals and orders. Reuse is
 // explicit and revision-bound; a failed command discards every retained value.
 export function createSimulationRuntime(execute, compact) {
   let retained = null;
   return async function run(message) {
     const { id, command, params } = message;
-    if (message.reuseCold && (!retained || retained.revision !== message.baseRevision)) return { id, needsSnapshot: true };
+    if ((message.reuseCold || message.reuseOrders) && (!retained || retained.revision !== message.baseRevision || (message.reuseOrders && !Array.isArray(retained.orders)))) return { id, needsSnapshot: true };
     let state = message.reuseCold ? withCold(message.state, retained) : message.state;
+    if (message.reuseOrders) state = { ...state, orders: retained.orders };
     const source = coldPart(state);
     // The engine appends/prunes arrays; existing original entries are immutable.
     // Freeze only rows, not the mutable journal array used by postJournal.
@@ -24,7 +25,7 @@ export function createSimulationRuntime(execute, compact) {
       }
       const packet = packResult(data, base);
       const cold = coldPart(data.state);
-      if (cold) retained = { ...cold, revision: id };
+      if (cold) retained = { ...cold, orders: data.state.orders, revision: id };
       return { id, ...packet };
     } catch (error) {
       retained = null;

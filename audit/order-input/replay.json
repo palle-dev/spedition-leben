@@ -1,0 +1,68 @@
+{
+  "node": "v24.19.0",
+  "vehicles": 97,
+  "branches": 6,
+  "rows": [
+    {
+      "command": "setOwnerSalary",
+      "minutes": 0,
+      "coldStart": true,
+      "oldMs": 1801.1119829999998,
+      "newMs": 1918.3058529999998,
+      "oldInputBytes": 15138334,
+      "newInputBytes": 15138354,
+      "oldOutputBytes": 12462980,
+      "newOutputBytes": 12462981,
+      "reusedInput": false,
+      "reusedOrders": false,
+      "reusedRows": 3169,
+      "exactStateEquality": true
+    },
+    {
+      "command": "advanceTime",
+      "minutes": 60,
+      "coldStart": false,
+      "oldMs": 747.0242600000001,
+      "newMs": 628.3013789999995,
+      "oldInputBytes": 12448179,
+      "newInputBytes": 6455813,
+      "oldOutputBytes": 13393140,
+      "newOutputBytes": 13393140,
+      "reusedInput": true,
+      "reusedOrders": true,
+      "reusedRows": 3159,
+      "exactStateEquality": true
+    },
+    {
+      "command": "advanceTime",
+      "minutes": 1440,
+      "coldStart": false,
+      "oldMs": 5156.715178,
+      "newMs": 4985.337377,
+      "oldInputBytes": 12452312,
+      "newInputBytes": 6458510,
+      "oldOutputBytes": 13821280,
+      "newOutputBytes": 13821280,
+      "reusedInput": true,
+      "reusedOrders": true,
+      "reusedRows": 2778,
+      "exactStateEquality": true
+    },
+    {
+      "command": "advanceTime",
+      "minutes": 60,
+      "coldStart": false,
+      "oldMs": 631.4554840000019,
+      "newMs": 557.9565729999995,
+      "oldInputBytes": 12602268,
+      "newInputBytes": 6656342,
+      "oldOutputBytes": 13601247,
+      "newOutputBytes": 13601249,
+      "reusedInput": true,
+      "reusedOrders": true,
+      "reusedRows": 3206,
+      "exactStateEquality": true
+    }
+  ],
+  "measurement": "Real Node worker threads, structured clone and actual browser-worker module via a Node bridge. Single sequential comparisons, including engine and compaction. First command includes cold-start/transpilation. JSON byte sizes are logical payload estimates, not browser wire bytes; Blob payload sizes excluded. No React, actual IndexedDB writes, cloud or production writes. Entire resulting states equal. Not a browser end-to-end or large-fleet long-term guarantee."
+}

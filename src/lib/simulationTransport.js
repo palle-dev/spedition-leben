@@ -1,5 +1,5 @@
-// Only immutable journal originals and their immutable archive projection are
-// shared across messages. All mutable gameplay fields still travel each time.
+// Immutable finance trees support response references and stable save snapshots.
+// Read-only UI orders can also be retained by the worker for confirmed inputs.
 const frozen = new WeakSet();
 function freezeTree(value) {
   if (!value || typeof value !== 'object' || frozen.has(value)) return;
@@ -7,6 +7,8 @@ function freezeTree(value) {
   for (const child of Object.values(value)) freezeTree(child);
   Object.freeze(value);
 }
+// UI order snapshots are read-only; the worker owns its mutable copy.
+export function freezeOrderSnapshot(state) { freezeTree(state?.orders); }
 export function freezeFinancialSnapshot(state) {
   freezeTree(state?.accounting?.journal);
   freezeTree(state?.accounting?.journalProjection);

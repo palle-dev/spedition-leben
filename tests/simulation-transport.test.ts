@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createSimulationClient } from '@/lib/simulationWorkerClient';
 import { createSimulationRuntime } from '@/lib/simulationWorkerRuntime';
 import { coldPart, unpackResult } from '@/lib/simulationTransport';
-const state=()=>({gameTime:0,company:{value:1},accounting:{journal:[{entryNo:1,text:'Original',lines:[{account:'1000',debitCents:10,creditCents:0}]}],accountBalances:{'1000':10},journalProjection:{version:1,days:{}}}});
+const state=()=>({gameTime:0,orders:[{id:'one',status:'offered',cargo:{units:1}}],company:{value:1},accounting:{journal:[{entryNo:1,text:'Original',lines:[{account:'1000',debitCents:10,creditCents:0}]}],accountBalances:{'1000':10},journalProjection:{version:1,days:{}}}});
 function harness(execute:any=async(s,cmd)=>{s.gameTime++;s.accounting.journal.push({entryNo:s.gameTime+1,text:cmd,lines:[]});return {state:s,result:{ok:true}};}) {
  const workers:any[]=[];let calls=0;
  const client=createSimulationClient(()=>{
@@ -76,5 +76,53 @@ describe('Revisionsgebundener Finanztransport',()=>{
  it('bestätigt kein nachträglich ausgetauschtes Journal als Worker-Bestand',async()=>{
   const h=harness(),a=await h.client.execute(state(),'first',{});a.state.accounting.journal=[{entryNo:999,text:'ersetzt',lines:[]}];h.client.accept(a,a.state);
   const b=await h.client.execute(a.state,'second',{});expect(h.workers[0].messages[1].reuseCold).toBe(false);expect(b.state.accounting.journal[0].entryNo).toBe(999);
+ });
+});
+
+describe('Revisionsgebundene Auftragsübertragung',()=>{
+ it('überträgt bestätigte Aufträge nur beim ersten Befehl und lässt Worker-Mutationen zu',async()=>{
+  const h=harness(async s=>{s.orders[0].cargo.units++;return {state:s};});
+  const a=await h.client.execute(state(),'first',{});h.client.accept(a,a.state);
+  const b=await h.client.execute(a.state,'second',{});
+  expect(h.workers[0].messages[0].state.orders).toHaveLength(1);
+  expect(h.workers[0].messages[1].reuseOrders).toBe(true);
+  expect(h.workers[0].messages[1].state.orders).toBeUndefined();
+  expect(b.state.orders[0].cargo.units).toBe(3);
+  expect(a.state.orders[0].cargo.units).toBe(2);
+  expect(()=>{a.state.orders[0].cargo.units=99;}).toThrow();
+ });
+ it('überträgt ausgetauschte Aufträge vollständig trotz unveränderter Finanzdaten',async()=>{
+  const h=harness(),a=await h.client.execute(state(),'first',{});h.client.accept(a,a.state);
+  a.state.orders=[{id:'replacement',status:'offered',cargo:{units:7}}];
+  const b=await h.client.execute(a.state,'second',{});
+  expect(h.workers[0].messages[1].reuseOrders).toBe(false);
+  expect(h.workers[0].messages[1].reuseCold).toBe(true);
+  expect(b.state.orders[0].id).toBe('replacement');
+ });
+ it('bestätigt keinen vor der Übernahme ausgetauschten Auftragsbestand',async()=>{
+  const h=harness(),a=await h.client.execute(state(),'first',{});
+  a.state.orders=[];h.client.accept(a,a.state);
+  const b=await h.client.execute(a.state,'second',{});
+  expect(h.workers[0].messages[1].reuseOrders).toBe(false);expect(b.state.orders).toEqual([]);
+ });
+ it('verwirft teilweise veränderte Aufträge nach Befehlsfehlern',async()=>{
+  const h=harness(async(s,cmd)=>{s.orders[0].cargo.units++;return cmd==='fail'?{error:'failed'}:{state:s};});
+  const a=await h.client.execute(state(),'first',{});h.client.accept(a,a.state);
+  expect((await h.client.execute(a.state,'fail',{})).error).toBe('failed');
+  const b=await h.client.execute(a.state,'retry',{});
+  expect(h.workers[0].messages[2].reuseOrders).toBe(false);expect(b.state.orders[0].cargo.units).toBe(3);
+ });
+ it('sendet nach verlorener Worker-Revision vor der Ausführung einen vollständigen Bestand',async()=>{
+  const h=harness(),a=await h.client.execute(state(),'first',{});h.client.accept(a,a.state);h.workers[0].forget();
+  const b=await h.client.execute(a.state,'second',{});
+  expect(h.calls()).toBe(2);expect(h.workers[0].messages[1].reuseOrders).toBe(true);
+  expect(h.workers[0].messages[2].state.orders).toEqual(a.state.orders);
+  expect(b.state.orders).toEqual(a.state.orders);
+ });
+ it('verwendet nach Reset und bei fehlender Ergebnisübernahme keine alten Aufträge',async()=>{
+  const h=harness(),s=state();await h.client.execute(s,'unaccepted',{});
+  const a=await h.client.execute(s,'first',{});expect(h.workers[0].messages[1].reuseOrders).toBe(false);
+  h.client.accept(a,a.state);h.client.reset();
+  await h.client.execute(state(),'new-session',{});expect(h.workers[1].messages[0].reuseOrders).toBe(false);
  });
 });
