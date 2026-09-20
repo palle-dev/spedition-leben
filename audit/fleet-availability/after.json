@@ -1,0 +1,12 @@
+{
+  "source": "candidate-fleet-availability",
+  "node": "v24.19.0",
+  "inputSHA256": "cc2684d133378c5753747f44c9596a3b89aaa652e8c70b993253edd86187ee28",
+  "engineMs": 17760.732912,
+  "gameTime": 32160,
+  "delivered": 292,
+  "vehicles": 250,
+  "branches": 10,
+  "stateSHA256": "967e150bb822819448760f4f2604efdbf563475b8005fdb6e9b8d28c657823c1",
+  "method": "One further day from the identical synthetic day-21 state, natural market only on this additional day. Engine only; no archive reads, persistence, compaction, UI or cloud. Existing archive descriptors remain untouched. This input is an internal engine fixture, not a portable save."
+}

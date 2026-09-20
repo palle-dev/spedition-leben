@@ -82,6 +82,15 @@ export function computePlanableFleetN(state) {
     d.employmentStatus === "employed" && d.attendance !== "released"
   );
 
+  // Availability is separable: max(vehicle readiness, driver readiness).
+  // This read-only call owns the indexes; preserve original driver order for ties.
+  const driversByCity = new Map();
+  for (const driver of drivers) {
+    if (!driversByCity.has(driver.locationCity)) driversByCity.set(driver.locationCity, []);
+    driversByCity.get(driver.locationCity).push(driver);
+  }
+  const driverAvailability = new Map();
+
   // Greedy Matching: jedem Fahrzeug den frühest verfügbaren Fahrer am gleichen Ort zuweisen
   const usedDrivers = new Set();
   let n = 0;
@@ -96,10 +105,12 @@ export function computePlanableFleetN(state) {
   for (const v of sortedVehicles) {
     let bestDriver = null;
     let bestAvail = Infinity;
-    for (const d of drivers) {
+    const vehicleAvailable = earliestAvailable(state, v, {});
+    for (const d of driversByCity.get(v.locationCity) || []) {
       if (usedDrivers.has(d.id)) continue;
       if (d.locationCity !== v.locationCity) continue;
-      const avail = earliestAvailable(state, v, d);
+      if (!driverAvailability.has(d)) driverAvailability.set(d, earliestAvailable(state, {}, d));
+      const avail = Math.max(vehicleAvailable, driverAvailability.get(d));
       if (avail <= maxAvail && avail < bestAvail) {
         bestDriver = d;
         bestAvail = avail;
