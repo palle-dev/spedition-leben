@@ -2,6 +2,8 @@ import { packProjection, unpackProjection } from "./projectionTransport";
 // Immutable finance trees support response references and stable save snapshots.
 // Read-only UI orders can also be retained by the worker for confirmed inputs.
 const frozen = new WeakSet();
+// Only trees recursively frozen by this module are eligible for storage reuse.
+export function isFrozenSnapshotTree(value) { return !!value && typeof value === "object" && frozen.has(value); }
 function freezeTree(value) {
   if (!value || typeof value !== 'object' || frozen.has(value)) return;
   frozen.add(value);

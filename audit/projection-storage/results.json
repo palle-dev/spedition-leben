@@ -1,0 +1,36 @@
+{
+  "node": "v24.19.0",
+  "rows": [
+    {
+      "days": 100,
+      "fullBytes": 154253,
+      "storedBytes": 5606,
+      "compressedBytes": 5320,
+      "reductionPercent": 96.36571087758423,
+      "firstPackMs": 15.023649999999975,
+      "warmPackMedianMs": 0.0045170000000211985,
+      "exactRoundtrip": true
+    },
+    {
+      "days": 1000,
+      "fullBytes": 1553821,
+      "storedBytes": 49235,
+      "compressedBytes": 48947,
+      "reductionPercent": 96.83135959676179,
+      "firstPackMs": 24.770485000000008,
+      "warmPackMedianMs": 0.00846200000000863,
+      "exactRoundtrip": true
+    },
+    {
+      "days": 5000,
+      "fullBytes": 7809821,
+      "storedBytes": 244530,
+      "compressedBytes": 244242,
+      "reductionPercent": 96.86894232274977,
+      "firstPackMs": 102.61058600000001,
+      "warmPackMedianMs": 0.0005510000000867876,
+      "exactRoundtrip": true
+    }
+  ],
+  "method": "Synthetic finance-only local snapshot: 12 postings/day, ten branches. Logical UTF-8 metadata plus gzip Blob bytes, not physical IndexedDB disk usage or full-game size. First compression once, five warm packs of the same proven frozen projection. No browser, cloud or complete day timing."
+}

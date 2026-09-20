@@ -209,3 +209,23 @@ describe("Atomarer Verweis auf die aktive Partie",()=>{
   await new Promise(r=>setTimeout(r,5));expect(records).toEqual(old);
  });
 });
+
+function financialState(party){const s=state(party);s.accounting={journal:[],journalProjection:{version:1,count:1000,days:Object.fromEntries(Array.from({length:1000},(_,i)=>[i,{total:{accounts:{'1000':i},cash:[i,0,0],branches:{}},minutes:{[i*1440]:{accounts:{'1000':i},cash:[i,0,0],branches:{}}}}]))}};return s;}
+it('stores and restores compressed history through current, autosave and manual paths',async()=>{
+ const p=await import('@/lib/persistence');const s=financialState('financial');
+ await p.saveCurrent('alice',s,null,123);expect(records.get('user_alice:current').localFinancialProjection.data).toBeInstanceOf(Blob);
+ expect(await p.loadCurrent('alice')).toEqual(s);expect(await p.loadCurrentFree('alice')).toEqual(s);
+ await p.saveAutosave('alice',0,s);expect(await p.loadAutosave('alice',0,false)).toEqual(s);
+ await p.saveManualSlot('alice','Finance',s);expect(await p.loadManualSlot('alice','Finance',false)).toEqual(s);
+ expect((await p.listManualSlots('alice',false))[0].name).toBe('Finance');expect(await p.loadCurrent('bob')).toBeNull();
+});
+it('keeps the previous financial snapshot and active selector after failed commit',async()=>{
+ const p=await import('@/lib/persistence');const old=financialState('old');await p.saveCurrent('alice',old,null,1);failTransactions=true;
+ await expect(p.saveCurrent('alice',financialState('new'),null,2)).rejects.toThrow();failTransactions=false;
+ expect(await p.loadCurrent('alice')).toEqual(old);
+});
+it('rejects missing local history and reads compressed scenario fallback',async()=>{
+ const p=await import('@/lib/persistence');const s=financialState('scenario');s.scenario={id:'s'};await p.saveCurrent('alice',s,null,1);
+ records.delete('user_alice:active_current');expect(await p.loadCurrent('alice')).toEqual(s);
+ delete records.get('user_alice:scenario_current').localFinancialProjection;await expect(p.loadCurrent('alice')).rejects.toThrow(/Finanzhistorienblock/);
+});

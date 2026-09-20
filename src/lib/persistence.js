@@ -1,3 +1,4 @@
+import { packStoredProjection, unpackStoredProjection } from "./projectionStorage";
 import { readRecoverySave, MAX_SAVE_BYTES, prepareLoadedState } from "./saveSafety";
 
 // IndexedDB-Persistenz für FERNWERK.
@@ -22,6 +23,7 @@ async function idbSnapshotMeta(key) {
 }
 
 async function idbPut(key, value, userId = null) {
+  value = await packStoredProjection(value);
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_KV, "readwrite");
@@ -42,7 +44,7 @@ async function idbGet(key) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_KV, "readonly");
     const req = tx.objectStore(STORE_KV).get(key);
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => { unpackStoredProjection(req.result).then(resolve, reject); };
     req.onerror = () => reject(req.error);
   });
 }
@@ -90,13 +92,14 @@ function fullKey(userId, key) {
 
 export async function saveCurrent(userId, state, syncMeta = null, savedAt = Date.now()) {
   if (!userId) throw new Error("Zum Speichern bitte anmelden.");
+  const prepared = await packStoredProjection({ state, savedAt });
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_KV, "readwrite");
     const store = tx.objectStore(STORE_KV);
     try {
       const target = nsPrefix(state) + "current";
-      const record = { state: writeHistoryBlocks(store, userId, state), savedAt };
+      const record = { ...prepared, state: writeHistoryBlocks(store, userId, prepared.state) };
       store.put(record, fullKey(userId, target));
       // Both records commit atomically; the active selector contains no snapshot.
       store.put({ format: "active-save-reference-v1", target, savedAt,
@@ -147,7 +150,7 @@ export async function loadCurrent(userId) {
   let recovery = null;
   try { recovery = readRecoverySave(userId); } catch { /* IndexedDB kann weiterhin funktionieren. */ }
   try {
-    let current = await readActiveCurrent(userId);
+    let current = await unpackStoredProjection(await readActiveCurrent(userId));
     if (!current) {
       const candidates = await Promise.all([
         idbGet(fullKey(userId, "scenario_current")), idbGet(fullKey(userId, "current")),
