@@ -1,0 +1,9 @@
+const fs=require('node:fs'),path=require('node:path'),ts=require('typescript'),assert=require('node:assert/strict');
+const args=process.argv.slice(2),arg=k=>args[args.indexOf(k)+1];for(const k of ['--baseline','--output'])assert(args.includes(k),k+' required');
+const root=path.join(__dirname,'..');require.extensions['.ts']=(m,f)=>m._compile(ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,f);
+const before=require(path.resolve(arg('--baseline'),'src/lib/simulation/planningOrderRanking.ts')).createPlanningOrderRanking,after=require(root+'/src/lib/simulation/planningOrderRanking.ts').createPlanningOrderRanking;
+const pool=Array.from({length:10000},(_,i)=>({id:String(i),status:'offered',fromCity:'Kiel',toCity:'Hamburg',paymentCents:10000-i}));
+const subsets=Array.from({length:200},(_,k)=>pool.filter((_,i)=>i>7000&&i%59===k%59)),samples={before:[],after:[]};
+for(let i=0;i<6;i++){let a,b;for(const name of i%2?['after','before']:['before','after']){const t=performance.now(),rank=(name==='before'?before:after)(pool);const rows=subsets.map(s=>rank(s,'Berlin',12));const elapsed=performance.now()-t;if(i)samples[name].push(elapsed);if(name==='before')a=rows;else b=rows;}assert.deepEqual(a,b);}
+const median=x=>[...x].sort((a,b)=>a-b)[2];const result={node:process.version,pool:pool.length,subsetCount:subsets.length,samples,beforeMedianMs:median(samples.before),afterMedianMs:median(samples.after),exactRanks:true,method:'Synthetic sparse subsets deliberately late in total order. Includes rank/cache construction. One warmup pair and five alternating pairs; not representative of every dispatcher workload.'};
+assert(!fs.existsSync(arg('--output')));fs.mkdirSync(arg('--output'),{recursive:true});fs.writeFileSync(arg('--output')+'/results.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result));

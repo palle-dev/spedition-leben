@@ -38,3 +38,19 @@ describe('Shared per-city planning ranks',()=>{
   expect(createPlanningOrderRanking(all)(all,'Kiel',12)).toEqual(previous(all,'Kiel',12));
  });
 });
+
+describe('Sparse planning subsets',()=>{
+ it('matches original sorting for sparse subsets, ties and dense reuse',()=>{
+  const all=Array.from({length:4000},(_,i)=>({...pool()[i%90],id:String(i)})),rank=createPlanningOrderRanking(all),original=structuredClone(all);
+  for(const city of ['Kiel','Berlin'])for(const step of [97,89,1,101]){
+   const eligible=all.filter((_,i)=>i%step===0);
+   expect(rank(eligible,city,12)).toEqual(previous(eligible,city,12));
+  }
+  expect(all).toEqual(original);
+ });
+ it('retains pool tie order in the sparse path',()=>{
+  const all=Array.from({length:4000},(_,i)=>({id:String(i),status:'offered',fromCity:'Kiel',toCity:'Hamburg',paymentCents:100}));
+  const eligible=all.filter((_,i)=>i%101===0);
+  expect(createPlanningOrderRanking(all)(eligible,'Berlin',12)).toEqual(eligible.slice(0,12));
+ });
+});

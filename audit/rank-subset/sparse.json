@@ -1,0 +1,25 @@
+{
+  "node": "v24.19.0",
+  "pool": 10000,
+  "subsetCount": 200,
+  "samples": {
+    "before": [
+      28.275131999999985,
+      39.154405000000054,
+      34.41720299999997,
+      35.835920999999985,
+      34.01100999999994
+    ],
+    "after": [
+      4.735500000000002,
+      3.2187129999999797,
+      3.7540599999999813,
+      2.7915989999999056,
+      3.0011950000000525
+    ]
+  },
+  "beforeMedianMs": 34.41720299999997,
+  "afterMedianMs": 3.2187129999999797,
+  "exactRanks": true,
+  "method": "Synthetic sparse subsets deliberately late in total order. Includes rank/cache construction. One warmup pair and five alternating pairs; not representative of every dispatcher workload."
+}

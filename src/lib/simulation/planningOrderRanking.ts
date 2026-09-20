@@ -4,6 +4,7 @@ import { getDistance } from './gameRules.ts';
 // ordering keeps exactly the same ranking as sorting the eligible subset.
 export function createPlanningOrderRanking(pool) {
   const byCity = new Map();
+  const positionsByCity = new Map();
   const score = (o, city) => {
     const km = (getDistance(city, o.fromCity) + getDistance(o.fromCity, o.toCity)) || 1;
     return { o, score: (o.paymentCents || 0) / km };
@@ -26,6 +27,20 @@ export function createPlanningOrderRanking(pool) {
     }
     const ranked = byCity.get(city);
     if (!ranked) return eligible.map(o => score(o, city)).sort(compare).slice(0, limit).map(s => s.o);
+    // For sparse subsets, sorting their cached total ranks avoids scanning the
+    // entire pool. Keep the dense scan for large subsets. Scoped to this call.
+    if (eligible.length * Math.log2(eligible.length) < ranked.length) {
+      let positions = positionsByCity.get(city);
+      if (!positions) {
+        positions = new Map(ranked.map((o, i) => [o, i]));
+        positionsByCity.set(city, positions);
+      }
+      if (positions.size === ranked.length) {
+        const subset = [...new Set(eligible)].filter(o => positions.has(o));
+        subset.sort((a, b) => positions.get(a) - positions.get(b));
+        return subset.slice(0, limit);
+      }
+    }
     const selected = new Set(eligible), result = [];
     for (const o of ranked) {
       if (!selected.has(o)) continue;
