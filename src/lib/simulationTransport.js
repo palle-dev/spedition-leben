@@ -1,3 +1,4 @@
+import { packProjection, unpackProjection } from "./projectionTransport";
 // Immutable finance trees support response references and stable save snapshots.
 // Read-only UI orders can also be retained by the worker for confirmed inputs.
 const frozen = new WeakSet();
@@ -39,7 +40,7 @@ export function packResult(data, source) {
   });
   const reuseProjection = next.hasProjection === source.hasProjection && next.projection === source.projection;
   return { data: { ...data, state: withoutCold(data.state) },
-    cold: { rows, reuseProjection, hasProjection: next.hasProjection, ...(reuseProjection ? {} : { projection: next.projection }) }, reusedRows };
+    cold: { rows, reuseProjection, hasProjection: next.hasProjection, ...(reuseProjection ? {} : packProjection(next.projection, source.projection)) }, reusedRows };
 }
 export function unpackResult(packet, source) {
   if (!packet.cold) return packet.data;
@@ -54,7 +55,7 @@ export function unpackResult(packet, source) {
   });
   return { ...packet.data, state: withCold(packet.data.state, {
     journal, hasProjection: packet.cold.hasProjection,
-    projection: packet.cold.reuseProjection ? source.projection : packet.cold.projection,
+    projection: unpackProjection(packet.cold, source),
   }) };
 }
 

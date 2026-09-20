@@ -1,0 +1,30 @@
+{
+  "node": "v24.19.0",
+  "rows": [
+    {
+      "days": 100,
+      "fullBytes": 154631,
+      "referenceBytes": 3338,
+      "reductionPercent": 97.84131254405649,
+      "reusedDays": 99,
+      "exactRoundtrip": true
+    },
+    {
+      "days": 1000,
+      "fullBytes": 1554202,
+      "referenceBytes": 15056,
+      "reductionPercent": 99.03127135340193,
+      "reusedDays": 999,
+      "exactRoundtrip": true
+    },
+    {
+      "days": 5000,
+      "fullBytes": 7810203,
+      "referenceBytes": 71069,
+      "reductionPercent": 99.0900492599232,
+      "reusedDays": 4999,
+      "exactRoundtrip": true
+    }
+  ],
+  "method": "Synthetic finance-only worker response after a new and a backdated posting. Twelve existing postings per day, ten branches. Exact structural roundtrip after structured clone. JSON UTF-8 bytes, not actual structured-clone bytes, browser time, total game state or save size."
+}

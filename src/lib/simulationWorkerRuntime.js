@@ -14,6 +14,8 @@ export function createSimulationRuntime(execute, compact) {
     // The engine appends/prunes arrays; existing original entries are immutable.
     // Freeze only rows, not the mutable journal array used by postJournal.
     if (source) for (const entry of source.journal) freezeOriginal(entry);
+    // Historical day references require immutable input; projectJournal copies touched days.
+    if (source?.projection) freezeOriginal(source.projection);
     // Source array must survive push/splice/filter operations during execution.
     const base = source ? { ...source, journal: source.journal.slice() } : null;
     retained = null;

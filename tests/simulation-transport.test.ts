@@ -1,3 +1,4 @@
+import {projectJournal} from "@/lib/simulation/financialProjection";
 import { describe, it, expect } from 'vitest';
 import { createSimulationClient } from '@/lib/simulationWorkerClient';
 import { createSimulationRuntime } from '@/lib/simulationWorkerRuntime';
@@ -125,4 +126,25 @@ describe('Revisionsgebundene Auftragsübertragung',()=>{
   h.client.accept(a,a.state);h.client.reset();
   await h.client.execute(state(),'new-session',{});expect(h.workers[1].messages[0].reuseOrders).toBe(false);
  });
+});
+
+it('reconstructs historical days across accepted worker revisions and worker loss',async()=>{
+ const accounts={'1000':{type:'asset'},'4000':{type:'revenue'}};
+ const entry=(n,t)=>({entryNo:n,gameTime:t,type:'test',lines:[{account:'1000',debitCents:10,creditCents:0},{account:'4000',debitCents:0,creditCents:10}]});
+ const s=state();s.accounting.journalProjection=projectJournal(null,[entry(1,0),entry(2,1440)],accounts);
+ const h=harness(async s=>{const p=s.accounting.journalProjection;s.accounting.journalProjection=projectJournal(p,[entry(p.count+1,p.lastMin+1440)],accounts);return {state:s};});
+ const a=await h.client.execute(s,'archive',{});h.client.accept(a,a.state);
+ expect(h.workers[0].responses[0].cold.projectionDays.rows[0]).toEqual(['0',null]);
+ const b=await h.client.execute(a.state,'archive',{});h.client.accept(b,b.state);
+ expect(b.state.accounting.journalProjection.count).toBe(4);
+ expect(b.state.accounting.journalProjection.days[0]).toBe(a.state.accounting.journalProjection.days[0]);
+ h.workers[0].forget();const c=await h.client.execute(b.state,'archive',{});
+ expect(c.state.accounting.journalProjection).toEqual(projectJournal(null,[entry(1,0),entry(2,1440),entry(3,2880),entry(4,4320),entry(5,5760)],accounts));
+ expect(h.calls()).toBe(3);
+});
+
+it('rejects direct worker mutation of a historical day instead of silently reusing it',async()=>{
+ const s=state();s.accounting.journalProjection={version:1,count:1,days:{'0':{total:{accounts:{'1000':10}},minutes:{}}}};
+ const h=harness(async s=>{s.accounting.journalProjection.days['0'].total.accounts['1000']=999;return {state:s};});
+ const result=await h.client.execute(s,'invalid-mutation',{});expect(result.error).toBeTruthy();expect(s.accounting.journalProjection.days['0'].total.accounts['1000']).toBe(10);
 });
