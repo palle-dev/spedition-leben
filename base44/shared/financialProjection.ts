@@ -23,13 +23,20 @@ function add(target, entry, accounts) {
   }
 }
 export function projectJournal(previous, entries, accounts) {
-  const p = previous ? structuredClone(previous) : { version: 1, count: 0, days: {}, types: [] };
+  // Historical days are immutable. Copy only days touched by this batch;
+  // a backdated posting still receives its own independent totals/minutes.
+  const p = previous ? { ...previous, days: { ...previous.days } } : { version: 1, count: 0, days: {}, types: [] };
+  const writableDays = new Set();
   if (p.version !== 1) throw Error('Unbekannte Finanzprojektion.');
   const types = new Set(p.types);
   for (const e of entries) {
     if (!Number.isFinite(e.gameTime)) throw Error('Ungültige Buchungszeit.');
     const day = Math.floor(e.gameTime / DAY);
-    const d = p.days[day] || (p.days[day] = { total: empty(), minutes: {} });
+    if (!writableDays.has(day)) {
+      p.days[day] = p.days[day] ? structuredClone(p.days[day]) : { total: empty(), minutes: {} };
+      writableDays.add(day);
+    }
+    const d = p.days[day];
     const m = d.minutes[e.gameTime] || (d.minutes[e.gameTime] = empty());
     add(d.total, e, accounts); add(m, e, accounts);
     p.count++; types.add(e.type);

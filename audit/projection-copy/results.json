@@ -1,0 +1,78 @@
+{
+  "node": "v24.19.0",
+  "method": "Synthetic exact financial projections; 12 postings per day, ten branches. Append 12 entries on a new day and one backdated entry. Two warmups and five timed updates per version, alternating order. Projection-update time only, not archive compression, persistence, simulation day, browser, memory RSS or cloud. No change to serialized size or retention policy.",
+  "rows": [
+    {
+      "days": 100,
+      "entries": 1200,
+      "projectionBytes": 154181,
+      "addedEntries": 13,
+      "oldMedianMs": 11.784706999999969,
+      "newMedianMs": 0.39652799999998933,
+      "oldSamplesMs": [
+        11.99523499999998,
+        11.784706999999969,
+        10.207108000000005,
+        10.942146999999977,
+        12.062705999999991
+      ],
+      "newSamplesMs": [
+        0.4195630000000392,
+        0.433874000000003,
+        0.20476899999999887,
+        0.1794399999999996,
+        0.39652799999998933
+      ],
+      "identicalHash": "24e33e75909cddbcb67ea473499ba3688a81fe3a1d25545dc1cc4002dbf81b12",
+      "sharedHistoricalDays": 99
+    },
+    {
+      "days": 1000,
+      "entries": 12000,
+      "projectionBytes": 1553749,
+      "addedEntries": 13,
+      "oldMedianMs": 98.55766100000005,
+      "newMedianMs": 0.2213040000001456,
+      "oldSamplesMs": [
+        99.26596799999993,
+        101.01534600000002,
+        98.55766100000005,
+        98.24292600000012,
+        96.02454199999988
+      ],
+      "newSamplesMs": [
+        0.4825579999999263,
+        0.19246099999998023,
+        0.2213040000001456,
+        0.17211999999994987,
+        0.2535419999999249
+      ],
+      "identicalHash": "5f8efa8e6619012fa7a72279e584e57fdac475760878e9e00768af03e6ed6415",
+      "sharedHistoricalDays": 999
+    },
+    {
+      "days": 5000,
+      "entries": 60000,
+      "projectionBytes": 7809749,
+      "addedEntries": 13,
+      "oldMedianMs": 535.1209019999997,
+      "newMedianMs": 0.2321300000003248,
+      "oldSamplesMs": [
+        532.3919379999998,
+        534.226279,
+        729.5765999999999,
+        545.2670749999997,
+        535.1209019999997
+      ],
+      "newSamplesMs": [
+        0.23757900000009613,
+        0.16891500000019732,
+        0.23056799999994837,
+        0.2843190000003233,
+        0.2321300000003248
+      ],
+      "identicalHash": "7f22586dfe9c598ffbd4f998090a35f40ff901c602e735bd53d63afdbfe92911",
+      "sharedHistoricalDays": 4999
+    }
+  ]
+}
