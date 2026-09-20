@@ -1,0 +1,64 @@
+{
+  "node": "v24.19.0",
+  "vehicles": 97,
+  "branches": 6,
+  "rows": [
+    {
+      "command": "setOwnerSalary",
+      "minutes": 0,
+      "coldStart": true,
+      "oldMs": 1752.1581780000001,
+      "newMs": 1710.7469859999992,
+      "oldInputBytes": 22875510,
+      "newInputBytes": 22875528,
+      "oldOutputBytes": 22875501,
+      "newOutputBytes": 12543520,
+      "reusedInput": false,
+      "reusedRows": 18207,
+      "exactStateEquality": true
+    },
+    {
+      "command": "advanceTime",
+      "minutes": 60,
+      "coldStart": false,
+      "oldMs": 713.7193219999999,
+      "newMs": 582.0328760000002,
+      "oldInputBytes": 22875516,
+      "newInputBytes": 12445320,
+      "oldOutputBytes": 22883244,
+      "newOutputBytes": 12794288,
+      "reusedInput": true,
+      "reusedRows": 18196,
+      "exactStateEquality": true
+    },
+    {
+      "command": "advanceTime",
+      "minutes": 1440,
+      "coldStart": false,
+      "oldMs": 4885.314476,
+      "newMs": 4490.244816999999,
+      "oldInputBytes": 22876100,
+      "newInputBytes": 12449089,
+      "oldOutputBytes": 23202990,
+      "newOutputBytes": 13212493,
+      "reusedInput": true,
+      "reusedRows": 18018,
+      "exactStateEquality": true
+    },
+    {
+      "command": "advanceTime",
+      "minutes": 60,
+      "coldStart": false,
+      "oldMs": 705.8005759999978,
+      "newMs": 514.7377290000004,
+      "oldInputBytes": 23188467,
+      "newInputBytes": 12596666,
+      "oldOutputBytes": 23234416,
+      "newOutputBytes": 12992360,
+      "reusedInput": true,
+      "reusedRows": 18455,
+      "exactStateEquality": true
+    }
+  ],
+  "measurement": "Real Node worker threads, structured clone and actual browser-worker module via a Node bridge. Single sequential comparisons, including engine and compaction. First command includes cold-start/transpilation. JSON byte sizes are logical payload estimates, not browser wire bytes; Blob payload sizes excluded. No React, actual IndexedDB writes, cloud or production writes. Entire resulting states equal. Not a browser end-to-end or large-fleet long-term guarantee."
+}

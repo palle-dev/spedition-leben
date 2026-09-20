@@ -1,4 +1,5 @@
 import { stageHistory, hydrateHistory } from "@/lib/historyRepository";
+import { createSimulationClient } from "@/lib/simulationWorkerClient";
 import { archiveStats } from "@/lib/historyArchive";
 import { processSaveFile } from "@/lib/saveFileClient";
 import { displayedGameMinute } from "@/lib/displayClock";
@@ -13,53 +14,8 @@ import { useAuth } from "@/lib/AuthContext";
 import { withCloudRetry, listCloudSaves, loadCloudSave, createCloudSave, saveCloudSave, deleteCloudSave, CloudSyncQueue, generatePartyId, makeSyncMeta } from "@/lib/cloudSync";
 // Simulations-Engine läuft in einem Web Worker – der Haupt-Thread
 // bleibt für UI und Rendering frei, auch bei großen Flotten.
-const simWorker = new Worker(new URL("./simulationWorker.js", import.meta.url), { type: "module" });
-let _workerMsgId = 0;
-const _workerPending = new Map();
-const _workerProgress = new Map();
-simWorker.onmessage = (e) => {
-  const { id, data, type, progress } = e.data;
-  if (type === "progress") {
-    const cb = _workerProgress.get(id);
-    if (cb) cb(progress);
-    return;
-  }
-  const resolver = _workerPending.get(id);
-  if (resolver) { _workerPending.delete(id); _workerProgress.delete(id); resolver(data, e.data.workerComputeMs); }
-};
-simWorker.onerror = (e) => {
-  // Worker-Absturz: alle pending Promises mit Fehler auflösen
-  for (const [id, resolver] of _workerPending) {
-    _workerPending.delete(id);
-    _workerProgress.delete(id);
-    resolver({ error: "Simulations-Worker abgestürzt: " + (e.message || "Unbekannter Fehler") });
-  }
-};
-function executeInWorker(state, command, params, onProgress, diag) {
-  const id = ++_workerMsgId;
-  const sizeStart = performance.now();
-  let stateSize = 0;
-  if (diag) { try { stateSize = new Blob([JSON.stringify(state)]).size + archiveStats(state).compressedBytes; } catch(e) {} }
-  if (diag) diag.stateSizingMs = performance.now() - sizeStart;
-  const tSend = performance.now();
-  return new Promise((resolve) => {
-    if (onProgress) _workerProgress.set(id, onProgress);
-    _workerPending.set(id, (data, workerComputeMs) => {
-      if (diag) {
-        diag.workerMs = performance.now() - tSend;
-        diag.workerComputeMs = Number.isFinite(workerComputeMs) ? workerComputeMs : null;
-        diag.workerOtherMs = Number.isFinite(workerComputeMs) ? Math.max(0, diag.workerMs - workerComputeMs) : null;
-        diag.stateSizeKb = Math.round(stateSize / 1024);
-      }
-      resolve(data);
-    });
-    try { simWorker.postMessage({ id, state, command, params }); }
-    catch (error) {
-      _workerPending.delete(id); _workerProgress.delete(id);
-      resolve({ error: error.message || "Spielzustand konnte nicht an den Worker übertragen werden." });
-    }
-  });
-}
+const simulationClient = createSimulationClient(() => new Worker(new URL("./simulationWorker.js", import.meta.url), { type: "module" }));
+const executeInWorker = (...args) => simulationClient.execute(...args);
 
 const GameContext = createContext(null);
 const GameActionsContext = createContext(null);
@@ -575,13 +531,14 @@ export function GameProvider({ children }) {
       const newState = await stageHistory(token.userId, data.state); const result = data.result;
       if (!isCurrentSession(token)) return;
       assertWritable();
+      simulationClient.accept(data, newState);
       stateRef.current = newState; setState(newState);
       markDirty();
       processNewEvents(newState);
       await processResult(newState, result, command);
       return result;
     } catch (e) {
-      showToast(e.message, "error");
+      if (isCurrentSession(token)) showToast(e.message, "error");
       throw e;
     } finally { if (isCurrentSession(token)) setBusy(false); sendInFlightRef.current = false; }
   }, [markDirty, processNewEvents, processResult, showToast, sessionToken, isCurrentSession, assertWritable]);
@@ -627,6 +584,7 @@ export function GameProvider({ children }) {
       const newState = await stageHistory(token.userId, data.state); const result = data.result;
       if (!isCurrentSession(token)) return;
       assertWritable();
+      simulationClient.accept(data, newState);
       stateRef.current = newState; setState(newState);
       markDirty();
       processNewEvents(newState);
@@ -640,8 +598,10 @@ export function GameProvider({ children }) {
       }
       setBackgroundAdvance({ active: false, progress: null, result });
     } catch (e) {
-      showToast(e.message, "error");
-      setBackgroundAdvance({ active: false, progress: null, result: null, error: e.message });
+      if (isCurrentSession(token)) {
+        showToast(e.message, "error");
+        setBackgroundAdvance({ active: false, progress: null, result: null, error: e.message });
+      }
     } finally {
       backgroundAdvanceRef.current = false;
     }
@@ -661,6 +621,7 @@ export function GameProvider({ children }) {
       data.state = await stageHistory(token.userId, data.state);
       if (!isCurrentSession(token)) return;
       assertWritable();
+      simulationClient.accept(data, data.state);
       stateRef.current = data.state; setState(data.state);
       markDirty();
       processNewEvents(data.state);
@@ -813,6 +774,7 @@ export function GameProvider({ children }) {
   useEffect(() => {
     const uid = authUser?.id;
     sessionGenerationRef.current++;
+    simulationClient.reset();
     userIdRef.current = uid || null;
     changingStateRef.current = true;
     const token = sessionToken();
@@ -1077,6 +1039,10 @@ export function GameProvider({ children }) {
         workerComputeMs: diag.workerComputeMs == null ? null : Math.round(diag.workerComputeMs),
         workerOtherMs: diag.workerOtherMs == null ? null : Math.round(diag.workerOtherMs),
         stateSizingMs: Math.round(diag.stateSizingMs || 0),
+        transportPreparationMs: Math.round(diag.transportPreparationMs || 0),
+        inputPayloadKb: diag.inputPayloadKb ?? null,
+        reusedJournalRows: diag.reusedJournalRows || 0,
+        reusedFinancialInput: !!diag.reusedFinancialInput,
         processMs: Math.round(diag.processMs || 0),
         totalMs: Math.round(diag.totalMs || 0),
         stateSizeKb: diag.stateSizeKb || stateSizeKb,
