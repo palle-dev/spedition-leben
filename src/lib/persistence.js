@@ -9,13 +9,28 @@ import { readRecoverySave, MAX_SAVE_BYTES, prepareLoadedState } from "./saveSafe
 import { openDB, STORE_KV } from "./saveDatabase";
 import { writeHistoryBlocks } from "./historyRepository";
 
+const snapshotMetaKey = key => "snapshot_metadata:" + key;
+const snapshotMeta = record => ({ format: "snapshot-meta-v1", savedAt: record.savedAt,
+  ...(record.name != null ? { name: record.name } : {}) });
+
+async function idbSnapshotMeta(key) {
+  const meta = await idbGet(snapshotMetaKey(key));
+  if (meta?.format === "snapshot-meta-v1" && Number.isFinite(meta.savedAt)) return meta;
+  // Older saves remain fully readable; their next write creates the sidecar.
+  const record = await idbGet(key);
+  return record?.state ? snapshotMeta(record) : null;
+}
+
 async function idbPut(key, value, userId = null) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_KV, "readwrite");
     const store = tx.objectStore(STORE_KV);
-    const record = value?.state && userId ? { ...value, state: writeHistoryBlocks(store, userId, value.state) } : value;
-    store.put(record, key);
+    try {
+      const record = value?.state && userId ? { ...value, state: writeHistoryBlocks(store, userId, value.state) } : value;
+      store.put(record, key);
+      if (record?.state) store.put(snapshotMeta(record), snapshotMetaKey(key));
+    } catch (error) { tx.abort(); reject(error); return; }
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error || new Error("Speichern wurde abgebrochen."));
@@ -37,6 +52,7 @@ async function idbDelete(key) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_KV, "readwrite");
     tx.objectStore(STORE_KV).delete(key);
+    tx.objectStore(STORE_KV).delete(snapshotMetaKey(key));
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error || new Error("Speichern wurde abgebrochen."));
@@ -135,7 +151,7 @@ export async function loadAutosave(userId, index, isScenario) {
 
 export async function getAutosaveMeta(userId, index, isScenario) {
   const prefix = isScenario ? "scenario_" : "";
-  const v = await idbGet(fullKey(userId, prefix + "autosave_" + index));
+  const v = await idbSnapshotMeta(fullKey(userId, prefix + "autosave_" + index));
   return v ? { savedAt: v.savedAt } : null;
 }
 
@@ -175,7 +191,7 @@ export async function listManualSlots(userId, isScenario) {
   const slotKeys = keys.filter(k => typeof k === "string" && k.startsWith(fullPrefix));
   const slots = [];
   for (const k of slotKeys) {
-    const v = await idbGet(k);
+    const v = await idbSnapshotMeta(k);
     if (v) slots.push({ name: v.name || k.slice(fullPrefix.length), savedAt: v.savedAt });
   }
   return slots.sort((a, b) => b.savedAt - a.savedAt);

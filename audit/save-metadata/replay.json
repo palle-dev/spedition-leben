@@ -1,0 +1,21 @@
+{
+  "node": "v24.19.0",
+  "metrics": [
+    {
+      "version": "before",
+      "readCount": 3,
+      "snapshotReads": 3,
+      "serializedReadBytes": 45414798,
+      "ms": 409.7328990000001
+    },
+    {
+      "version": "after",
+      "readCount": 3,
+      "snapshotReads": 0,
+      "serializedReadBytes": 159,
+      "ms": 0.5925630000001547
+    }
+  ],
+  "identicalMetadata": true,
+  "limits": "Copied save; in-memory IndexedDB request adapter using real structuredClone, not browser disk I/O. JSON bytes describe read values, not exact heap use or disk format. No simulation/browser/cloud speed guarantee."
+}
