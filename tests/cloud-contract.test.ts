@@ -195,3 +195,24 @@ describe('Separate archive storage lifecycle', () => {
     expect(archiveRecords.size).toBe(1);
   });
 });
+
+describe('Cloud operation diagnostics',()=>{
+ it('identifies missing save reads without creating or replacing records',async()=>{
+  entities.get.mockRejectedValue(new Error('not-found'));
+  const r=await cloud(req({command:'save',stateId:'own',expected_revision:3,state:snapshot(100)}));
+  expect(r.status).toBe(500);expect(await r.json()).toMatchObject({operation:'GameState:get',error:'Cloud-Vorgang fehlgeschlagen [GameState:get]: not-found'});
+  expect(entities.create).not.toHaveBeenCalled();expect(entities.updateMany).not.toHaveBeenCalled();
+ });
+ it('identifies failed conditional writes without acknowledging a save',async()=>{
+  entities.updateMany.mockRejectedValue(new Error('not-found'));
+  const r=await cloud(req({command:'save',stateId:'own',expected_revision:3,state:snapshot(100)}));
+  expect(r.status).toBe(500);expect(await r.json()).toMatchObject({operation:'GameState:updateMany'});expect(records.get('own').revision).toBe(3);
+ });
+ it('identifies archive lookup failures before the snapshot is written',async()=>{
+  const data=btoa('archive'),id=createHash('sha256').update('archive').digest('hex');
+  const state={...snapshot(100),historyArchive:{version:1,chunks:[{id,kind:'expiredOffers',count:1,rawBytes:2,data}]}};
+  archiveEntity.filter.mockRejectedValue(new Error('not-found'));
+  const r=await cloud(req({command:'save',stateId:'own',expected_revision:3,state}));
+  expect(r.status).toBe(500);expect(await r.json()).toMatchObject({operation:'GameArchiveBlock:filter'});expect(entities.updateMany).not.toHaveBeenCalled();
+ });
+});

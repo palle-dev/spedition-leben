@@ -28,6 +28,14 @@ function extractMeta(state) {
 }
 
 export default async function handleCloudSync(req) {
+  let step = "Anmeldung";
+  // Describe the failing operation without exposing IDs, tokens or save contents.
+  const traced = (entity, name) => Object.fromEntries(
+    ["get", "filter", "create", "updateMany", "delete"].map(method => [method, async (...args) => {
+      step = name + ":" + method;
+      return await entity[method](...args);
+    }])
+  );
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
@@ -35,8 +43,9 @@ export default async function handleCloudSync(req) {
 
     const body = await req.json();
     const { command } = body || {};
-    const S = base44.asServiceRole.entities.GameState;
-    const B = base44.asServiceRole.entities.GameArchiveBlock;
+    step = "Cloud-Datenmodelle";
+    const S = traced(base44.asServiceRole.entities.GameState, "GameState");
+    const B = traced(base44.asServiceRole.entities.GameArchiveBlock, "GameArchiveBlock");
     if (body?.stateId != null && (typeof body.stateId !== "string" || !body.stateId.trim())) {
       return Response.json({ error: "Ungültige stateId" }, { status: 400 });
     }
@@ -226,7 +235,10 @@ export default async function handleCloudSync(req) {
 
     return Response.json({ error: "Unbekannter Befehl: " + command }, { status: 400 });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: error instanceof CloudArchiveError ? 400 : 500 });
+    const message = error instanceof CloudArchiveError ? error.message
+      : `Cloud-Vorgang fehlgeschlagen [${step}]: ${error.message || "Unbekannter Fehler"}`;
+    return Response.json({ error: message, code: "CLOUD_OPERATION_FAILED", operation: step },
+      { status: error instanceof CloudArchiveError ? 400 : 500 });
   }
 }
 
