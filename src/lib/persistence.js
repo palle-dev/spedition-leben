@@ -40,11 +40,16 @@ async function idbPut(key, value, userId = null) {
 }
 
 async function idbGet(key) {
+  return unpackStoredProjection(await idbGetRaw(key));
+}
+
+// Read selection metadata before inflating any large financial payload.
+async function idbGetRaw(key) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_KV, "readonly");
     const req = tx.objectStore(STORE_KV).get(key);
-    req.onsuccess = () => { unpackStoredProjection(req.result).then(resolve, reject); };
+    req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
 }
@@ -150,15 +155,15 @@ export async function loadCurrent(userId) {
   let recovery = null;
   try { recovery = readRecoverySave(userId); } catch { /* IndexedDB kann weiterhin funktionieren. */ }
   try {
-    let current = await unpackStoredProjection(await readActiveCurrent(userId));
+    let current = await readActiveCurrent(userId);
     if (!current) {
       const candidates = await Promise.all([
-        idbGet(fullKey(userId, "scenario_current")), idbGet(fullKey(userId, "current")),
+        idbGetRaw(fullKey(userId, "scenario_current")), idbGetRaw(fullKey(userId, "current")),
       ]);
       current = candidates.filter(Boolean).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0))[0];
     }
     if (recovery && (!current || recovery.savedAt > (current.savedAt || 0))) return recovery.state;
-    return current?.state || null;
+    return (await unpackStoredProjection(current))?.state || null;
   } catch (error) {
     if (recovery) return recovery.state;
     throw error;

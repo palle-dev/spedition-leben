@@ -229,3 +229,26 @@ it('rejects missing local history and reads compressed scenario fallback',async(
  records.delete('user_alice:active_current');expect(await p.loadCurrent('alice')).toEqual(s);
  delete records.get('user_alice:scenario_current').localFinancialProjection;await expect(p.loadCurrent('alice')).rejects.toThrow(/Finanzhistorienblock/);
 });
+
+it('selects the newer intact fallback without decoding an older corrupt financial snapshot',async()=>{
+ const p=await import('@/lib/persistence');const newer=financialState('newer');newer.scenario={id:'s'};
+ await p.saveCurrent('alice',financialState('older'),null,10);await p.saveCurrent('alice',newer,null,20);
+ records.delete('user_alice:active_current');delete records.get('user_alice:current').localFinancialProjection;
+ expect(await p.loadCurrent('alice')).toEqual(newer);
+});
+it('does not silently replace the selected corrupt newer snapshot with an older one',async()=>{
+ const p=await import('@/lib/persistence');const newer=financialState('newer');newer.scenario={id:'s'};
+ await p.saveCurrent('alice',financialState('older'),null,10);await p.saveCurrent('alice',newer,null,20);
+ records.delete('user_alice:active_current');delete records.get('user_alice:scenario_current').localFinancialProjection;
+ await expect(p.loadCurrent('alice')).rejects.toThrow(/Finanzhistorienblock/);
+});
+it('inflates only the chosen fallback and avoids all inflation for a newer recovery save',async()=>{
+ const p=await import('@/lib/persistence');const older=financialState('old'),newer=financialState('new');newer.scenario={id:'s'};
+ await p.saveCurrent('alice',older,null,10);await p.saveCurrent('alice',newer,null,20);records.delete('user_alice:active_current');
+ const Original=globalThis.DecompressionStream;let count=0;vi.stubGlobal('DecompressionStream',class extends Original {constructor(format){super(format);count++;}});
+ try{
+  expect(await p.loadCurrent('alice')).toEqual(newer);expect(count).toBe(1);
+  storage.set('spedition_leben_state:user:alice',JSON.stringify({userId:'alice',state:state('recovery'),savedAt:30}));
+  expect((await p.loadCurrent('alice')).meta.partyId).toBe('recovery');expect(count).toBe(1);
+ }finally{vi.stubGlobal('DecompressionStream',Original);}
+});
