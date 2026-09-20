@@ -2,7 +2,7 @@ import { isCompleteSnapshot } from "./simulation/snapshotValidation";
 import { migrateApprovals } from "./simulation/delegationEngine";
 
 // Gemeinsame Grenzen für lokale Spielstände und den Import.
-export const MAX_SAVE_BYTES = 50 * 1024 * 1024;
+export const MAX_SAVE_BYTES = 256 * 1024 * 1024;
 
 export function localSaveKey(userId) {
   if (!userId) throw new Error("Zum Speichern bitte anmelden.");
@@ -10,6 +10,7 @@ export function localSaveKey(userId) {
 }
 
 export function writeRecoverySave(userId, state, savedAt = Date.now()) {
+  if (state?.historyArchive?.chunks?.length) throw new Error("Archiv-Spielstände benötigen IndexedDB oder einen Datei-Export.");
   localStorage.setItem(localSaveKey(userId), JSON.stringify({ userId, state, savedAt }));
 }
 

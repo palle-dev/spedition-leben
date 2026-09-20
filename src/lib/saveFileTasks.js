@@ -1,0 +1,37 @@
+import { exportSave, importSave } from "./persistence";
+import { MAX_SAVE_BYTES, prepareLoadedState } from "./saveSafety";
+import { compactHistory, portableHistory, restoreHistory, readLimited } from "./historyArchive";
+
+export async function runSaveFileTask(command, input) {
+  if (command === "prepare") return compactHistory(await restoreHistory(prepareLoadedState(input)));
+  if (command === "archive") {
+    const parts = ['{"version":1,"chunks":['];
+    let first = true;
+    for (const chunk of input?.historyArchive?.chunks || []) {
+      const raw = await readLimited(chunk.data.stream().pipeThrough(new DecompressionStream("gzip")), chunk.rawBytes);
+      parts.push((first ? "" : ",") + '{"kind":' + JSON.stringify(chunk.kind) + ',"records":', raw, '}');
+      first = false;
+    }
+    parts.push(']}');
+    return new Blob(parts, { type: "application/json" });
+  }
+  if (command === "export") {
+    const portable = await portableHistory(input);
+    const raw = new Blob([exportSave(portable)], { type: "application/json" });
+    if (raw.size > MAX_SAVE_BYTES) throw Error("Die Sicherung überschreitet die Importgrenze von 256 MB.");
+    if (typeof CompressionStream === "undefined") return raw;
+    const compressed = await readLimited(raw.stream().pipeThrough(new CompressionStream("gzip")));
+    return new Blob([compressed], { type: "application/gzip" });
+  }
+  if (command !== "import") throw Error("Unbekannter Dateivorgang.");
+  let text;
+  if (typeof input === "string") text = input;
+  else {
+    if (!(input instanceof Blob) || input.size > MAX_SAVE_BYTES) throw Error("Die Spielstand-Datei ist zu groß (maximal 256 MB).");
+    const header = new Uint8Array(await input.slice(0, 2).arrayBuffer());
+    const gzip = header[0] === 0x1f && header[1] === 0x8b;
+    const raw = gzip ? await readLimited(input.stream().pipeThrough(new DecompressionStream("gzip")), MAX_SAVE_BYTES) : input;
+    text = await raw.text();
+  }
+  return compactHistory(await restoreHistory(importSave(text)));
+}

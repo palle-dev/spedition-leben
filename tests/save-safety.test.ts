@@ -206,7 +206,7 @@ describe("Ladepfade und Ereignisse", () => {
     const meta = ref({ partyId: "B", cloudId: "cloud-B" });
     const current = ref(valid("B"));
     const env = {
-      prepareLoadedState, ensurePartyId: noop,
+      processSaveFile: async (_command, raw) => prepareLoadedState(raw), ensurePartyId: noop,
       getSyncMeta: async () => ({ partyId: "B", cloudId: "cloud-B" }),
       isCurrentSession: () => true,
       makeSyncMeta: (partyId, cloudId, localBaseRevision, status) => ({ partyId, cloudId, localBaseRevision, status }),
@@ -264,4 +264,14 @@ describe("Service Worker", () => {
     const h = worker(); h.request("/assets/app.js", { Authorization: "Bearer test" });
     expect(h.respondWith).not.toHaveBeenCalled();
   });
+});
+
+it("ein abgelehnter Dateiimport pausiert und ersetzt die laufende Partie nicht", async () => {
+ const beginStateChange=vi.fn(),activateState=vi.fn(),preserveCurrentParty=vi.fn();
+ const result=await callback("importGame",{
+  sessionToken:()=>({userId:"alice",generation:1}),processSaveFile:async()=>{throw Error("Archiv beschädigt");},
+  isCurrentSession:()=>true,beginStateChange,activateState,preserveCurrentParty,changingStateRef:ref(false),
+ })(new Blob(["invalid"]));
+ expect(result).toEqual({ok:false,error:"Archiv beschädigt"});
+ expect(beginStateChange).not.toHaveBeenCalled();expect(activateState).not.toHaveBeenCalled();expect(preserveCurrentParty).not.toHaveBeenCalled();
 });

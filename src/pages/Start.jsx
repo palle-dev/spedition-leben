@@ -75,7 +75,7 @@ export default function StartScreen() {
   }
   function handleFile(e){
     const file=e.target.files?.[0];e.target.value="";
-    if(file)void runLoad(file.name,async()=>importGame(await file.text()));
+    if(file)void runLoad(file.name,async()=>importGame(file));
   }
 
   const fmt = (savedAt) => savedAt
@@ -263,7 +263,7 @@ export default function StartScreen() {
             Ein Szenario spielen · 3 Herausforderungen
           </button>
         )}
-        <input ref={fileRef} type="file" accept="application/json,.json" onChange={handleFile} className="hidden" />
+        <input ref={fileRef} type="file" accept="application/json,application/gzip,.json,.gz" onChange={handleFile} className="hidden" />
 
         {!showScenarios && <p className="text-xs text-muted-foreground/50 mt-6 text-center">
           Start: Hamburg · {(DIFFICULTY_PROFILES.find(p => p.id === profileId)?.startCapitalCents / 100).toLocaleString("de-DE")} € Firma · {(DIFFICULTY_PROFILES.find(p => p.id === profileId)?.privateCapitalCents / 100).toLocaleString("de-DE")} € Privat · 3 Lkw · 3 Fahrer

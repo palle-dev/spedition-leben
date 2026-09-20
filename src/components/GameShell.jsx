@@ -24,7 +24,7 @@ export default function GameShell() {
 }
 
 function GameShellContent() {
-  const { state, loading, showStart, toast, motionEnabled, overlay, dismissOverlay, toasts, dismissToast, connectionState, hasLock, localSaveError, save, exportGame } = useGame();
+  const { state, loading, showStart, toast, motionEnabled, overlay, dismissOverlay, toasts, dismissToast, connectionState, hasLock, localSaveError, save, exportGame, showToast } = useGame();
   const location = useLocation();
 
   if (!hasLock) return (
@@ -37,13 +37,15 @@ function GameShellContent() {
     </div>
   );
   if (loading) return <LoadingScreen />;
-  const downloadBackup = () => {
-    const data = exportGame();
+  const downloadBackup = async () => {
+    try {
+    const data = await exportGame();
     if (!data) return;
-    const url = URL.createObjectURL(new Blob([data], { type: "application/json" }));
+    const url = URL.createObjectURL(data);
     const link = document.createElement("a");
-    link.href = url; link.download = "Frachtfieber_Sicherung_" + Date.now() + ".json"; link.click();
+    link.href = url; link.download = "Frachtfieber_Sicherung_" + Date.now() + (data.type === "application/gzip" ? ".json.gz" : ".json"); link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) { showToast(error.message, "error"); }
   };
   const storageWarning = localSaveError && (
     <div className="relative z-30 bg-red-950 text-red-100 border-b border-red-400/40 px-4 py-3 text-sm flex flex-wrap items-center gap-3 shrink-0" role="alert">

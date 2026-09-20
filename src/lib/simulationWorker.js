@@ -6,6 +6,7 @@
 // Während advanceTime werden Zwischenfortschritte als
 // { id, type: "progress", progress } gesendet.
 
+import { compactHistory } from "./historyArchive";
 import { executeCommand } from "./simulationAdapter";
 import { setProgressHook } from "./simulation/progressHook";
 
@@ -16,6 +17,10 @@ self.onmessage = async (e) => {
   const computeStart = performance.now();
   try {
     const data = await executeCommand(state, command, params || {});
+    if (data.state) {
+      try { data.state = await compactHistory(data.state); }
+      catch { /* Retain the full state if archival fails; never lose a completed advance. */ }
+    }
     setProgressHook(null);
     self.postMessage({ id, data, workerComputeMs: performance.now() - computeStart });
   } catch (err) {

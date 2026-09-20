@@ -86,3 +86,17 @@ describe("Aktive Partie und getrennte Sync-Metadaten", () => {
     expect(original.meta.partyId).toBe("A");
   });
 });
+
+it("speichert Blob-Archive atomar mit dem Spielstand und benutzergetrennt", async () => {
+ const {compactHistory}=await import("@/lib/historyArchive");
+ const p=await import("@/lib/persistence");
+ const original={...state("A"),gameTime:14400,orders:[{id:"old",status:"expired",acceptDeadlineMin:1}]};
+ const archived=await compactHistory(original);
+ await p.saveCurrent("alice",archived);
+ const loaded=await p.loadCurrent("alice");
+ expect(await loaded.historyArchive.chunks[0].data.arrayBuffer()).toEqual(await archived.historyArchive.chunks[0].data.arrayBuffer());
+ expect(await p.loadCurrent("bob")).toBeNull();
+ failTransactions=true;
+ await expect(p.saveCurrent("alice",state("B"))).rejects.toThrow();
+ expect((await p.loadCurrent("alice")).historyArchive.chunks).toHaveLength(1);
+});

@@ -1,0 +1,43 @@
+{
+  "node": "v24.19.0",
+  "inputBytes": 45227555,
+  "compactMs": 707.8005539999999,
+  "activeBytes": 25280352,
+  "archive": {
+    "records": 33158,
+    "rawBytes": 19952004,
+    "compressedBytes": 1286169
+  },
+  "ordersBefore": 30143,
+  "ordersAfter": 5924,
+  "accountingTasksBefore": 10154,
+  "accountingTasksAfter": 1215,
+  "exportMs": 854.2897360000002,
+  "exportBytes": 3093354,
+  "importMs": 1006.811776,
+  "roundtrip": true,
+  "days": [
+    {
+      "day": 1,
+      "beforeMs": 6515.569383999999,
+      "afterMs": 4603.983752,
+      "sameSimulation": true,
+      "gameTime": 177876
+    },
+    {
+      "day": 2,
+      "beforeMs": 4713.907104000002,
+      "afterMs": 3903.4786129999993,
+      "sameSimulation": true,
+      "gameTime": 179316
+    },
+    {
+      "day": 3,
+      "beforeMs": 5865.9021589999975,
+      "afterMs": 3739.7470759999997,
+      "sameSimulation": true,
+      "gameTime": 180756
+    }
+  ],
+  "limits": "Engine-only local measurements; excludes browser rendering, cloud, and device variability. Financial journal retained in full. Archived rows are never-accepted expired offers and completed accounting tasks."
+}

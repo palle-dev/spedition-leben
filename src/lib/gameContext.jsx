@@ -1,9 +1,11 @@
+import { archiveStats } from "@/lib/historyArchive";
+import { processSaveFile } from "@/lib/saveFileClient";
 import { displayedGameMinute } from "@/lib/displayClock";
 import { playExperienceSound } from "@/lib/experienceSound";
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { saveCurrent, loadCurrent, saveAutosave, loadAutosave, getAllAutosaveMetas, listManualSlots, saveManualSlot, loadManualSlot, deleteManualSlot, exportSave, importSave, getSyncMeta, setSyncMeta as persistSyncMeta } from "@/lib/persistence";
+import { saveCurrent, loadCurrent, saveAutosave, loadAutosave, getAllAutosaveMetas, listManualSlots, saveManualSlot, loadManualSlot, deleteManualSlot, getSyncMeta, setSyncMeta as persistSyncMeta } from "@/lib/persistence";
 import { acquireLock, refreshLock, releaseLock, LOCK_REFRESH } from "@/lib/tabLock";
-import { writeRecoverySave, prepareLoadedState } from "@/lib/saveSafety";
+import { writeRecoverySave } from "@/lib/saveSafety";
 import { eventToToast, summarizeRoutineToasts, CRITICAL_EVENT_TYPES } from "@/lib/eventNotifications";
 import { getUnseenEventCount } from "@/lib/eventLogClient";
 import { useAuth } from "@/lib/AuthContext";
@@ -36,7 +38,7 @@ function executeInWorker(state, command, params, onProgress, diag) {
   const id = ++_workerMsgId;
   const sizeStart = performance.now();
   let stateSize = 0;
-  if (diag) { try { stateSize = new Blob([JSON.stringify(state)]).size; } catch(e) {} }
+  if (diag) { try { stateSize = new Blob([JSON.stringify(state)]).size + archiveStats(state).compressedBytes; } catch(e) {} }
   if (diag) diag.stateSizingMs = performance.now() - sizeStart;
   const tSend = performance.now();
   return new Promise((resolve) => {
@@ -414,7 +416,7 @@ export function GameProvider({ children }) {
 
   // Ein Ladeweg für Startup, Cloud, Slots, Autosaves und Import.
   const activateState = useCallback(async (raw, token, providedMeta = null, keepStart = false) => {
-    const loaded = prepareLoadedState(raw);
+    const loaded = await processSaveFile("prepare", raw);
     if (providedMeta?.partyId) loaded.meta.partyId = providedMeta.partyId;
     ensurePartyId(loaded);
     let savedMeta = providedMeta;
@@ -926,21 +928,24 @@ export function GameProvider({ children }) {
   }, [beginStateChange, activateState, isCurrentSession, showToast]);
 
   // ---- Export / Import / Manuelle Slots ----
-  const exportGame = useCallback(() => {
+  const exportGame = useCallback(async () => {
     if (!stateRef.current) return null;
-    return exportSave(stateRef.current);
+    return processSaveFile("export", stateRef.current);
   }, []);
 
   const importGame = useCallback(async (exportStr) => {
     let token;
     try {
       // Ein ungültiger Import soll nicht einmal die laufende Partie pausieren.
-      const imported = importSave(exportStr);
+      const importToken = sessionToken();
+      const imported = await processSaveFile("import", exportStr);
+      if (!isCurrentSession(importToken)) return { skipped: true };
       token = beginStateChange();
+      await preserveCurrentParty(token);
       return await activateState(imported, token);
     } catch (error) { return { ok: false, error: error.message }; }
     finally { if (token && isCurrentSession(token)) changingStateRef.current = false; }
-  }, [beginStateChange, activateState, isCurrentSession]);
+  }, [beginStateChange, activateState, isCurrentSession, sessionToken, preserveCurrentParty]);
 
   const saveSlot = useCallback(async (name) => {
     if (!stateRef.current) return { ok: false, error: "Kein Spielstand" };
@@ -1035,7 +1040,7 @@ export function GameProvider({ children }) {
       branches: (s.branches || []).filter(b => b.status === "active").length,
     };
     let stateSizeKb = 0;
-    try { stateSizeKb = Math.round(new Blob([JSON.stringify(s)]).size / 1024); } catch(e) {}
+    try { stateSizeKb = Math.round((new Blob([JSON.stringify(s)]).size + archiveStats(s).compressedBytes) / 1024); } catch(e) {}
     return {
       timestamp: new Date().toISOString(),
       requestedMinutes: diag.requestedMinutes || 1440,

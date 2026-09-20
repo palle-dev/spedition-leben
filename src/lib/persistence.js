@@ -271,6 +271,7 @@ function checksum(str) {
 }
 
 export function exportSave(state) {
+  if (state?.historyArchive?.chunks?.some(c => typeof c.data !== "string")) throw new Error("Archiv vor dem Export vollständig einbetten.");
   const json = JSON.stringify(state);
   const cs = checksum(json);
   const size = new Blob([json]).size;
@@ -279,7 +280,7 @@ export function exportSave(state) {
 
 export function importSave(exportStr) {
   if (typeof exportStr !== "string" || new Blob([exportStr]).size > MAX_SAVE_BYTES) {
-    throw new Error("Die Spielstand-Datei ist zu groß (maximal 50 MB).");
+    throw new Error("Die Spielstand-Datei ist zu groß (maximal 256 MB).");
   }
   let parsed;
   try { parsed = JSON.parse(exportStr); }

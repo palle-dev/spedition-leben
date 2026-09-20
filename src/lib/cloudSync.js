@@ -11,6 +11,7 @@
 //   - Nur ein Upload gleichzeitig (Queue). Verspätete Antworten werden verworfen.
 //   - localBaseRevision wird nur nach bestätigter Antwort aktualisiert.
 
+import { portableHistory } from "./historyArchive";
 import { base44 } from "@/api/base44Client";
 
 // ---- Backend-Aufrufe ----
@@ -38,14 +39,14 @@ export async function loadCloudSave(stateId) {
 
 export async function createCloudSave(state, partyId, saveLabel, saveType) {
   return await invokeCloudSync({
-    command: "create", state, party_id: partyId,
+    command: "create", state: await portableHistory(state), party_id: partyId,
     save_label: saveLabel, save_type: saveType,
   });
 }
 
 export async function saveCloudSave(stateId, state, expectedRevision, saveLabel, saveType) {
   return await invokeCloudSync({
-    command: "save", stateId, state, expected_revision: expectedRevision,
+    command: "save", stateId, state: await portableHistory(state), expected_revision: expectedRevision,
     save_label: saveLabel, save_type: saveType,
   });
 }

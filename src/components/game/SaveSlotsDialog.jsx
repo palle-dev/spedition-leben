@@ -1,3 +1,4 @@
+import { processSaveFile } from "@/lib/saveFileClient";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useGame } from "@/lib/gameContext";
 import {
@@ -63,31 +64,26 @@ export default function SaveSlotsDialog({ open, onOpenChange }) {
 
   const handleLoadAutosave = i => runLoad("auto:"+i,()=>loadAutosaveSlot(i));
 
-  const handleExport = () => {
-    const data = exportGame();
-    if (!data) return;
-    const blob = new Blob([data], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `fernwerk_${(state?.gameTime || 0)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleExport = async (archiveOnly = false) => {
+    if (busy) return;
+    setBusy("exporting"); setError(null);
+    try {
+      const blob = archiveOnly ? await processSaveFile("archive", state) : await exportGame();
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `frachtfieber_${archiveOnly ? "archiv_" : ""}${state?.gameTime || 0}.json${blob.type === "application/gzip" ? ".gz" : ""}`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) { setError(e.message); }
+    finally { setBusy(null); }
   };
 
   const handleFile = (e) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      setBusy("importing"); setError(null);
-      const r = await importGame(reader.result);
-      setBusy(null);
-      if (r.ok) onOpenChange(false);
-      else setError(r.error);
-    };
-    reader.readAsText(file);
     e.target.value = "";
+    if (file) void runLoad("importing", () => importGame(file));
   };
 
   const handleConfirmDelete = (action) => setConfirmAction(action);
@@ -225,20 +221,27 @@ export default function SaveSlotsDialog({ open, onOpenChange }) {
         <div className="space-y-2">
           <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Export / Import</div>
           <div className="flex gap-2">
-            <Button onClick={handleExport} variant="outline" className="flex-1 border-white/10 bg-ink/40 hover:bg-ink/60">
-              <Download className="w-4 h-4" /> Export
+            <Button onClick={() => handleExport(false)} disabled={!!busy} variant="outline" className="flex-1 border-white/10 bg-ink/40 hover:bg-ink/60">
+              {busy === "exporting" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Export
             </Button>
             <Button onClick={() => fileRef.current?.click()} disabled={!!busy} variant="outline" className="flex-1 border-white/10 bg-ink/40 hover:bg-ink/60">
               {busy === "importing" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               Import
             </Button>
-            <input ref={fileRef} type="file" accept="application/json,.json" onChange={handleFile} className="hidden" />
+            <input ref={fileRef} type="file" accept="application/json,application/gzip,.json,.gz" onChange={handleFile} className="hidden" />
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Export speichert eine JSON-Datei mit Prüfsumme. Import lädt eine solche Datei und ersetzt den aktuellen Stand.
+            Export sichert Spielstand und Archiv als kompakte .json.gz-Datei. Import unterstützt auch ältere JSON-Dateien bis 256 MB (entpackt).
           </p>
         </div>
 
+        {!!state?.historyArchive?.chunks?.length && <p className="text-xs text-muted-foreground">
+          {state.historyArchive.chunks.reduce((n, c) => n + c.count, 0).toLocaleString("de-DE")} historische Datensätze sind platzsparend archiviert und in jeder Sicherung enthalten. Finanzjournal und offene Vorgänge bleiben vollständig verfügbar.
+          <button disabled={!!busy} onClick={() => handleExport(true)} className="ml-2 underline text-lime disabled:opacity-40">Archiv als JSON herunterladen</button>
+        </p>}
+        {!!busy && ["importing", "exporting"].includes(busy) && <p role="status" aria-live="polite" className="text-sm text-lime">
+          {busy === "importing" ? "Spielstand wird geprüft und aufbereitet …" : "Spielstand und Archiv werden komprimiert …"}
+        </p>}
         {/* Gefahrenzone */}
         <div className="space-y-2">
           <div className="text-xs font-semibold uppercase tracking-wider text-destructive/80 flex items-center gap-1.5">
