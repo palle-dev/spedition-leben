@@ -4,8 +4,8 @@ import { exportSave, importSave } from "./persistence";
 import { MAX_SAVE_BYTES, prepareLoadedState } from "./saveSafety";
 import { compactHistory, portableHistory, restoreHistory, readLimited, readArchiveRecords } from "./historyArchive";
 
-export async function runSaveFileTask(command, input) {
-  if (command === "journalPage") return journalPage(input);
+export async function runSaveFileTask(command, input, readRecords = async (id, c) => readArchiveRecords(c, await readHistoryBlock(id, c))) {
+  if (command === "journalPage") return journalPage(input, readRecords);
   if (command === "historyPage") {
     const { state, userId, kind = "", search = "", cursor = null } = input;
     const chunks = state?.historyArchive?.chunks || [];
@@ -15,8 +15,7 @@ export async function runSaveFileTask(command, input) {
     for (; i >= 0; i--, offset = 0) {
       const chunk = chunks[i];
       if (kind && chunk.kind !== kind) continue;
-      const data = await readHistoryBlock(userId, chunk);
-      const records = await readArchiveRecords(chunk, data);
+      const records = await readRecords(userId, chunk);
       for (; offset < records.length; offset++) {
         const record = records[records.length - 1 - offset];
         if (needle && !JSON.stringify(record).toLocaleLowerCase("de-DE").includes(needle)) continue;

@@ -1,7 +1,7 @@
 import { stageHistory, hydrateHistory } from "@/lib/historyRepository";
 import { createSimulationClient } from "@/lib/simulationWorkerClient";
 import { archiveStats } from "@/lib/historyArchive";
-import { processSaveFile } from "@/lib/saveFileClient";
+import { processSaveFile, resetHistoryQueries } from "@/lib/saveFileClient";
 import { displayedGameMinute } from "@/lib/displayClock";
 import { playExperienceSound } from "@/lib/experienceSound";
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from "react";
@@ -121,6 +121,7 @@ export function GameProvider({ children }) {
     assertWritable();
     if (!userIdRef.current || userIdRef.current !== activeUserRef.current) throw new Error("Bitte erneut anmelden.");
     sessionGenerationRef.current++;
+    resetHistoryQueries();
     changingStateRef.current = true;
     setAutomationEnabled(false);
     userWantsAutomationRef.current = false;
@@ -775,6 +776,7 @@ export function GameProvider({ children }) {
     const uid = authUser?.id;
     sessionGenerationRef.current++;
     simulationClient.reset();
+    resetHistoryQueries();
     userIdRef.current = uid || null;
     changingStateRef.current = true;
     const token = sessionToken();
@@ -906,13 +908,13 @@ export function GameProvider({ children }) {
 
   const queryHistory = useCallback(async (snapshot, options = {}) => {
     const token = sessionToken();
-    const result = await processSaveFile("historyPage", { ...options, state: { historyArchive: snapshot.historyArchive }, userId: token.userId });
+    const result = await processSaveFile("historyPage", { ...options, state: { historyArchive: snapshot.historyArchive }, userId: token.userId, sessionGeneration: token.generation });
     if (!isCurrentSession(token)) throw Error("Spielstand wurde inzwischen gewechselt.");
     return result;
   }, [sessionToken, isCurrentSession]);
   const queryJournal = useCallback(async (snapshot, options = {}) => {
     const token = sessionToken();
-    const result = await processSaveFile("journalPage", { ...options, state: { historyArchive: snapshot.historyArchive, accounting: { journal: snapshot.accounting?.journal } }, userId: token.userId });
+    const result = await processSaveFile("journalPage", { ...options, state: { historyArchive: snapshot.historyArchive, accounting: { journal: snapshot.accounting?.journal } }, userId: token.userId, sessionGeneration: token.generation });
     if (!isCurrentSession(token)) throw Error("Spielstand wurde inzwischen gewechselt.");
     return result;
   }, [sessionToken, isCurrentSession]);

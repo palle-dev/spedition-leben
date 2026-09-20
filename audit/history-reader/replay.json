@@ -1,0 +1,23 @@
+{
+  "node": "v24.19.0",
+  "metrics": [
+    {
+      "cached": false,
+      "pages": 20,
+      "rows": 1000,
+      "blockReads": 21,
+      "blockDecodes": 21,
+      "ms": 283.81130600000006
+    },
+    {
+      "cached": true,
+      "pages": 20,
+      "rows": 1000,
+      "blockReads": 2,
+      "blockDecodes": 2,
+      "ms": 26.558402000000115
+    }
+  ],
+  "identicalPagesAndCursors": true,
+  "limits": "Controlled local read/decode test on copied save. In-memory block store instead of IndexedDB. No actual browser/worker startup/network timing or simulation speed claim. Cache capped at 8 MiB raw JSON, 4000 rows and 8 blocks; object heap overhead additional."
+}

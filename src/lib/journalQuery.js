@@ -3,7 +3,7 @@ import { readArchiveRecords } from './historyArchive';
 
 // Newest booking numbers first across active and immutable records. The cursor
 // belongs to the pinned snapshot used by the caller, not the changing live game.
-export async function journalPage({ state, userId, filters = {}, before = Infinity }) {
+export async function journalPage({ state, userId, filters = {}, before = Infinity }, readRecords = async (id, c) => readArchiveRecords(c, await readHistoryBlock(id, c))) {
   const needle = (filters.search || '').toLocaleLowerCase('de-DE');
   const matches = e => e.entryNo < before &&
     (!filters.account || e.lines.some(l => l.account === filters.account)) &&
@@ -24,7 +24,7 @@ export async function journalPage({ state, userId, filters = {}, before = Infini
     .sort((a, b) => (b.maxEntryNo ?? Infinity) - (a.maxEntryNo ?? Infinity));
   for (const c of chunks) {
     if (c.minEntryNo >= before || (rows.length === 51 && c.maxEntryNo < rows[50].entryNo)) continue;
-    include(await readArchiveRecords(c, await readHistoryBlock(userId, c)));
+    include(await readRecords(userId, c));
   }
   return { rows: rows.slice(0, 50), before: rows.length > 50 ? rows[49].entryNo : null };
 }
