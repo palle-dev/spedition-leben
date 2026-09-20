@@ -26,11 +26,14 @@ export async function readLimited(stream, limit = MAX_RAW) {
   return new Blob(parts);
 }
 async function hash(blob) {
-  const bytes = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
+  return hashBytes(await blob.arrayBuffer());
+}
+async function hashBytes(buffer) {
+  const bytes = await crypto.subtle.digest("SHA-256", buffer);
   return Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2, "0")).join("");
 }
-async function encode(blob) {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
+function encodeBytes(buffer) {
+  const bytes = new Uint8Array(buffer);
   let binary = "";
   for (let i = 0; i < bytes.length; i += 32768) binary += String.fromCharCode(...bytes.subarray(i, i + 32768));
   return btoa(binary);
@@ -69,8 +72,10 @@ export async function portableHistory(state, { references = new Set(), loadBlock
     }
     const c = loadBlock ? { ...original, data: await loadBlock(original) } : original;
     if (!(c.data instanceof Blob)) throw Error("Archivdaten fehlen. Bitte den ursprünglichen Spielstand erneut laden.");
-    if (await hash(c.data) !== c.id) throw Error("Archiv-Prüfsumme stimmt nicht überein.");
-    portable.push({ ...c, data: await encode(c.data) });
+    // Verify and encode the same bytes, reading each immutable block only once.
+    const buffer = await c.data.arrayBuffer();
+    if (await hashBytes(buffer) !== c.id) throw Error("Archiv-Prüfsumme stimmt nicht überein.");
+    portable.push({ ...c, data: encodeBytes(buffer) });
   }
   const archive = { ...state.historyArchive, chunks: portable };
   delete archive.storage;
