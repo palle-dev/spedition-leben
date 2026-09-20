@@ -1,0 +1,125 @@
+{
+  "ms": 4942.503858,
+  "top": [
+    [
+      "suggestTours tourEngine.ts:1217",
+      652964
+    ],
+    [
+      "_cached tourEngine.ts:82",
+      244658
+    ],
+    [
+      "processDispatcher dispatcherProcessor.ts:118",
+      222347
+    ],
+    [
+      "_tryPlan tourEngine.ts:372",
+      206413
+    ],
+    [
+      "getDistance gameRules.ts:67",
+      162732
+    ],
+    [
+      "buildTourPlan tourEngine.ts:333",
+      160999
+    ],
+    [
+      "planningResources tourEngine.ts:47",
+      154882
+    ],
+    [
+      "processEventsAt simulationEngine.ts:374",
+      141384
+    ],
+    [
+      "buildPhases driverTimeEngine.ts:66",
+      135907
+    ],
+    [
+      "buildDeployment tourEngine.ts:227",
+      133476
+    ],
+    [
+      "post node:inspector:114",
+      132582
+    ],
+    [
+      "advanceToIndexed simulationEngine.ts:697",
+      124462
+    ],
+    [
+      "processTours tourEngine.ts:912",
+      116124
+    ],
+    [
+      "deliverMessage mailEngine.ts:225",
+      110342
+    ],
+    [
+      "(garbage collector) :-1",
+      90476
+    ],
+    [
+      " tourEngine.ts:1374",
+      86608
+    ],
+    [
+      " mailEngine.ts:231",
+      81269
+    ],
+    [
+      "getDeliveryRisks deliveryRisk.ts:7",
+      81112
+    ],
+    [
+      " tourEngine.ts:1404",
+      73647
+    ],
+    [
+      "earliestEventAfter eventScheduler.ts:27",
+      72209
+    ],
+    [
+      " dispatcherProcessor.ts:437",
+      66804
+    ],
+    [
+      " phoneCommunications.ts:9",
+      66113
+    ],
+    [
+      "hasPendingTour tourEngine.ts:71",
+      64513
+    ],
+    [
+      " tourEngine.ts:80",
+      62802
+    ],
+    [
+      "driverTrip tourEngine.ts:80",
+      47630
+    ],
+    [
+      " tourEngine.ts:75",
+      40740
+    ],
+    [
+      "isPersonAvailable absenceEngine.ts:651",
+      39563
+    ],
+    [
+      " tourEngine.ts:1364",
+      39384
+    ],
+    [
+      "nextReservationStart tourEngine.ts:169",
+      34793
+    ],
+    [
+      " disruptionEngine.ts:138",
+      34771
+    ]
+  ]
+}

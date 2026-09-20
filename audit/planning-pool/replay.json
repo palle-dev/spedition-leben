@@ -1,0 +1,59 @@
+{
+  "node": "v24.19.0",
+  "activeVehicles": 97,
+  "branches": 6,
+  "initial": {
+    "rawExportStateBytes": 45227555,
+    "beforeJournalRows": 3169,
+    "activeJournalRows": 3169,
+    "archivedJournalRows": 19788,
+    "projectionBytes": 915465,
+    "beforeActiveBytes": 15138750,
+    "afterActiveBytes": 15138232,
+    "initialCompactionMs": 841.9837460000008
+  },
+  "days": [
+    {
+      "day": 1,
+      "gameTime": 177876,
+      "baselineMs": 5397.460823,
+      "engineMs": 4721.18648,
+      "compressionMs": 119.6732239999983,
+      "activeJournalRows": 3224,
+      "archivedJournalRows": 20165,
+      "equalFinancialReports": true,
+      "equalCompanyPeopleFleetAndDeliveredOrders": true
+    },
+    {
+      "day": 2,
+      "gameTime": 179316,
+      "baselineMs": 3698.935716,
+      "engineMs": 3030.866944999998,
+      "compressionMs": 190.5757709999998,
+      "activeJournalRows": 3239,
+      "archivedJournalRows": 20584,
+      "equalFinancialReports": true,
+      "equalCompanyPeopleFleetAndDeliveredOrders": true
+    },
+    {
+      "day": 3,
+      "gameTime": 180756,
+      "baselineMs": 3231.99049,
+      "engineMs": 3009.1062760000023,
+      "compressionMs": 207.90443700000105,
+      "activeJournalRows": 3275,
+      "archivedJournalRows": 20994,
+      "equalFinancialReports": true,
+      "equalCompanyPeopleFleetAndDeliveredOrders": true
+    }
+  ],
+  "originalJournalEntriesPreserved": 22957,
+  "totalJournalRows": 24269,
+  "activeBytes": 15685465,
+  "archive": {
+    "records": 63050,
+    "rawBytes": 37023956,
+    "compressedBytes": 2429803
+  },
+  "measurement": "Local controlled engine comparison on copied save. Financial reports and listed business fields compared, all original pre-existing journal entries verified. No browser/IndexedDB/network timing, no production writes. Baseline/current retain seven days of journal originals. All fields except archive descriptor arrays and journal/projection compared, with exact finance/original-journal verification. All operational fields including tours, history outbox and sequence compared. Not a long-term or 250-truck proof."
+}

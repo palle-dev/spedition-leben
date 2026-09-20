@@ -1236,13 +1236,20 @@ export function suggestTours(state, opts) {
   // Wenn alle Aufträge verplant sind, müssen keine weiteren Fahrzeuge
   // geprüft werden — das spart bei 100 Fahrzeugen mit 10 Aufträgen 90%
   // der buildTourPlan-Aufrufe.
-  const totalAvailableOrders = planningOrders.filter(o =>
+  const availableOrders = planningOrders.filter(o =>
     (o.status === "angenommen" || (acceptNew && o.status === "offered")) &&
     o.deliveryDeadlineMin > startMin - 240 &&
     !activeTourOrderIds.has(o.id) &&
     !o.reservedByTourId &&
     (!restrictSet || restrictSet.has(o.id))
-  ).length;
+  );
+  const totalAvailableOrders = availableOrders.length;
+  // These inputs do not change during this read-only suggestion call. Preserve
+  // stable deadline ordering; only assignment and vehicle suitability vary.
+  const acceptedPool = availableOrders.filter(o => o.status === "angenommen")
+    .sort((a, b) => a.deliveryDeadlineMin - b.deliveryDeadlineMin);
+  const offeredPool = acceptNew ? availableOrders.filter(o => o.status === "offered" &&
+    o.acceptDeadlineMin > startMin && o.deliveryDeadlineMin > startMin) : [];
 
   const eligibleDrivers = state.drivers.filter(d => d.employmentStatus === "employed" &&
     !resources.committed.has(d.id) && ["free", "resting", "on_trip"].includes(d.status));
@@ -1318,30 +1325,10 @@ export function suggestTours(state, opts) {
     //    geplant (completeTrip zahlt 90% Vergütung bei Spätlieferung).
     //    Sortiert nach Dringlichkeit (knappste Frist zuerst), damit bei
     //    Truncation auf 12 Aufträge die eiligsten nicht verloren gehen.
-    const acceptedOrders = planningOrders.filter(o =>
-      o.status === "angenommen" &&
-      o.deliveryDeadlineMin > startMin - 240 &&
-      o.tons <= vehicle.capacityTons &&
-      checkBodyTypeCompatibility(o, vehicle).ok &&
-      !usedOrderIds.has(o.id) &&
-      !activeTourOrderIds.has(o.id) &&
-      !o.reservedByTourId &&
-      (!restrictSet || restrictSet.has(o.id))
-    ).sort((a, b) => a.deliveryDeadlineMin - b.deliveryDeadlineMin);
-
-    // 2. Offene Angebote (nur wenn acceptNew, nicht bereits zugewiesen)
-    //    Lieferfrist muss noch in der Zukunft liegen.
-    const offeredOrders = acceptNew ? planningOrders.filter(o =>
-      o.status === "offered" &&
-      o.acceptDeadlineMin > startMin &&
-      o.deliveryDeadlineMin > startMin &&
-      o.tons <= vehicle.capacityTons &&
-      checkBodyTypeCompatibility(o, vehicle).ok &&
-      !usedOrderIds.has(o.id) &&
-      !activeTourOrderIds.has(o.id) &&
-      !o.reservedByTourId &&
-      (!restrictSet || restrictSet.has(o.id))
-    ) : [];
+    const suitable = o => !usedOrderIds.has(o.id) && o.tons <= vehicle.capacityTons &&
+      checkBodyTypeCompatibility(o, vehicle).ok;
+    const acceptedOrders = acceptedPool.filter(suitable);
+    const offeredOrders = offeredPool.filter(suitable);
 
     const allOrders = [...acceptedOrders, ...offeredOrders];
     // CPU-Schutz: die Doppel-Tour-Suche ist O(n²). Bei vielen Aufträgen
@@ -1384,6 +1371,12 @@ export function suggestTours(state, opts) {
     // gewinnt bereits bisher der erste Fahrer (< 0); spätere identische
     // Kandidaten können deshalb ohne Auswahländerung entfallen.
     // Alle fahrerabhängigen Eingaben von buildTourPlan sind enthalten.
+    // Connection candidates depend on this vehicle's order pool, not its driver.
+    const chainMap = new Map();
+    for (const o of allOrders) {
+      if (!chainMap.has(o.fromCity)) chainMap.set(o.fromCity, []);
+      chainMap.get(o.fromCity).push(o);
+    }
     const seenDriverConditions = new Set();
     for (const driver of candidateDrivers) {
       // buildTourPlan always rejects different future locations. Avoid all
@@ -1422,11 +1415,6 @@ export function suggestTours(state, opts) {
       }
 
       // Doppel-Touren (Hin + Rück) — Ketten-Map für O(n·k) statt O(n²)
-      const chainMap = new Map();
-      for (const o of allOrders) {
-        if (!chainMap.has(o.fromCity)) chainMap.set(o.fromCity, []);
-        chainMap.get(o.fromCity).push(o);
-      }
       for (const o1 of allOrders) {
         const chainable = chainMap.get(o1.toCity) || [];
         for (const o2 of chainable) {
