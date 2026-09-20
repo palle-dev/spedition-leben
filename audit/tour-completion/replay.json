@@ -1,0 +1,62 @@
+{
+  "repairedLegacyTours": 4,
+  "repairPreservesOriginals": true,
+  "repairChangesNoOtherFields": true,
+  "node": "v24.19.0",
+  "activeVehicles": 97,
+  "branches": 6,
+  "initial": {
+    "rawExportStateBytes": 45227555,
+    "beforeJournalRows": 3169,
+    "activeJournalRows": 3169,
+    "archivedJournalRows": 19788,
+    "projectionBytes": 915465,
+    "beforeActiveBytes": 15138750,
+    "afterActiveBytes": 15138232,
+    "initialCompactionMs": 513.2880910000003
+  },
+  "days": [
+    {
+      "day": 1,
+      "gameTime": 177876,
+      "baselineMs": 5172.581155999999,
+      "engineMs": 5084.508764999999,
+      "compressionMs": 169.83146000000124,
+      "activeJournalRows": 3224,
+      "archivedJournalRows": 20165,
+      "equalFinancialReports": true,
+      "equalCompanyPeopleFleetAndDeliveredOrders": true
+    },
+    {
+      "day": 2,
+      "gameTime": 179316,
+      "baselineMs": 3567.229747000001,
+      "engineMs": 5949.480898000002,
+      "compressionMs": 1413.171489999997,
+      "activeJournalRows": 3239,
+      "archivedJournalRows": 20584,
+      "equalFinancialReports": true,
+      "equalCompanyPeopleFleetAndDeliveredOrders": true
+    },
+    {
+      "day": 3,
+      "gameTime": 180756,
+      "baselineMs": 4192.817322000003,
+      "engineMs": 3714.388933999995,
+      "compressionMs": 238.21047700000054,
+      "activeJournalRows": 3275,
+      "archivedJournalRows": 20994,
+      "equalFinancialReports": true,
+      "equalCompanyPeopleFleetAndDeliveredOrders": true
+    }
+  ],
+  "originalJournalEntriesPreserved": 22957,
+  "totalJournalRows": 24269,
+  "activeBytes": 15685465,
+  "archive": {
+    "records": 63050,
+    "rawBytes": 37023956,
+    "compressedBytes": 2429803
+  },
+  "measurement": "Local controlled engine comparison on copied save. Financial reports and listed business fields compared, all original pre-existing journal entries verified. No browser/IndexedDB/network timing, no production writes. Baseline/current retain seven days of journal originals. All fields except tours, historySequence, archive/outbox and journal/projection compared. Tour status/completion timestamps and history legitimately differ. Not a long-term or 250-truck proof."
+}

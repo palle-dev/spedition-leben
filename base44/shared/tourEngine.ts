@@ -1,3 +1,4 @@
+import { preserveHistory } from "./historyRetention.ts";
 import { findOrder, planningOrdersFor } from "./orderLookup.ts";
 // Tourenketten-Engine für FERNWERK.
 // Planung, Validierung, Bestätigung und automatische Ausführung von
@@ -864,6 +865,26 @@ export function cancelTour(state, tourId) {
   return { ok: true, freedFutureDeployments: freedCount };
 }
 
+// Terminal deployments do not imply a stopped trip in inconsistent old saves.
+function runningTourTrips(state) {
+  const tours = new Set(), trips = new Set();
+  for (const t of state.trips || []) if (t.status === "in_progress") {
+    trips.add(t.id); if (t.tourId) tours.add(t.tourId);
+  }
+  return { tours, trips };
+}
+function finishTourIfDone(state, tour, m, log, running, recover = false) {
+  if (tour.status !== "active" || tour.disruptionId) return false;
+  const deps = [...(tour.deployments || []), tour.returnDeployment].filter(Boolean);
+  if (!deps.length || !deps.every(d => d.status === "completed" || d.status === "skipped") ||
+      running.tours.has(tour.id) || deps.some(d => d.tripId && running.trips.has(d.tripId))) return false;
+  if (recover) preserveHistory(state, "tourLifecycleVersions", [tour]);
+  tour.status = "completed";
+  tour.completedAtMin = m;
+  log.push({ type: "tour_completed", tour: tour.id });
+  return true;
+}
+
 // ---------- Automatische Ausführung ----------
 
 // Wird bei jedem Ereignis-Zeitpunkt aufgerufen.
@@ -888,6 +909,8 @@ export function processTours(state, m, log) {
     }
   }
 
+  const runningIndex = runningTourTrips(state);
+
   // Cleanup: Pausierte und verwaiste Touren abbrechen.
   // Pausierte Touren (z.B. "Fahrzeug nicht am erwarteten Ort") können nicht
   // starten und blockieren über reservedUntil Fahrzeuge/Fahrer. Verwaiste
@@ -896,6 +919,10 @@ export function processTours(state, m, log) {
   // Ressourcen freizugeben.
   for (const tour of state.tours || []) {
     if (tour.status !== "active") continue;
+    if (finishTourIfDone(state, tour, m, log, runningIndex, true)) continue;
+    // Pausing a chain must not cancel deployments whose trips still run.
+    if (runningIndex.tours.has(tour.id) || [...(tour.deployments || []), tour.returnDeployment]
+        .some(d => d?.tripId && runningIndex.trips.has(d.tripId))) continue;
     let shouldCancel = false;
     let cancelReason = null;
     if (tour.pauseReason) {
@@ -969,6 +996,7 @@ export function processTours(state, m, log) {
           (order.reservedByTourId && order.reservedByTourId !== tour.id)) {
         nextDep.dep.status = "skipped";
         if (order?.reservedByTourId === tour.id) order.reservedByTourId = null;
+        finishTourIfDone(state, tour, m, log, runningIndex);
         continue;
       }
     }
@@ -1057,16 +1085,11 @@ export function onTripCompleted(state, trip, m, log) {
   }
   if (!dep) return false;
 
+  if (dep.status === "completed") return true;
   dep.status = "completed";
   dep.actualEndMin = m;
 
-  // Prüfe, ob die Tour vollständig abgeschlossen ist
-  const allDone = tour.deployments.every(d => d.status === "completed" || d.status === "skipped");
-  const returnDone = !tour.returnDeployment || tour.returnDeployment.status === "completed" || tour.returnDeployment.status === "skipped";
-  if (allDone && returnDone) {
-    tour.status = "completed";
-    log.push({ type: "tour_completed", tour: tour.id });
-  }
+  finishTourIfDone(state, tour, m, log, runningTourTrips(state));
 
   return true;
 }
