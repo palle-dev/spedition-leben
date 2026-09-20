@@ -23,7 +23,7 @@ describe('Historisches Finanzjournal',()=>{
   postJournal(s,{gameTime:0,text:'Einlage',lines:[{account:'1000',debit:50},{account:'2020',credit:50}]});
   s.gameTime=160000;const before=reports(s),original=structuredClone(s);const compact=await compactHistory(s);
   expect(reports(compact)).toEqual(before);expect(s).toEqual(original);
-  expect(compact.accounting.journalProjection.count).toBe(10);
+  expect(compact.accounting.journalProjection.count).toBe(12);
   const rows=[];for(const c of compact.historyArchive.chunks.filter(c=>c.kind==='accountingJournal'))rows.push(...await readArchiveRecords(c,c.data));
   expect([...rows,...compact.accounting.journal].sort((a,b)=>a.entryNo-b.entryNo)).toEqual(s.accounting.journal);
  });
@@ -87,4 +87,36 @@ describe('Historisches Finanzjournal',()=>{
   const s=base();s.gameTime=500;book(s,'revenue_immediate',{paymentCents:100,customer:'Test',branchId:'a',gameTime:1});
   expect(s.accounting.journal[0].branchId).toBe('a');
  });
+});
+
+
+it('reduces an already checked legacy snapshot immediately, retains the exact seven-day boundary and pinned reversals', async () => {
+ const s=base(), day=1440;
+ entry(s,1,100,{sourceEventId:'service'});
+ entry(s,3*day-1,200);
+ entry(s,3*day,300);
+ entry(s,10*day,400);
+ s.gameTime=10*day;
+ s.serviceContracts=[{id:'service',startMin:11*day,status:'booked'}];
+ s.historyArchive={version:1,checkedDay:10,chunks:[]};
+ const before=reports(s);
+ const c=await compactHistory(s);
+ expect(c.accounting.journal.map(e=>e.gameTime)).toEqual([1,3*day,10*day]);
+ expect(c.accounting.journalProjection.count).toBe(1);
+ expect(reports(c)).toEqual(before);
+ expect(await compactHistory(c)).toBe(c);
+ const portable=await portableHistory(c);
+ const restored=await restoreHistory(JSON.parse(JSON.stringify(portable)));
+ expect(reports(restored)).toEqual(before);
+ const page=await journalPage({state:restored,userId:'test'});
+ expect(page.rows).toEqual([...s.accounting.journal].reverse());
+});
+
+it('archives a released cancellation source on the next day without changing historic amounts', async () => {
+ const s=base();entry(s,1,100,{sourceEventId:'service'});
+ s.gameTime=10*1440;s.serviceContracts=[{id:'service',startMin:11*1440,status:'booked'}];
+ let c=await compactHistory(s);expect(c.accounting.journal).toHaveLength(1);
+ c.serviceContracts[0].status='cancelled';c.gameTime+=1440;
+ const expected=reports(c);c=await compactHistory(c);
+ expect(c.accounting.journal).toHaveLength(0);expect(reports(c)).toEqual(expected);
 });

@@ -1,0 +1,59 @@
+{
+  "node": "v24.19.0",
+  "activeVehicles": 97,
+  "branches": 6,
+  "initial": {
+    "rawExportStateBytes": 45227555,
+    "beforeJournalRows": 18207,
+    "activeJournalRows": 3169,
+    "archivedJournalRows": 19788,
+    "projectionBytes": 915465,
+    "beforeActiveBytes": 22875794,
+    "afterActiveBytes": 15138232,
+    "initialCompactionMs": 925.2570820000001
+  },
+  "days": [
+    {
+      "day": 1,
+      "gameTime": 177876,
+      "baselineMs": 4941.518682000001,
+      "engineMs": 4646.910593999999,
+      "compressionMs": 125.67585099999997,
+      "activeJournalRows": 3224,
+      "archivedJournalRows": 20165,
+      "equalFinancialReports": true,
+      "equalCompanyPeopleFleetAndDeliveredOrders": true
+    },
+    {
+      "day": 2,
+      "gameTime": 179316,
+      "baselineMs": 3434.7776950000007,
+      "engineMs": 3347.896041,
+      "compressionMs": 127.28645099999994,
+      "activeJournalRows": 3239,
+      "archivedJournalRows": 20584,
+      "equalFinancialReports": true,
+      "equalCompanyPeopleFleetAndDeliveredOrders": true
+    },
+    {
+      "day": 3,
+      "gameTime": 180756,
+      "baselineMs": 3715.9994450000013,
+      "engineMs": 3557.294736,
+      "compressionMs": 163.12640999999712,
+      "activeJournalRows": 3275,
+      "archivedJournalRows": 20994,
+      "equalFinancialReports": true,
+      "equalCompanyPeopleFleetAndDeliveredOrders": true
+    }
+  ],
+  "originalJournalEntriesPreserved": 22957,
+  "totalJournalRows": 24269,
+  "activeBytes": 15678503,
+  "archive": {
+    "records": 63046,
+    "rawBytes": 37014131,
+    "compressedBytes": 2427955
+  },
+  "measurement": "Local controlled engine comparison on copied save. Financial reports and listed business fields compared, all original pre-existing journal entries verified. No browser/IndexedDB/network timing, no production writes. Baseline retains 60 days of journal originals; current retains 7 days plus cancellation sources. All non-archive/non-journal state fields compared. Not a long-term or 250-truck proof."
+}

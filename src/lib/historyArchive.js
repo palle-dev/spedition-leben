@@ -3,6 +3,10 @@ import { projectJournal } from "./simulation/financialProjection.ts";
 // Immutable gzip Blobs are stored by IndexedDB and shared cheaply by structured
 // clone. The engine never inflates them. Portable saves embed verified base64.
 const DAY = 1440;
+// Original receipts remain available via journalPage; live simulation needs only
+// recent entries plus explicitly pinned cancellation sources.
+const JOURNAL_ACTIVE_DAYS = 7;
+const COMPACTION_POLICY_VERSION = 2;
 const MAX_RAW = 256 * 1024 * 1024;
 const KINDS = new Set(["expiredOffers", "accountingTasks", "accountingJournal"]);
 export const ARCHIVE_VERSION = 1;
@@ -123,14 +127,14 @@ export function partitionHistory(state) {
   const services = new Set((state.serviceContracts || []).filter(c => c.startMin > state.gameTime && !['completed', 'cancelled'].includes(c.status)).map(c => c.id));
   const archivedJournal = [], journal = [];
   for (const e of state.accounting?.journal || []) {
-    (Number.isFinite(e.gameTime) && e.gameTime < state.gameTime - 60 * DAY && !services.has(e.sourceEventId) ? archivedJournal : journal).push(e);
+    (Number.isFinite(e.gameTime) && e.gameTime < state.gameTime - JOURNAL_ACTIVE_DAYS * DAY && !services.has(e.sourceEventId) ? archivedJournal : journal).push(e);
   }
   return { offers, orders, tasks, taskQueue, archivedJournal, journal };
 }
 export async function compactHistory(state) {
   if (!state || !Array.isArray(state.orders) || typeof CompressionStream === "undefined") return state;
   const day = Math.floor(state.gameTime / DAY);
-  if (state.historyArchive?.checkedDay === day && !state.historyOutbox?.length) return state;
+  if (state.historyArchive?.checkedDay === day && state.historyArchive?.policyVersion === COMPACTION_POLICY_VERSION && !state.historyOutbox?.length) return state;
   const old = chunksOf(state);
   const p = partitionHistory(state), additions = [];
   const groups = new Map([["expiredOffers", p.offers], ["accountingTasks", p.tasks], ["accountingJournal", p.archivedJournal]]);
@@ -153,7 +157,7 @@ export async function compactHistory(state) {
   // the original snapshot intact, including every historical record.
   return { ...state, historyOutbox: [], orders: p.orders,
     ...(state.accounting ? { accounting: { ...state.accounting, taskQueue: p.taskQueue, journal: p.journal, ...(p.archivedJournal.length ? { journalProjection: projectJournal(state.accounting.journalProjection, p.archivedJournal, ACCOUNTS) } : {}) } } : {}),
-    historyArchive: { ...(state.historyArchive?.storage ? { storage: state.historyArchive.storage } : {}), version: ARCHIVE_VERSION, checkedDay: day, chunks: [...old, ...additions] } };
+    historyArchive: { ...(state.historyArchive?.storage ? { storage: state.historyArchive.storage } : {}), version: ARCHIVE_VERSION, policyVersion: COMPACTION_POLICY_VERSION, checkedDay: day, chunks: [...old, ...additions] } };
 }
 export function archiveStats(state) {
   const chunks = state?.historyArchive?.chunks || [];
