@@ -1,3 +1,4 @@
+import { RIVAL_ID } from "./worldRivalStory.ts";
 import { HOME_ID } from "./worldHomeStory.ts";
 import { TEAM_ID } from "./worldTeamStory.ts";
 import { ensureWorldContinuation, CONTINUATION_ID } from "./worldContinuation.ts";
@@ -63,7 +64,7 @@ function startWorld(state) {
     rivals: WORLD_RIVALS.map(r => ({ ...r, relationship: 45, jobs: [], wins: 0, completed: 0, lastDayNetCents: 0 })),
     friend: { id: "world_jens", name: "Jens", quality: state.stats.friendshipQualities?.world_jens ?? 35 },
     stories: Object.fromEntries(WORLD_STORIES.map(s => [s.id, {
-      id: s.id, stage: 0, status: "locked", availableAtMin: [CONTINUATION_ID, TEAM_ID, HOME_ID].includes(s.id) ? null : state.gameTime + s.unlockDays * WORLD_DAY,
+      id: s.id, stage: 0, status: "locked", availableAtMin: [CONTINUATION_ID, TEAM_ID, HOME_ID, RIVAL_ID].includes(s.id) ? null : state.gameTime + s.unlockDays * WORLD_DAY,
       decisions: [], actorId: null, actorName: null, pending: null, dueMin: null,
     }])),
     tenders: [], chronicle: [],
@@ -140,7 +141,7 @@ function chooseStory(state, p) {
     });
     run.status = "appointment"; run.dueMin = slot.endMin;
   } else {
-    run.status = "waiting"; run.dueMin = state.gameTime + ([CONTINUATION_ID, TEAM_ID, HOME_ID].includes(run.id) ? 3 : 2) * WORLD_DAY;
+    run.status = "waiting"; run.dueMin = state.gameTime + ([CONTINUATION_ID, TEAM_ID, HOME_ID, RIVAL_ID].includes(run.id) ? 3 : 2) * WORLD_DAY;
   }
   return { ok: true, appointmentId: run.appointmentId || null };
 }
@@ -171,13 +172,13 @@ function processStories(state, m) {
       } else {
         run.pending = { cause: run.pending.cause, text: "Der versprochene Termin hat nicht stattgefunden. Die positive Nachwirkung entfällt.", effect: ["home", HOME_ID].includes(run.id) ? { relationship: -3 } : { friend: -3 } };
       }
-      run.status = "waiting"; run.dueMin = m + ([CONTINUATION_ID, TEAM_ID, HOME_ID].includes(run.id) ? 3 : 2) * WORLD_DAY;
+      run.status = "waiting"; run.dueMin = m + ([CONTINUATION_ID, TEAM_ID, HOME_ID, RIVAL_ID].includes(run.id) ? 3 : 2) * WORLD_DAY;
     }
     if (run.status === "waiting" && run.dueMin <= m) {
       effect(state, run, run.pending.effect);
       note(state, "Was daraus geworden ist", run.pending.text, run.pending.cause, "consequence");
       if (run.pending.identity) w.identity = run.pending.identity;
-      if ((run.id === CONTINUATION_ID && run.stage === 4) || ([TEAM_ID, HOME_ID].includes(run.id) && run.stage === 3)) run.ending = run.pending.text;
+      if ((run.id === CONTINUATION_ID && run.stage === 4) || ([TEAM_ID, HOME_ID, RIVAL_ID].includes(run.id) && run.stage === 3)) run.ending = run.pending.text;
       run.stage++; run.pending = null; run.dueMin = null;
       if (run.stage >= WORLD_STORIES.find(s => s.id === run.id).chapters) {
         run.status = "done";

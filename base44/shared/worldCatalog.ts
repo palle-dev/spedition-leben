@@ -1,3 +1,4 @@
+import { RIVAL_STORY, RIVAL_ID, rivalScene } from "./worldRivalStory.ts";
 import { HOME_STORY, HOME_ID, homeScene } from "./worldHomeStory.ts";
 import { TEAM_STORY, TEAM_ID, teamScene } from "./worldTeamStory.ts";
 import { CONTINUATION, continuationScene, CONTINUATION_ID } from "./worldContinuation.ts";
@@ -18,6 +19,7 @@ export const WORLD_STORIES = [
   CONTINUATION,
   TEAM_STORY,
   HOME_STORY,
+  RIVAL_STORY,
   { id: "harbor", title: "Zwischen Hafen und Zuhause", subtitle: "Eine Region erinnert sich.", chapters: 4, unlockDays: 0, kind: "Hauptgeschichte" },
   { id: "driver", title: "Dein erster Fahrer", subtitle: "Loyalität lässt sich nicht kaufen. Aber verdienen.", chapters: 2, unlockDays: 1, kind: "Teamgeschichte" },
   { id: "home", title: "Das Licht in der Küche", subtitle: "Welche Versprechen überstehen einen vollen Auftragskalender?", chapters: 2, unlockDays: 3, kind: "Persönliche Geschichte" },
@@ -34,6 +36,7 @@ type WorldChoice = { id: string; label: string; detail: string; effect: WorldEff
 const c = (id: string, label: string, detail: string, effect: WorldEffect = {}, extra: Partial<WorldChoice> = {}): WorldChoice => ({ id, label, detail, effect, costCents: 0, account: "company", ...extra });
 export function worldScene(state, run) {
   if (!run) return null;
+  if (run.id === RIVAL_ID) return rivalScene(state, run);
   if (run.id === HOME_ID) return homeScene(state, run);
   if (run.id === TEAM_ID) return teamScene(state, run);
   if (run.id === CONTINUATION_ID) return continuationScene(state, run);
