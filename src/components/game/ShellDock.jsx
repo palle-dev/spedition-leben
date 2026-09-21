@@ -221,7 +221,7 @@ export default function ShellDock() {
           >
             <Clock className="w-4 h-4" /> <span className="hidden lg:inline">1 Std</span>
           </button>
-          <button aria-label={automationEnabled?"Live-Simulation pausieren":"Live-Simulation starten"} title={automationEnabled?"Pausieren · 15 Spielminuten je 5 Sekunden":"Starten · 15 Spielminuten je 5 Sekunden"} aria-pressed={automationEnabled} disabled={disabled||automationBusy} onClick={()=>automationEnabled?pauseAutomation():enableAutomation()} className={"grid place-items-center rounded-lg w-11 min-h-[44px] border disabled:opacity-40 "+(automationEnabled?"border-lime/40 bg-lime/15 text-lime":"border-white/10 bg-white/5 text-muted-foreground hover:text-foreground")}>{automationBusy?<Loader2 className="w-4 h-4 animate-spin"/>:automationEnabled?<Pause className="w-4 h-4"/>:<Play className="w-4 h-4"/>}</button>
+          <button aria-label={automationEnabled?"Live-Simulation pausieren":"Live-Simulation starten"} title={automationEnabled?"Pausieren · 15 Spielminuten je 2,5 Sekunden":"Starten · 15 Spielminuten je 2,5 Sekunden"} aria-pressed={automationEnabled} disabled={disabled||automationBusy} onClick={()=>automationEnabled?pauseAutomation():enableAutomation()} className={"grid place-items-center rounded-lg w-11 min-h-[44px] border disabled:opacity-40 "+(automationEnabled?"border-lime/40 bg-lime/15 text-lime":"border-white/10 bg-white/5 text-muted-foreground hover:text-foreground")}>{automationBusy?<Loader2 className="w-4 h-4 animate-spin"/>:automationEnabled?<Pause className="w-4 h-4"/>:<Play className="w-4 h-4"/>}</button>
           <button
             onClick={advanceDay}
             disabled={disabled}

@@ -643,7 +643,7 @@ export function GameProvider({ children }) {
     try {
       await send("enableAutomation", {});
       setAutomationEnabled(true);
-      if (!silent) showToast("Live-Simulation aktiviert: alle 5 Sekunden vergehen 15 Spielminuten.", "success");
+      if (!silent) showToast("Live-Simulation aktiviert: alle 2,5 Sekunden vergehen 15 Spielminuten.", "success");
     } catch (e) { if (!silent) showToast("Automatik konnte nicht aktiviert werden: " + (e?.message || "Unbekannt"), "error"); }
     finally { setAutomationBusy(false); }
   }, [send, showToast]);
@@ -664,7 +664,7 @@ export function GameProvider({ children }) {
 
   useEffect(() => {
     if (!automationEnabled) { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } return; }
-    pollRef.current = setInterval(syncAutomation, 5000);
+    pollRef.current = setInterval(syncAutomation, 2500);
     return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
   }, [automationEnabled, syncAutomation]);
 
