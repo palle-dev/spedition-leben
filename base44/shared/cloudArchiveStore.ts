@@ -60,11 +60,27 @@ function validRecord(row: any, ownerId: string, c: any): boolean {
     row.descriptor && archiveIdentity(row.descriptor) === archiveIdentity(c);
 }
 
+// Bounded concurrency: processes async tasks in parallel batches to avoid
+// sequential round-trips per chunk (the main cause of multi-minute sync hangs).
+const CONCURRENCY = 5;
+async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+  async function worker() {
+    while (cursor < items.length) {
+      const i = cursor++;
+      results[i] = await fn(items[i], i);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
 export async function hydrateCloudArchive(blocks: any, ownerId: string, state: any, refs: Record<string, string> | null = {}, storage: any = null): Promise<any> {
-  const items: any[] = [];
-  for (const c of chunks(state)) {
+  const all = chunks(state);
+  const items = await mapWithConcurrency(all, CONCURRENCY, async (c: any) => {
     // Legacy embedded base64 saves (pre-file-storage) pass through directly.
-    if (typeof c.data === "string" && !isFileUri(c.data)) { items.push(c); continue; }
+    if (typeof c.data === "string" && !isFileUri(c.data)) return c;
     const ref = refs?.[c.id];
     if (typeof ref !== "string" || !ref) throw new CloudArchiveError("Cloud-Archivverweis fehlt.");
     const row = await blocks.get(ref);
@@ -78,19 +94,19 @@ export async function hydrateCloudArchive(blocks: any, ownerId: string, state: a
       const buffer = await response.arrayBuffer();
       const base64 = bytesToBase64(buffer);
       await verifyBase64(base64, c.id);
-      items.push({ ...c, data: base64 });
-    } else {
-      await verifyBase64(row.data, c.id);
-      items.push({ ...c, data: row.data });
+      return { ...c, data: base64 };
     }
-  }
+    await verifyBase64(row.data, c.id);
+    return { ...c, data: row.data };
+  });
   return stateWithChunks(state, items);
 }
 
 export async function stageCloudArchive(blocks: any, ownerId: string, state: any, previous: any = null, previousRefs: Record<string, string> | null = {}, storage: any = null): Promise<{ state: any; archive_blocks: Record<string, string> }> {
-  const items: any[] = [], refs: Record<string, string> = {};
+  const all = chunks(state);
   const known = new Map(chunks(previous).map((c: any) => [c.id, c]));
-  for (const c of chunks(state)) {
+  const refs: Record<string, string> = {};
+  const items: any[] = await mapWithConcurrency(all, CONCURRENCY, async (c: any) => {
     const old = known.get(c.id);
     const same = old && archiveIdentity(old) === archiveIdentity(c);
     // Only server-owned prior references are reusable. Incoming reference maps
@@ -98,8 +114,7 @@ export async function stageCloudArchive(blocks: any, ownerId: string, state: any
     if (same && typeof previousRefs?.[c.id] === "string" && old.data == null) {
       if (c.data != null) await verifyBase64(c.data, c.id);
       refs[c.id] = previousRefs[c.id];
-      items.push(reference(c));
-      continue;
+      return reference(c);
     }
     const data = c.data ?? (same ? old.data : null);
     await verifyBase64(data, c.id);
@@ -128,7 +143,7 @@ export async function stageCloudArchive(blocks: any, ownerId: string, state: any
       if (!row?.id) throw new CloudArchiveError("Cloud-Archivblock wurde nicht bestätigt.");
     }
     refs[c.id] = row.id;
-    items.push(reference(c));
-  }
+    return reference(c);
+  });
   return { state: stateWithChunks(state, items), archive_blocks: refs };
 }
