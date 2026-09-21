@@ -211,6 +211,19 @@ export function getEffectiveRules(state, branchId) {
   return { rules: merged, source: "branch", overridden: true, overrideBranchId: branchId };
 }
 
+// Wirksames Tagesbudget: der Preset-Wert ist eine pro-Lkw-Ausgabeobergrenze,
+// kein starres Unternehmenslimit. Eine feste 2000-€-Grenze (Preset "daily_relief")
+// ist für eine 24-Fahrzeug-Flotte schon nach wenigen Touren erschöpft und blockiert
+// jede weitere automatische Auftragsannahme. Das Budget skaliert daher mit der
+// aktiven Flotte; die Mindestliquidität (minLiquidityCents) bleibt der echte Anker.
+export function effectiveDailyBudgetCents(state, rules) {
+  if (!state.delegation) migrateDelegation(state);
+  const activeVehicles = (state.vehicles || []).filter(v =>
+    v.status !== "sold" && v.status !== "archived" && !v.markedForSale
+  ).length;
+  return Math.round((rules?.dailyBudgetCents || 0) * Math.max(1, activeVehicles));
+}
+
 // ---------- Budget-Prüfung ----------
 // Prüft unmittelbar vor der Ausführung, ob eine Ausgabe erlaubt ist.
 // Gibt { allowed, reason, violatedRule } zurück.
@@ -237,11 +250,12 @@ export function checkSpendAuthority(state, employeeId, amountCents, opts) {
     return { allowed: false, reason: `Ausgabe ${(amountCents / 100).toFixed(2)} € übersteigt Limit ${(rules.maxSpendPerActionCents / 100).toFixed(2)} €`, violatedRule: "maxSpendPerAction" };
   }
 
-  // 3. Tagesbudget (Unternehmensbudget — Filialbudget ist optional und zusätzlich)
+  // 3. Tagesbudget (flottenskaliert — Preset-Wert gilt pro aktiven Lkw)
   resetDailySpendIfNeeded(state);
   const spentToday = state.delegation.dailySpend.companyCents;
-  if (spentToday + amountCents > rules.dailyBudgetCents) {
-    return { allowed: false, reason: `Tagesbudget erschöpft: ${spentToday / 100} + ${amountCents / 100} > ${rules.dailyBudgetCents / 100} €`, violatedRule: "dailyBudget" };
+  const dailyBudget = effectiveDailyBudgetCents(state, rules);
+  if (spentToday + amountCents > dailyBudget) {
+    return { allowed: false, reason: `Tagesbudget erschöpft: ${spentToday / 100} + ${amountCents / 100} > ${dailyBudget / 100} €`, violatedRule: "dailyBudget" };
   }
 
   // 4. Mindestliquidität nach Ausgabe
@@ -470,7 +484,7 @@ export function getDelegationSummary(state) {
     preset: state.delegation.preset,
     branchOverrides: state.delegation.branchOverrides,
     dailySpend: ds,
-    dailyBudgetRemaining: Math.max(0, rules.dailyBudgetCents - ds.companyCents),
+    dailyBudgetRemaining: Math.max(0, effectiveDailyBudgetCents(state, rules) - ds.companyCents),
     pendingApprovals: pending,
     pendingCount: pending.length,
     recentDecisions,
