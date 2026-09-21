@@ -59,6 +59,7 @@ it("does not change rival assets, bids or live contracts when deciding",()=>{
  // Stop unrelated economy events to isolate the delayed story effect.
  s.world.nextEconomyMin=Infinity;s.world.nextTenderMin=Infinity;
  for(const t of s.world.tenders)t.closeMin=Infinity;
+ for(const r of s.world.rivals)for(const job of r.jobs)job.endMin=Infinity;
  const before=s.world.rivals.map(r=>({id:r.id,cash:r.cashCents,fleet:r.fleet,relation:r.relationship}));
  resolve(s);
  expect(s.world.rivals.map(r=>({id:r.id,cash:r.cashCents,fleet:r.fleet}))).toEqual(before.map(({relation,...r})=>r));
