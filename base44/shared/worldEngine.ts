@@ -1,3 +1,4 @@
+import { HOME_ID } from "./worldHomeStory.ts";
 import { TEAM_ID } from "./worldTeamStory.ts";
 import { ensureWorldContinuation, CONTINUATION_ID } from "./worldContinuation.ts";
 import { retainHistory } from "./historyRetention.ts";
@@ -62,7 +63,7 @@ function startWorld(state) {
     rivals: WORLD_RIVALS.map(r => ({ ...r, relationship: 45, jobs: [], wins: 0, completed: 0, lastDayNetCents: 0 })),
     friend: { id: "world_jens", name: "Jens", quality: state.stats.friendshipQualities?.world_jens ?? 35 },
     stories: Object.fromEntries(WORLD_STORIES.map(s => [s.id, {
-      id: s.id, stage: 0, status: "locked", availableAtMin: [CONTINUATION_ID, TEAM_ID].includes(s.id) ? null : state.gameTime + s.unlockDays * WORLD_DAY,
+      id: s.id, stage: 0, status: "locked", availableAtMin: [CONTINUATION_ID, TEAM_ID, HOME_ID].includes(s.id) ? null : state.gameTime + s.unlockDays * WORLD_DAY,
       decisions: [], actorId: null, actorName: null, pending: null, dueMin: null,
     }])),
     tenders: [], chronicle: [],
@@ -90,7 +91,7 @@ function unlockStories(state, m) {
 }
 function actorPresent(state, run) {
   if (run.id === "driver" || run.id === TEAM_ID) return state.drivers.some(d => d.id === run.actorId && activeDriver(d));
-  if (run.id === "home") return hasPartner(state) && run.actorId === partnerKey(state);
+  if (run.id === "home" || run.id === HOME_ID) return hasPartner(state) && run.actorId === partnerKey(state);
   return true;
 }
 export function worldAppointmentSlot(state) {
@@ -133,13 +134,13 @@ function chooseStory(state, p) {
   if (slot) {
     run.appointmentId = refId + "_appointment";
     state.appointments.push({
-      id: run.appointmentId, type: "world_story", text: run.id === "home" ? "Gemeinsamer Abend mit " + run.actorName : "Mit Jens am alten Anleger",
+      id: run.appointmentId, type: "world_story", text: ["home", HOME_ID].includes(run.id) ? "Gemeinsamer Abend mit " + run.actorName : "Mit Jens am alten Anleger",
       ...slot, appearMin: state.gameTime, decisionDeadline: slot.startMin, status: "accepted",
       costCents: 0, costApplied: true, effectsApplied: false, worldStoryId: run.id,
     });
     run.status = "appointment"; run.dueMin = slot.endMin;
   } else {
-    run.status = "waiting"; run.dueMin = state.gameTime + ([CONTINUATION_ID, TEAM_ID].includes(run.id) ? 3 : 2) * WORLD_DAY;
+    run.status = "waiting"; run.dueMin = state.gameTime + ([CONTINUATION_ID, TEAM_ID, HOME_ID].includes(run.id) ? 3 : 2) * WORLD_DAY;
   }
   return { ok: true, appointmentId: run.appointmentId || null };
 }
@@ -147,7 +148,7 @@ function processStories(state, m) {
   const w = state.world;
   unlockStories(state, m);
   for (const run of Object.values(w.stories) as any[]) {
-    if (run.status === "done" || (run.status === "locked" && !(run.id === TEAM_ID && run.actorId && !actorPresent(state, run)))) continue;
+    if (run.status === "done" || (run.status === "locked" && !([TEAM_ID, HOME_ID].includes(run.id) && run.actorId && !actorPresent(state, run)))) continue;
     if (!actorPresent(state, run)) {
       const ap = state.appointments.find(a => a.id === run.appointmentId);
       if (ap && ["accepted", "active"].includes(ap.status)) ap.status = "cancelled";
@@ -156,26 +157,27 @@ function processStories(state, m) {
       run.pending = null;
       continue;
     }
-    if (run.id === "home") run.actorName = state.private.partnerName;
+    if (run.id === "home" || run.id === HOME_ID) run.actorName = state.private.partnerName;
     if (run.id === "driver" || run.id === TEAM_ID) run.actorName = state.drivers.find(d => d.id === run.actorId).name;
     if (run.status === "appointment") {
       const ap = state.appointments.find(a => a.id === run.appointmentId);
       if (ap && ["accepted", "active"].includes(ap.status) && m < ap.endMin) continue;
       // Normal scheduler marks the calendar entry done before this hook.
+      if (run.id === HOME_ID) run.lastAppointmentOutcome = ap?.status === "done" ? "attended" : "missed";
       if (ap?.status === "done") {
-        effect(state, run, run.id === "home" ? { relationship: 8, stress: -8 } : { friend: 12, stress: -6 });
+        effect(state, run, ["home", HOME_ID].includes(run.id) ? { relationship: 8, stress: -8 } : { friend: 12, stress: -6 });
         state.stats.promisesKept = (state.stats.promisesKept || 0) + 1;
         note(state, "Zeit, die du dir genommen hast", ap.text + ". Der Termin hat stattgefunden.", run.pending.cause, "consequence");
       } else {
-        run.pending = { cause: run.pending.cause, text: "Der versprochene Termin hat nicht stattgefunden. Die positive Nachwirkung entfällt.", effect: run.id === "home" ? { relationship: -3 } : { friend: -3 } };
+        run.pending = { cause: run.pending.cause, text: "Der versprochene Termin hat nicht stattgefunden. Die positive Nachwirkung entfällt.", effect: ["home", HOME_ID].includes(run.id) ? { relationship: -3 } : { friend: -3 } };
       }
-      run.status = "waiting"; run.dueMin = m + ([CONTINUATION_ID, TEAM_ID].includes(run.id) ? 3 : 2) * WORLD_DAY;
+      run.status = "waiting"; run.dueMin = m + ([CONTINUATION_ID, TEAM_ID, HOME_ID].includes(run.id) ? 3 : 2) * WORLD_DAY;
     }
     if (run.status === "waiting" && run.dueMin <= m) {
       effect(state, run, run.pending.effect);
       note(state, "Was daraus geworden ist", run.pending.text, run.pending.cause, "consequence");
       if (run.pending.identity) w.identity = run.pending.identity;
-      if ((run.id === CONTINUATION_ID && run.stage === 4) || (run.id === TEAM_ID && run.stage === 3)) run.ending = run.pending.text;
+      if ((run.id === CONTINUATION_ID && run.stage === 4) || ([TEAM_ID, HOME_ID].includes(run.id) && run.stage === 3)) run.ending = run.pending.text;
       run.stage++; run.pending = null; run.dueMin = null;
       if (run.stage >= WORLD_STORIES.find(s => s.id === run.id).chapters) {
         run.status = "done";
