@@ -49,6 +49,10 @@ export default async function handleGameCommand(req) {
       return Response.json({ error: "Gültige expected_revision erforderlich" }, { status: 400 });
     }
     const S = base44.asServiceRole.entities.GameState; // Service-Rolle umgeht RLS; Eigentümerprüfung erfolgt manuell.
+    // Private-file storage zum Laden von Archivblöcken (file-basierte Speicherung).
+    const storage = {
+      createSignedUrl: (args: any) => base44.integrations.Core.CreateFileSignedUrl(args),
+    };
 
     // ---- Neues Spiel ----
     if (command === "newGame") {
@@ -93,7 +97,7 @@ export default async function handleGameCommand(req) {
       if (!stateId) return Response.json({ error: "stateId erforderlich" }, { status: 400 });
       const rec = await S.get(stateId);
       if (!rec || rec.owner_id !== user.id) return Response.json({ error: "Kein Zugriff auf diesen Spielstand" }, { status: 403 });
-      return Response.json({ state: migrateState(await hydrateCloudArchive(base44.asServiceRole.entities.GameArchiveBlock, user.id, rec.state || {}, rec.archive_blocks)), revision: rec.revision, stateId: rec.id });
+      return Response.json({ state: migrateState(await hydrateCloudArchive(base44.asServiceRole.entities.GameArchiveBlock, user.id, rec.state || {}, rec.archive_blocks, storage)), revision: rec.revision, stateId: rec.id });
     }
 
     // ---- Backup erstellen (Hybrid-Modell: Client erstellt State, Server speichert Kopie) ----
@@ -168,7 +172,7 @@ export default async function handleGameCommand(req) {
     if (!rec || rec.owner_id !== user.id) {
       return Response.json({ error: "Kein Zugriff auf diesen Spielstand" }, { status: 403 });
     }
-    const state = await hydrateCloudArchive(base44.asServiceRole.entities.GameArchiveBlock, user.id, rec.state || {}, rec.archive_blocks);
+    const state = await hydrateCloudArchive(base44.asServiceRole.entities.GameArchiveBlock, user.id, rec.state || {}, rec.archive_blocks, storage);
     const cmdHash = hash({ command, params: params || {} });
 
     // Idempotenz: gleiche action_id + gleicher Inhalt -> vorhandenes Ergebnis.

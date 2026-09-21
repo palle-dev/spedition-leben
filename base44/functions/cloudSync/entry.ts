@@ -46,6 +46,11 @@ export default async function handleCloudSync(req) {
     step = "Cloud-Datenmodelle";
     const S = traced(base44.asServiceRole.entities.GameState, "GameState");
     const B = traced(base44.asServiceRole.entities.GameArchiveBlock, "GameArchiveBlock");
+    // Private-file storage for archive payloads — keeps entity fields small.
+    const storage = {
+      uploadPrivateFile: (args: any) => base44.integrations.Core.UploadPrivateFile(args),
+      createSignedUrl: (args: any) => base44.integrations.Core.CreateFileSignedUrl(args),
+    };
     if (body?.stateId != null && (typeof body.stateId !== "string" || !body.stateId.trim())) {
       return Response.json({ error: "Ungültige stateId" }, { status: 400 });
     }
@@ -88,7 +93,7 @@ export default async function handleCloudSync(req) {
       }
       return Response.json({
         archive_delta: 1,
-        state: await hydrateCloudArchive(B, user.id, rec.state || {}, rec.archive_blocks),
+        state: await hydrateCloudArchive(B, user.id, rec.state || {}, rec.archive_blocks, storage),
         revision: rec.revision,
         stateId: rec.id,
         party_id: rec.party_id || null,
@@ -122,7 +127,7 @@ export default async function handleCloudSync(req) {
           stateId: existing[0].id, current_revision: existing[0].revision,
         }, { status: 409 });
       }
-      const staged = await stageCloudArchive(B, user.id, state);
+      const staged = await stageCloudArchive(B, user.id, state, null, null, storage);
       const meta = extractMeta(state);
       const rec = await S.create({
         ...staged,
@@ -168,7 +173,7 @@ export default async function handleCloudSync(req) {
             save_type: rec.save_type || null, cloud_saved_at: rec.cloud_saved_at || null },
         }, { status: 409 });
       }
-      const staged = await stageCloudArchive(B, user.id, state, rec.state, rec.archive_blocks);
+      const staged = await stageCloudArchive(B, user.id, state, rec.state, rec.archive_blocks, storage);
       const meta = extractMeta(state);
       const newRev = expected_revision + 1;
       const updateSet = {
