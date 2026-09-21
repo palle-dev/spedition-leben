@@ -26,7 +26,15 @@ async function invokeCloudSync(payload) {
     const status = error.response?.status || error.status;
     const data = error.response?.data || error.data;
     if (status === 409 && data?.conflict) return data;
-    const failure = Object.assign(new Error(data?.error || error.message || "Cloud-Speicherung fehlgeschlagen."), { status, code: error.code });
+    const command = ["list", "load", "create", "save", "delete"].includes(payload?.command) ? payload.command : "unknown";
+    const message = typeof data?.error === "string" ? data.error : error.message || "Cloud-Speicherung fehlgeschlagen.";
+    // Surface routing detail only from the known platform response. Do not print
+    // arbitrary response bodies, request headers, tokens or snapshot contents.
+    const detail = data?.detail === "user worker not found" ? "user worker not found" : null;
+    const context = `cloudSync/${command}${status ? ` · HTTP ${status}` : " · keine HTTP-Antwort"}`;
+    const failure = Object.assign(new Error(`[${context}] ${message}${detail ? ` (${detail})` : ""}`), {
+      status, code: data?.code || error.code, command, detail,
+    });
     throw failure;
   }
 }
