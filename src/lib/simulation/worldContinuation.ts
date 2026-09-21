@@ -1,3 +1,4 @@
+import { ensureTeamStory } from "./worldTeamStory.ts";
 // Authored continuation. Read-only scenes; stable choice IDs are save-game contracts.
 export const CONTINUATION_ID = "built_together";
 export const CONTINUATION = { id: CONTINUATION_ID, title: "Was wir aufgebaut haben", subtitle: "Aus einem Entschluss wird Verantwortung.", chapters: 5, unlockDays: 0, kind: "Staffel 2 · Fortsetzung" };
@@ -8,6 +9,7 @@ export function ensureWorldContinuation(state, now = state.gameTime) {
     id: CONTINUATION_ID, stage: 0, status: "locked", availableAtMin: null,
     decisions: [], actorId: null, actorName: null, pending: null, dueMin: null,
   };
+  ensureTeamStory(state, now);
   const run = w.stories[CONTINUATION_ID], parent = w.stories.harbor;
   if (run.status !== "locked" || run.availableAtMin != null || parent?.status !== "done" || parent.stage < 4) return;
   const path = parent.decisions?.find(d => d.stage === 3)?.choiceId;

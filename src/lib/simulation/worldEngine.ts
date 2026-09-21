@@ -1,3 +1,4 @@
+import { TEAM_ID } from "./worldTeamStory.ts";
 import { ensureWorldContinuation, CONTINUATION_ID } from "./worldContinuation.ts";
 import { retainHistory } from "./historyRetention.ts";
 import { retainLatestHistory } from "./historyRetention.ts";
@@ -61,7 +62,7 @@ function startWorld(state) {
     rivals: WORLD_RIVALS.map(r => ({ ...r, relationship: 45, jobs: [], wins: 0, completed: 0, lastDayNetCents: 0 })),
     friend: { id: "world_jens", name: "Jens", quality: state.stats.friendshipQualities?.world_jens ?? 35 },
     stories: Object.fromEntries(WORLD_STORIES.map(s => [s.id, {
-      id: s.id, stage: 0, status: "locked", availableAtMin: s.id === CONTINUATION_ID ? null : state.gameTime + s.unlockDays * WORLD_DAY,
+      id: s.id, stage: 0, status: "locked", availableAtMin: [CONTINUATION_ID, TEAM_ID].includes(s.id) ? null : state.gameTime + s.unlockDays * WORLD_DAY,
       decisions: [], actorId: null, actorName: null, pending: null, dueMin: null,
     }])),
     tenders: [], chronicle: [],
@@ -88,7 +89,7 @@ function unlockStories(state, m) {
   }
 }
 function actorPresent(state, run) {
-  if (run.id === "driver") return state.drivers.some(d => d.id === run.actorId && activeDriver(d));
+  if (run.id === "driver" || run.id === TEAM_ID) return state.drivers.some(d => d.id === run.actorId && activeDriver(d));
   if (run.id === "home") return hasPartner(state) && run.actorId === partnerKey(state);
   return true;
 }
@@ -138,7 +139,7 @@ function chooseStory(state, p) {
     });
     run.status = "appointment"; run.dueMin = slot.endMin;
   } else {
-    run.status = "waiting"; run.dueMin = state.gameTime + (run.id === CONTINUATION_ID ? 3 : 2) * WORLD_DAY;
+    run.status = "waiting"; run.dueMin = state.gameTime + ([CONTINUATION_ID, TEAM_ID].includes(run.id) ? 3 : 2) * WORLD_DAY;
   }
   return { ok: true, appointmentId: run.appointmentId || null };
 }
@@ -146,7 +147,7 @@ function processStories(state, m) {
   const w = state.world;
   unlockStories(state, m);
   for (const run of Object.values(w.stories) as any[]) {
-    if (run.status === "locked" || run.status === "done") continue;
+    if (run.status === "done" || (run.status === "locked" && !(run.id === TEAM_ID && run.actorId && !actorPresent(state, run)))) continue;
     if (!actorPresent(state, run)) {
       const ap = state.appointments.find(a => a.id === run.appointmentId);
       if (ap && ["accepted", "active"].includes(ap.status)) ap.status = "cancelled";
@@ -156,7 +157,7 @@ function processStories(state, m) {
       continue;
     }
     if (run.id === "home") run.actorName = state.private.partnerName;
-    if (run.id === "driver") run.actorName = state.drivers.find(d => d.id === run.actorId).name;
+    if (run.id === "driver" || run.id === TEAM_ID) run.actorName = state.drivers.find(d => d.id === run.actorId).name;
     if (run.status === "appointment") {
       const ap = state.appointments.find(a => a.id === run.appointmentId);
       if (ap && ["accepted", "active"].includes(ap.status) && m < ap.endMin) continue;
@@ -168,13 +169,13 @@ function processStories(state, m) {
       } else {
         run.pending = { cause: run.pending.cause, text: "Der versprochene Termin hat nicht stattgefunden. Die positive Nachwirkung entfällt.", effect: run.id === "home" ? { relationship: -3 } : { friend: -3 } };
       }
-      run.status = "waiting"; run.dueMin = m + (run.id === CONTINUATION_ID ? 3 : 2) * WORLD_DAY;
+      run.status = "waiting"; run.dueMin = m + ([CONTINUATION_ID, TEAM_ID].includes(run.id) ? 3 : 2) * WORLD_DAY;
     }
     if (run.status === "waiting" && run.dueMin <= m) {
       effect(state, run, run.pending.effect);
       note(state, "Was daraus geworden ist", run.pending.text, run.pending.cause, "consequence");
       if (run.pending.identity) w.identity = run.pending.identity;
-      if (run.id === CONTINUATION_ID && run.stage === 4) run.ending = run.pending.text;
+      if ((run.id === CONTINUATION_ID && run.stage === 4) || (run.id === TEAM_ID && run.stage === 3)) run.ending = run.pending.text;
       run.stage++; run.pending = null; run.dueMin = null;
       if (run.stage >= WORLD_STORIES.find(s => s.id === run.id).chapters) {
         run.status = "done";
