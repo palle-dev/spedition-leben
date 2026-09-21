@@ -1,3 +1,4 @@
+import { ENCOUNTER_ID, prepareEncounter, cycleEncounter, encounterActorPresent, rememberEncounter } from "./worldEncounters.ts";
 import { RIVAL_ID } from "./worldRivalStory.ts";
 import { HOME_ID } from "./worldHomeStory.ts";
 import { TEAM_ID } from "./worldTeamStory.ts";
@@ -64,7 +65,7 @@ function startWorld(state) {
     rivals: WORLD_RIVALS.map(r => ({ ...r, relationship: 45, jobs: [], wins: 0, completed: 0, lastDayNetCents: 0 })),
     friend: { id: "world_jens", name: "Jens", quality: state.stats.friendshipQualities?.world_jens ?? 35 },
     stories: Object.fromEntries(WORLD_STORIES.map(s => [s.id, {
-      id: s.id, stage: 0, status: "locked", availableAtMin: [CONTINUATION_ID, TEAM_ID, HOME_ID, RIVAL_ID].includes(s.id) ? null : state.gameTime + s.unlockDays * WORLD_DAY,
+      id: s.id, stage: 0, status: "locked", availableAtMin: [CONTINUATION_ID, TEAM_ID, HOME_ID, RIVAL_ID, ENCOUNTER_ID].includes(s.id) ? null : state.gameTime + s.unlockDays * WORLD_DAY,
       decisions: [], actorId: null, actorName: null, pending: null, dueMin: null,
     }])),
     tenders: [], chronicle: [],
@@ -86,11 +87,13 @@ function unlockStories(state, m) {
       if (!hasPartner(state)) continue;
       run.actorId = partnerKey(state); run.actorName = state.private.partnerName;
     }
+    if (run.id === ENCOUNTER_ID && !prepareEncounter(state, run, m)) continue;
     run.status = "decision";
     note(state, worldScene(state, run).title, WORLD_STORIES.find(s => s.id === run.id).subtitle, null, "story");
   }
 }
 function actorPresent(state, run) {
+  if (run.id === ENCOUNTER_ID) return encounterActorPresent(state, run);
   if (run.id === "driver" || run.id === TEAM_ID) return state.drivers.some(d => d.id === run.actorId && activeDriver(d));
   if (run.id === "home" || run.id === HOME_ID) return hasPartner(state) && run.actorId === partnerKey(state);
   return true;
@@ -113,6 +116,7 @@ export function worldChoiceReason(state, run, choice) {
 function chooseStory(state, p) {
   const run = state.world.stories[p.storyId];
   if (!run || !Number.isInteger(p.stage)) throw new Error("Geschichte oder Kapitel fehlt.");
+  if (run.id === ENCOUNTER_ID && (!Number.isSafeInteger(p.episode) || p.episode !== run.episode)) throw new Error("Diese Begegnung ist nicht mehr aktuell. Bitte die Spielwelt neu öffnen.");
   const previous = run.decisions.find(d => d.stage === p.stage);
   if (previous) {
     if (previous.choiceId === p.choiceId) return { ok: true, alreadyApplied: true };
@@ -125,13 +129,14 @@ function chooseStory(state, p) {
   const reason = worldChoiceReason(state, run, choice);
   if (reason) throw new Error(reason);
   const slot = choice.appointment ? worldAppointmentSlot(state) : null;
-  const refId = "world_story_" + run.id + "_" + run.stage;
+  const refId = "world_story_" + run.id + "_" + run.stage + (run.id === ENCOUNTER_ID ? "_" + run.episode : "");
   if (choice.costCents) addBooking(state, state.gameTime, "Spielwelt: " + scene.title, -choice.costCents, choice.account, refId);
   effect(state, run, choice.effect);
-  const cause = { storyId: run.id, stage: run.stage, title: scene.title, choice: choice.label };
+  const cause = { storyId: run.id, stage: run.stage, ...(run.id === ENCOUNTER_ID ? { episode: run.episode } : {}), title: scene.title, choice: choice.label };
   const eventId = note(state, choice.label, choice.detail, cause, "decision");
   run.decisions.push({ stage: run.stage, choiceId: choice.id, atMin: state.gameTime, eventId });
   run.pending = { ...choice.delayed, cause };
+  if (run.id === ENCOUNTER_ID) rememberEncounter(state, run, choice);
   if (slot) {
     run.appointmentId = refId + "_appointment";
     state.appointments.push({
@@ -178,7 +183,7 @@ function processStories(state, m) {
       effect(state, run, run.pending.effect);
       note(state, "Was daraus geworden ist", run.pending.text, run.pending.cause, "consequence");
       if (run.pending.identity) w.identity = run.pending.identity;
-      if ((run.id === CONTINUATION_ID && run.stage === 4) || ([TEAM_ID, HOME_ID, RIVAL_ID].includes(run.id) && run.stage === 3)) run.ending = run.pending.text;
+      if (run.id === ENCOUNTER_ID || (run.id === CONTINUATION_ID && run.stage === 4) || ([TEAM_ID, HOME_ID, RIVAL_ID].includes(run.id) && run.stage === 3)) run.ending = run.pending.text;
       run.stage++; run.pending = null; run.dueMin = null;
       if (run.stage >= WORLD_STORIES.find(s => s.id === run.id).chapters) {
         run.status = "done";
@@ -325,6 +330,7 @@ export function processWorld(state, m) {
   if (!state.world?.active) return;
   const w = state.world;
   ensureWorldContinuation(state, m);
+  cycleEncounter(state, m);
   observeOrders(state);
   processStories(state, m);
   ensureWorldContinuation(state, m);
@@ -340,6 +346,7 @@ export function getWorldEventTimes(state) {
   if (!state.world?.active) return [];
   const w = state.world;
   return [w.nextEconomyMin, w.nextTenderMin,
+    ...(w.stories[ENCOUNTER_ID]?.status === "done" && w.stories[ENCOUNTER_ID].nextEncounterMin != null ? [w.stories[ENCOUNTER_ID].nextEncounterMin] : []),
     ...w.tenders.filter(t => t.status === "open").map(t => t.closeMin),
     ...w.rivals.flatMap(r => r.jobs.map(j => j.endMin)),
     ...(Object.values(w.stories) as any[]).flatMap(r => r.status === "locked" ? (r.availableAtMin != null ? [r.availableAtMin] : []) : r.dueMin != null ? [r.dueMin] : []),
