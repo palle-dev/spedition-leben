@@ -31,7 +31,7 @@ export default async function handleCloudSync(req) {
   let step = "Anmeldung";
   // Describe the failing operation without exposing IDs, tokens or save contents.
   const traced = (entity, name) => Object.fromEntries(
-    ["get", "filter", "create", "updateMany", "delete"].map(method => [method, async (...args) => {
+    ["get", "filter", "create", "bulkCreate", "updateMany", "delete"].map(method => [method, async (...args) => {
       step = name + ":" + method;
       return await entity[method](...args);
     }])

@@ -78,12 +78,16 @@ async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T,
 
 export async function hydrateCloudArchive(blocks: any, ownerId: string, state: any, refs: Record<string, string> | null = {}, storage: any = null): Promise<any> {
   const all = chunks(state);
+  // Fetch all owner blocks in ONE call to avoid per-chunk DB get calls (rate limits).
+  const allRows = await blocks.filter({ owner_id: ownerId }, "-created_date", 1000);
+  const rowById = new Map<string, any>();
+  for (const row of allRows || []) rowById.set(row.id, row);
   const items = await mapWithConcurrency(all, CONCURRENCY, async (c: any) => {
     // Legacy embedded base64 saves (pre-file-storage) pass through directly.
     if (typeof c.data === "string" && !isFileUri(c.data)) return c;
     const ref = refs?.[c.id];
     if (typeof ref !== "string" || !ref) throw new CloudArchiveError("Cloud-Archivverweis fehlt.");
-    const row = await blocks.get(ref);
+    const row = rowById.get(ref);
     if (!validRecord(row, ownerId, c)) throw new CloudArchiveError("Kein Zugriff auf diesen Cloud-Archivblock.");
     if (isFileUri(row.data)) {
       if (!storage?.createSignedUrl) throw new CloudArchiveError("Storage-Funktionen fehlen zum Laden des Archivblocks.");
@@ -105,7 +109,14 @@ export async function hydrateCloudArchive(blocks: any, ownerId: string, state: a
 export async function stageCloudArchive(blocks: any, ownerId: string, state: any, previous: any = null, previousRefs: Record<string, string> | null = {}, storage: any = null): Promise<{ state: any; archive_blocks: Record<string, string> }> {
   const all = chunks(state);
   const known = new Map(chunks(previous).map((c: any) => [c.id, c]));
+  // Fetch all owner blocks in ONE call to avoid per-chunk DB filter calls (rate limits).
+  const allRows = await blocks.filter({ owner_id: ownerId }, "-created_date", 1000);
+  const existingByHash = new Map<string, any>();
+  for (const row of allRows || []) {
+    if (row?.content_hash && !existingByHash.has(row.content_hash)) existingByHash.set(row.content_hash, row);
+  }
   const refs: Record<string, string> = {};
+  const toCreate: { chunk: any; storedData: string }[] = [];
   const items: any[] = await mapWithConcurrency(all, CONCURRENCY, async (c: any) => {
     const old = known.get(c.id);
     const same = old && archiveIdentity(old) === archiveIdentity(c);
@@ -118,32 +129,38 @@ export async function stageCloudArchive(blocks: any, ownerId: string, state: any
     }
     const data = c.data ?? (same ? old.data : null);
     await verifyBase64(data, c.id);
-    const existing = await blocks.filter({ owner_id: ownerId, content_hash: c.id }, "-created_date", 1);
-    let row = existing?.[0];
-    if (row) {
-      if (!validRecord(row, ownerId, c)) throw new CloudArchiveError("Cloud-Archivindex stimmt nicht überein.");
+    const existing = existingByHash.get(c.id);
+    if (existing) {
+      if (!validRecord(existing, ownerId, c)) throw new CloudArchiveError("Cloud-Archivindex stimmt nicht überein.");
       // File-based blocks were verified at upload time; base64 blocks verify now.
-      if (!isFileUri(row.data)) await verifyBase64(row.data, c.id);
-    } else {
-      let storedData: string;
-      if (storage?.uploadPrivateFile) {
-        // Upload the compressed payload as a private file to stay within
-        // the entity field size limit. Store only the file_uri reference.
-        const binary = atob(data);
-        const blob = new Blob([Uint8Array.from(binary, (ch: number) => ch.charCodeAt(0))], { type: "application/gzip" });
-        const file = new File([blob], c.id + ".gz", { type: "application/gzip" });
-        const { file_uri } = await storage.uploadPrivateFile({ file });
-        storedData = URI_PREFIX + file_uri;
-      } else {
-        // Legacy / test mode: store base64 inline.
-        storedData = data;
-      }
-      row = await blocks.create({ owner_id: ownerId, content_hash: c.id, descriptor: reference(c), data: storedData });
-      // Await durable acknowledgement BEFORE exposing this reference to CAS.
-      if (!row?.id) throw new CloudArchiveError("Cloud-Archivblock wurde nicht bestätigt.");
+      if (!isFileUri(existing.data)) await verifyBase64(existing.data, c.id);
+      refs[c.id] = existing.id;
+      return reference(c);
     }
-    refs[c.id] = row.id;
+    // New block: upload file now, queue for bulk create to avoid per-chunk DB writes.
+    let storedData: string;
+    if (storage?.uploadPrivateFile) {
+      const binary = atob(data);
+      const blob = new Blob([Uint8Array.from(binary, (ch: number) => ch.charCodeAt(0))], { type: "application/gzip" });
+      const file = new File([blob], c.id + ".gz", { type: "application/gzip" });
+      const { file_uri } = await storage.uploadPrivateFile({ file });
+      storedData = URI_PREFIX + file_uri;
+    } else {
+      storedData = data;
+    }
+    toCreate.push({ chunk: c, storedData });
     return reference(c);
   });
+  // Bulk create all new blocks in ONE DB call to avoid per-chunk create rate limits.
+  if (toCreate.length > 0) {
+    const created = await blocks.bulkCreate(toCreate.map(({ chunk, storedData }) => ({
+      owner_id: ownerId, content_hash: chunk.id, descriptor: reference(chunk), data: storedData,
+    })));
+    const createdArray = Array.isArray(created) ? created : [created];
+    for (const row of createdArray) {
+      if (!row?.id) throw new CloudArchiveError("Cloud-Archivblock wurde nicht bestätigt.");
+      refs[row.content_hash] = row.id;
+    }
+  }
   return { state: stateWithChunks(state, items), archive_blocks: refs };
 }
