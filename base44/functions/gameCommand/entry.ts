@@ -51,7 +51,7 @@ export default async function handleGameCommand(req) {
     const S = base44.asServiceRole.entities.GameState; // Service-Rolle umgeht RLS; Eigentümerprüfung erfolgt manuell.
     // Private-file storage zum Laden von Archivblöcken (file-basierte Speicherung).
     const storage = {
-      createSignedUrl: (args: any) => base44.integrations.Core.CreateFileSignedUrl(args),
+      createSignedUrl: (args: any) => base44.asServiceRole.integrations.Core.CreateFileSignedUrl(args),
     };
 
     // ---- Neues Spiel ----
