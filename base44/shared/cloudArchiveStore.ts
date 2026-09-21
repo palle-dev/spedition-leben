@@ -76,7 +76,30 @@ async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T,
   return results;
 }
 
+// Offload the full state to a private file when it exceeds the BSON document
+// size limit (~16 MB). Small states stay inline for zero overhead.
+const STATE_FILE_THRESHOLD = 12_000_000;
+export async function stageState(storage: any, state: any): Promise<any> {
+  if (!storage?.uploadPrivateFile) return state;
+  const json = JSON.stringify(state);
+  if (json.length < STATE_FILE_THRESHOLD) return state;
+  const blob = new Blob([json], { type: "application/json" });
+  const file = new File([blob], "state.json", { type: "application/json" });
+  const { file_uri } = await storage.uploadPrivateFile({ file });
+  return URI_PREFIX + file_uri;
+}
+export async function hydrateState(storage: any, state: any): Promise<any> {
+  if (typeof state !== "string" || !isFileUri(state)) return state;
+  if (!storage?.createSignedUrl) throw new CloudArchiveError("Storage-Funktionen fehlen zum Laden des Spielstands.");
+  const file_uri = state.slice(URI_PREFIX.length);
+  const { signed_url } = await storage.createSignedUrl({ file_uri });
+  const response = await fetch(signed_url);
+  if (!response.ok) throw new CloudArchiveError("Spielstand konnte nicht geladen werden (" + response.status + ").");
+  return await response.json();
+}
+
 export async function hydrateCloudArchive(blocks: any, ownerId: string, state: any, refs: Record<string, string> | null = {}, storage: any = null): Promise<any> {
+  state = await hydrateState(storage, state);
   const all = chunks(state);
   // Fetch all owner blocks in ONE call to avoid per-chunk DB get calls (rate limits).
   const allRows = await blocks.filter({ owner_id: ownerId }, "-created_date", 1000);
@@ -162,5 +185,7 @@ export async function stageCloudArchive(blocks: any, ownerId: string, state: any
       refs[row.content_hash] = row.id;
     }
   }
-  return { state: stateWithChunks(state, items), archive_blocks: refs };
+  const strippedState = stateWithChunks(state, items);
+  const stateRef = await stageState(storage, strippedState);
+  return { state: stateRef, archive_blocks: refs };
 }

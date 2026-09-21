@@ -5,6 +5,7 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
 import { isCompleteSnapshot, isWritableRevision } from "../../shared/snapshotValidation.ts";
 import { migrateState } from "../../shared/progressEngine.ts";
+import { stageState } from "../../shared/cloudArchiveStore.ts";
 
 export default async function handleSaveGameState(req) {
   try {
@@ -19,6 +20,9 @@ export default async function handleSaveGameState(req) {
     if (!isWritableRevision(expected_revision)) return Response.json({ error: "Gültige expected_revision erforderlich" }, { status: 400 });
 
     const S = base44.asServiceRole.entities.GameState;
+    const storage = {
+      uploadPrivateFile: (args: any) => base44.asServiceRole.integrations.Core.UploadPrivateFile(args),
+    };
     const rec = await S.get(stateId);
     if (!rec || rec.owner_id !== user.id) return Response.json({ error: "Kein Zugriff auf diesen Spielstand" }, { status: 403 });
     const partyId = rec.party_id || rec.state?.meta?.partyId;
@@ -27,8 +31,9 @@ export default async function handleSaveGameState(req) {
     }
     const migrated = migrateState(state);
     const newRev = expected_revision + 1;
+    const stateRef = await stageState(storage, migrated);
     const updateSet = {
-      state: migrated,
+      state: stateRef,
       revision: newRev,
       ...(migrated.meta?.partyId ? { party_id: migrated.meta.partyId } : {}),
       last_action_id: "save_" + Date.now(),

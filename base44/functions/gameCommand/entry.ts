@@ -1,4 +1,4 @@
-import { hydrateCloudArchive } from "../../shared/cloudArchiveStore.ts";
+import { hydrateCloudArchive, stageState } from "../../shared/cloudArchiveStore.ts";
 // Zentraler serverseitiger Einstieg für alle Spielbefehle in "Frachtfieber".
 // Prüft Anmeldung, Eigentum und alle Spielregeln. Der Browser sendet Absichten und IDs,
 // keine verbindlichen Preise/Kontostände. Atomare Konfliktbehandlung über bedingtes updateMany
@@ -52,6 +52,7 @@ export default async function handleGameCommand(req) {
     // Private-file storage zum Laden von Archivblöcken (file-basierte Speicherung).
     const storage = {
       createSignedUrl: (args: any) => base44.asServiceRole.integrations.Core.CreateFileSignedUrl(args),
+      uploadPrivateFile: (args: any) => base44.asServiceRole.integrations.Core.UploadPrivateFile(args),
     };
 
     // ---- Neues Spiel ----
@@ -70,7 +71,7 @@ export default async function handleGameCommand(req) {
       // Service-Rolle legt an (RLS sperrt direkte Client-Schreibzugriffe).
       // Eigentümer wird explizit auf den angemeldeten Nutzer gesetzt.
       const rec = await S.create({
-        state: init.state, revision: 1, owner_id: user.id,
+        state: await stageState(storage, init.state), revision: 1, owner_id: user.id,
         last_action_id: action_id || null,
         last_result: { ok: true, command: "newGame" },
         last_command_hash: hash({ command, params: params || {} })
@@ -115,7 +116,7 @@ export default async function handleGameCommand(req) {
         }
       }
       const rec = await S.create({
-        state: backupState, revision: 1, owner_id: user.id,
+        state: await stageState(storage, backupState), revision: 1, owner_id: user.id,
         ...(backupState.meta?.partyId ? { party_id: backupState.meta.partyId } : {}),
         last_action_id: action_id || null,
         last_result: { ok: true, command: "createBackup" },
@@ -145,10 +146,11 @@ export default async function handleGameCommand(req) {
         return Response.json({ ok: true, revision: rec.revision, stateId, replayed: true });
       }
       const newRev = expected_revision + 1;
+      const stateRef = await stageState(storage, backupState);
       const upd = await S.updateMany(
         { id: stateId, owner_id: user.id, revision: expected_revision, ...(rec.party_id ? { party_id: rec.party_id } : {}) },
         { $set: {
-          state: backupState, revision: newRev,
+          state: stateRef, revision: newRev,
           ...(backupState.meta?.partyId ? { party_id: backupState.meta.partyId } : {}),
           last_action_id: action_id || ("save_" + Date.now()),
           last_result: { ok: true, command: "saveBackup" },
@@ -230,7 +232,8 @@ export default async function handleGameCommand(req) {
     const newRev = rec.revision + 1;
 
     // Atomares bedingtes Update: nur wenn Eigentümer und bisherige Revision noch stimmen.
-    const updateSet = { state: newState, revision: newRev, last_action_id: action_id, last_result: result, last_command_hash: cmdHash };
+    const stateRef = await stageState(storage, newState);
+    const updateSet = { state: stateRef, revision: newRev, last_action_id: action_id, last_result: result, last_command_hash: cmdHash };
     // automation_enabled-Feld für Filterung durch Hintergrunddienst setzen.
     if (command === "enableAutomation") updateSet.automation_enabled = true;
     else if (command === "pauseAutomation") updateSet.automation_enabled = false;
