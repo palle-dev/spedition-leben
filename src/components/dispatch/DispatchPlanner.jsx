@@ -4,7 +4,7 @@ import { useGame } from "@/lib/gameContext";
 import { getDistance, fuelEur, tollEur, formatEuro, formatGameTime, WORK_BUDGET_MIN
 } from "@/lib/gameData";
 import { summarizePhases, phaseLabel } from "@/lib/driverTimeEngine";
-import { vehicleDisplayName, driverDisplayName, driverInitials, driverAvatarClass } from "@/lib/displayHelpers";
+import { vehicleDisplayName, vehicleTypeLabel, driverDisplayName, driverInitials, driverAvatarClass } from "@/lib/displayHelpers";
 import { Truck, Users, Play, ArrowLeft, AlertTriangle, Package, MapPin, Clock, Fuel, CreditCard, ArrowRight, CheckCircle2, Coffee, Moon } from "lucide-react";
 
 export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChange, preselectedVehicleId }) {
@@ -147,9 +147,12 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
                 v.id === vehicleId ? "border-lime/40 bg-lime/5" : suitable ? "border-white/10 hover:border-white/20 bg-surface/30" : "border-white/5 opacity-50 cursor-not-allowed"
               }`}
             >
-              <div className="flex items-center justify-between">
-                <span className="font-medium">{vehicleDisplayName(v)}</span>
-                <span className="text-muted-foreground">{v.locationCity} · {v.capacityTons} t · Z {v.condition}</span>
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <span className="font-medium">{vehicleDisplayName(v)}</span>
+                  <span className="block text-[10px] text-muted-foreground/80 truncate">{vehicleTypeLabel(v)}</span>
+                </div>
+                <span className="text-muted-foreground shrink-0">{v.locationCity} · {v.capacityTons} t · Z {v.condition}</span>
               </div>
               {!suitable && <div className="text-[10px] text-amber-300 mt-0.5">{reason}</div>}
             </button>
