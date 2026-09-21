@@ -6,7 +6,11 @@
       "type": "number"
     },
     "state": {
-      "type": "object"
+      "type": [
+        "object",
+        "string"
+      ],
+      "description": "Full game state object, or 'uri:<file_uri>' string when offloaded to private file storage for large saves."
     },
     "owner_id": {
       "type": "string"
