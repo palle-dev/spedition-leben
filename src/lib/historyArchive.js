@@ -6,7 +6,9 @@ const DAY = 1440;
 // Original receipts remain available via journalPage; live simulation needs only
 // recent entries plus explicitly pinned cancellation sources.
 const JOURNAL_ACTIVE_DAYS = 7;
-const COMPACTION_POLICY_VERSION = 2;
+const COMPACTION_POLICY_VERSION = 3;
+const CHUNK_SIZE = 200;
+const MAX_COMPRESSED_BYTES = 256 * 1024;
 const MAX_RAW = 256 * 1024 * 1024;
 const KINDS = new Set(["expiredOffers", "accountingTasks", "accountingJournal"]);
 export const ARCHIVE_VERSION = 1;
@@ -139,9 +141,32 @@ export function partitionHistory(state) {
 export async function compactHistory(state) {
   if (!state || !Array.isArray(state.orders) || typeof CompressionStream === "undefined") return state;
   const day = Math.floor(state.gameTime / DAY);
-  if (state.historyArchive?.checkedDay === day && state.historyArchive?.policyVersion === COMPACTION_POLICY_VERSION && !state.historyOutbox?.length) return state;
   const old = chunksOf(state);
+  // Bestehende Blöcke, die das Entity-Feldlimit überschreiten, werden beim Laden
+  // (restoreHistory hat die Blob-Daten) in kleinere Chunks aufgespalten.
+  const hasOversized = old.some(c => c.data instanceof Blob && c.data.size > MAX_COMPRESSED_BYTES);
+  if (state.historyArchive?.checkedDay === day && state.historyArchive?.policyVersion === COMPACTION_POLICY_VERSION && !state.historyOutbox?.length && !hasOversized) return state;
   const p = partitionHistory(state), additions = [];
+  // Übergroße bestehende Blöcke mit Blob-Daten dekomprimieren und neu aufteilen.
+  const keptOld = [];
+  for (const c of old) {
+    if (c.data instanceof Blob && c.data.size > MAX_COMPRESSED_BYTES) {
+      const records = await readArchiveRecords(c, c.data);
+      for (let offset = 0; offset < records.length; offset += CHUNK_SIZE) {
+        const rows = records.slice(offset, offset + CHUNK_SIZE);
+        const raw = new Blob([JSON.stringify(rows)]);
+        const data = await readLimited(raw.stream().pipeThrough(new CompressionStream("gzip")));
+        const chunk = { id: await hash(data), kind: c.kind, count: rows.length, rawBytes: raw.size, storedBytes: data.size, data };
+        if (c.kind === "accountingJournal") {
+          chunk.minEntryNo = Math.min(...rows.map(e => e.entryNo));
+          chunk.maxEntryNo = Math.max(...rows.map(e => e.entryNo));
+        }
+        additions.push(chunk);
+      }
+    } else {
+      keptOld.push(c);
+    }
+  }
   const groups = new Map([["expiredOffers", p.offers], ["accountingTasks", p.tasks], ["accountingJournal", p.archivedJournal]]);
   for (const record of state.historyOutbox || []) {
     const kind = "history:" + record.kind;
@@ -151,8 +176,8 @@ export async function compactHistory(state) {
   for (const [kind, records] of groups) {
     // Bounded chunks make export/validation/archive browsing memory independent
     // of the total age of a game.
-    for (let offset = 0; offset < records.length; offset += 1000) {
-      const rows = records.slice(offset, offset + 1000);
+    for (let offset = 0; offset < records.length; offset += CHUNK_SIZE) {
+      const rows = records.slice(offset, offset + CHUNK_SIZE);
       const raw = new Blob([JSON.stringify(rows)]);
       const data = await readLimited(raw.stream().pipeThrough(new CompressionStream("gzip")));
       additions.push({ id: await hash(data), kind, count: rows.length, rawBytes: raw.size, storedBytes: data.size, ...(kind === "accountingJournal" ? { minEntryNo: Math.min(...rows.map(e => e.entryNo)), maxEntryNo: Math.max(...rows.map(e => e.entryNo)) } : {}), data });
@@ -162,7 +187,7 @@ export async function compactHistory(state) {
   // the original snapshot intact, including every historical record.
   return { ...state, historyOutbox: [], orders: p.orders,
     ...(state.accounting ? { accounting: { ...state.accounting, taskQueue: p.taskQueue, journal: p.journal, ...(p.archivedJournal.length ? { journalProjection: projectJournal(state.accounting.journalProjection, p.archivedJournal, ACCOUNTS) } : {}) } } : {}),
-    historyArchive: { ...(state.historyArchive?.storage ? { storage: state.historyArchive.storage } : {}), version: ARCHIVE_VERSION, policyVersion: COMPACTION_POLICY_VERSION, checkedDay: day, chunks: [...old, ...additions] } };
+    historyArchive: { ...(state.historyArchive?.storage ? { storage: state.historyArchive.storage } : {}), version: ARCHIVE_VERSION, policyVersion: COMPACTION_POLICY_VERSION, checkedDay: day, chunks: [...keptOld, ...additions] } };
 }
 export function archiveStats(state) {
   const chunks = state?.historyArchive?.chunks || [];
