@@ -58,7 +58,7 @@ export function getUnifiedTasks(state) {
       deadlineLabel: req.deadlineMin ? formatGameTime(req.deadlineMin) : "Offen",
       overdue,
       consequence: overdue ? "Mitarbeiter kann nicht weiterarbeiten" : "Aktion wird verzögert",
-      action: { label: "Freigeben", to: "/geschaeftsmodelle", command: "approveApproval", params: { requestId: req.id } },
+      action: { label: "Freigeben", to: "/fuehrung", command: "approveApproval", params: { requestId: req.id } },
       costCents: req.costCents || 0,
     });
   }
@@ -491,7 +491,7 @@ export function getDailyStatements(state) {
       icon: "alert",
       text: `${pendingApprovals.length} Freigabe${pendingApprovals.length > 1 ? "n warten" : " wartet"} auf dich.`,
       priority: "high",
-      link: "/geschaeftsmodelle",
+      link: "/fuehrung",
     });
   }
 
