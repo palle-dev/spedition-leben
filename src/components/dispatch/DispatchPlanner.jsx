@@ -70,7 +70,8 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
         else if (order.tons > v.capacityTons) { suitable = false; reason = `Nur ${v.capacityTons} t`; }
         return { v, suitable, reason };
       })
-      .sort((a, b) => (b.suitable ? 1 : 0) - (a.suitable ? 1 : 0) || (a.v.locationCity === order.fromCity ? -1 : 1));
+      .filter(x => x.suitable)
+      .sort((a, b) => (a.v.locationCity === order.fromCity ? -1 : 1));
   }, [state.vehicles, order]);
 
   const sortedDrivers = useMemo(() => {
@@ -138,6 +139,9 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
           <Truck className="w-3.5 h-3.5" /> Fahrzeug
         </div>
         <div className="space-y-1.5 max-h-40 overflow-y-auto scrollbar-none">
+          {sortedVehicles.length === 0 && (
+            <div className="text-xs text-muted-foreground/70 text-center py-3">Kein freier Lkw mit ausreichender Nutzlast verfügbar.</div>
+          )}
           {sortedVehicles.map(({ v, suitable, reason }) => (
             <button
               key={v.id}
