@@ -116,7 +116,8 @@ export default function Fleet() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 font-medium">
                       <Truck className="w-4 h-4 text-lime/70" /> {vehicleDisplayName(v)}
-                      {body.id !== "planen" && <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-foreground/70">{body.label}</span>}
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-lime/10 text-lime/80 border border-lime/20">{profile.label}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-foreground/70">{body.label}</span>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded ${isLeased ? "bg-sky-400/15 text-sky-300" : "bg-lime/15 text-lime"}`}>{ownershipLabel(v)}</span>
                       {v.markedForSale && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-300">Vorgemerkt</span>}
                     </div>
