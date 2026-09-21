@@ -1,5 +1,6 @@
 import { isCompleteSnapshot } from "./simulation/snapshotValidation";
 import { migrateApprovals } from "./simulation/delegationEngine";
+import { ensureWorldContinuation } from "./simulation/worldContinuation";
 
 // Gemeinsame Grenzen für lokale Spielstände und den Import.
 export const MAX_SAVE_BYTES = 256 * 1024 * 1024;
@@ -54,5 +55,6 @@ export function prepareOwnedLoadedState(state) {
   }
   // Freigaben vor der ersten Anzeige normalisieren, auch ohne Spielbefehl.
   migrateApprovals(state);
+  ensureWorldContinuation(state);
   return state;
 }
