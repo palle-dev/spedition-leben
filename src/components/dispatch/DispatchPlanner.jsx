@@ -1,7 +1,7 @@
 import { buildDeployment } from "@/lib/simulation/tourEngine";
 import React, { useState, useMemo, useEffect } from "react";
 import { useGame } from "@/lib/gameContext";
-import { getDistance, fuelEur, tollEur, formatEuro, formatGameTime, WORK_BUDGET_MIN
+import { getDistance, fuelEur, tollEur, formatEuro, formatGameTime, WORK_BUDGET_MIN, checkBodyTypeCompatibility
 } from "@/lib/gameData";
 import { summarizePhases, phaseLabel } from "@/lib/driverTimeEngine";
 import { vehicleDisplayName, vehicleTypeLabel, driverDisplayName, driverInitials, driverAvatarClass } from "@/lib/displayHelpers";
@@ -68,6 +68,10 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
         if (v.status !== "free") { suitable = false; reason = "Nicht frei"; }
         else if (v.condition < 20) { suitable = false; reason = "Zustand < 20"; }
         else if (order.tons > v.capacityTons) { suitable = false; reason = `Nur ${v.capacityTons} t`; }
+        else {
+          const bodyCheck = checkBodyTypeCompatibility(order, v);
+          if (!bodyCheck.ok) { suitable = false; reason = "Falscher Aufbau"; }
+        }
         return { v, suitable, reason };
       })
       .filter(x => x.suitable)
