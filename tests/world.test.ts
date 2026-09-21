@@ -287,7 +287,7 @@ describe("Spielwelt: bestehende Spielaktionen", () => {
     const ap3 = s.appointments.find(a => a.id === s.world.stories.friend.appointmentId);
     advance(s, ap3.endMin - s.gameTime + 2880);
     choose(s, "friend", "network"); advance(s, 2880);
-    expect(Object.values(s.world.stories).every((run: any) => run.status === "done")).toBe(true);
+    expect(["harbor", "driver", "home", "friend"].every(id => s.world.stories[id].status === "done")).toBe(true);
     expect(s.world.identity).toBe("Neue Wege mit HanseCargo");
     expect(s.world.stories.home.decisions).toHaveLength(2);
     expect(s.world.stories.friend.decisions).toHaveLength(2);

@@ -1,3 +1,4 @@
+import { ensureWorldContinuation, CONTINUATION_ID } from "./worldContinuation.ts";
 import { retainHistory } from "./historyRetention.ts";
 import { retainLatestHistory } from "./historyRetention.ts";
 import { addBooking } from "./accountingEngine.ts";
@@ -14,6 +15,7 @@ const partnerKey = state => String(state.private.partnerId || "partner_existing"
 // Old saves acquire no running deadlines, costs or historical events.
 export function migrateWorld(state) {
   if (!state.world) state.world = { version: 1, active: false };
+  ensureWorldContinuation(state);
 }
 function rng(w) {
   w.seed = (Math.imul(w.seed, 1664525) + 1013904223) >>> 0;
@@ -59,7 +61,7 @@ function startWorld(state) {
     rivals: WORLD_RIVALS.map(r => ({ ...r, relationship: 45, jobs: [], wins: 0, completed: 0, lastDayNetCents: 0 })),
     friend: { id: "world_jens", name: "Jens", quality: state.stats.friendshipQualities?.world_jens ?? 35 },
     stories: Object.fromEntries(WORLD_STORIES.map(s => [s.id, {
-      id: s.id, stage: 0, status: "locked", availableAtMin: state.gameTime + s.unlockDays * WORLD_DAY,
+      id: s.id, stage: 0, status: "locked", availableAtMin: s.id === CONTINUATION_ID ? null : state.gameTime + s.unlockDays * WORLD_DAY,
       decisions: [], actorId: null, actorName: null, pending: null, dueMin: null,
     }])),
     tenders: [], chronicle: [],
@@ -71,7 +73,7 @@ function startWorld(state) {
 function unlockStories(state, m) {
   const w = state.world;
   for (const run of Object.values(w.stories) as any[]) {
-    if (run.status !== "locked" || run.availableAtMin > m) continue;
+    if (run.status !== "locked" || run.availableAtMin == null || run.availableAtMin > m) continue;
     if (run.id === "driver") {
       const d = state.drivers.filter(activeDriver).sort((a, b) => (a.employedDay || 0) - (b.employedDay || 0) || String(a.id).localeCompare(String(b.id)))[0];
       if (!d) continue;
@@ -136,7 +138,7 @@ function chooseStory(state, p) {
     });
     run.status = "appointment"; run.dueMin = slot.endMin;
   } else {
-    run.status = "waiting"; run.dueMin = state.gameTime + 2 * WORLD_DAY;
+    run.status = "waiting"; run.dueMin = state.gameTime + (run.id === CONTINUATION_ID ? 3 : 2) * WORLD_DAY;
   }
   return { ok: true, appointmentId: run.appointmentId || null };
 }
@@ -166,16 +168,17 @@ function processStories(state, m) {
       } else {
         run.pending = { cause: run.pending.cause, text: "Der versprochene Termin hat nicht stattgefunden. Die positive Nachwirkung entfällt.", effect: run.id === "home" ? { relationship: -3 } : { friend: -3 } };
       }
-      run.status = "waiting"; run.dueMin = m + 2 * WORLD_DAY;
+      run.status = "waiting"; run.dueMin = m + (run.id === CONTINUATION_ID ? 3 : 2) * WORLD_DAY;
     }
     if (run.status === "waiting" && run.dueMin <= m) {
       effect(state, run, run.pending.effect);
       note(state, "Was daraus geworden ist", run.pending.text, run.pending.cause, "consequence");
       if (run.pending.identity) w.identity = run.pending.identity;
+      if (run.id === CONTINUATION_ID && run.stage === 4) run.ending = run.pending.text;
       run.stage++; run.pending = null; run.dueMin = null;
       if (run.stage >= WORLD_STORIES.find(s => s.id === run.id).chapters) {
         run.status = "done";
-        run.ending = run.id === "harbor" ? w.identity : "Abgeschlossen – eure Entscheidungen bleiben Teil der Spielwelt.";
+        run.ending = run.ending || (run.id === "harbor" ? w.identity : "Abgeschlossen – eure Entscheidungen bleiben Teil der Spielwelt.");
       } else {
         run.status = "decision";
         note(state, worldScene(state, run).title, "Das nächste Kapitel ist bereit. Du entscheidest, wann du es angehst.", null, "story");
@@ -317,8 +320,10 @@ function observeOrders(state) {
 export function processWorld(state, m) {
   if (!state.world?.active) return;
   const w = state.world;
+  ensureWorldContinuation(state, m);
   observeOrders(state);
   processStories(state, m);
+  ensureWorldContinuation(state, m);
   for (const r of w.rivals) {
     for (const job of r.jobs.filter(j => j.endMin <= m)) { r.cashCents += job.paymentCents; r.completed++; }
     r.jobs = r.jobs.filter(j => j.endMin > m);
@@ -333,7 +338,7 @@ export function getWorldEventTimes(state) {
   return [w.nextEconomyMin, w.nextTenderMin,
     ...w.tenders.filter(t => t.status === "open").map(t => t.closeMin),
     ...w.rivals.flatMap(r => r.jobs.map(j => j.endMin)),
-    ...(Object.values(w.stories) as any[]).flatMap(r => r.status === "locked" ? [r.availableAtMin] : r.dueMin != null ? [r.dueMin] : []),
+    ...(Object.values(w.stories) as any[]).flatMap(r => r.status === "locked" ? (r.availableAtMin != null ? [r.availableAtMin] : []) : r.dueMin != null ? [r.dueMin] : []),
   ];
 }
 export function handleWorldCommand(state, command, p) {

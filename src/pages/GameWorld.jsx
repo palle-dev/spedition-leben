@@ -46,7 +46,7 @@ export default function GameWorld() {
     {blocked && <p role="status" className="rounded-xl border border-coral/30 bg-coral/5 p-4 text-sm">Du nimmst gerade an einem Termin teil. Neue Entscheidungen und Gebote sind danach wieder möglich.</p>}
     {!w?.active ? <section className={card + " p-6 sm:p-8 space-y-6"}>
       <div className="grid sm:grid-cols-3 gap-6">
-        {[{ Icon: Truck, title: "Echte Konkurrenz", text: "Gebote, begrenzte Reserven und gewonnene Transporte, die du selbst disponierst." }, { Icon: BookOpen, title: "Zusammenhängende Geschichten", text: "Vier Hauptkapitel und drei persönliche Geschichten mit späteren Folgen." }, { Icon: Heart, title: "Eine Welt mit Gedächtnis", text: "Die Weltchronik verbindet deine Entscheidungen mit dem, was daraus entsteht." }].map(({ Icon, title, text }) => <div key={title} className="space-y-2"><Icon className="w-6 h-6 text-sky-200" /><h2 className="font-medium">{title}</h2><p className="text-sm text-muted-foreground leading-relaxed">{text}</p></div>)}
+        {[{ Icon: Truck, title: "Echte Konkurrenz", text: "Gebote, begrenzte Reserven und gewonnene Transporte, die du selbst disponierst." }, { Icon: BookOpen, title: "Zusammenhängende Geschichten", text: "Zwei zusammenhängende Staffeln und drei persönliche Geschichten mit späteren Folgen." }, { Icon: Heart, title: "Eine Welt mit Gedächtnis", text: "Die Weltchronik verbindet deine Entscheidungen mit dem, was daraus entsteht." }].map(({ Icon, title, text }) => <div key={title} className="space-y-2"><Icon className="w-6 h-6 text-sky-200" /><h2 className="font-medium">{title}</h2><p className="text-sm text-muted-foreground leading-relaxed">{text}</p></div>)}
       </div>
       <p className="text-sm text-muted-foreground">Der Einstieg ist kostenlos. Geschichten und Ausschreibungen beginnen ab deiner jetzigen Spielzeit. Geschichten warten auf dich; Gebotsfristen laufen mit der Spielzeit weiter.</p>
       {state.scenario?.status === "active" && <p className="text-sm text-sky-200">Die Spielwelt beginnt nach dem Szenario, sobald du im freien Spiel weitermachst.</p>}
@@ -61,15 +61,16 @@ export default function GameWorld() {
       {tab === "stories" && <div className="grid xl:grid-cols-3 gap-5">
         {WORLD_STORIES.map(def => {
           const run = w.stories[def.id];
+          if (!run) return null;
           const scene = worldScene(state, run);
           const ap = state.appointments.find(a => a.id === run.appointmentId);
-          return <article key={def.id} className={card + " p-5 sm:p-6 space-y-5 " + (def.id === "harbor" ? "xl:col-span-3 border-sky-300/20" : "")}>
+          return <article key={def.id} className={card + " p-5 sm:p-6 space-y-5 " + ((def.id === "harbor" || def.id === "built_together") ? "xl:col-span-3 border-sky-300/20" : "")}>
             <div className="flex items-start justify-between gap-3"><div><p className="text-xs text-sky-200 mb-2">{def.kind}</p><h2 className="text-xl font-semibold">{def.title}</h2><p className="text-sm text-muted-foreground mt-1">{def.subtitle}</p></div><span className="shrink-0 text-xs text-muted-foreground">{Math.min(run.stage, def.chapters)} / {def.chapters}</span></div>
             <div className="flex gap-1.5" aria-label={run.stage + " von " + def.chapters + " Kapiteln abgeschlossen"}>{Array.from({ length: def.chapters }, (_, i) => <div key={i} className={"h-1 flex-1 rounded-full " + (i < run.stage ? "bg-sky-300" : i === run.stage && run.status !== "locked" ? "bg-sky-300/40" : "bg-white/10")} />)}</div>
-            {run.status === "locked" ? <p className="text-sm text-muted-foreground">{run.availableAtMin > state.gameTime ? "Beginnt ab " + when(run.availableAtMin) + "." : run.id === "driver" ? "Beginnt, sobald ein fest angestellter Fahrer zu deinem Team gehört." : "Beginnt, sobald du in einer Beziehung bist."}</p>
+            {run.status === "locked" ? <p className="text-sm text-muted-foreground">{run.id === "built_together" && run.availableAtMin == null ? "Beginnt sieben Spieltage nach dem Abschluss der Hauptgeschichte. Dein bisheriger Weg bestimmt die Fortsetzung." : run.availableAtMin > state.gameTime ? "Beginnt ab " + when(run.availableAtMin) + "." : run.id === "driver" ? "Beginnt, sobald ein fest angestellter Fahrer zu deinem Team gehört." : "Beginnt, sobald du in einer Beziehung bist."}</p>
             : run.status === "done" ? <p className="text-sm text-sky-100 flex items-start gap-2"><Check className="w-4 h-4 shrink-0 mt-0.5" />{run.ending}</p>
             : <><div className="space-y-2"><h3 className="text-lg font-medium">{scene.title}</h3><p className="text-sm leading-relaxed text-slate-300 max-w-4xl">{scene.text}</p></div>
-              {run.status === "decision" ? <div className={"grid gap-3 " + (def.id === "harbor" ? "lg:grid-cols-3" : "")}>{scene.choices.map(choice => {
+              {run.status === "decision" ? <div className={"grid gap-3 " + ((def.id === "harbor" || def.id === "built_together") ? "lg:grid-cols-3" : "")}>{scene.choices.map(choice => {
                 const reason = worldChoiceReason(state, run, choice);
                 const slot = choice.appointment ? worldAppointmentSlot(state) : null;
                 return <div key={choice.id} className="rounded-xl border border-white/10 p-4 flex flex-col gap-3 bg-black/10">
