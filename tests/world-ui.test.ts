@@ -64,3 +64,16 @@ describe("Spielwelt-Oberfläche", () => {
     expect(html).toContain("2 Ausschreibungen");
   });
 });
+
+it("renders the continuation before unlock, during a decision and after its ending", () => {
+ fixture.state=createInitialState({}).state;applyCommand(fixture.state,"startWorld",{});
+ expect(render()).toContain("Was wir aufgebaut haben");
+ expect(render()).toContain("Beginnt sieben Spieltage");
+ const run=fixture.state.world.stories.built_together;
+ Object.assign(run,{status:"decision",path:"corporate",availableAtMin:fixture.state.gameTime});
+ expect(render()).toContain("Die kleine Fußnote");
+ Object.assign(run,{status:"done",stage:5,ending:"Euer gemeinsamer Weg bleibt erhalten."});
+ expect(render()).toContain("Euer gemeinsamer Weg bleibt erhalten.");
+ delete fixture.state.world.stories.built_together;
+ expect(()=>render()).not.toThrow();
+});
