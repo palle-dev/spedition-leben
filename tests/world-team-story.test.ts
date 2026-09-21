@@ -34,7 +34,7 @@ it("waits for both parent stories and the full seven-day pause",()=>{
  s.gameTime=due;processWorld(s,s.gameTime);expect(s.world.stories[id].status).toBe("decision");
 });
 it.each(["invest","honest","dismiss"])("remembers %s and completes the free path without changing qualifications",background=>{
- const s=ready(background),initial=copy(s.training),cash=s.company.accountCents;
+ const s=ready(background),initial=structuredClone(s.training),cash=s.company.accountCents;
  expect(s.world.stories[id].background).toBe(background);
  expect(worldScene(s,s.world.stories[id]).text).toContain({invest:"Geld für meine Entwicklung",honest:"damals ehrlich",dismiss:"um meinen Vertrag"}[background]);
  for(const pick of ["brief","respect","keep","honest"]){choose(s,pick);resolve(s);}
