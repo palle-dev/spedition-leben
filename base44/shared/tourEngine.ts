@@ -1,3 +1,4 @@
+import { optimisticDeliveryEnd } from './planningLowerBound.ts';
 import { countryOf } from "./dachGeography.ts";
 import { governedTransport, validateDachTransport, projectDachDelivery } from "./dachEngine.ts";
 import { regulatorySteps, transportCosts, DACH_RULE_VERSION } from "./dachRules.ts";
@@ -433,6 +434,11 @@ export function buildTourPlan(state, opts) {
       // Aufbau-Kompatibilität: strikte Frachtarten erfordern passenden Aufbau.
       const bodyCheck = checkBodyTypeCompatibility(order, vehicle);
       if (!bodyCheck.ok) return { ok: false as const, error: bodyCheck.error };
+      const optimistic = optimisticDeliveryEnd(state, order, currentCity, t, counters);
+      if ((order.windowVersion >= 2 && optimistic.loadingStart > order.latestLoadStartMin) ||
+          optimistic.delivery > order.deliveryDeadlineMin + 240) {
+        return { ok: false as const, error: "Lieferfrist oder Ladefenster selbst ohne zusätzliche Pausen nicht erreichbar." };
+      }
       const dep = buildDeployment(state, order, planningVehicle, currentCity, t, counters);
       if (dep.energyError) return {ok:false as const,error:dep.energyError};
       if (dep.energy) planningVehicle.batteryKWh=dep.energy.finalBatteryKWh;

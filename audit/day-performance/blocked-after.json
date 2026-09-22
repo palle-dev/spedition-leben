@@ -1,0 +1,157 @@
+{
+  "before": {
+    "time": 480,
+    "vehicles": 100,
+    "drivers": 100,
+    "employees": 10,
+    "orders": 500,
+    "trips": 0,
+    "tours": 0
+  },
+  "ms": 3374.530704,
+  "gameTime": 540,
+  "hash": "f8213416d86886a4f1eddd4fe7180ac8d022370a9f0014d294d9bff88eca07ee",
+  "delivered": 0,
+  "top": [
+    [
+      "_tryPlan tourEngine.ts:442",
+      2133680
+    ],
+    [
+      "_cached tourEngine.ts:113",
+      274461
+    ],
+    [
+      "suggestTours tourEngine.ts:1316",
+      160799
+    ],
+    [
+      "buildTourPlan tourEngine.ts:403",
+      114717
+    ],
+    [
+      "dispatch :-1",
+      97837
+    ],
+    [
+      "(garbage collector) :-1",
+      79450
+    ],
+    [
+      "processDispatcher dispatcherProcessor.ts:118",
+      76439
+    ],
+    [
+      "dachRoute dachGeography.ts:42",
+      68830
+    ],
+    [
+      "getCargoCategory gameRules.ts:264",
+      67066
+    ],
+    [
+      " planningOrderRanking.ts:21",
+      65579
+    ],
+    [
+      "suitable tourEngine.ts:1479",
+      60293
+    ],
+    [
+      " tourEngine.ts:1420",
+      27956
+    ],
+    [
+      " tourEngine.ts:1591",
+      20559
+    ],
+    [
+      "_orderById tourEngine.ts:138",
+      17825
+    ],
+    [
+      "checkBodyTypeCompatibility gameRules.ts:299",
+      17781
+    ],
+    [
+      "_vehicleById tourEngine.ts:124",
+      14409
+    ],
+    [
+      " dispatcherProcessor.ts:461",
+      11492
+    ],
+    [
+      "getDistance dachGeography.ts:55",
+      11140
+    ],
+    [
+      "optimisticDeliveryEnd planningLowerBound.ts:11",
+      10907
+    ],
+    [
+      "buildPhases driverTimeEngine.ts:67",
+      9860
+    ],
+    [
+      "buildDeployment tourEngine.ts:281",
+      9808
+    ],
+    [
+      " dachRules.ts:67",
+      8590
+    ],
+    [
+      "normalizeDriverLedger dachRules.ts:110",
+      8514
+    ],
+    [
+      " dachGeography.ts:49",
+      6557
+    ],
+    [
+      "makeMarketOffer marketEngine.ts:389",
+      5913
+    ],
+    [
+      "isElectric energyEngine.ts:23",
+      5812
+    ],
+    [
+      "hasPendingTour tourEngine.ts:80",
+      5700
+    ],
+    [
+      "earliestAvailable tourEngine.ts:176",
+      5603
+    ],
+    [
+      "_driverById tourEngine.ts:131",
+      5526
+    ],
+    [
+      " tourEngine.ts:1379",
+      5399
+    ],
+    [
+      "score planningOrderRanking.ts:9",
+      4878
+    ],
+    [
+      "processEventsAt simulationEngine.ts:386",
+      4028
+    ],
+    [
+      "holiday dachRules.ts:81",
+      3703
+    ],
+    [
+      "drivingWindow dachRules.ts:97",
+      3136
+    ],
+    [
+      "set length :-1",
+      2628
+    ]
+  ]
+}
