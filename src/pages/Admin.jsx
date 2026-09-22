@@ -3,13 +3,15 @@ import { Navigate, Link } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import { formatEuro, dayOf, clockOf } from "@/lib/gameData";
-import { Shield, ArrowLeft, LogOut, RefreshCw, Users, HardDrive, AlertCircle } from "lucide-react";
+import { Shield, ArrowLeft, LogOut, RefreshCw, Users, HardDrive, AlertCircle, Trash2 } from "lucide-react";
 
 export default function Admin() {
   const { user, isLoadingAuth } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -23,6 +25,24 @@ export default function Admin() {
       setLoading(false);
     }
   }, []);
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      if (deleteTarget.type === "save") {
+        await base44.functions.invoke("adminDashboard", { command: "deleteSave", stateId: deleteTarget.id });
+      } else {
+        await base44.functions.invoke("adminDashboard", { command: "deleteUser", userId: deleteTarget.id });
+      }
+      setDeleteTarget(null);
+      await loadData();
+    } catch (e) {
+      setError(e?.message || e?.data?.error || "Löschen fehlgeschlagen.");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   useEffect(() => {
     if (isLoadingAuth || !user || user.role !== "admin") return;
@@ -86,6 +106,45 @@ export default function Admin() {
           )}
         </div>
 
+        {/* Spieler */}
+        {!loading && !error && (data?.users || []).length > 0 && (
+          <div className="glass border border-white/10 rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-white/10 flex items-center gap-2">
+              <Users className="w-4 h-4 text-lime/70" />
+              <h2 className="text-sm font-medium">Spieler</h2>
+              <span className="text-xs text-muted-foreground">· {data.users.length} registriert</span>
+            </div>
+            <div className="divide-y divide-white/5 max-h-[400px] overflow-y-auto">
+              {data.users.map(u => {
+                const userSaves = saves.filter(s => s.owner_id === u.id);
+                return (
+                  <div key={u.id} className="flex items-center justify-between px-4 py-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{u.full_name || "—"}</span>
+                        {u.role === "admin" && <span className="text-[10px] bg-lime/15 text-lime px-1.5 py-0.5 rounded">Admin</span>}
+                        {u.id === user.id && <span className="text-[10px] bg-white/10 text-muted-foreground px-1.5 py-0.5 rounded">Du</span>}
+                      </div>
+                      <div className="text-xs text-muted-foreground">{u.email}</div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-xs text-muted-foreground tabular-nums hidden sm:inline">{userSaves.length} Spielstand{userSaves.length !== 1 ? "stände" : ""}</span>
+                      <button
+                        onClick={() => setDeleteTarget({ type: "user", id: u.id, name: u.full_name || u.email })}
+                        disabled={u.id === user.id}
+                        className="w-8 h-8 grid place-items-center rounded-lg border border-white/10 bg-white/5 text-muted-foreground hover:text-coral hover:border-coral/30 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                        title={u.id === user.id ? "Du kannst dich nicht selbst löschen" : "Spieler und alle Spielstände löschen"}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center py-20 text-muted-foreground text-sm">Lade Spieler und Spielstände…</div>
         ) : error ? (
@@ -118,6 +177,7 @@ export default function Admin() {
                     <th className="text-right font-medium px-3 py-3 whitespace-nowrap hidden md:table-cell">Standorte</th>
                     <th className="text-right font-medium px-3 py-3 whitespace-nowrap hidden md:table-cell">Mitarbeiter</th>
                     <th className="text-right font-medium px-3 py-3 whitespace-nowrap hidden lg:table-cell">Letzte Sicherung</th>
+                    <th className="text-right font-medium px-3 py-3 whitespace-nowrap">Aktion</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -161,6 +221,15 @@ export default function Admin() {
                         <td className="px-3 py-3 text-right text-xs text-muted-foreground whitespace-nowrap hidden lg:table-cell">
                           {save.cloud_saved_at ? new Date(save.cloud_saved_at).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" }) : "—"}
                         </td>
+                        <td className="px-3 py-3 text-right">
+                          <button
+                            onClick={() => setDeleteTarget({ type: "save", id: save.id, name: save.company_name || save.save_label || save.id })}
+                            className="w-8 h-8 grid place-items-center rounded-lg border border-white/10 bg-white/5 text-muted-foreground hover:text-coral hover:border-coral/30 transition inline-flex"
+                            title="Spielstand löschen"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
                       </tr>
                     );
                   })}
@@ -176,6 +245,35 @@ export default function Admin() {
           </div>
         )}
       </div>
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/80 backdrop-blur-sm p-4" onClick={() => !deleting && setDeleteTarget(null)}>
+          <div className="glass border border-white/15 rounded-2xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-coral/10 grid place-items-center">
+                <Trash2 className="w-5 h-5 text-coral" />
+              </div>
+              <div>
+                <h3 className="text-base font-medium">{deleteTarget.type === "user" ? "Spieler löschen" : "Spielstand löschen"}</h3>
+                <p className="text-xs text-muted-foreground">{deleteTarget.name}</p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mb-5">
+              {deleteTarget.type === "user"
+                ? "Dieser Spieler und alle seine Spielstände werden unwiderruflich gelöscht. Diese Aktion kann nicht rückgängig gemacht werden."
+                : "Dieser Spielstand wird unwiderruflich gelöscht. Diese Aktion kann nicht rückgängig gemacht werden."}
+            </p>
+            <div className="flex items-center gap-2">
+              <button onClick={confirmDelete} disabled={deleting} className="flex-1 rounded-lg py-2.5 text-sm font-medium bg-coral text-ink hover:brightness-110 disabled:opacity-50 transition">
+                {deleting ? "Lösche…" : "Endgültig löschen"}
+              </button>
+              <button onClick={() => setDeleteTarget(null)} disabled={deleting} className="flex-1 rounded-lg py-2.5 text-sm border border-white/10 text-muted-foreground hover:text-foreground disabled:opacity-50 transition">
+                Abbrechen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

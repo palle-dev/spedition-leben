@@ -87,6 +87,26 @@ export default async function handleAdminDashboard(req: Request): Promise<Respon
       });
     }
 
+    if (command === "deleteSave") {
+      const { stateId } = body;
+      if (!stateId) return Response.json({ error: "stateId erforderlich" }, { status: 400 });
+      await base44.asServiceRole.entities.GameState.delete(stateId);
+      return Response.json({ ok: true, stateId });
+    }
+
+    if (command === "deleteUser") {
+      const { userId } = body;
+      if (!userId) return Response.json({ error: "userId erforderlich" }, { status: 400 });
+      if (userId === user.id) return Response.json({ error: "Du kannst dich nicht selbst löschen" }, { status: 400 });
+      const userStates = await base44.asServiceRole.entities.GameState.filter({ owner_id: userId }, "-cloud_saved_at", 1000);
+      const saveCount = (userStates || []).length;
+      if (saveCount > 0) {
+        await base44.asServiceRole.entities.GameState.deleteMany({ owner_id: userId });
+      }
+      await base44.asServiceRole.entities.User.delete(userId);
+      return Response.json({ ok: true, userId, deletedSaves: saveCount });
+    }
+
     return Response.json({ error: "Unbekannter Befehl: " + command }, { status: 400 });
   } catch (error) {
     return Response.json({ error: error.message || "Unbekannter Fehler" }, { status: 500 });
