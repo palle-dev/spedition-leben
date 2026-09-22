@@ -98,3 +98,18 @@ it('prüft DACH-Fahrer mit unterschiedlichen Wochenlenkzeiten getrennt',async()=
  const feasible=buildTourPlan(s,opts);expect(feasible.ok).toBe(true);expect(feasible.lastDeliveryEndMin).toBeLessThan(s.orders[0].deliveryDeadlineMin);
  expect(search(s).suggestions[0]?.driverId).toBe('weekly-fresh');
 });
+
+function dgSetup(){const s=base();Object.assign(s.orders[0],{fromCity:'Hamburg',toCity:'Bremen',tons:8,paymentCents:1000000,isDangerousGoods:true,dgProfileId:'dg_paint_north',requiredBodyType:null});s.vehicles[0].dgEquipment={type:'versandstueck',validUntilMin:100000};return s;}
+it('verwirft qualifizierte Gefahrgutfahrer nicht als scheinbar identische Kandidaten',()=>{
+ const s=dgSetup();s.drivers.push({...structuredClone(s.drivers[0]),id:'adr-trained'});
+ s.training.qualifications.push({personId:'adr-trained',type:'adr_basic',status:'active',validUntilMin:100000});
+ const exact=buildTourPlan(s,{vehicleId:'v0',driverId:'adr-trained',orderIds:['o0']});expect(exact.ok).toBe(true);
+ expect(search(s).suggestions[0]?.driverId).toBe('adr-trained');
+});
+it.each(['round','single'])('wählt ohne Gefahrgutbefugnis einen normalen Auftrag (%s)',kind=>{
+ const s=dgSetup();s.training.qualifications.push({personId:'d0',type:'adr_basic',status:'active',validUntilMin:100000});
+ const dg=s.orders[0];s.orders.push({...structuredClone(dg),id:'ordinary',isDangerousGoods:false,dgProfileId:null,paymentCents:100000});
+ expect(search(s).suggestions[0]?.orderIds).toContain('o0');
+ if(kind==='round')processDispatcher(s,s.employees[0],s.gameTime,[]);else planSingleVehicle(s,s.vehicles[0],s.gameTime,[]);
+ expect(s.orders[1].status).not.toBe('offered');expect(dg.status).toBe('offered');
+});
