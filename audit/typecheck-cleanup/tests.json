@@ -1,0 +1,1687 @@
+{
+  "numTotalTestSuites": 33,
+  "numPassedTestSuites": 33,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 121,
+  "numPassedTests": 121,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1790108313041,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "Kundenbeziehungen"
+          ],
+          "fullName": "Kundenbeziehungen Migration erstellt für alle 30 Kunden einen neutralen Beziehungsdatensatz",
+          "status": "passed",
+          "title": "Migration erstellt für alle 30 Kunden einen neutralen Beziehungsdatensatz",
+          "duration": 12.521846000000096,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Kundenbeziehungen"
+          ],
+          "fullName": "Kundenbeziehungen Eine pünktliche Lieferung erhöht Vertrauen um +2 und Umsatz genau einmal",
+          "status": "passed",
+          "title": "Eine pünktliche Lieferung erhöht Vertrauen um +2 und Umsatz genau einmal",
+          "duration": 2.8101110000002336,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Kundenbeziehungen"
+          ],
+          "fullName": "Kundenbeziehungen Ablaufen eines nicht angenommenen Angebots schadet der Beziehung nicht",
+          "status": "passed",
+          "title": "Ablaufen eines nicht angenommenen Angebots schadet der Beziehung nicht",
+          "duration": 3.0696969999999055,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Kundenbeziehungen"
+          ],
+          "fullName": "Kundenbeziehungen Stammkunden-Erkennung bei ≥5 Transporten und ≥60 Vertrauen",
+          "status": "passed",
+          "title": "Stammkunden-Erkennung bei ≥5 Transporten und ≥60 Vertrauen",
+          "duration": 2.847258000000238,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Rahmenverträge"
+          ],
+          "fullName": "Rahmenverträge Vertragsangebot ist deterministisch — gleiche Parameter ergeben gleiches Angebot",
+          "status": "passed",
+          "title": "Vertragsangebot ist deterministisch — gleiche Parameter ergeben gleiches Angebot",
+          "duration": 2.9378060000003643,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Rahmenverträge"
+          ],
+          "fullName": "Rahmenverträge Vertragsaufträge entstehen pro Leistungstag in der vereinbarten Anzahl",
+          "status": "passed",
+          "title": "Vertragsaufträge entstehen pro Leistungstag in der vereinbarten Anzahl",
+          "duration": 3.553603999999723,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Rahmenverträge"
+          ],
+          "fullName": "Rahmenverträge Maximal ein aktiver Vertrag pro Kunde",
+          "status": "passed",
+          "title": "Maximal ein aktiver Vertrag pro Kunde",
+          "duration": 2.90692799999988,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Rahmenverträge"
+          ],
+          "fullName": "Rahmenverträge Vorzeitige Beendigung stoppt zukünftige Transporte und kostet 6 Vertrauen",
+          "status": "passed",
+          "title": "Vorzeitige Beendigung stoppt zukünftige Transporte und kostet 6 Vertrauen",
+          "duration": 3.6018269999999575,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Rahmenverträge"
+          ],
+          "fullName": "Rahmenverträge Vertragsauswertung nach Abschluss aller Aufträge",
+          "status": "passed",
+          "title": "Vertragsauswertung nach Abschluss aller Aufträge",
+          "duration": 3.649529999999686,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Konsistenz mit Zeitvorläufen"
+          ],
+          "fullName": "Konsistenz mit Zeitvorläufen Vertragsaufträge entstehen auch bei aufgeteilten Vorläufen korrekt",
+          "status": "passed",
+          "title": "Vertragsaufträge entstehen auch bei aufgeteilten Vorläufen korrekt",
+          "duration": 72.31234300000006,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1790108316277,
+      "endTime": 1790108316388.3123,
+      "status": "passed",
+      "message": "",
+      "name": "/app/tests/customer-contracts.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "Liefergefährdung"
+          ],
+          "fullName": "Liefergefährdung meldet unzugeordneten Auftrag vor Fristablauf als Anruf",
+          "status": "passed",
+          "title": "meldet unzugeordneten Auftrag vor Fristablauf als Anruf",
+          "duration": 19.699771999999996,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Liefergefährdung"
+          ],
+          "fullName": "Liefergefährdung meldet verspätete Ankunft auch ohne Störung",
+          "status": "passed",
+          "title": "meldet verspätete Ankunft auch ohne Störung",
+          "duration": 3.089938000000018,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Liefergefährdung"
+          ],
+          "fullName": "Liefergefährdung löst bei sicherer Ankunft keinen Anruf aus",
+          "status": "passed",
+          "title": "löst bei sicherer Ankunft keinen Anruf aus",
+          "duration": 3.2530660000000466,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Liefergefährdung"
+          ],
+          "fullName": "Liefergefährdung laufende Reparatur bleibt als Liefergefährdung sichtbar",
+          "status": "passed",
+          "title": "laufende Reparatur bleibt als Liefergefährdung sichtbar",
+          "duration": 3.8362249999999563,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Liefergefährdung"
+          ],
+          "fullName": "Liefergefährdung offene Defektentscheidung und Auftrag erzeugen keinen doppelten Anruf",
+          "status": "passed",
+          "title": "offene Defektentscheidung und Auftrag erzeugen keinen doppelten Anruf",
+          "duration": 4.828986999999984,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Liefergefährdung"
+          ],
+          "fullName": "Liefergefährdung keine Warnung für gelieferte oder nur angebotene Aufträge",
+          "status": "passed",
+          "title": "keine Warnung für gelieferte oder nur angebotene Aufträge",
+          "duration": 3.167685000000006,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Liefergefährdung"
+          ],
+          "fullName": "Liefergefährdung Risikoprüfung verändert keinen Spielstand",
+          "status": "passed",
+          "title": "Risikoprüfung verändert keinen Spielstand",
+          "duration": 3.957147999999961,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Liefergefährdung"
+          ],
+          "fullName": "Liefergefährdung geschützter Vorlauf stoppt vor einer gefährdeten Lieferung",
+          "status": "passed",
+          "title": "geschützter Vorlauf stoppt vor einer gefährdeten Lieferung",
+          "duration": 3.704003000000057,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Liefergefährdung"
+          ],
+          "fullName": "Liefergefährdung Vorlauf erkennt später eintretende Dringlichkeit vor Ablauf",
+          "status": "passed",
+          "title": "Vorlauf erkennt später eintretende Dringlichkeit vor Ablauf",
+          "duration": 13.196153999999979,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1790108320726,
+      "endTime": 1790108320785.196,
+      "status": "passed",
+      "message": "",
+      "name": "/app/tests/delivery-risk.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "completes a real electric delivery with charging, payment and no diesel booking",
+          "status": "passed",
+          "title": "completes a real electric delivery with charging, payment and no diesel booking",
+          "duration": 71.36523000000034,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "carries remaining battery through a two-order chain and rejects charging-induced missed deadlines",
+          "status": "passed",
+          "title": "carries remaining battery through a two-order chain and rejects charging-induced missed deadlines",
+          "duration": 4.9981840000000375,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "pauses an unreachable planned return without crashing the time advance",
+          "status": "passed",
+          "title": "pauses an unreachable planned return without crashing the time advance",
+          "duration": 3.455333000000337,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "renders energy, buying and leasing for legacy games without mutating them",
+          "status": "passed",
+          "title": "renders energy, buying and leasing for legacy games without mutating them",
+          "duration": 32.992101000000275,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "keeps a 250-electric-truck / 10-depot energy day bounded and reports incremental runtime",
+          "status": "passed",
+          "title": "keeps a 250-electric-truck / 10-depot energy day bounded and reports incremental runtime",
+          "duration": 14.457425000000057,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "keeps actual electric delivery and depot energy consistent for day/hour/quarter-hour advances",
+          "status": "passed",
+          "title": "keeps actual electric delivery and depot energy consistent for day/hour/quarter-hour advances",
+          "duration": 168.98521699999992,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1790108319724,
+      "endTime": 1790108320019.985,
+      "status": "passed",
+      "message": "",
+      "name": "/app/tests/energy-integration.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "Depot energy conservation and persistence"
+          ],
+          "fullName": "Depot energy conservation and persistence migrates old games without free assets or retroactive PV",
+          "status": "passed",
+          "title": "migrates old games without free assets or retroactive PV",
+          "duration": 14.056153999999992,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Depot energy conservation and persistence"
+          ],
+          "fullName": "Depot energy conservation and persistence uses power limits, excludes vehicles away or on a trip, and charges exactly once",
+          "status": "passed",
+          "title": "uses power limits, excludes vehicles away or on a trip, and charges exactly once",
+          "duration": 6.248670000000004,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Depot energy conservation and persistence"
+          ],
+          "fullName": "Depot energy conservation and persistence reassigns a freed port within the hour without overcharging",
+          "status": "passed",
+          "title": "reassigns a freed port within the hour without overcharging",
+          "duration": 11.316750000000013,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Depot energy conservation and persistence"
+          ],
+          "fullName": "Depot energy conservation and persistence has no PV at night; accounts for all PV, storage and charger losses",
+          "status": "passed",
+          "title": "has no PV at night; accounts for all PV, storage and charger losses",
+          "duration": 4.471922000000006,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Depot energy conservation and persistence"
+          ],
+          "fullName": "Depot energy conservation and persistence discharges only stored solar power, with loss and grid fallback",
+          "status": "passed",
+          "title": "discharges only stored solar power, with loss and grid fallback",
+          "duration": 3.0589899999999943,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Depot energy conservation and persistence"
+          ],
+          "fullName": "Depot energy conservation and persistence is invariant across 1 day / hourly / 15-minute integration and JSON reload",
+          "status": "passed",
+          "title": "is invariant across 1 day / hourly / 15-minute integration and JSON reload",
+          "duration": 47.016846999999984,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Depot energy conservation and persistence"
+          ],
+          "fullName": "Depot energy conservation and persistence preserves older daily rows in the lossless archive",
+          "status": "passed",
+          "title": "preserves older daily rows in the lossless archive",
+          "duration": 50.588458,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Depot energy conservation and persistence"
+          ],
+          "fullName": "Depot energy conservation and persistence books investment and accrual settlements, rejects unaffordable builds",
+          "status": "passed",
+          "title": "books investment and accrual settlements, rejects unaffordable builds",
+          "duration": 2.4063059999999723,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Electric route planning and real phases"
+          ],
+          "fullName": "Electric route planning and real phases plans a feasible long route for electric_regional without mutating the vehicle",
+          "status": "passed",
+          "title": "plans a feasible long route for electric_regional without mutating the vehicle",
+          "duration": 3.16121499999997,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Electric route planning and real phases"
+          ],
+          "fullName": "Electric route planning and real phases plans a feasible long route for electric_standard without mutating the vehicle",
+          "status": "passed",
+          "title": "plans a feasible long route for electric_standard without mutating the vehicle",
+          "duration": 2.048932000000036,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Electric route planning and real phases"
+          ],
+          "fullName": "Electric route planning and real phases plans a feasible long route for electric_heavy without mutating the vehicle",
+          "status": "passed",
+          "title": "plans a feasible long route for electric_heavy without mutating the vehicle",
+          "duration": 1.6653069999999843,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Electric route planning and real phases"
+          ],
+          "fullName": "Electric route planning and real phases rejects an unreachable route and preserves diesel work steps",
+          "status": "passed",
+          "title": "rejects an unreachable route and preserves diesel work steps",
+          "duration": 1.41116999999997,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Electric route planning and real phases"
+          ],
+          "fullName": "Electric route planning and real phases phase splitting conserves charge and drive energy and reserve",
+          "status": "passed",
+          "title": "phase splitting conserves charge and drive energy and reserve",
+          "duration": 2.7909519999999475,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Electric route planning and real phases"
+          ],
+          "fullName": "Electric route planning and real phases buys and leases actual electric vehicles with batteries",
+          "status": "passed",
+          "title": "buys and leases actual electric vehicles with batteries",
+          "duration": 18.339830000000006,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Electric route planning and real phases"
+          ],
+          "fullName": "Electric route planning and real phases integrates sub-hour commands immediately",
+          "status": "passed",
+          "title": "integrates sub-hour commands immediately",
+          "duration": 4.515219000000002,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1790108320062,
+      "endTime": 1790108320236.5151,
+      "status": "passed",
+      "message": "",
+      "name": "/app/tests/energy-mobility.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "Browser- und Base44-Module sind identische, überprüfbare Kopien",
+          "status": "passed",
+          "title": "Browser- und Base44-Module sind identische, überprüfbare Kopien",
+          "duration": 68.05692999999974,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "Browser- und Server-Engine führen denselben Spieltag aus",
+          "status": "passed",
+          "title": "Browser- und Server-Engine führen denselben Spieltag aus",
+          "duration": 92.97678399999995,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1790108322589,
+      "endTime": 1790108322749.9768,
+      "status": "passed",
+      "message": "",
+      "name": "/app/tests/engine-parity.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "Historisches Finanzjournal"
+          ],
+          "fullName": "Historisches Finanzjournal erhält Salden, Bilanz, GuV, Zahlungsströme und Filialwerte centgenau an Zeitgrenzen",
+          "status": "passed",
+          "title": "erhält Salden, Bilanz, GuV, Zahlungsströme und Filialwerte centgenau an Zeitgrenzen",
+          "duration": 87.19429500000001,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Historisches Finanzjournal"
+          ],
+          "fullName": "Historisches Finanzjournal behält Filialumsätze nach Fahrzeugwechsel, Verkauf und Historienbereinigung",
+          "status": "passed",
+          "title": "behält Filialumsätze nach Fahrzeugwechsel, Verkauf und Historienbereinigung",
+          "duration": 2.610115999999948,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Historisches Finanzjournal"
+          ],
+          "fullName": "Historisches Finanzjournal erfindet für alte Buchungen ohne Filiale keine heutige Zuordnung",
+          "status": "passed",
+          "title": "erfindet für alte Buchungen ohne Filiale keine heutige Zuordnung",
+          "duration": 2.3003139999999576,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Historisches Finanzjournal"
+          ],
+          "fullName": "Historisches Finanzjournal rechnet alle Filialkosten inklusive sonstiger Kosten und Korrekturen vollständig ab",
+          "status": "passed",
+          "title": "rechnet alle Filialkosten inklusive sonstiger Kosten und Korrekturen vollständig ab",
+          "duration": 0.4220020000000204,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Historisches Finanzjournal"
+          ],
+          "fullName": "Historisches Finanzjournal bewahrt stornierbare Vorauszahlungsbelege und archiviert sie erst nach Vertragsende",
+          "status": "passed",
+          "title": "bewahrt stornierbare Vorauszahlungsbelege und archiviert sie erst nach Vertragsende",
+          "duration": 2.751873000000046,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Historisches Finanzjournal"
+          ],
+          "fullName": "Historisches Finanzjournal liefert sämtliche Einzelbelege mit Suche, Kontofilter und stabiler Seitennavigation",
+          "status": "passed",
+          "title": "liefert sämtliche Einzelbelege mit Suche, Kontofilter und stabiler Seitennavigation",
+          "duration": 22.629503999999997,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Historisches Finanzjournal"
+          ],
+          "fullName": "Historisches Finanzjournal übersteht portable Sicherung und Cache-Neuaufbau ohne doppelte Beträge",
+          "status": "passed",
+          "title": "übersteht portable Sicherung und Cache-Neuaufbau ohne doppelte Beträge",
+          "duration": 10.487017000000037,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Historisches Finanzjournal"
+          ],
+          "fullName": "Historisches Finanzjournal verändert bei Komprimierungsfehlern weder Originaljournal noch Projektion",
+          "status": "passed",
+          "title": "verändert bei Komprimierungsfehlern weder Originaljournal noch Projektion",
+          "duration": 1.9432300000000282,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Historisches Finanzjournal"
+          ],
+          "fullName": "Historisches Finanzjournal erzeugt nach kompletter Archivierung keine zweite Eröffnungsbilanz",
+          "status": "passed",
+          "title": "erzeugt nach kompletter Archivierung keine zweite Eröffnungsbilanz",
+          "duration": 2.298050000000046,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Historisches Finanzjournal"
+          ],
+          "fullName": "Historisches Finanzjournal lehnt Sicherungen mit fehlenden Finanzblöcken ab",
+          "status": "passed",
+          "title": "lehnt Sicherungen mit fehlenden Finanzblöcken ab",
+          "duration": 2.1767360000000053,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Historisches Finanzjournal"
+          ],
+          "fullName": "Historisches Finanzjournal übernimmt explizite Filialzuordnung aus Buchungsvorlagen auch bei Rückdatierung",
+          "status": "passed",
+          "title": "übernimmt explizite Filialzuordnung aus Buchungsvorlagen auch bei Rückdatierung",
+          "duration": 0.6818079999999895,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "reduces an already checked legacy snapshot immediately, retains the exact seven-day boundary and pinned reversals",
+          "status": "passed",
+          "title": "reduces an already checked legacy snapshot immediately, retains the exact seven-day boundary and pinned reversals",
+          "duration": 10.108069,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "archives a released cancellation source on the next day without changing historic amounts",
+          "status": "passed",
+          "title": "archives a released cancellation source on the next day without changing historic amounts",
+          "duration": 4.5841330000000085,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1790108321072,
+      "endTime": 1790108321222.5842,
+      "status": "passed",
+      "message": "",
+      "name": "/app/tests/financial-archive.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "Investmentberater"
+          ],
+          "fullName": "Investmentberater startet ohne Handel, berechnet nur ein Tageshonorar und wird Telefonkontakt",
+          "status": "passed",
+          "title": "startet ohne Handel, berechnet nur ein Tageshonorar und wird Telefonkontakt",
+          "duration": 26.003935000000183,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Investmentberater"
+          ],
+          "fullName": "Investmentberater kauft Krypto ausschließlich im freigegebenen company-Depot und hält Budget/Reserve",
+          "status": "passed",
+          "title": "kauft Krypto ausschließlich im freigegebenen company-Depot und hält Budget/Reserve",
+          "duration": 10.430851000000075,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Investmentberater"
+          ],
+          "fullName": "Investmentberater kauft Krypto ausschließlich im freigegebenen private-Depot und hält Budget/Reserve",
+          "status": "passed",
+          "title": "kauft Krypto ausschließlich im freigegebenen private-Depot und hält Budget/Reserve",
+          "duration": 6.888283999999658,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Investmentberater"
+          ],
+          "fullName": "Investmentberater kauft Aktien, respektiert Handelszeiten und ausgeschlossene Anlageklassen",
+          "status": "passed",
+          "title": "kauft Aktien, respektiert Handelszeiten und ausgeschlossene Anlageklassen",
+          "duration": 5.548081999999795,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Investmentberater"
+          ],
+          "fullName": "Investmentberater verkauft freigegebene Bestände bei Gewinnziel im company-Depot",
+          "status": "passed",
+          "title": "verkauft freigegebene Bestände bei Gewinnziel im company-Depot",
+          "duration": 6.358987999999954,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Investmentberater"
+          ],
+          "fullName": "Investmentberater verkauft freigegebene Bestände bei Gewinnziel im private-Depot",
+          "status": "passed",
+          "title": "verkauft freigegebene Bestände bei Gewinnziel im private-Depot",
+          "duration": 4.227420000000166,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Investmentberater"
+          ],
+          "fullName": "Investmentberater Verlustgrenze erzeugt ebenfalls einen Verkauf und Verkaufssperre verhindert ihn",
+          "status": "passed",
+          "title": "Verlustgrenze erzeugt ebenfalls einen Verkauf und Verkaufssperre verhindert ihn",
+          "duration": 4.520927000000029,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Investmentberater"
+          ],
+          "fullName": "Investmentberater blockiert Firmenkäufe bei offenen Betriebskosten, aber trennt das Privatmandat",
+          "status": "passed",
+          "title": "blockiert Firmenkäufe bei offenen Betriebskosten, aber trennt das Privatmandat",
+          "duration": 4.250614999999925,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Investmentberater"
+          ],
+          "fullName": "Investmentberater weist ungültige Mandate und veraltete Telefonfreigaben ohne Änderung zurück",
+          "status": "passed",
+          "title": "weist ungültige Mandate und veraltete Telefonfreigaben ohne Änderung zurück",
+          "duration": 5.7578520000001845,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Investmentberater"
+          ],
+          "fullName": "Investmentberater Pausieren storniert nur offene Beraterorders und erhält manuelle Orders",
+          "status": "passed",
+          "title": "Pausieren storniert nur offene Beraterorders und erhält manuelle Orders",
+          "duration": 4.211015000000316,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Investmentberater"
+          ],
+          "fullName": "Investmentberater beendet Honorare und Handel bei Kündigung; fehlendes Honorar pausiert",
+          "status": "passed",
+          "title": "beendet Honorare und Handel bei Kündigung; fehlendes Honorar pausiert",
+          "duration": 5.181022999999641,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Investmentberater"
+          ],
+          "fullName": "Investmentberater liefert identische Ergebnisse für Tages-, Stunden- und Viertelstundenvorlauf einschließlich Save/Load",
+          "status": "passed",
+          "title": "liefert identische Ergebnisse für Tages-, Stunden- und Viertelstundenvorlauf einschließlich Save/Load",
+          "duration": 298.38498200000004,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1790108316277,
+      "endTime": 1790108316659.385,
+      "status": "passed",
+      "message": "",
+      "name": "/app/tests/investment-advisor.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "renders readable empty and active views from real state with motion disabled",
+          "status": "passed",
+          "title": "renders readable empty and active views from real state with motion disabled",
+          "duration": 31.79368599999998,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "preserves identity, progress and live records in immutable save snapshots",
+          "status": "passed",
+          "title": "preserves identity, progress and live records in immutable save snapshots",
+          "duration": 5.954711999999972,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "initializes legacy saves without fabricating historical successes",
+          "status": "passed",
+          "title": "initializes legacy saves without fabricating historical successes",
+          "duration": 2.436672000000044,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1790108323647,
+      "endTime": 1790108323687.4368,
+      "status": "passed",
+      "message": "",
+      "name": "/app/tests/journey-ui.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "Eskalation an die Geschäftsführung"
+          ],
+          "fullName": "Eskalation an die Geschäftsführung 120 Minuten Verspätung bleiben ohne Anruf, größere Verspätung eskaliert",
+          "status": "passed",
+          "title": "120 Minuten Verspätung bleiben ohne Anruf, größere Verspätung eskaliert",
+          "duration": 21.12849699999998,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Eskalation an die Geschäftsführung"
+          ],
+          "fullName": "Eskalation an die Geschäftsführung bloßer Fristübertritt eskaliert eine kleine bekannte Verspätung nicht",
+          "status": "passed",
+          "title": "bloßer Fristübertritt eskaliert eine kleine bekannte Verspätung nicht",
+          "duration": 6.604712000000006,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Eskalation an die Geschäftsführung"
+          ],
+          "fullName": "Eskalation an die Geschäftsführung fehlender Transport bleibt auch nach Fristablauf dringend",
+          "status": "passed",
+          "title": "fehlender Transport bleibt auch nach Fristablauf dringend",
+          "duration": 4.2600100000000225,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Eskalation an die Geschäftsführung"
+          ],
+          "fullName": "Eskalation an die Geschäftsführung Fahrpersonal übernimmt Routine und Kundeninfo einmalig ohne Kosten",
+          "status": "passed",
+          "title": "Fahrpersonal übernimmt Routine und Kundeninfo einmalig ohne Kosten",
+          "duration": 10.824621000000036,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Eskalation an die Geschäftsführung"
+          ],
+          "fullName": "Eskalation an die Geschäftsführung ohne verfügbares Personal bleibt die Routine im Postfach statt als Telefonunterbrechung",
+          "status": "passed",
+          "title": "ohne verfügbares Personal bleibt die Routine im Postfach statt als Telefonunterbrechung",
+          "duration": 4.228672000000017,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Eskalation an die Geschäftsführung"
+          ],
+          "fullName": "Eskalation an die Geschäftsführung Defekt ohne ausführbare Maßnahme wird zum Hinweis, laufende Maßnahme klingelt nicht",
+          "status": "passed",
+          "title": "Defekt ohne ausführbare Maßnahme wird zum Hinweis, laufende Maßnahme klingelt nicht",
+          "duration": 4.376126999999997,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1790108322709,
+      "endTime": 1790108322760.3762,
+      "status": "passed",
+      "message": "",
+      "name": "/app/tests/management-escalation.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "accepts a real phone goal once and preserves spending authority",
+          "status": "passed",
+          "title": "accepts a real phone goal once and preserves spending authority",
+          "duration": 31.517284000000018,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "isolates branch measurements and rejects misleading tiny samples",
+          "status": "passed",
+          "title": "isolates branch measurements and rejects misleading tiny samples",
+          "duration": 5.221405000000004,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "reviews at the deadline and archives exactly once",
+          "status": "passed",
+          "title": "reviews at the deadline and archives exactly once",
+          "duration": 10.613197999999954,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "prioritizes staff shortages without approving expenditure",
+          "status": "passed",
+          "title": "prioritizes staff shortages without approving expenditure",
+          "duration": 4.0562400000000025,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "respects withdrawn personnel responsibility despite staffing goals",
+          "status": "passed",
+          "title": "respects withdrawn personnel responsibility despite staffing goals",
+          "duration": 5.813946999999985,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "interrupts goals on reassignment and preserves cancelled reviews across saves",
+          "status": "passed",
+          "title": "interrupts goals on reassignment and preserves cancelled reviews across saves",
+          "duration": 4.534208000000035,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1790108322294,
+      "endTime": 1790108322356.5342,
+      "status": "passed",
+      "message": "",
+      "name": "/app/tests/management-goals.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "Erweiterte Führungsverantwortung"
+          ],
+          "fullName": "Erweiterte Führungsverantwortung ändert dauerhaft Assistenzaufgaben per bestätigtem Telefonauftrag und schützt vor Wiederholung",
+          "status": "passed",
+          "title": "ändert dauerhaft Assistenzaufgaben per bestätigtem Telefonauftrag und schützt vor Wiederholung",
+          "duration": 38.78724999999997,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Erweiterte Führungsverantwortung"
+          ],
+          "fullName": "Erweiterte Führungsverantwortung beschränkt Zuständigkeiten auf den angerufenen Filialleiter, einschließlich neuer Einstellungen",
+          "status": "passed",
+          "title": "beschränkt Zuständigkeiten auf den angerufenen Filialleiter, einschließlich neuer Einstellungen",
+          "duration": 7.603694000000019,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Erweiterte Führungsverantwortung"
+          ],
+          "fullName": "Erweiterte Führungsverantwortung erstellt tägliche Lageberichte nur einmal und nur bei aktivierter Verantwortung",
+          "status": "passed",
+          "title": "erstellt tägliche Lageberichte nur einmal und nur bei aktivierter Verantwortung",
+          "duration": 6.36721,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Erweiterte Führungsverantwortung"
+          ],
+          "fullName": "Erweiterte Führungsverantwortung setzt Tagesbudgets ohne den Verbrauch zurückzusetzen und liefert rein lesende Lageberichte",
+          "status": "passed",
+          "title": "setzt Tagesbudgets ohne den Verbrauch zurückzusetzen und liefert rein lesende Lageberichte",
+          "duration": 5.255145999999968,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1790108321840,
+      "endTime": 1790108321898.2551,
+      "status": "passed",
+      "message": "",
+      "name": "/app/tests/management-responsibilities.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "Laden, Büro und Telefon"
+          ],
+          "fullName": "Laden, Büro und Telefon zeigt den gewählten Spielstand sofort, blockiert Doppelklicks und ermöglicht nach Fehler einen erneuten Versuch",
+          "status": "passed",
+          "title": "zeigt den gewählten Spielstand sofort, blockiert Doppelklicks und ermöglicht nach Fehler einen erneuten Versuch",
+          "duration": 117.1869370000004,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Laden, Büro und Telefon"
+          ],
+          "fullName": "Laden, Büro und Telefon behandelt auch eine geworfene Ladeausnahme ohne dauerhaft gesperrte Oberfläche",
+          "status": "passed",
+          "title": "behandelt auch eine geworfene Ladeausnahme ohne dauerhaft gesperrte Oberfläche",
+          "duration": 70.70877099999962,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Laden, Büro und Telefon"
+          ],
+          "fullName": "Laden, Büro und Telefon Büro startet kompakt und baut Betrieb erst nach Auswahl auf",
+          "status": "passed",
+          "title": "Büro startet kompakt und baut Betrieb erst nach Auswahl auf",
+          "duration": 41.12217699999928,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Laden, Büro und Telefon"
+          ],
+          "fullName": "Laden, Büro und Telefon Telefon ist eine kompakte Schaltfläche und pausiert auch beim Annehmen keine Livezeit",
+          "status": "passed",
+          "title": "Telefon ist eine kompakte Schaltfläche und pausiert auch beim Annehmen keine Livezeit",
+          "duration": 52.97459299999991,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "zeigt das Abrufen der Cloud-Liste auch bei anfangs leerer Liste an",
+          "status": "passed",
+          "title": "zeigt das Abrufen der Cloud-Liste auch bei anfangs leerer Liste an",
+          "duration": 6.65027099999952,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "zeigt Vorlaufanrufe als verpasst und klingelt nach Abschluss oder erneutem Rendern nicht",
+          "status": "passed",
+          "title": "zeigt Vorlaufanrufe als verpasst und klingelt nach Abschluss oder erneutem Rendern nicht",
+          "duration": 13.817589999999655,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "Statusabfrage ist lesend; eine telefonische Anweisung wird erst nach Bestätigung einmal gesendet",
+          "status": "passed",
+          "title": "Statusabfrage ist lesend; eine telefonische Anweisung wird erst nach Bestätigung einmal gesendet",
+          "duration": 57.188052999999854,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "iPhone-Navigation öffnet Kontakte und einen Team-Anruf ohne Änderung der Spielzeit",
+          "status": "passed",
+          "title": "iPhone-Navigation öffnet Kontakte und einen Team-Anruf ohne Änderung der Spielzeit",
+          "duration": 28.61066699999992,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "verpasste Anrufe lassen sich aus dem Verpasst-Bereich zurückrufen",
+          "status": "passed",
+          "title": "verpasste Anrufe lassen sich aus dem Verpasst-Bereich zurückrufen",
+          "duration": 26.227516000000833,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "Investmentberater-Mandat kann im Telefon geprüft und erst danach verbindlich erteilt werden",
+          "status": "passed",
+          "title": "Investmentberater-Mandat kann im Telefon geprüft und erst danach verbindlich erteilt werden",
+          "duration": 66.03087300000061,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1790108320702,
+      "endTime": 1790108321183.0308,
+      "status": "passed",
+      "message": "",
+      "name": "/app/tests/office-navigation-loading.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "Zeitvorlauf-Konsistenz"
+          ],
+          "fullName": "Zeitvorlauf-Konsistenz 1×1440 == 24×60 == 96×15 ergeben denselben fachlichen Endzustand",
+          "status": "passed",
+          "title": "1×1440 == 24×60 == 96×15 ergeben denselben fachlichen Endzustand",
+          "duration": 136.536986,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Speichern/Laden-Konsistenz"
+          ],
+          "fullName": "Speichern/Laden-Konsistenz Zustand nach Serialisierung/Deserialisierung bleibt simulationstauglich",
+          "status": "passed",
+          "title": "Zustand nach Serialisierung/Deserialisierung bleibt simulationstauglich",
+          "duration": 51.411621999999966,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Idempotenz"
+          ],
+          "fullName": "Idempotenz Zweimaliges advanceTime um 0 min verändert den Zustand nicht",
+          "status": "passed",
+          "title": "Zweimaliges advanceTime um 0 min verändert den Zustand nicht",
+          "duration": 20.18523099999993,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Abbruch-Behandlung"
+          ],
+          "fullName": "Abbruch-Behandlung Ein durch MAX_EVENTS abgebrochener Vorlauf meldet stopped:true",
+          "status": "passed",
+          "title": "Ein durch MAX_EVENTS abgebrochener Vorlauf meldet stopped:true",
+          "duration": 3.0463310000000092,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Tagesabrechnung"
+          ],
+          "fullName": "Tagesabrechnung Wird pro Mitternacht genau einmal ausgeführt (Idempotenz-Sperre)",
+          "status": "passed",
+          "title": "Wird pro Mitternacht genau einmal ausgeführt (Idempotenz-Sperre)",
+          "duration": 8.644629000000009,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1790108316751,
+      "endTime": 1790108316970.6445,
+      "status": "passed",
+      "message": "",
+      "name": "/app/tests/simulation.consistency.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "Standortausbau"
+          ],
+          "fullName": "Standortausbau rendert alte Spielstände ohne Mutation und mit korrekter Hauptsitz-Kapazität",
+          "status": "passed",
+          "title": "rendert alte Spielstände ohne Mutation und mit korrekter Hauptsitz-Kapazität",
+          "duration": 46.17507399999977,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Standortausbau"
+          ],
+          "fullName": "Standortausbau parking wirkt erst nach Bauende und wird nur einmal berechnet",
+          "status": "passed",
+          "title": "parking wirkt erst nach Bauende und wird nur einmal berechnet",
+          "duration": 56.73099600000023,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Standortausbau"
+          ],
+          "fullName": "Standortausbau workshop wirkt erst nach Bauende und wird nur einmal berechnet",
+          "status": "passed",
+          "title": "workshop wirkt erst nach Bauende und wird nur einmal berechnet",
+          "duration": 44.100453000000016,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Standortausbau"
+          ],
+          "fullName": "Standortausbau breakArea wirkt erst nach Bauende und wird nur einmal berechnet",
+          "status": "passed",
+          "title": "breakArea wirkt erst nach Bauende und wird nur einmal berechnet",
+          "duration": 17.815380000000005,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Standortausbau"
+          ],
+          "fullName": "Standortausbau weist ungültige Platzanzahl NaN ohne Geldverlust ab",
+          "status": "passed",
+          "title": "weist ungültige Platzanzahl NaN ohne Geldverlust ab",
+          "duration": 4.593839000000116,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Standortausbau"
+          ],
+          "fullName": "Standortausbau weist ungültige Platzanzahl Infinity ohne Geldverlust ab",
+          "status": "passed",
+          "title": "weist ungültige Platzanzahl Infinity ohne Geldverlust ab",
+          "duration": 3.753889000000072,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Standortausbau"
+          ],
+          "fullName": "Standortausbau weist ungültige Platzanzahl -1 ohne Geldverlust ab",
+          "status": "passed",
+          "title": "weist ungültige Platzanzahl -1 ohne Geldverlust ab",
+          "duration": 3.58132599999999,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Standortausbau"
+          ],
+          "fullName": "Standortausbau weist ungültige Platzanzahl 0 ohne Geldverlust ab",
+          "status": "passed",
+          "title": "weist ungültige Platzanzahl 0 ohne Geldverlust ab",
+          "duration": 3.5698590000001786,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Standortausbau"
+          ],
+          "fullName": "Standortausbau weist ungültige Platzanzahl 1.5 ohne Geldverlust ab",
+          "status": "passed",
+          "title": "weist ungültige Platzanzahl 1.5 ohne Geldverlust ab",
+          "duration": 3.5972200000001067,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Standortausbau"
+          ],
+          "fullName": "Standortausbau weist ungültige Platzanzahl 11 ohne Geldverlust ab",
+          "status": "passed",
+          "title": "weist ungültige Platzanzahl 11 ohne Geldverlust ab",
+          "duration": 3.553393000000142,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Standortausbau"
+          ],
+          "fullName": "Standortausbau sperrt unbezahlbare Projekte, volle Aufenthaltsbereiche und private Termine",
+          "status": "passed",
+          "title": "sperrt unbezahlbare Projekte, volle Aufenthaltsbereiche und private Termine",
+          "duration": 3.547493999999915,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Standortausbau"
+          ],
+          "fullName": "Standortausbau zählt alle Plätze einer Sammelreservierung",
+          "status": "passed",
+          "title": "zählt alle Plätze einer Sammelreservierung",
+          "duration": 1.4816479999999501,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "schützt laufende Bauprojekte beim Stilllegen einer Filiale",
+          "status": "passed",
+          "title": "schützt laufende Bauprojekte beim Stilllegen einer Filiale",
+          "duration": 2.2102170000002843,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1790108319446,
+      "endTime": 1790108319641.2102,
+      "status": "passed",
+      "message": "",
+      "name": "/app/tests/site-expansion-ui.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "Ausgehende Teamtelefonate"
+          ],
+          "fullName": "Ausgehende Teamtelefonate listet nur beschäftigte Assistenten und Filialleiter ohne Zustandsänderung",
+          "status": "passed",
+          "title": "listet nur beschäftigte Assistenten und Filialleiter ohne Zustandsänderung",
+          "duration": 35.42392600000005,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Ausgehende Teamtelefonate"
+          ],
+          "fullName": "Ausgehende Teamtelefonate führt die beauftragte Assistentenaufgabe später aus und verhindert doppelte Warteschlangeneinträge",
+          "status": "passed",
+          "title": "führt die beauftragte Assistentenaufgabe später aus und verhindert doppelte Warteschlangeneinträge",
+          "duration": 8.005504999999971,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Ausgehende Teamtelefonate"
+          ],
+          "fullName": "Ausgehende Teamtelefonate Filialstatus zählt ausschließlich die eigene Flotte",
+          "status": "passed",
+          "title": "Filialstatus zählt ausschließlich die eigene Flotte",
+          "duration": 4.303295000000048,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Ausgehende Teamtelefonate"
+          ],
+          "fullName": "Ausgehende Teamtelefonate Filialleiter können ihren Modus ändern, Assistenten können es nicht",
+          "status": "passed",
+          "title": "Filialleiter können ihren Modus ändern, Assistenten können es nicht",
+          "duration": 5.432646000000091,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Ausgehende Teamtelefonate"
+          ],
+          "fullName": "Ausgehende Teamtelefonate verbietet fremde Standortfreigaben, geänderte Kosten und Mehrfachausführung",
+          "status": "passed",
+          "title": "verbietet fremde Standortfreigaben, geänderte Kosten und Mehrfachausführung",
+          "duration": 8.64763400000004,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Ausgehende Teamtelefonate"
+          ],
+          "fullName": "Ausgehende Teamtelefonate prüft Dienstzeit, Krankheit und private Aktionssperren auch bei Bestätigung",
+          "status": "passed",
+          "title": "prüft Dienstzeit, Krankheit und private Aktionssperren auch bei Bestätigung",
+          "duration": 6.10279700000001,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "Ausgehende Teamtelefonate"
+          ],
+          "fullName": "Ausgehende Teamtelefonate Aufträge und Gesprächsnotizen überstehen Speichern und Laden",
+          "status": "passed",
+          "title": "Aufträge und Gesprächsnotizen überstehen Speichern und Laden",
+          "duration": 6.821711999999934,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1790108321769,
+      "endTime": 1790108321843.8218,
+      "status": "passed",
+      "message": "",
+      "name": "/app/tests/staff-phone.test.ts"
+    }
+  ]
+}

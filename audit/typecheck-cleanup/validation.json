@@ -1,0 +1,12 @@
+{
+  "beforeErrors": 46,
+  "beforeFiles": 13,
+  "afterErrors": 0,
+  "typecheckExitCode": 0,
+  "buildExitCode": 0,
+  "targetedLintExitCode": 0,
+  "testFiles": 15,
+  "testsPassed": 121,
+  "sharedParityModules": 5,
+  "published": false
+}
