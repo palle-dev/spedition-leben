@@ -95,7 +95,7 @@ export default function Branches() {
       {tab === "expansion" ? (
         <div className="grid lg:grid-cols-2 gap-4 items-start">{activeBranches.map(b => <SiteExpansionCard key={b.id} branchId={b.id} />)}</div>
       ) : tab === "overview" ? (
-        <BranchOverview />
+        <BranchOverview onSelectBranch={(b) => setDetailBranch({ ...b, totalDailyCostCents: computeBranchDailyCost(state, b) })} />
       ) : (
         <>
           {/* Summary Stats */}

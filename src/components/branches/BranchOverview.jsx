@@ -6,7 +6,7 @@ import { Truck, Users, Headset, TrendingUp, Wallet, Package, Crown, Building2, M
 
 // Übersichts-Tabelle aller eröffneten Filialen mit Flottenstatus,
 // Fahreranzahl und wirtschaftlicher Leistung pro Standort.
-export default function BranchOverview() {
+export default function BranchOverview({ onSelectBranch }) {
   const { state } = useGame();
 
   const rows = useMemo(() => {
@@ -106,15 +106,19 @@ export default function BranchOverview() {
             </thead>
             <tbody>
               {rows.map(r => (
-                <tr key={r.branch.id} className="border-b border-white/5 hover:bg-white/[0.02] transition">
+                <tr
+                  key={r.branch.id}
+                  onClick={() => onSelectBranch?.(r.branch)}
+                  className="border-b border-white/5 hover:bg-lime/[0.04] hover:border-lime/10 transition cursor-pointer group"
+                >
                   {/* Standort */}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
                       {r.branch.isHeadquarters
                         ? <Crown className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-                        : <Building2 className="w-3.5 h-3.5 text-lime/60 shrink-0" />}
+                        : <Building2 className="w-3.5 h-3.5 text-lime/60 group-hover:text-lime transition shrink-0" />}
                       <div>
-                        <div className="font-medium leading-tight">{r.branch.name}</div>
+                        <div className="font-medium leading-tight group-hover:text-lime transition">{r.branch.name}</div>
                         <div className="text-[10px] text-muted-foreground flex items-center gap-0.5">
                           <MapPin className="w-2.5 h-2.5" /> {r.branch.city}
                         </div>
