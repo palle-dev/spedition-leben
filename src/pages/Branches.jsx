@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro } from "@/lib/gameData";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
+import EnergyPanel from "@/components/branches/EnergyPanel";
 import SiteExpansionCard from "@/components/branches/SiteExpansionCard";
 import BranchCard from "@/components/branches/BranchCard";
 import BranchMapLibre from "@/components/branches/BranchMapLibre";
@@ -90,9 +91,10 @@ export default function Branches() {
         <TabButton active={tab === "overview"} onClick={() => setTab("overview")} icon={List} label="Übersicht" />
         <TabButton active={tab === "map"} onClick={() => setTab("map")} icon={LayoutGrid} label="Standorte & Karte" />
         <TabButton active={tab === "expansion"} onClick={() => setTab("expansion")} icon={Building2} label="Standortausbau" />
+        <TabButton active={tab === "energy"} onClick={() => setTab("energy")} icon={Truck} label="Energie & E-Mobilität" />
       </div>
 
-      {tab === "expansion" ? (
+      {tab === "energy" ? <EnergyPanel /> : tab === "expansion" ? (
         <div className="grid lg:grid-cols-2 gap-4 items-start">{activeBranches.map(b => <SiteExpansionCard key={b.id} branchId={b.id} />)}</div>
       ) : tab === "overview" ? (
         <BranchOverview onSelectBranch={(b) => setDetailBranch({ ...b, totalDailyCostCents: computeBranchDailyCost(state, b) })} />

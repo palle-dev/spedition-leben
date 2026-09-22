@@ -58,7 +58,7 @@ export default function BuyVehicleDialog({ branchId, branchCity, onClose }) {
                 }`}
               >
                 <div className="text-sm font-medium">{v.label}</div>
-                <div className="text-[10px] text-muted-foreground mt-0.5">{v.capacityTons} t · {v.consumptionPer100km} L</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">{v.capacityTons} t · {v.powertrain === "electric" ? `${v.consumptionKWhPer100km} kWh` : `${v.consumptionPer100km} L`}/100 km</div>
                 <div className="text-xs font-medium mt-1 tabular-nums">{formatEuro(price)}</div>
               </button>
             );
@@ -83,7 +83,7 @@ export default function BuyVehicleDialog({ branchId, branchCity, onClose }) {
               <div className="text-[10px] text-muted-foreground mt-0.5">{b.description}</div>
               <div className="text-[10px] text-muted-foreground/70 mt-1">
                 {b.priceMultiplier > 1 ? `+${Math.round((b.priceMultiplier - 1) * 100)}% Preis` : "Basispreis"}
-                {b.consumptionAdd > 0 && ` · +${b.consumptionAdd} L/100km`}
+                {b.consumptionAdd > 0 && ` · +${b.consumptionAdd * (profile.powertrain === "electric" ? 2 : 1)} ${profile.powertrain === "electric" ? "kWh" : "L"}/100 km`}
               </div>
             </button>
           ))}
@@ -97,7 +97,7 @@ export default function BuyVehicleDialog({ branchId, branchCity, onClose }) {
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground flex items-center gap-1.5"><Gauge className="w-3.5 h-3.5" /> Verbrauch</span>
-            <span className="tabular-nums">{profile.consumptionPer100km + body.consumptionAdd} L/100km</span>
+            <span className="tabular-nums">{profile.powertrain === "electric" ? (( profile.consumptionKWhPer100km + body.consumptionAdd * 2) + " kWh/100 km") : ((profile.consumptionPer100km + body.consumptionAdd) + " L/100 km")}</span>
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground flex items-center gap-1.5"><Wallet className="w-3.5 h-3.5" /> Kaufpreis</span>
@@ -105,6 +105,7 @@ export default function BuyVehicleDialog({ branchId, branchCity, onClose }) {
           </div>
         </div>
 
+        {profile.powertrain === "electric" && <div className="rounded-lg border border-lime/20 bg-lime/5 p-3 mb-4 text-xs space-y-1"><p className="font-medium text-lime">{profile.batteryCapacityKWh} kWh Batterie · bis {profile.maxChargeKw} kW DC</p><p>Voll geladen bei Übergabe. Depotladung benötigt Wallbox oder DC-Lader unter Filialen → Energie & E-Mobilität. Öffentliche Ladestopps werden mit Zeit und Kosten in die Disposition einbezogen.</p><p className="text-muted-foreground">Fiktive Fahrzeugwerte und Spieltarife.</p></div>}
         {/* Buttons */}
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 rounded-lg py-2.5 text-sm border border-white/10 text-muted-foreground hover:text-foreground transition">

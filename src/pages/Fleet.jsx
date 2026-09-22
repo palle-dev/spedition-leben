@@ -130,7 +130,7 @@ export default function Fleet() {
                   <div className="text-xs text-muted-foreground mt-2">
                     {!isOwned
                       ? `${ownershipLabel(v)} · km ${(v.odometerKm || 0).toLocaleString("de-DE")}`
-                      : `Buchwert ${formatEuro(bookValue)} · Markt ${formatEuro(dealerOffer)}`} · {profile.capacityTons} t · {profile.consumptionPer100km} L/100km
+                      : `Buchwert ${formatEuro(bookValue)} · Markt ${formatEuro(dealerOffer)}`} · {profile.capacityTons} t · {v.powertrain === "electric" ? `${v.consumptionKWhPer100km} kWh/100 km · Akku ${Math.round(100 * v.batteryKWh / v.batteryCapacityKWh)}%` : `${v.consumptionPer100km} L/100 km`}
                   </div>
                   {(() => {
                     const odo = v.odometerKm || 0;

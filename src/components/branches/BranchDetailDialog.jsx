@@ -4,6 +4,7 @@ import { useGame } from "@/lib/gameContext";
 import { formatEuro } from "@/lib/gameData";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
 import Portrait from "@/components/ui/Portrait";
+import EnergyPanel from "@/components/branches/EnergyPanel";
 import SiteExpansionCard from "@/components/branches/SiteExpansionCard";
 import {
   Building2, MapPin, Truck, Users, Headset, TrendingUp, Wallet, Edit2, X,
@@ -166,13 +167,14 @@ export default function BranchDetailDialog({ branch, onClose, onMoveResource }) 
         </div>
 
         {/* Sub-Tabs */}
-        <div className="px-5 border-b border-white/10 flex items-center gap-1 shrink-0">
+        <div className="px-5 border-b border-white/10 flex items-center gap-1 shrink-0 overflow-x-auto">
           {[
             { id: "overview", label: "Übersicht", icon: Gauge },
             { id: "vehicles", label: `Fahrzeuge (${vehicles.length})`, icon: Truck },
             { id: "staff", label: `Personal (${allStaff.length + drivers.length})`, icon: Users },
             { id: "finances", label: "Finanzen", icon: Wallet },
             { id: "expansion", label: "Ausbau", icon: Building2 },
+            { id: "energy", label: "Energie", icon: Building2 },
           ].map(t => (
             <button
               key={t.id}
@@ -357,6 +359,7 @@ export default function BranchDetailDialog({ branch, onClose, onMoveResource }) 
             </div>
           )}
 
+          {subTab === "energy" && <EnergyPanel branchId={branch.id} />}
           {subTab === "expansion" && (
             <SiteExpansionCard branchId={branch.id} />
           )}

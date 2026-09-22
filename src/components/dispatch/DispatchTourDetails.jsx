@@ -79,7 +79,7 @@ export default function DispatchTourDetails({ trip, state, routeData, onBack, on
       <div className="space-y-2 border-t border-white/10 pt-3">
         <div className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground mb-1">Kosten & Vergütung</div>
         {order && <Row icon={Package} label="Vergütung bei Lieferung" value={formatEuro(trip.paymentCents)} />}
-        <Row icon={Fuel} label="Kraftstoff (bezahlt)" value={formatEuro(trip.fuelCents)} />
+        <Row icon={Fuel} label={trip.energy ? "Ladestrom unterwegs (bezahlt)" : "Kraftstoff (bezahlt)"} value={formatEuro(trip.fuelCents)} />
         <Row icon={CreditCard} label="Maut (bezahlt)" value={formatEuro(trip.tollCents)} />
         <div className="flex items-center justify-between pt-2 border-t border-white/10">
           <span className="text-xs text-muted-foreground">Beitrag vor Fixkosten</span>
@@ -131,7 +131,7 @@ function PhaseRow({ phase, isCurrent, isPast, gameTime }) {
   const label = phaseLabel(phase.type) || phase.type;
   const isBreak = phase.type === "break";
   const isRest = phase.type === "daily_rest";
-  const isStationary = isBreak || isRest || phase.type === "load" || phase.type === "loading" || phase.type === "unload" || phase.type === "unloading";
+  const isStationary = phase.type === "charging" || isBreak || isRest || phase.type === "load" || phase.type === "loading" || phase.type === "unload" || phase.type === "unloading";
 
   const dotColor = isCurrent ? (isBreak ? "bg-amber-300" : isRest ? "bg-indigo-300" : "bg-lime") : isPast ? "bg-lime/40" : "bg-white/20";
   const textColor = isCurrent ? "text-foreground" : isPast ? "text-foreground/60" : "text-muted-foreground";

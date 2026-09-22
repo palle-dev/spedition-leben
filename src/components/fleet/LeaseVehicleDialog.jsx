@@ -1,15 +1,11 @@
+import { getAllLeasingOffers } from "@/lib/simulation/financingEngine";
 import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro } from "@/lib/gameData";
 import { VEHICLE_BODY_TYPE_LIST } from "@/lib/gameData";
 import { FileText, Check, ArrowRight, Wallet, Gauge } from "lucide-react";
 
-const LEASE_OFFERS = [
-  { id: "regional_flex", label: "Regional-Lkw", capacityTons: 8, consumptionPer100km: 22, monthlyRateCents: 54000, specialPaymentCents: 0, termMonths: 24 },
-  { id: "standard_flex", label: "Standard-Lkw (Flex)", capacityTons: 12, consumptionPer100km: 28, monthlyRateCents: 90000, specialPaymentCents: 0, termMonths: 24 },
-  { id: "standard", label: "Standard-Lkw (Niedrige Rate)", capacityTons: 12, consumptionPer100km: 28, monthlyRateCents: 80000, specialPaymentCents: 150000, termMonths: 24 },
-  { id: "heavy_flex", label: "Schwerer Fernverkehrs-Lkw", capacityTons: 24, consumptionPer100km: 35, monthlyRateCents: 140000, specialPaymentCents: 0, termMonths: 24 },
-];
+const LEASE_OFFERS = getAllLeasingOffers().map(o => ({ ...o, label: o.vehicleType }));
 
 export default function LeaseVehicleDialog({ branchId, branchCity, onClose }) {
   const { state, send, showToast } = useGame();
@@ -57,7 +53,7 @@ export default function LeaseVehicleDialog({ branchId, branchCity, onClose }) {
               }`}
             >
               <div className="text-sm font-medium">{o.label}</div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">{o.capacityTons} t · {o.consumptionPer100km} L/100km</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">{o.capacityTons} t · {o.powertrain === "electric" ? `${o.consumptionKWhPer100km} kWh` : `${o.consumptionPer100km} L`}/100 km</div>
               <div className="text-xs font-medium mt-1 tabular-nums">{formatEuro(o.monthlyRateCents)}/Monat</div>
               {o.specialPaymentCents > 0 && <div className="text-[10px] text-muted-foreground/70">+ {formatEuro(o.specialPaymentCents)} Sonderzahlung</div>}
             </button>
@@ -92,7 +88,7 @@ export default function LeaseVehicleDialog({ branchId, branchCity, onClose }) {
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground flex items-center gap-1.5"><Gauge className="w-3.5 h-3.5" /> Verbrauch</span>
-            <span className="tabular-nums">{offer.consumptionPer100km + body.consumptionAdd} L/100km</span>
+            <span className="tabular-nums">{offer.powertrain === "electric" ? (( offer.consumptionKWhPer100km + body.consumptionAdd * 2) + " kWh/100 km") : ((offer.consumptionPer100km + body.consumptionAdd) + " L/100 km")}</span>
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground flex items-center gap-1.5"><Wallet className="w-3.5 h-3.5" /> Monatliche Rate</span>
@@ -106,6 +102,7 @@ export default function LeaseVehicleDialog({ branchId, branchCity, onClose }) {
           )}
         </div>
 
+        {offer.powertrain === "electric" && <div className="rounded-lg border border-lime/20 bg-lime/5 p-3 mb-4 text-xs space-y-1"><p className="font-medium text-lime">{offer.batteryCapacityKWh} kWh Batterie · bis {offer.maxChargeKw} kW DC</p><p>Voll geladen bei Übergabe. Depotladung benötigt Wallbox oder DC-Lader unter Filialen → Energie & E-Mobilität. Öffentliche Ladestopps werden mit Zeit und Kosten in die Disposition einbezogen.</p><p className="text-muted-foreground">Fiktive Fahrzeugwerte und Spieltarife.</p></div>}
         {/* Buttons */}
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 rounded-lg py-2.5 text-sm border border-white/10 text-muted-foreground hover:text-foreground transition">

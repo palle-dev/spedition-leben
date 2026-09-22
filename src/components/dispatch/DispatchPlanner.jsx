@@ -1,7 +1,7 @@
 import { buildDeployment } from "@/lib/simulation/tourEngine";
 import React, { useState, useMemo, useEffect } from "react";
 import { useGame } from "@/lib/gameContext";
-import { getDistance, fuelEur, tollEur, formatEuro, formatGameTime, WORK_BUDGET_MIN, checkBodyTypeCompatibility
+import { formatEuro, formatGameTime, WORK_BUDGET_MIN, checkBodyTypeCompatibility
 } from "@/lib/gameData";
 import { summarizePhases, phaseLabel } from "@/lib/driverTimeEngine";
 import { vehicleDisplayName, vehicleTypeLabel, driverDisplayName, driverInitials, driverAvatarClass } from "@/lib/displayHelpers";
@@ -25,13 +25,13 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
       : { workMin: 0, driveMin: 0 };
     const result = buildDeployment(state, order, vehicle, vehicle.locationCity, state.gameTime, counters);
     const totalKm = result.totalKm;
-    const emptyKm = vehicle.locationCity !== order.fromCity ? getDistance(vehicle.locationCity, order.fromCity) : 0;
-    const driveKm = getDistance(order.fromCity, order.toCity);
+    const emptyKm = result.emptyKm;
+    const driveKm = result.loadedKm;
     const summary = summarizePhases(result.phases);
-    const fuel = fuelEur(totalKm, vehicle.consumptionPer100km);
-    const toll = tollEur(totalKm);
+    const fuel = result.fuelCents / 100;
+    const toll = result.tollCents / 100;
     return {
-      emptyKm, driveKm, totalKm,
+      emptyKm, driveKm, totalKm, energy: result.energy, energyError: result.energyError,
       totalDuration: result.endMin - state.gameTime,
       endMin: result.endMin,
       fuel, toll,
@@ -43,6 +43,7 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
   }, [order, vehicle, driver, state.gameTime]);
 
   const validation = useMemo(() => {
+    if (plan?.energyError) return plan.energyError;
     if (!vehicle || !driver) return null;
     if (vehicle.status !== "free") return "Fahrzeug ist nicht frei.";
     if (driver.status !== "free") return "Fahrer ist nicht frei.";
@@ -96,7 +97,7 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
     setStarting(true);
     try {
       const r = await send("startTransport", { orderId, vehicleId, driverId });
-      showToast(`Transport gestartet – ${formatEuro(r.fuelCents)} Kraftstoff, ${formatEuro(r.tollCents)} Maut.`, "success");
+      showToast(`Transport gestartet – ${formatEuro(r.fuelCents)} ${plan.energy ? "Ladestrom unterwegs" : "Kraftstoff"}, ${formatEuro(r.tollCents)} Maut.`, "success");
       onStarted?.(r);
     } catch (e) { showToast(e.message, "error"); }
     finally { setStarting(false); }
@@ -204,6 +205,7 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
       {plan && (
         <div className="space-y-2 border-t border-white/10 pt-3">
           <div className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground mb-1">Vorschau</div>
+          {plan.energy && <div className="rounded-lg border border-lime/20 p-3 text-xs space-y-1"><p>Akku bei Start: {Math.round(plan.energy.startBatteryKWh)} kWh · bei Ankunft: {Math.round(plan.energy.finalBatteryKWh)} kWh</p>{plan.energy.stops.map((s, i) => <p key={i}>Ladestopp {s.city}: {Math.round(s.kWh)} kWh · {s.minutes} min · {s.kw} kW</p>)}<p className="text-muted-foreground">Ladezeiten, Umwege und Batteriereserve sind eingeplant. Depotstrom wird separat in der Energieauswertung abgerechnet.</p></div>}
           {plan.phases.map((p, i) => (
             <div key={i} className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground flex items-center gap-1">
@@ -222,12 +224,12 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
             {plan.summary.restCount > 0 && <SummaryRow icon={Moon} label="Ruhezeiten" value={`${plan.summary.restCount}× 12 h`} />}
             <SummaryRow label="Ankunft" value={formatGameTime(plan.endMin)} />
             <SummaryRow label="Fristpuffer" value={buffer != null ? `${buffer >= 0 ? "+" : ""}${Math.floor(Math.abs(buffer) / 60)} h ${Math.abs(buffer) % 60} min` : "—"} tone={buffer >= 0 ? "ok" : "late"} />
-            <SummaryRow icon={Fuel} label="Kraftstoff" value={formatEuro(plan.fuel * 100)} />
+            <SummaryRow icon={Fuel} label={plan.energy ? "Ladestrom unterwegs" : "Kraftstoff"} value={formatEuro(plan.fuel * 100)} />
             <SummaryRow icon={CreditCard} label="Maut" value={formatEuro(plan.toll * 100)} />
             <SummaryRow label="Sofortkosten" value={formatEuro((plan.fuel + plan.toll) * 100)} strong />
             <SummaryRow label="Vergütung bei Lieferung" value={formatEuro(order.paymentCents)} />
             <div className="flex items-center justify-between pt-2 border-t border-white/10">
-              <span className="text-xs text-muted-foreground">Beitrag vor Fixkosten</span>
+              <span className="text-xs text-muted-foreground">Beitrag vor Fixkosten und Depotstrom</span>
               <span className="text-lg font-medium text-lime tabular-nums">{formatEuro(order.paymentCents - (plan.fuel + plan.toll) * 100)}</span>
             </div>
           </div>
