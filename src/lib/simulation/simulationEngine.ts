@@ -799,6 +799,7 @@ function advanceToIndexed(state, targetMin, log, reportStart, stopOnDeliveryRisk
         }
       }
     }
+    processEnergyUntil(state, stopped ? t : targetMin);
     state.gameTime = stopped ? t : targetMin;
     processPhoneCommunications(state,silentPhoneAdvance);
   } finally {
