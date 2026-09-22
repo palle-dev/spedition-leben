@@ -1,3 +1,4 @@
+import { competitionPriceFactor } from "./competitionCore.ts";
 import { currentOrders } from "./orderLookup.ts";
 import { recordOrderOutcome } from "./customerEngine.ts";
 import { recordKeyAccountOrderOutcome } from "./keyAccountEngine.ts";
@@ -443,7 +444,7 @@ function makeMarketOffer(state, m) {
 
   const km = getDistance(fromCity, toCity);
   const relFactor = relationFactor(state, fromCity, toCity);
-  let paymentCents = computeOfferPrice(km, tons, offerType, relFactor);
+  let paymentCents = Math.round(computeOfferPrice(km, tons, offerType, relFactor) * competitionPriceFactor(state, fromCity));
 
   // Markt-Dynamik: Preisfaktor genau einmal auf die berechnete Vergütung anwenden.
   // Wird NACH relFactor und expressFactor multipliziert, keine Doppelzählung.

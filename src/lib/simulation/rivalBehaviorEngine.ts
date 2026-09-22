@@ -1,3 +1,4 @@
+import { independentRival, migrateCompetition } from "./competitionCore.ts";
 import { retainHistory } from "./historyRetention.ts";
 import { retainLatestHistory } from "./historyRetention.ts";
 // Konkurrenten-Verhaltens-Engine für Frachtfieber.
@@ -97,7 +98,7 @@ export function processRivalPriceAdaptation(state, m, log) {
   if (m - lastCheck < PRICE_ADAPTATION_INTERVAL_DAYS * DAY_MIN) return;
   state.rivalBehavior.lastPriceCheckMin = m;
 
-  for (const rival of state.world.rivals) {
+  for (const rival of state.world.rivals.filter(independentRival)) {
     const losses = state.rivalBehavior.lossesByRival[rival.id] || 0;
     const wins = state.rivalBehavior.winsByRival[rival.id] || 0;
 
@@ -169,7 +170,7 @@ export function processRivalPoaching(state, m, log) {
 
   // Abgelaufene Abwerbungsversuche entfernen
   state.rivalBehavior.pendingPoachingAttempts = retainHistory(state, "poachingAttempts", state.rivalBehavior.pendingPoachingAttempts, state.rivalBehavior.pendingPoachingAttempts.filter(a =>
-    a.status === "pending" && a.deadlineMin > m
+    a.status === "pending"
   ), null);
 
   if (state.rivalBehavior.pendingPoachingAttempts.length > 0) return; // Nur ein Versuch gleichzeitig
@@ -191,7 +192,9 @@ export function processRivalPoaching(state, m, log) {
   if (roll > POACHING_CHANCE) return;
 
   const targetDriver = candidates[Math.floor(rbRng(state) * candidates.length)];
-  const rival = state.world.rivals[Math.floor(rbRng(state) * state.world.rivals.length)];
+  const candidatesRivals = state.world.rivals.filter(r => independentRival(r) && !state.competition?.deals.some(d => d.rivalId === r.id && ["review", "ready"].includes(d.status)));
+  if (!candidatesRivals.length) return;
+  const rival = candidatesRivals[Math.floor(rbRng(state) * candidatesRivals.length)];
 
   // Abwerbungsversuch erstellen
   const offerCents = Math.round((targetDriver.costPerDayCents || 10000) * 1.3); // 30% mehr Lohn
@@ -250,6 +253,8 @@ export function resolvePoachingAttempts(state, m, log) {
   for (const attempt of state.rivalBehavior.pendingPoachingAttempts) {
     if (attempt.status !== "pending") continue;
     if (m < attempt.deadlineMin) continue;
+    if (!independentRival(state.world?.rivals.find(r => r.id === attempt.rivalId))) { attempt.status = "cancelled"; continue; }
+    if (driverCommitted(state, attempt.driverId)) continue;
 
     // Abgelaufen ohne Reaktion → Fahrer wechselt
     const driver = (state.drivers || []).find(d => d.id === attempt.driverId);
@@ -293,14 +298,14 @@ export function resolvePoachingAttempts(state, m, log) {
       // Rivale bekommt ein "Job" (Kapazität)
       const rival = state.world.rivals.find(r => r.id === attempt.rivalId);
       if (rival) {
-        rival.fleet = Math.min(rival.fleet + 1, 10);
+        receivePoachedDriver(state, rival, driver);
       }
 
       deliverMessage(state, {
         fromId: "system", toId: "player",
         subject: "Fahrer verloren: " + driver.name,
         body: `${driver.name} hat das Angebot von ${attempt.rivalName} angenommen und verlässt Ihr Unternehmen.\n\n` +
-          `Der Konkurrent hat seine Flotte verstärkt. Reagieren Sie künftig schneller auf Unzufriedenheit im Team.`,
+          `Der Konkurrent hat sein Fahrerteam verstärkt. Reagieren Sie künftig schneller auf Unzufriedenheit im Team.`,
         gameTime: m, category: "operations", priority: "high",
         linkedRefs: { type: "poaching_attempt", id: attempt.id },
         dedupKey: `poaching_resolved:${attempt.id}`,
@@ -331,6 +336,9 @@ export function respondToPoachingAttempt(state, attemptId, response) {
   migrateRivalBehavior(state);
   const attempt = state.rivalBehavior.pendingPoachingAttempts.find(a => a.id === attemptId);
   if (!attempt) throw new Error("Abwerbungsversuch nicht gefunden.");
+  if (state.gameTime >= attempt.deadlineMin) throw new Error("Die Antwortfrist ist abgelaufen.");
+  if (!independentRival(state.world?.rivals.find(r => r.id === attempt.rivalId))) throw new Error("Der Mitbewerber ist nicht mehr unabhängig.");
+  if (response === "release" && driverCommitted(state, attempt.driverId)) throw new Error("Der Fahrer muss zuerst seine laufenden und geplanten Touren abschließen.");
   if (attempt.status !== "pending") throw new Error("Abwerbungsversuch ist bereits abgeschlossen.");
 
   const driver = (state.drivers || []).find(d => d.id === attempt.driverId);
@@ -393,13 +401,13 @@ export function respondToPoachingAttempt(state, attemptId, response) {
     driver.poachedByRival = attempt.rivalName;
 
     const rival = state.world.rivals.find(r => r.id === attempt.rivalId);
-    if (rival) rival.fleet = Math.min(rival.fleet + 1, 10);
+    if (rival) receivePoachedDriver(state, rival, driver);
 
     deliverMessage(state, {
       fromId: "system", toId: "player",
       subject: "Fahrer entlassen: " + driver.name,
       body: `${driver.name} hat Ihr Unternehmen verlassen und zu ${attempt.rivalName} gewechselt.\n\n` +
-        `Der Konkurrent hat seine Flotte verstärkt.`,
+        `Der Konkurrent hat sein Fahrerteam verstärkt.`,
       gameTime: state.gameTime, category: "operations", priority: "normal",
       linkedRefs: { type: "poaching_attempt", id: attempt.id },
       dedupKey: `poaching_response:${attempt.id}`,
@@ -430,7 +438,7 @@ export function processRivalCooperation(state, m, log) {
 
   // Nur Rivalen mit guter Beziehung bieten Kooperation an
   const cooperativeRivals = state.world.rivals.filter(r =>
-    r.relationship >= COOPERATION_MIN_RELATIONSHIP
+    independentRival(r) && r.relationship >= COOPERATION_MIN_RELATIONSHIP
   );
   if (cooperativeRivals.length === 0) return;
 
@@ -605,7 +613,7 @@ export function processCooperationEffects(state, m, log) {
     }
 
     const rival = state.world?.rivals.find(r => r.id === coop.rivalId);
-    if (!rival) {
+    if (!independentRival(rival)) {
       coop.status = "rival_gone";
       continue;
     }
@@ -738,4 +746,11 @@ function formatGameTime(min) {
   const m = ((min % 1440) + 1440) % 1440;
   const h = Math.floor(m / 60), mm = m % 60;
   return "Tag " + day + ", " + (h < 10 ? "0" : "") + h + ":" + (mm < 10 ? "0" : "") + mm;
+}
+function driverCommitted(state, id) {
+  return (state.trips || []).some(t => t.driverId === id && t.status === "in_progress") || (state.tours || []).some(t => t.status === "active" && (t.deployments || []).some(d => d.driverId === id && ["planned", "in_progress"].includes(d.status)));
+}
+function receivePoachedDriver(state, rival, driver) {
+  migrateCompetition(state);
+  if(!rival.business.staff.some(p => p.id === "poached_" + driver.id)) rival.business.staff.push({id:"poached_"+driver.id,name:driver.name,role:"driver",costPerDayCents:Math.round(driver.costPerDayCents*1.3),status:"employed",satisfaction:75,qualifications:["driver_license"]});
 }

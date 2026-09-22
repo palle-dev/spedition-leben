@@ -1,3 +1,5 @@
+import { COMPETITION_COMMANDS, handleCompetitionCommand } from "./competitionDeals.ts";
+import { migrateCompetition } from "./competitionCore.ts";
 import { migrateEnergy, processEnergyUntil, processElectricPhase, installEnergyUpgrade, isElectric } from "./energyEngine.ts";
 import { electricFields } from "./electricCatalog.ts";
 import { retainHistory } from "./historyRetention.ts";
@@ -826,7 +828,7 @@ function planTrip(state, order, vehicle, driver) {
 // ---------- Befehle ----------
 export function applyCommand(state, command, params) {
   _clearPlanCache(); migrateState(state); migrateEnergy(state);
-  [migrateAcquisition, migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories, migrateSegmentFields, migrateBusinessFocus, migrateSegmentStats, migrateMarketDynamics, migrateDevelopmentGoals, migrateDisruptions, migrateUsedVehicleMarket, migratePartners, migrateSiteExpansion, migrateWorld, migrateKeyAccounts, migrateRivalBehavior].forEach(fn => fn(state));
+  [migrateAcquisition, migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories, migrateSegmentFields, migrateBusinessFocus, migrateSegmentStats, migrateMarketDynamics, migrateDevelopmentGoals, migrateDisruptions, migrateUsedVehicleMarket, migratePartners, migrateSiteExpansion, migrateWorld, migrateCompetition, migrateKeyAccounts, migrateRivalBehavior].forEach(fn => fn(state));
   const p = params || {};
   let result;
   switch (command) {
@@ -2507,6 +2509,7 @@ export function applyCommand(state, command, params) {
     }
 
     default: {
+      if(COMPETITION_COMMANDS.includes(command)){ensureNotBlocked(state);result=handleCompetitionCommand(state,command,p);break;}
       if(command === "installEnergyUpgrade"){ensureNotBlocked(state);result=installEnergyUpgrade(state,p);break;}
       if (["startWorld", "chooseWorldStory", "bidWorldTender", "withdrawWorldBid", "cancelWorldAppointment"].includes(command)) ensureNotBlocked(state);
       const worldResult = handleWorldCommand(state, command, p);

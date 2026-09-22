@@ -1,3 +1,5 @@
+import { migrateCompetition, independentRival, rivalCapacity, competitionDaily } from "./competitionCore.ts";
+import { processCompetition } from "./competitionDeals.ts";
 import { ENCOUNTER_ID, prepareEncounter, cycleEncounter, encounterActorPresent, rememberEncounter } from "./worldEncounters.ts";
 import { RIVAL_ID } from "./worldRivalStory.ts";
 import { HOME_ID } from "./worldHomeStory.ts";
@@ -252,7 +254,7 @@ function award(state, t, m) {
   const w = state.world;
   const offers = t.offers.filter(o => {
     const r = w.rivals.find(r => r.id === o.rivalId);
-    return r.cashCents >= t.costCents && r.jobs.length < r.fleet;
+    return independentRival(r) && r.cashCents >= t.costCents && r.jobs.length < rivalCapacity(r);
   }).map(o => ({ ...o, id: o.rivalId }));
   const committed = w.tenders.filter(other => other.orderId && !other.outcome).length;
   if (t.bid && playerCapacity(state) > committed) offers.push({
@@ -288,25 +290,7 @@ function award(state, t, m) {
   }
 }
 function economy(state, m) {
-  for (const r of state.world.rivals) {
-    const before = r.cashCents;
-    const free = Math.max(0, r.fleet - r.jobs.length);
-    // Other regional work: finite trucks and prefinancing, with recorded daily net.
-    const regularLoads = Math.min(free, Math.floor(r.cashCents / 14000));
-    r.cashCents -= regularLoads * 14000;
-    r.cashCents += regularLoads * (r.id === "nordsprint" ? 20000 : 23000);
-    r.cashCents = Math.max(0, r.cashCents - r.fleet * 5500);
-    r.lastDayNetCents = r.cashCents - before;
-    if (r.cashCents > 750000 + r.fleet * 1500000 && r.fleet < 8) {
-      r.cashCents -= 3000000; r.fleet++;
-      note(state, r.name + " erweitert die Flotte", "Ein weiterer Lkw bindet 30.000 € der eigenen Reserve. Die Konkurrenz kann künftig eine zusätzliche Ausschreibung bedienen.", null, "competition");
-    }
-    if (r.cashCents < 14000 && !r.warned) {
-      r.warned = true;
-      note(state, r.name + " muss kürzertreten", "Die Reserve reicht nicht für neue Transporte. Laufende Aufträge werden noch abgewickelt.", null, "competition");
-    }
-    if (r.cashCents >= 14000) r.warned = false;
-  }
+  competitionDaily(state, m);
   state.world.nextEconomyMin = m + WORLD_DAY;
 }
 function observeOrders(state) {
@@ -328,6 +312,7 @@ function observeOrders(state) {
 }
 export function processWorld(state, m) {
   if (!state.world?.active) return;
+  migrateCompetition(state);
   const w = state.world;
   ensureWorldContinuation(state, m);
   cycleEncounter(state, m);
@@ -338,6 +323,7 @@ export function processWorld(state, m) {
     for (const job of r.jobs.filter(j => j.endMin <= m)) { r.cashCents += job.paymentCents; r.completed++; }
     r.jobs = r.jobs.filter(j => j.endMin > m);
   }
+  processCompetition(state, m);
   if (w.nextEconomyMin <= m) economy(state, m);
   for (const t of w.tenders) if (t.status === "open" && t.closeMin <= m) award(state, t, m);
   if (w.nextTenderMin <= m) makeTenderBatch(state, m);
