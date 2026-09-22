@@ -1,3 +1,4 @@
+import { migrateJourney, processJourney, handleJourneyCommand } from "./playerJourney.ts";
 import { migrateDach, DACH_COMMANDS, handleDachCommand, recordDachDelivery } from "./dachEngine.ts";
 import { COMPETITION_COMMANDS, handleCompetitionCommand } from "./competitionDeals.ts";
 import { migrateCompetition } from "./competitionCore.ts";
@@ -641,6 +642,7 @@ function processEventsAt(state, m, log) {
   processEmployeeExit(state, m, log); processStoryDeadlines(state, m, log); processStoryAppointments(state, m, log);
   // 4. Tagesabrechnung (Mitternacht)
   if (m % 1440 === 0 && m > 0) {
+    processJourney(state,m);
     const dlog = doDailyAccounting(state, m);
     log.push({ type: "daily_accounting", min: m, details: dlog });
     // Auftrag 25: Krankheitsgenerator, Urlaubsverbrauch, Sauberkeitsverlust
@@ -832,7 +834,7 @@ function planTrip(state, order, vehicle, driver) {
 // ---------- Befehle ----------
 export function applyCommand(state, command, params) {
   _clearPlanCache(); migrateState(state); migrateEnergy(state);
-  migrateDach(state);
+  migrateDach(state); migrateJourney(state);
   [migrateAcquisition, migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories, migrateSegmentFields, migrateBusinessFocus, migrateSegmentStats, migrateMarketDynamics, migrateDevelopmentGoals, migrateDisruptions, migrateUsedVehicleMarket, migratePartners, migrateSiteExpansion, migrateWorld, migrateCompetition, migrateKeyAccounts, migrateRivalBehavior].forEach(fn => fn(state));
   const p = params || {};
   let result;
@@ -2517,6 +2519,7 @@ export function applyCommand(state, command, params) {
     }
 
     default: {
+      const journeyResult=handleJourneyCommand(state,command,p);if(journeyResult!==null){result=journeyResult;break;}
       if(DACH_COMMANDS.includes(command)){ensureNotBlocked(state);result=handleDachCommand(state,command,p);break;}
       if(COMPETITION_COMMANDS.includes(command)){ensureNotBlocked(state);result=handleCompetitionCommand(state,command,p);break;}
       if(command === "installEnergyUpgrade"){ensureNotBlocked(state);result=installEnergyUpgrade(state,p);break;}
