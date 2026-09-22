@@ -1,3 +1,5 @@
+import { governedTransport, validateDachTransport, projectDachDelivery } from "./dachEngine.ts";
+import { regulatorySteps, transportCosts, DACH_RULE_VERSION } from "./dachRules.ts";
 import { isElectric, electricWorkSteps, futureBattery } from "./energyEngine.ts";
 import { createPlanningOrderRanking } from './planningOrderRanking.ts';
 import { preserveHistory } from "./historyRetention.ts";
@@ -252,21 +254,26 @@ export function buildDeployment(state, order, vehicle, startCity, earliestStart,
     }
   }
   const electric = electricWorkSteps(state, vehicle, workSteps);
-  workSteps = electric.steps;
+  const governed=governedTransport(state,order);
+  const charges=governed?transportCosts(vehicle,electric.steps):null;
+  workSteps = governed?regulatorySteps(electric.steps):electric.steps;
   const result = buildPhases(workSteps, counters || { workMin: 0, driveMin: 0 }, earliestStart);
 
   const totalKm = workSteps.reduce((s, step) => s + (step.distanceKm || 0), 0);
   const emptyKm = workSteps.filter(s=>s.type==="empty_drive").reduce((n,s)=>n+(s.distanceKm||0),0);
   const loadedKm = workSteps.filter(s=>s.type==="loaded_drive").reduce((n,s)=>n+(s.distanceKm||0),0);
   const fuel = electric.energy ? electric.energy.publicCostCents : fuelCents(totalKm, vehicle.consumptionPer100km);
-  const toll = tollCents(totalKm);
+  const toll = charges?.tollCents ?? tollCents(totalKm);
+  const customs = charges?.customsCents || 0;
+  const ruleError=validateDachTransport(state,order,vehicle,result.endMin);
 
   // Aufbau-Bonus: passender Spezial-Lkw erhält höhere Vergütung.
   const bodyBonusFactor = computeBodyBonusFactor(order, vehicle);
   const adjustedPayment = Math.round(order.paymentCents * bodyBonusFactor);
 
   return {
-    energy: electric.energy, energyError: electric.error || null,
+    energy: electric.energy, energyError: electric.error || ruleError || (governed&&order.isDangerousGoods&&charges.breakdown.some(x=>x.country!=="DE")?"Internationale Gefahrgutroute ist noch nicht freigegeben.":null),
+    ...(governed?{transport:{...charges,ruleVersion:DACH_RULE_VERSION,documents:charges.customsCents?["CMR-Frachtbrief","Handelsrechnung und Packliste","Ausfuhr-/Einfuhranmeldung durch Zollagentur"]:["Frachtbrief"]},customsCents:customs,finalRegulation:result.finalRegulation}:{}),
     orderId: order.id,
     orderStatus: order.status,
     customer: order.customer,
@@ -286,10 +293,10 @@ export function buildDeployment(state, order, vehicle, startCity, earliestStart,
     finalDriveMin: result.finalDriveMin,
     fuelCents: fuel,
     tollCents: toll,
-    variableCostCents: fuel + toll,
+    variableCostCents: fuel + toll + customs,
     paymentCents: adjustedPayment,
     bodyBonusFactor,
-    contributionCents: adjustedPayment - fuel - toll,
+    contributionCents: adjustedPayment - fuel - toll - customs,
     deliveryDeadlineMin: order.deliveryDeadlineMin,
     deadlineBufferMin: order.deliveryDeadlineMin - result.endMin,
   };
@@ -298,13 +305,16 @@ export function buildDeployment(state, order, vehicle, startCity, earliestStart,
 // Plant eine Leerfahrt als eigenen Einsatz mit phasenbasierter Fahrerzeitplanung.
 export function buildEmptyDeployment(state, fromCity, toCity, vehicle, earliestStart, counters) {
   const electric = electricWorkSteps(state, vehicle, buildEmptyWorkSteps(fromCity, toCity));
-  const workSteps = electric.steps;
+  const governed=governedTransport(state,null);
+  const charges=governed?transportCosts(vehicle,electric.steps):null;
+  const workSteps = governed?regulatorySteps(electric.steps):electric.steps;
   const result = buildPhases(workSteps, counters || { workMin: 0, driveMin: 0 }, earliestStart);
   const d = workSteps.reduce((n,s)=>n+(s.distanceKm||0),0);
   const fuel = electric.energy ? electric.energy.publicCostCents : fuelCents(d, vehicle.consumptionPer100km);
-  const toll = tollCents(d);
+  const toll = charges?.tollCents ?? tollCents(d);
   return {
     energy: electric.energy, energyError: electric.error || null,
+    ...(governed?{transport:{...charges,ruleVersion:DACH_RULE_VERSION},customsCents:0,finalRegulation:result.finalRegulation}:{}),
     orderId: null,
     orderStatus: null,
     customer: "Leerfahrt",
@@ -339,7 +349,7 @@ function planningDriverCounters(state, driver) {
     // Zähler zurück; fehlendes freeSinceMin ist kein Nachweis für 12h Ruhe.
     const rested = driver.status === "resting" || (driver.status === "free" &&
       driver.freeSinceMin != null && state.gameTime - driver.freeSinceMin >= REST_MIN);
-    let initCounters = { workMin: rested ? 0 : (driver.workMinutesSinceRest || 0),
+    let initCounters: any = { ...(state.dach?.enabled?{regulation:driver.regulation}:{}), workMin: rested ? 0 : (driver.workMinutesSinceRest || 0),
       driveMin: rested ? 0 : (driver.driveMinutesSinceBreak || 0) };
     if (driver.status === "on_trip") {
       const trip = driverTrip(state, driver.id);
@@ -390,7 +400,7 @@ export function buildTourPlan(state, opts) {
   const deployments = [];
   const acceptedOrderIds = [];
   let totalKm = 0, emptyKm = 0, loadedKm = 0;
-  let totalFuel = 0, totalToll = 0, totalPayment = 0;
+  let totalFuel = 0, totalToll = 0, totalCustoms = 0, totalPayment = 0;
   let minBuffer = Infinity;
 
   // Fahrerzähler über alle Einsätze hinweg fortführen
@@ -403,10 +413,10 @@ export function buildTourPlan(state, opts) {
     const deployments = [];
     const acceptedOrderIds = [];
     let totalKm = 0, emptyKm = 0, loadedKm = 0;
-    let totalFuel = 0, totalToll = 0, totalPayment = 0;
+    let totalFuel = 0, totalToll = 0, totalCustoms = 0, totalPayment = 0;
     let minBuffer = Infinity;
     let counters = { ...initCounters };
-    const planningVehicle = isElectric(vehicle) ? {...vehicle,batteryKWh:futureBattery(state,vehicle)} : vehicle;
+    const planningVehicle = {...vehicle,dachCabotage:vehicle.dachCabotage?structuredClone(vehicle.dachCabotage):null,...(isElectric(vehicle)?{batteryKWh:futureBattery(state,vehicle)}:{})};
 
     for (const orderId of orderIds) {
       const order = _orderById(state, orderId);
@@ -440,10 +450,10 @@ export function buildTourPlan(state, opts) {
       if (order.status === "offered") acceptedOrderIds.push(orderId);
       deployments.push(dep);
       totalKm += dep.totalKm; emptyKm += dep.emptyKm; loadedKm += dep.loadedKm;
-      totalFuel += dep.fuelCents; totalToll += dep.tollCents; totalPayment += dep.paymentCents;
+      totalFuel += dep.fuelCents; totalToll += dep.tollCents; totalCustoms += dep.customsCents||0; totalPayment += dep.paymentCents;
       if (dep.deadlineBufferMin !== null && dep.deadlineBufferMin < minBuffer) minBuffer = dep.deadlineBufferMin;
       currentCity = order.toCity;
-      counters = { workMin: dep.finalWorkMin, driveMin: dep.finalDriveMin };
+      counters = { workMin: dep.finalWorkMin, driveMin: dep.finalDriveMin, ...(dep.finalRegulation?{regulation:dep.finalRegulation}:{}) };
       t = dep.endMin;
     }
 
@@ -453,8 +463,8 @@ export function buildTourPlan(state, opts) {
       if (dep.energyError) return {ok:false as const,error:dep.energyError};
       returnDeployment = dep;
       totalKm += dep.totalKm; emptyKm += dep.emptyKm;
-      totalFuel += dep.fuelCents; totalToll += dep.tollCents;
-      counters = { workMin: dep.finalWorkMin, driveMin: dep.finalDriveMin };
+      totalFuel += dep.fuelCents; totalToll += dep.tollCents; totalCustoms += dep.customsCents||0;
+      counters = { workMin: dep.finalWorkMin, driveMin: dep.finalDriveMin, ...(dep.finalRegulation?{regulation:dep.finalRegulation}:{}) };
       t = dep.endMin;
     }
 
@@ -483,10 +493,10 @@ export function buildTourPlan(state, opts) {
       ok: true as const, hasMidTourRest,
       deployments, returnDeployment, acceptedOrderIds,
       totalKm, emptyKm, loadedKm,
-      totalFuelCents: totalFuel, totalTollCents: totalToll,
-      totalVariableCostCents: totalFuel + totalToll,
+      totalFuelCents: totalFuel, totalTollCents: totalToll, totalCustomsCents:totalCustoms,
+      totalVariableCostCents: totalFuel + totalToll + totalCustoms,
       totalPaymentCents: totalPayment,
-      totalContributionCents: totalPayment - totalFuel - totalToll,
+      totalContributionCents: totalPayment - totalFuel - totalToll - totalCustoms,
       earliestStartMin: planStart,
       lastDeliveryEndMin: lastDeliveryEnd,
       tourEndMin, driverFreeMin,
@@ -540,11 +550,11 @@ export function checkTourLiquidity(state, deployments, returnDeployment, startMi
   // Sammle alle Zeitpunkte chronologisch
   const events = [];
   for (const dep of deployments) {
-    events.push({ min: dep.startMin, type: "cost", amount: dep.fuelCents + dep.tollCents, label: "Einsatz " + (dep.customer || "Leer") });
+    events.push({ min: dep.startMin, type: "cost", amount: dep.fuelCents + dep.tollCents + (dep.customsCents||0), label: "Einsatz " + (dep.customer || "Leer") });
     events.push({ min: dep.endMin, type: "income", amount: dep.paymentCents, label: "Vergütung " + (dep.customer || "") });
   }
   if (returnDeployment) {
-    events.push({ min: returnDeployment.startMin, type: "cost", amount: returnDeployment.fuelCents + returnDeployment.tollCents, label: "Rückkehr" });
+    events.push({ min: returnDeployment.startMin, type: "cost", amount: returnDeployment.fuelCents + returnDeployment.tollCents + (returnDeployment.customsCents||0), label: "Rückkehr" });
   }
   // Bekannte zukünftige Tageskosten (vereinfacht: pro Tag bis Tour-Ende)
   const tourEnd = returnDeployment ? returnDeployment.endMin : (deployments.length > 0 ? deployments[deployments.length - 1].endMin : startMin);
@@ -809,7 +819,7 @@ function startDeployment(state, tour, dep, depIndex, preparedPlan = null) {
     ? buildDeployment(state, order, vehicle, vehicle.locationCity, state.gameTime, initialCounters)
     : buildEmptyDeployment(state, vehicle.locationCity, dep.toCity, vehicle, state.gameTime, initialCounters));
   if (fresh.energyError) throw new Error(fresh.energyError);
-  if (state.company.accountCents < fresh.fuelCents+fresh.tollCents) throw new Error("Firmenkonto reicht für den aktuellen Energie- und Mautbedarf nicht.");
+  if (state.company.accountCents < fresh.fuelCents+fresh.tollCents+(fresh.customsCents||0)) throw new Error("Firmenkonto reicht für den aktuellen Energie- und Mautbedarf nicht.");
   Object.assign(dep, fresh);
 
   // Phasen aus dem Deployment übernehmen, bei zeitlicher Abweichung verschieben
@@ -837,7 +847,7 @@ function startDeployment(state, tour, dep, depIndex, preparedPlan = null) {
     status: "in_progress",
     paymentCents: dep.paymentCents,
     fuelCents: dep.fuelCents,
-    energy: dep.energy,
+    energy: dep.energy, transport:dep.transport,customsCents:dep.customsCents||0,
     tollCents: dep.tollCents,
     totalKm: dep.totalKm,
     drivenKm: 0,
@@ -847,6 +857,8 @@ function startDeployment(state, tour, dep, depIndex, preparedPlan = null) {
   // Kraftstoff und Maut einmal beim Start buchen (nicht pro Pause-Block)
   addBooking(state, state.gameTime, (isElectric(vehicle) ? "Ladestrom unterwegs: " : "Kraftstoff: ") + (dep.customer || "Leerfahrt"), -dep.fuelCents, "company", "fuel:" + tripId, { branchId: vehicle.branchId, vehicleId: vehicle.id, orderId: dep.orderId });
   addBooking(state, state.gameTime, "Maut: " + (dep.customer || "Leerfahrt"), -dep.tollCents, "company", "toll:" + tripId, { branchId: vehicle.branchId, vehicleId: vehicle.id, orderId: dep.orderId });
+
+  if(dep.customsCents)addBooking(state,state.gameTime,"Zollagentur: "+(dep.customer||"Transport"),-dep.customsCents,"company","customs:"+tripId,{branchId:vehicle.branchId,vehicleId:vehicle.id,orderId:dep.orderId});
 
   // DG-Abwicklungsgebühr beim tatsächlichen Ladungsbeginn (Auftrag 32)
   if (dep.orderId) {
@@ -1082,7 +1094,7 @@ export function processTours(state, m, log) {
     const currentPlan = nextOrder
       ? buildDeployment(state, nextOrder, vehicle, vehicle.locationCity, m, planningDriverCounters(state, driver))
       : buildEmptyDeployment(state, vehicle.locationCity, nextDep.dep.toCity, vehicle, m, planningDriverCounters(state, driver));
-    if (currentPlan.energyError || state.company.accountCents < currentPlan.fuelCents + currentPlan.tollCents) {
+    if (currentPlan.energyError || state.company.accountCents < currentPlan.fuelCents + currentPlan.tollCents + (currentPlan.customsCents||0)) {
       tour.pauseReason = currentPlan.energyError || "Firmenkonto reicht für den aktuellen Energie- und Mautbedarf nicht.";
       log.push({type: "tour_paused", tour: tour.id, reason: tour.pauseReason});
       continue;
