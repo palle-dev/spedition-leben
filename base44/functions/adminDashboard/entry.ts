@@ -53,8 +53,15 @@ export default async function handleAdminDashboard(req: Request): Promise<Respon
         base44.asServiceRole.entities.GameState.filter({}, "-cloud_saved_at", 1000),
       ]);
 
-      const saves = await processWithConcurrency(states || [], 3, async (rec: any) => {
-        const base = {
+      return Response.json({
+        users: (users || []).map((u: any) => ({
+          id: u.id,
+          full_name: u.full_name,
+          email: u.email,
+          role: u.role,
+          created_date: u.created_date,
+        })),
+        saves: (states || []).map((rec: any) => ({
           id: rec.id,
           owner_id: rec.owner_id,
           revision: rec.revision,
@@ -66,25 +73,21 @@ export default async function handleAdminDashboard(req: Request): Promise<Respon
           save_type: rec.save_type,
           cloud_saved_at: rec.cloud_saved_at,
           created_date: rec.created_date,
-        };
-        try {
-          const state = await hydrateState(storage, rec.state);
-          return { ...base, stats: extractStats(state) };
-        } catch (e) {
-          return { ...base, stats: null, error: e.message || "Hydratisierung fehlgeschlagen" };
-        }
-      });
-
-      return Response.json({
-        users: (users || []).map((u: any) => ({
-          id: u.id,
-          full_name: u.full_name,
-          email: u.email,
-          role: u.role,
-          created_date: u.created_date,
         })),
-        saves,
       });
+    }
+
+    if (command === "details") {
+      const { stateId } = body;
+      if (!stateId) return Response.json({ error: "stateId erforderlich" }, { status: 400 });
+      const rec = await base44.asServiceRole.entities.GameState.get(stateId);
+      if (!rec) return Response.json({ error: "Spielstand nicht gefunden" }, { status: 404 });
+      try {
+        const state = await hydrateState(storage, rec.state);
+        return Response.json({ id: rec.id, stats: extractStats(state) });
+      } catch (e) {
+        return Response.json({ id: rec.id, stats: null, error: e.message || "Hydratisierung fehlgeschlagen" });
+      }
     }
 
     if (command === "deleteSave") {
