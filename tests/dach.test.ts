@@ -9,6 +9,8 @@ import {validateDachTransport,projectDachDelivery} from "../src/lib/simulation/d
 import {buildPhases,buildWorkSteps,computeFinalCounters} from "../src/lib/simulation/driverTimeEngine";
 import {buildDeployment,buildTourPlan,confirmTour} from "../src/lib/simulation/tourEngine";
 import {postJournal,getAccountBalance} from "../src/lib/simulation/accountingEngine";
+import {openBranch,moveVehicle} from "../src/lib/simulation/branchEngine";
+import {getVehicleGeoPosition,hasRealGeometry,buildTripRouteGeoJSON} from "../src/lib/geoData";
 import {prepareLoadedState} from "../src/lib/saveSafety";
 import {generateMarketWave} from "../src/lib/simulation/marketEngine";
 const fixture=vi.hoisted(()=>({state:null as any}));
@@ -114,4 +116,36 @@ describe("DACH",()=>{
   const result:any=prepareLoadedState(structuredClone(s));expect((result.state||result).dach).toEqual(s.dach);
   delete s.dach;fixture.state=s;expect(renderToStaticMarkup(React.createElement(DachPanel))).toContain("DACH-Betrieb aktivieren");
  });
+});
+
+it("opens a local Austrian branch and does not change existing registration during relocation",()=>{
+ const s=fresh();s.gameTime=20*1440+480;s.energy.lastMin=s.gameTime;
+ const r=openBranch(s,{city:"Wien",name:"Wien"}),local=s.vehicles.find(v=>v.id===r.vehicleId);
+ expect(local.operatorCountry).toBe("AT");expect(local.registrationCountry).toBe("AT");
+ const v=s.vehicles[0],tripId=moveVehicle(s,{vehicleId:v.id,targetBranchId:r.branchId}).tripId,trip=s.trips.find(t=>t.id===tripId);
+ expect(trip.transport.breakdown.some(x=>x.country==="AT")).toBe(true);expect(v.operatorCountry).toBe("DE");
+ advance(s,trip.endMin-s.gameTime);expect(v.locationCity).toBe("Wien");expect(v.branchId).toBe(r.branchId);expect(v.operatorCountry).toBe("DE");
+ v.status="free";s.tours=[];const cash=s.company.accountCents;applyCommand(s,"registerDachVehicle",{vehicleId:v.id});applyCommand(s,"registerDachVehicle",{vehicleId:v.id});
+ expect(v.operatorCountry).toBe("AT");expect(s.company.accountCents).toBe(cash-80000);
+});
+it("keeps map position at the border during customs and marks approximations honestly",()=>{
+ const s=fresh(),v=s.vehicles[0],r=confirmTour(s,opts(s)),trip=s.trips.find(t=>t.id===r.firstTripId);
+ trip.currentPhase=trip.phases.findIndex(p=>p.type==="customs");s.gameTime=trip.phases[trip.currentPhase].startMin;
+ expect(getVehicleGeoPosition(v,s,null)).toEqual(trip.phases.slice(0,trip.currentPhase).filter(p=>p.routeCoordinates).at(-1).routeCoordinates.at(-1));
+ expect(hasRealGeometry("München","Zürich",null)).toBe(false);
+ expect(buildTripRouteGeoJSON(trip,null).features.every(f=>f.properties.fallback)).toBe(true);
+});
+it("measures a bounded 250-truck legal planning batch independently of browser and full-day runtime",()=>{
+ const s=fresh(),routes=[["München","Zürich"],["Wien","Hamburg"],["Basel","Linz"],["Genf","Berlin"],["Lugano","Graz"]];
+ const times=[];
+ for(let run=0;run<5;run++){
+  const begin=performance.now();let phases=0;
+  for(let n=0;n<250;n++){
+   const [fromCity,toCity]=routes[n%routes.length];const v={...s.vehicles[0],id:"bench"+n,operatorCountry:countryOf(fromCity)};
+   const p=buildDeployment(s,{...s.orders[0],fromCity,toCity},v,fromCity,s.gameTime,{workMin:0,driveMin:0});
+   expect(p.energyError).toBeFalsy();expect(Number.isFinite(p.endMin)).toBe(true);phases+=p.phases.length;
+  }
+  expect(phases).toBeLessThan(50000);times.push(performance.now()-begin);
+ }
+ times.sort((a,b)=>a-b);console.log(JSON.stringify({benchmark:"250 independent DACH tour plans, synthetic diesel fleet; not a day/browser benchmark",medianMs:times[2],maxMs:times[4]}));
 });
