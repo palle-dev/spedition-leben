@@ -1,3 +1,4 @@
+import {processManagementGoals} from "./managementGoals.ts";
 import { processCompanyStories } from "./companyStories.ts";
 import { migrateJourney, processJourney, handleJourneyCommand } from "./playerJourney.ts";
 import { migrateDach, DACH_COMMANDS, handleDachCommand, recordDachDelivery } from "./dachEngine.ts";
@@ -645,6 +646,7 @@ function processEventsAt(state, m, log) {
   if (m % 1440 === 0 && m > 0) {
     processJourney(state,m);
     processCompanyStories(state,m);
+    processManagementGoals(state,m);
     const dlog = doDailyAccounting(state, m);
     log.push({ type: "daily_accounting", min: m, details: dlog });
     // Auftrag 25: Krankheitsgenerator, Urlaubsverbrauch, Sauberkeitsverlust

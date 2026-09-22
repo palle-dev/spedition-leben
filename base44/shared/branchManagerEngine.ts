@@ -1,3 +1,4 @@
+import {managementPriority} from "./managementGoals.ts";
 import { retainHistory } from "./historyRetention.ts";
 import {branchResponsibilityAllows} from "./managementResponsibilities.ts";
 import { deliverMessage } from "./mailEngine.ts";
@@ -276,7 +277,9 @@ function createDecision(state: any, manager: any, branch: any): any | null {
   const id = uid(state, "bd");
 
   // Wachstumsbedarf hat Priorität — Filialleiter identifiziert Lücken
-  const growthNeed = identifyGrowthNeed(state, branch);
+  const candidate = managementPriority(state,manager,branch);
+  const priority = candidate && branchResponsibilityAllows(manager,candidate) ? candidate : null;
+  const growthNeed = priority ? (["hire_driver","maintenance"].includes(priority) ? null : priority) : identifyGrowthNeed(state, branch);
   if (growthNeed && branchResponsibilityAllows(manager,growthNeed)) {
     return createGrowthDecision(state, id, manager, branch, growthNeed);
   }
@@ -284,7 +287,7 @@ function createDecision(state: any, manager: any, branch: any): any | null {
   // Kein Wachstumsbedarf — zufällige operative Entscheidung
   const types = ["hire_driver", "accept_order", "maintenance", "cost_optimization", "staff_training"].filter(type=>branchResponsibilityAllows(manager,type));
   if(!types.length)return null;
-  const type = types[Math.floor(nextRandom(state) * types.length)];
+  const type = priority || types[Math.floor(nextRandom(state) * types.length)];
 
   if (type === "hire_driver") {
     return {

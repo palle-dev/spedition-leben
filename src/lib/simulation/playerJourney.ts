@@ -1,3 +1,4 @@
+import {setManagementGoal,cancelManagementGoal} from "./managementGoals.ts";
 import { recordCompanyStoryEvent, chooseCompanyStory } from "./companyStories.ts";
 import { countryOf } from "./dachGeography.ts";
 import { preserveHistory } from "./historyRetention.ts";
@@ -56,8 +57,10 @@ export function processJourney(s,m){
  }
 }
 export function handleJourneyCommand(s,command,p){
- if(!["chooseJourneyPath","abandonJourneyPath","setCompanyIdentity","chooseCompanyStory"].includes(command))return null;
+ if(!["chooseJourneyPath","abandonJourneyPath","setCompanyIdentity","chooseCompanyStory","setManagementGoal","cancelManagementGoal"].includes(command))return null;
  migrateJourney(s);const j=s.journey;
+ if(command==="setManagementGoal")return setManagementGoal(s,p);
+ if(command==="cancelManagementGoal")return cancelManagementGoal(s,p);
  if(command==="chooseCompanyStory")return chooseCompanyStory(s,p);
  if(command==="chooseJourneyPath")return startJourneyPath(s,p.path);
  if(command==="abandonJourneyPath"){
