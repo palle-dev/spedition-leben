@@ -24,7 +24,19 @@ async function main(){
  let s;const save=arg('--save');
  if(save){const raw=save.endsWith('.gz')?require('node:zlib').gunzipSync(fs.readFileSync(save)):fs.readFileSync(save);const input=JSON.parse(raw);s=input.state||input;}
  else s=makeLargeFleet(Number(arg('--fleet',250)));
- applyCommand(s,'advanceTime',{minutes:0});s=await compactHistory(s);
+ applyCommand(s,'advanceTime',{minutes:0});
+ if(args.includes('--dach')){
+  applyCommand(s,'activateDach',{});
+  const {DACH_RULE_VERSION}=require('../src/lib/simulation/dachRules.ts');
+  for(const o of s.orders)o.transportRulesVersion=DACH_RULE_VERSION;
+ }
+ if(args.includes('--blocked')){
+  s.trips=[];s.tours=[];
+  for(const v of s.vehicles){v.status='free';v.locationCity='Hamburg';v.condition=100;}
+  for(const d of s.drivers){d.status='free';d.locationCity='Hamburg';d.workMinutesSinceRest=0;d.driveMinutesSinceBreak=0;d.regulation={weekIndex:0,thisWeek:3360,previousWeek:0,weeklyRestEndMin:s.gameTime};}
+  for(const o of s.orders){o.status='offered';delete o.reservedByTourId;o.deliveryDeadlineMin=s.gameTime+600;}
+ }
+ s=await compactHistory(s);
  const before={time:s.gameTime,vehicles:s.vehicles.length,drivers:s.drivers.length,employees:s.employees.length,orders:s.orders.length,trips:s.trips.length,tours:s.tours.length};
  const inspector=require('node:inspector'),session=new inspector.Session();session.connect();
  const post=m=>new Promise((resolve,reject)=>session.post(m,(e,r)=>e?reject(e):resolve(r)));
