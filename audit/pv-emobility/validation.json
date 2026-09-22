@@ -1,0 +1,23 @@
+{
+  "date": "2026-09-22",
+  "tests": {
+    "files": 8,
+    "passed": 69,
+    "failed": 0
+  },
+  "productionBuild": "passed",
+  "targetedFrontendLint": "passed",
+  "clientSharedParity": {
+    "modules": 8,
+    "result": "identical"
+  },
+  "energyBenchmark": {
+    "trucks": 250,
+    "branches": 10,
+    "simulatedMinutes": 1440,
+    "elapsedMs": 7.7,
+    "scope": "Energy subsystem only; synthetic stationary fleet; not full engine or browser"
+  },
+  "productionPublished": false,
+  "browserInteractiveAcceptance": false
+}
