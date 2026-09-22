@@ -7,7 +7,7 @@ import {
   getViolatedRuleLabel, formatCents,
 } from "@/lib/delegationData";
 import {
-  Shield, CheckCircle2, XCircle, Clock, TrendingUp, Wallet, AlertTriangle, ChevronDown, ChevronUp, Building2, Settings, ArrowRight,
+  Shield, CheckCircle2, XCircle, Clock, TrendingUp, Wallet, AlertTriangle, ChevronDown, ChevronUp, Building2, Settings, ArrowRight, Trash2,
 } from "lucide-react";
 
 // Führung & Delegation — zentrale Steuerung der Mitarbeiter-Automatik.
@@ -16,6 +16,21 @@ export default function Leadership() {
   const navigate = useNavigate();
   const [tab, setTab] = useState("rules");
   const [expandedBranch, setExpandedBranch] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+
+  const allSelected = summary?.pending?.length > 0 && selectedIds.size === summary.pending.length;
+  function toggleSelect(id) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+  function toggleSelectAll() {
+    if (allSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(summary.pending.map(r => r.id)));
+  }
 
   const summary = useMemo(() => {
     if (!state.delegation) return null;
@@ -58,6 +73,41 @@ export default function Leadership() {
       await send("rejectApproval", { requestId });
       showToast("Freigabe abgelehnt", "info");
     } catch (e) { showToast(e.message, "error"); }
+  }
+
+  async function handleDelete(requestId) {
+    try {
+      await send("deleteApproval", { requestId });
+      showToast("Freigabe gelöscht", "info");
+    } catch (e) { showToast(e.message, "error"); }
+  }
+
+  // Sammel-Aktionen für mehrere Freigaben gleichzeitig.
+  async function handleBulk(action) {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setBulkLoading(true);
+    let ok = 0, fail = 0;
+    for (const id of ids) {
+      try {
+        if (action === "approve") {
+          const r = await send("approveApproval", { requestId: id });
+          if (!r?.superseded) ok++;
+        } else if (action === "reject") {
+          await send("rejectApproval", { requestId: id });
+          ok++;
+        } else if (action === "delete") {
+          await send("deleteApproval", { requestId: id });
+          ok++;
+        }
+      } catch { fail++; }
+    }
+    setSelectedIds(new Set());
+    setBulkLoading(false);
+    const label = action === "approve" ? "genehmigt" : action === "reject" ? "abgelehnt" : "gelöscht";
+    if (fail === 0) showToast(`${ok} Freigabe(n) ${label}`, "success");
+    else if (ok === 0) showToast(`${fail} Freigabe(n) konnten nicht bearbeitet werden`, "error");
+    else showToast(`${ok} ${label}, ${fail} fehlgeschlagen`, "info");
   }
 
   return (
@@ -275,48 +325,111 @@ export default function Leadership() {
               <p className="text-sm text-muted-foreground">Keine ausstehenden Freigaben.</p>
             </div>
           ) : (
-            summary.pending.map(req => (
-              <div key={req.id} className="glass border border-white/10 rounded-xl p-4 space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-xs ${getUrgencyColor(req.urgency)}`}>● {({ low: "Niedrig", medium: "Mittel", high: "Hoch", urgent: "Dringend", critical: "Kritisch" })[req.urgency] || req.urgency}</span>
-                      <span className="text-xs text-muted-foreground">{req.employeeName} ({ROLE_LABELS[req.employeeRole] || req.employeeRole})</span>
-                      {req.branchName && <span className="text-xs text-muted-foreground">· {req.branchName}</span>}
-                    </div>
-                    <div className="font-medium text-sm">{req.title}</div>
-                    <div className="text-xs text-muted-foreground mt-1">{req.description}</div>
-                    {req.reasoning && (
-                      <div className="text-xs mt-2 bg-surface-2/40 rounded-lg px-2.5 py-1.5 border border-white/5">
-                        <span className="text-muted-foreground">Begründung: </span>{req.reasoning}
-                      </div>
-                    )}
-                    {req.violatedRule && (
-                      <div className="text-xs text-coral/80 mt-1.5 flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3" /> {getViolatedRuleLabel(req.violatedRule)}
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0">
-                    {req.costCents > 0 && <div className="text-sm font-medium tabular-nums">{formatCents(req.costCents)}</div>}
-                    {req.deadlineMin && <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-1"><Clock className="w-2.5 h-2.5" />bis Tag {Math.floor(req.deadlineMin/1440)+1}</div>}
-                  </div>
+            <>
+              {/* Sammel-Aktionen-Leiste */}
+              <div className="glass border border-white/10 rounded-xl p-3 flex items-center justify-between gap-3 flex-wrap sticky top-2 z-10">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={toggleSelectAll}
+                    className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition"
+                  >
+                    <span className={`grid place-items-center w-4 h-4 rounded border transition shrink-0 ${
+                      allSelected ? "bg-lime border-lime text-ink" : selectedIds.size > 0 ? "bg-lime/30 border-lime/50" : "border-white/20"
+                    }`}>
+                      {allSelected ? <CheckCircle2 className="w-3 h-3" /> : selectedIds.size > 0 ? <span className="text-[8px]">–</span> : null}
+                    </span>
+                    Alle {allSelected ? "abwählen" : "auswählen"}
+                  </button>
+                  {selectedIds.size > 0 && (
+                    <span className="text-xs text-muted-foreground">{selectedIds.size} ausgewählt</span>
+                  )}
                 </div>
-                {req.alternatives && req.alternatives.length > 0 && (
-                  <div className="text-xs text-muted-foreground">
-                    <span className="text-foreground">Alternativen:</span> {req.alternatives.join(", ")}
+                {selectedIds.size > 0 && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleBulk("approve")}
+                      disabled={bulkLoading}
+                      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs bg-lime/10 text-lime border border-lime/20 hover:bg-lime/20 disabled:opacity-50 transition"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Alle genehmigen
+                    </button>
+                    <button
+                      onClick={() => handleBulk("reject")}
+                      disabled={bulkLoading}
+                      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs bg-white/5 text-muted-foreground hover:text-foreground border border-white/10 disabled:opacity-50 transition"
+                    >
+                      <XCircle className="w-3.5 h-3.5" /> Alle ablehnen
+                    </button>
+                    <button
+                      onClick={() => handleBulk("delete")}
+                      disabled={bulkLoading}
+                      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs bg-white/5 text-coral/80 hover:text-coral border border-coral/20 disabled:opacity-50 transition"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Alle löschen
+                    </button>
                   </div>
                 )}
-                <div className="flex items-center gap-2 pt-1 border-t border-white/5">
-                  <button onClick={() => handleApprove(req.id)} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs bg-lime/10 text-lime border border-lime/20 hover:bg-lime/20 transition">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Freigeben
-                  </button>
-                  <button onClick={() => handleReject(req.id)} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs bg-white/5 text-muted-foreground hover:text-foreground border border-white/10 transition">
-                    <XCircle className="w-3.5 h-3.5" /> Ablehnen
-                  </button>
-                </div>
               </div>
-            ))
+
+              {summary.pending.map(req => {
+                const checked = selectedIds.has(req.id);
+                return (
+                  <div key={req.id} className={`glass border rounded-xl p-4 space-y-3 transition ${checked ? "border-lime/30 bg-lime/[0.02]" : "border-white/10"}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0 flex-1">
+                        <button
+                          onClick={() => toggleSelect(req.id)}
+                          className={`grid place-items-center w-4 h-4 rounded border transition shrink-0 mt-0.5 ${
+                            checked ? "bg-lime border-lime text-ink" : "border-white/20 hover:border-white/40"
+                          }`}
+                        >
+                          {checked && <CheckCircle2 className="w-3 h-3" />}
+                        </button>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-xs ${getUrgencyColor(req.urgency)}`}>● {({ low: "Niedrig", medium: "Mittel", high: "Hoch", urgent: "Dringend", critical: "Kritisch" })[req.urgency] || req.urgency}</span>
+                            <span className="text-xs text-muted-foreground">{req.employeeName} ({ROLE_LABELS[req.employeeRole] || req.employeeRole})</span>
+                            {req.branchName && <span className="text-xs text-muted-foreground">· {req.branchName}</span>}
+                          </div>
+                          <div className="font-medium text-sm">{req.title}</div>
+                          <div className="text-xs text-muted-foreground mt-1">{req.description}</div>
+                          {req.reasoning && (
+                            <div className="text-xs mt-2 bg-surface-2/40 rounded-lg px-2.5 py-1.5 border border-white/5">
+                              <span className="text-muted-foreground">Begründung: </span>{req.reasoning}
+                            </div>
+                          )}
+                          {req.violatedRule && (
+                            <div className="text-xs text-coral/80 mt-1.5 flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3" /> {getViolatedRuleLabel(req.violatedRule)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        {req.costCents > 0 && <div className="text-sm font-medium tabular-nums">{formatCents(req.costCents)}</div>}
+                        {req.deadlineMin && <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-1"><Clock className="w-2.5 h-2.5" />bis Tag {Math.floor(req.deadlineMin/1440)+1}</div>}
+                      </div>
+                    </div>
+                    {req.alternatives && req.alternatives.length > 0 && (
+                      <div className="text-xs text-muted-foreground">
+                        <span className="text-foreground">Alternativen:</span> {req.alternatives.join(", ")}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 pt-1 border-t border-white/5">
+                      <button onClick={() => handleApprove(req.id)} disabled={bulkLoading} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs bg-lime/10 text-lime border border-lime/20 hover:bg-lime/20 disabled:opacity-50 transition">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Freigeben
+                      </button>
+                      <button onClick={() => handleReject(req.id)} disabled={bulkLoading} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs bg-white/5 text-muted-foreground hover:text-foreground border border-white/10 disabled:opacity-50 transition">
+                        <XCircle className="w-3.5 h-3.5" /> Ablehnen
+                      </button>
+                      <button onClick={() => handleDelete(req.id)} disabled={bulkLoading} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs bg-white/5 text-coral/70 hover:text-coral border border-white/10 disabled:opacity-50 transition ml-auto">
+                        <Trash2 className="w-3.5 h-3.5" /> Löschen
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </>
           )}
         </div>
       )}
