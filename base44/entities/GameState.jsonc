@@ -58,6 +58,29 @@
     "archive_blocks": {
       "type": "object",
       "description": "Server-owned content-hash to immutable archive entity ID map."
+    },
+    "stats_company_cents": {
+      "type": "number",
+      "description": "Pre-computed by cloudSync on save and refreshed by AdminStatsRefresh workflow."
+    },
+    "stats_private_cents": {
+      "type": "number"
+    },
+    "stats_vehicles": {
+      "type": "number"
+    },
+    "stats_branches": {
+      "type": "number"
+    },
+    "stats_employees": {
+      "type": "number"
+    },
+    "stats_drivers": {
+      "type": "number"
+    },
+    "stats_updated_at": {
+      "type": "number",
+      "description": "Unix timestamp of last stats computation. Null = not yet computed."
     }
   },
   "rls": {

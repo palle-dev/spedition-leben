@@ -1,0 +1,47 @@
+{
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "admin_stats_refresh",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "refresh": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "refreshAdminStats",
+            "args": {
+              "limit": 50
+            }
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Statistiken aktualisieren",
+            "description": "Bis zu 50 veraltete Spielst\u00e4nde"
+          }
+        }
+      }
+    ]
+  },
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "0 * * * *",
+      "one_time_date": null,
+      "timezone": "Europe/Berlin",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "name": "Admin-Statistiken aktualisieren",
+  "description": "Hintergrunddienst: Aktualisiert vorberechnete Statistiken f\u00fcr alle Spielst\u00e4nde st\u00fcndlich, damit der Adminbereich sofort l\u00e4dt \u2014 auch bei 1000+ Spielern."
+}

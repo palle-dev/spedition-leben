@@ -10,6 +10,7 @@
 
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
 import { stageCloudArchive, hydrateCloudArchive, CloudArchiveError } from "../../shared/cloudArchiveStore.ts";
+import { extractStats } from "../../shared/adminStats.ts";
 import { isCompleteSnapshot, isWritableRevision } from "../../shared/snapshotValidation.ts";
 
 // Extrahiert Synchron-Metadaten aus dem Spielzustand (read-only).
@@ -18,12 +19,20 @@ function extractMeta(state) {
   const s = state || {};
   const gameTime = s.gameTime || 0;
   const day = Math.floor(gameTime / 1440) + 1;
+  const stats = extractStats(s);
   return {
     company_name: s.company?.name || null,
     game_day: day,
     game_time_min: gameTime,
     scenario_id: s.scenario?.id || null,
     difficulty_profile: s.difficultyProfile || s.meta?.difficultyProfile || "standard",
+    stats_company_cents: stats?.companyAccountCents ?? 0,
+    stats_private_cents: stats?.privateAccountCents ?? 0,
+    stats_vehicles: stats?.vehicles ?? 0,
+    stats_branches: stats?.branches ?? 0,
+    stats_employees: stats?.employees ?? 0,
+    stats_drivers: stats?.drivers ?? 0,
+    stats_updated_at: Date.now(),
   };
 }
 

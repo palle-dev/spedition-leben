@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Navigate, Link } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
@@ -12,14 +12,11 @@ export default function Admin() {
   const [error, setError] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
-  const [statsMap, setStatsMap] = useState({});
-  const loadedIdsRef = useRef(new Set());
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
-    setStatsMap({});
-    loadedIdsRef.current = new Set();
     try {
       const res = await base44.functions.invoke("adminDashboard", { command: "list" });
       setData(res.data);
@@ -30,22 +27,22 @@ export default function Admin() {
     }
   }, []);
 
-  // Lazy-load stats per save after the list loads — browser parallelizes requests.
-  useEffect(() => {
-    if (!data?.saves) return;
-    data.saves.forEach(save => {
-      if (loadedIdsRef.current.has(save.id)) return;
-      loadedIdsRef.current.add(save.id);
-      base44.functions.invoke("adminDashboard", { command: "details", stateId: save.id })
-        .then(res => setStatsMap(prev => ({ ...prev, [save.id]: res.data?.stats || null })))
-        .catch(() => setStatsMap(prev => ({ ...prev, [save.id]: null })));
-    });
-  }, [data?.saves]);
-
   useEffect(() => {
     if (isLoadingAuth || !user || user.role !== "admin") return;
     loadData();
   }, [user?.id, isLoadingAuth, loadData]);
+
+  async function refreshStats() {
+    setRefreshing(true);
+    try {
+      await base44.functions.invoke("refreshAdminStats", { limit: 50 });
+      await loadData();
+    } catch (e) {
+      setError(e?.message || e?.data?.error || "Aktualisierung fehlgeschlagen.");
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   async function confirmDelete() {
     if (!deleteTarget) return;
@@ -77,8 +74,7 @@ export default function Admin() {
 
   const usersById = new Map((data?.users || []).map(u => [u.id, u]));
   const saves = data?.saves || [];
-  const statsLoaded = saves.filter(s => statsMap[s.id] !== undefined).length;
-  const statsFailed = saves.filter(s => statsMap[s.id] === null).length;
+  const statsReady = saves.filter(s => s.stats).length;
 
   return (
     <div className="min-h-screen bg-ink text-foreground">
@@ -95,11 +91,19 @@ export default function Admin() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={refreshStats}
+            disabled={refreshing || loading}
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium border border-white/10 bg-white/5 text-muted-foreground hover:text-foreground hover:border-white/20 disabled:opacity-50 transition"
+            title="Statistiken im Hintergrund neu berechnen"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} /> Stats aktualisieren
+          </button>
+          <button
             onClick={loadData}
             disabled={loading}
             className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium border border-white/10 bg-white/5 text-muted-foreground hover:text-foreground hover:border-white/20 disabled:opacity-50 transition"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Aktualisieren
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Liste laden
           </button>
           <button
             onClick={() => base44.auth.logout("/login")}
@@ -117,12 +121,7 @@ export default function Admin() {
           <SummaryCard icon={Users} label="Spieler" value={data?.users?.length ?? "—"} />
           <SummaryCard icon={HardDrive} label="Spielstände" value={saves.length} />
           <SummaryCard icon={Shield} label="Admins" value={(data?.users || []).filter(u => u.role === "admin").length} />
-          <SummaryCard
-            icon={Loader2}
-            label="Statistiken geladen"
-            value={loading ? "…" : `${statsLoaded}/${saves.length}`}
-            iconClass={statsLoaded < saves.length && !loading ? "animate-spin" : ""}
-          />
+          <SummaryCard icon={RefreshCw} label="Stats bereit" value={loading ? "…" : `${statsReady}/${saves.length}`} />
         </div>
 
         {loading ? (
@@ -206,8 +205,7 @@ export default function Admin() {
                     <tbody>
                       {saves.map(save => {
                         const u = usersById.get(save.owner_id);
-                        const s = statsMap[save.id];
-                        const loadingStats = s === undefined;
+                        const s = save.stats;
                         return (
                           <tr key={save.id} className="border-b border-white/5 hover:bg-white/[0.02] transition">
                             <td className="px-4 py-3 whitespace-nowrap">
@@ -216,7 +214,7 @@ export default function Admin() {
                             </td>
                             <td className="px-3 py-3 text-muted-foreground whitespace-nowrap hidden md:table-cell">{u?.email || "—"}</td>
                             <td className="px-3 py-3 whitespace-nowrap">
-                              {save.company_name || s?.companyName || <span className="text-muted-foreground/40">—</span>}
+                              {save.company_name || <span className="text-muted-foreground/40">—</span>}
                               {save.save_label && <div className="text-[10px] text-muted-foreground/60">{save.save_label}</div>}
                             </td>
                             <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap">{save.game_day || 0}</td>
@@ -224,19 +222,19 @@ export default function Admin() {
                               {clockOf(save.game_time_min || 0)}
                             </td>
                             <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap">
-                              <StatCell value={s?.privateAccountCents} loading={loadingStats} format={formatEuro} tone="coral" />
+                              <StatCell value={s?.privateAccountCents} format={formatEuro} tone="coral" />
                             </td>
                             <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap">
-                              <StatCell value={s?.companyAccountCents} loading={loadingStats} format={formatEuro} tone="lime" />
+                              <StatCell value={s?.companyAccountCents} format={formatEuro} tone="lime" />
                             </td>
                             <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap">
-                              <StatCell value={s?.vehicles} loading={loadingStats} />
+                              <StatCell value={s?.vehicles} />
                             </td>
                             <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap hidden md:table-cell">
-                              <StatCell value={s?.branches} loading={loadingStats} />
+                              <StatCell value={s?.branches} />
                             </td>
                             <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap hidden md:table-cell">
-                              <StatCell value={s?.employees} loading={loadingStats} />
+                              <StatCell value={s?.employees} />
                             </td>
                             <td className="px-3 py-3 text-right text-xs text-muted-foreground whitespace-nowrap hidden lg:table-cell">
                               {save.cloud_saved_at ? new Date(save.cloud_saved_at).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" }) : "—"}
@@ -259,9 +257,10 @@ export default function Admin() {
               </div>
             )}
 
-            {statsFailed > 0 && statsLoaded === saves.length && (
-              <div className="text-xs text-muted-foreground/60 text-center">
-                {statsFailed} Spielstand/Spielstände konnten nicht geladen werden (evtl. beschädigt oder in Migration).
+            {statsReady < saves.length && !loading && (
+              <div className="text-xs text-muted-foreground/60 text-center flex items-center justify-center gap-2">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                {saves.length - statsReady} Spielstand/Spielstände werden noch im Hintergrund berechnet (nächster Workflow-Durchlauf).
               </div>
             )}
           </>
@@ -300,19 +299,18 @@ export default function Admin() {
   );
 }
 
-function StatCell({ value, loading, format, tone }) {
-  if (loading) return <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground/30 inline" />;
+function StatCell({ value, format, tone }) {
   if (value == null) return <span className="text-muted-foreground/40">—</span>;
   const formatted = format ? format(value) : value;
   const cls = tone === "coral" ? "text-coral" : tone === "lime" ? "text-lime" : "";
   return <span className={cls}>{formatted}</span>;
 }
 
-function SummaryCard({ icon: Icon, label, value, iconClass = "" }) {
+function SummaryCard({ icon: Icon, label, value }) {
   return (
     <div className="glass border border-white/10 rounded-xl p-4">
       <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5">
-        <Icon className={`w-3.5 h-3.5 ${iconClass}`} /> {label}
+        <Icon className="w-3.5 h-3.5" /> {label}
       </div>
       <div className="text-2xl font-semibold tabular-nums">{value}</div>
     </div>

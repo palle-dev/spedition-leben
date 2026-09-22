@@ -1,37 +1,10 @@
 // Admin-Dashboard: Übersicht über alle Spieler und deren Spielstände.
 // Nur für Admins (user.role === "admin") – sonst 403.
 // Verwendet asServiceRole, um RLS zu umgehen und alle User + GameStates zu lesen.
-// Hydratisiert URI-basierte Spielstände aus privatem Datei-Speicher.
+// Statistiken werden aus Entity-Feldern gelesen (vorberechnet durch cloudSync +
+// refreshAdminStats-Hintergrunddienst) — keine Hydratisierung beim Auflisten.
 
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
-import { hydrateState } from "../../shared/cloudArchiveStore.ts";
-
-function extractStats(state: any) {
-  if (!state || typeof state !== "object") return null;
-  return {
-    gameTime: state.gameTime || 0,
-    companyName: state.company?.name || null,
-    companyAccountCents: state.company?.accountCents ?? 0,
-    privateAccountCents: state.private?.accountCents ?? 0,
-    vehicles: (state.vehicles || []).filter((v: any) => v.status !== "sold" && v.status !== "archived").length,
-    branches: (state.branches || []).filter((b: any) => b.status === "active").length,
-    employees: (state.employees || []).filter((e: any) => e.employmentStatus === "employed").length,
-    drivers: (state.drivers || []).filter((d: any) => d.employmentStatus === "employed").length,
-  };
-}
-
-async function processWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let cursor = 0;
-  async function worker() {
-    while (cursor < items.length) {
-      const i = cursor++;
-      results[i] = await fn(items[i]);
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
-  return results;
-}
 
 export default async function handleAdminDashboard(req: Request): Promise<Response> {
   try {
@@ -42,10 +15,6 @@ export default async function handleAdminDashboard(req: Request): Promise<Respon
 
     const body = await req.json();
     const { command } = body || {};
-
-    const storage = {
-      createSignedUrl: async (args: any) => base44.asServiceRole.integrations.Core.CreateFileSignedUrl(args),
-    };
 
     if (command === "list") {
       const [users, states] = await Promise.all([
@@ -73,21 +42,16 @@ export default async function handleAdminDashboard(req: Request): Promise<Respon
           save_type: rec.save_type,
           cloud_saved_at: rec.cloud_saved_at,
           created_date: rec.created_date,
+          stats: rec.stats_updated_at ? {
+            companyAccountCents: rec.stats_company_cents ?? 0,
+            privateAccountCents: rec.stats_private_cents ?? 0,
+            vehicles: rec.stats_vehicles ?? 0,
+            branches: rec.stats_branches ?? 0,
+            employees: rec.stats_employees ?? 0,
+            drivers: rec.stats_drivers ?? 0,
+          } : null,
         })),
       });
-    }
-
-    if (command === "details") {
-      const { stateId } = body;
-      if (!stateId) return Response.json({ error: "stateId erforderlich" }, { status: 400 });
-      const rec = await base44.asServiceRole.entities.GameState.get(stateId);
-      if (!rec) return Response.json({ error: "Spielstand nicht gefunden" }, { status: 404 });
-      try {
-        const state = await hydrateState(storage, rec.state);
-        return Response.json({ id: rec.id, stats: extractStats(state) });
-      } catch (e) {
-        return Response.json({ id: rec.id, stats: null, error: e.message || "Hydratisierung fehlgeschlagen" });
-      }
     }
 
     if (command === "deleteSave") {
