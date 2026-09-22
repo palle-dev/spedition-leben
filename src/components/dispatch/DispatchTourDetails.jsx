@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import { useGame } from "@/lib/gameContext";
+import React from "react";
 import { vehicleDisplayName, driverDisplayName } from "@/lib/displayHelpers";
 import { formatGameTime, formatEuro } from "@/lib/gameData";
 import { hasRealGeometry } from "@/lib/geoData";

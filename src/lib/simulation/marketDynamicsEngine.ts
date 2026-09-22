@@ -1,3 +1,4 @@
+import { EXTRA_LOCATIONS } from "./dachGeography.ts";
 import { retainHistory } from "./historyRetention.ts";
 // Markt-Dynamik-Engine für FERNWERK.
 // Verwaltet Regionen, saisonale Nachfrage, zeitlich begrenzte Marktereignisse
@@ -10,9 +11,10 @@ import { deliverMessage } from "./mailEngine.ts";
 
 // ---------- Regionen ----------
 
-export const REGIONS = ["nord", "ost", "mitte", "sued", "west"];
+export const REGIONS = ["nord", "ost", "mitte", "sued", "west", "at", "ch"];
 
 export const REGION_LABELS: Record<string, string> = {
+  at: "Österreich", ch: "Schweiz",
   nord: "Nord",
   ost: "Ost",
   mitte: "Mitte",
@@ -21,6 +23,8 @@ export const REGION_LABELS: Record<string, string> = {
 };
 
 export const CITY_REGION: Record<string, string> = {
+  ...Object.fromEntries(EXTRA_LOCATIONS.filter(x=>x[1]!=="DE").map(x=>[x[0],String(x[1]).toLowerCase()])),
+  Schwerin:"nord", Potsdam:"ost", Mainz:"west", Wiesbaden:"west",
   Hamburg: "nord", Bremen: "nord", Kiel: "nord", Lübeck: "nord",
   Rostock: "nord", Braunschweig: "nord", Osnabrück: "nord", Bielefeld: "nord",
   Berlin: "ost", Magdeburg: "ost", Leipzig: "ost", Dresden: "ost", Erfurt: "ost",
@@ -219,7 +223,7 @@ function generateEvent(state: any, m: number): any {
   const cfg = EVENT_CONFIG;
   const rng = () => dynamicsRng(state);
   const template = pickRandom(EVENT_TEMPLATES, rng);
-  const region = pickRandom(REGIONS, rng);
+  const region = pickRandom(state.dach?.enabled?REGIONS:REGIONS.filter(r=>!["at","ch"].includes(r)), rng);
 
   let segment: string | null = null;
   let customerId: string | null = null;
@@ -407,7 +411,7 @@ export function getMarketOverview(state: any): any {
   migrateMarketDynamics(state);
 
   const overview: any = {};
-  for (const region of REGIONS) {
+  for (const region of REGIONS.filter(r=>state.dach?.enabled||!["at","ch"].includes(r))) {
     overview[region] = {
       label: REGION_LABELS[region],
       segments: {},

@@ -276,7 +276,7 @@ export function buildDeployment(state, order, vehicle, startCity, earliestStart,
 
   return {
     energy: electric.energy, energyError: electric.error || ruleError || (governed&&order.isDangerousGoods&&charges.breakdown.some(x=>x.country!=="DE")?"Internationale Gefahrgutroute ist noch nicht freigegeben.":null),
-    ...(governed?{transport:{...charges,ruleVersion:DACH_RULE_VERSION,documents:charges.customsCents?["CMR-Frachtbrief","Handelsrechnung und Packliste","Ausfuhr-/Einfuhranmeldung durch Zollagentur"]:["Frachtbrief"]},customsCents:customs,finalRegulation:result.finalRegulation}:{}),
+    ...(governed?{transport:{...charges,ruleVersion:DACH_RULE_VERSION,documents:charges.customsCents?["CMR-Frachtbrief","Handelsrechnung und Packliste","Ausfuhr-/Einfuhranmeldung durch Zollagentur"]:[countryOf(order.fromCity)!==countryOf(order.toCity)?"CMR-Frachtbrief":"Frachtbrief"]},customsCents:customs,finalRegulation:result.finalRegulation}:{}),
     orderId: order.id,
     orderStatus: order.status,
     customer: order.customer,
@@ -524,7 +524,7 @@ export function buildTourPlan(state, opts) {
     planResult.error || (planResult.ok && planResult.hasMidTourRest)
   );
   if (needsRestFirst) {
-    const restFirstResult = _tryPlan(earliestStart + REST_MIN, { workMin: 0, driveMin: 0 });
+    const restFirstResult = _tryPlan(earliestStart + REST_MIN, { ...initCounters, workMin: 0, driveMin: 0 });
     if (restFirstResult.ok) planResult = restFirstResult;
   }
 

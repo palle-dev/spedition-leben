@@ -51,7 +51,7 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
     if (vehicle.condition < 20) return "Fahrzeugzustand unter 20 – Wartung erforderlich.";
     if (vehicle.locationCity !== driver.locationCity) return "Fahrer und Lkw sind an verschiedenen Orten.";
     if (order.tons > vehicle.capacityTons) return `Überladung: ${order.tons} t überschreiten ${vehicle.capacityTons} t Nutzlast.`;
-    if (state.company.accountCents < (plan ? (plan.fuel + plan.toll) * 100 : 0)) return "Firmenkonto reicht für Kraftstoff und Maut nicht aus.";
+    if (state.company.accountCents < (plan ? ((plan.fuel + plan.toll) * 100 + plan.customs) : 0)) return "Firmenkonto reicht für Kraftstoff und Maut nicht aus.";
     return null;
   }, [vehicle, driver, order, plan, state.gameTime, state.company.accountCents]);
 
@@ -222,16 +222,17 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
             <SummaryRow label="Beladene Fahrt" value={`${plan.driveKm} km`} />
             <SummaryRow label="Einsatzdauer" value={`${Math.floor(plan.totalDuration / 60)} h ${plan.totalDuration % 60} min`} />
             {plan.summary.breakCount > 0 && <SummaryRow icon={Coffee} label="Fahrpausen" value={`${plan.summary.breakCount}× 45 min`} />}
-            {plan.summary.restCount > 0 && <SummaryRow icon={Moon} label="Ruhezeiten" value={`${plan.summary.restCount}× 12 h`} />}
+            {plan.summary.restCount > 0 && <SummaryRow icon={Moon} label="Ruhezeiten" value={`${plan.summary.restCount} · siehe Phasen`} />}
             <SummaryRow label="Ankunft" value={formatGameTime(plan.endMin)} />
             <SummaryRow label="Fristpuffer" value={buffer != null ? `${buffer >= 0 ? "+" : ""}${Math.floor(Math.abs(buffer) / 60)} h ${Math.abs(buffer) % 60} min` : "—"} tone={buffer >= 0 ? "ok" : "late"} />
             <SummaryRow icon={Fuel} label={plan.energy ? "Ladestrom unterwegs" : "Kraftstoff"} value={formatEuro(plan.fuel * 100)} />
             <SummaryRow icon={CreditCard} label="Maut" value={formatEuro(plan.toll * 100)} />
-            <SummaryRow label="Sofortkosten" value={formatEuro((plan.fuel + plan.toll) * 100)} strong />
+            <SummaryRow icon={CreditCard} label="Zollagentur" value={formatEuro(plan.customs)} />
+            <SummaryRow label="Sofortkosten" value={formatEuro(((plan.fuel + plan.toll) * 100 + plan.customs))} strong />
             <SummaryRow label="Vergütung bei Lieferung" value={formatEuro(order.paymentCents)} />
             <div className="flex items-center justify-between pt-2 border-t border-white/10">
               <span className="text-xs text-muted-foreground">Beitrag vor Fixkosten und Depotstrom</span>
-              <span className="text-lg font-medium text-lime tabular-nums">{formatEuro(order.paymentCents - (plan.fuel + plan.toll) * 100)}</span>
+              <span className="text-lg font-medium text-lime tabular-nums">{formatEuro(order.paymentCents - ((plan.fuel + plan.toll) * 100 + plan.customs))}</span>
             </div>
           </div>
         </div>
