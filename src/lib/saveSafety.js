@@ -1,3 +1,4 @@
+import { migrateDach } from "./simulation/dachEngine";
 import { migrateCompetition } from "./simulation/competitionCore";
 import { isCompleteSnapshot } from "./simulation/snapshotValidation";
 import { migrateApprovals } from "./simulation/delegationEngine";
@@ -58,5 +59,6 @@ export function prepareOwnedLoadedState(state) {
   migrateApprovals(state);
   ensureWorldContinuation(state);
   migrateCompetition(state);
+  migrateDach(state);
   return state;
 }

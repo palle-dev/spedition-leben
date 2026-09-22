@@ -93,7 +93,7 @@ describe("DACH",()=>{
   advance(s,end-s.gameTime);
   expect(o.status).toBe("geliefert");expect(trip.status).toBe("completed");expect(s.vehicles[0].locationCity).toBe("Zürich");
   expect(s.drivers[0].regulation.thisWeek).toBeGreaterThan(0);
-  expect(s.bookings.filter(b=>b.cause.startsWith("Zollagentur:"))).toHaveLength(1);expect(getAccountBalance(s,"1000")).toBe(s.company.accountCents);
+  expect(s.bookings.filter(b=>b.cause.startsWith("Zollagentur:"))).toHaveLength(1);expect(getAccountBalance(s,"1000")).toBe(s.company.accountCents);expect(getAccountBalance(s,"5030")).toBe(6500);
  });
  it("plans an international inbound plus a local follow-up with projected cabotage rights",()=>{
   const s=fresh();s.orders[0].toCity="Wien";s.orders.push({...s.orders[0],id:"local",fromCity:"Wien",toCity:"Linz",deliveryDeadlineMin:s.gameTime+15000});

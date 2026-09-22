@@ -210,7 +210,7 @@ function _segmentRoute(features, fromCity, toCity, legType, routeData) {
     features.push({
       type: "Feature",
       geometry: { type: "LineString", coordinates: coords },
-      properties: { legType, fromCity, toCity, fallback: !r }
+      properties: { legType, fromCity, toCity, fallback: !r || !!r.approximate }
     });
   }
 }
@@ -280,7 +280,7 @@ export function buildTourRouteGeoJSON(plan, routeData) {
             depIndex: di,
             isReturn,
             isOutbound: di === 0 && t !== "empty_drive" && t !== "empty",
-            fallback: !route,
+            fallback: !route || !!route.approximate,
             tourLeg: true,
           },
         });
