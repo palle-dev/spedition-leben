@@ -1,3 +1,4 @@
+import CompanyStories from "@/components/office/CompanyStories";
 import JourneyPanel from "@/components/office/JourneyPanel";
 import DayRecap from "@/components/office/DayRecap";
 import CompanyYard from "@/components/office/CompanyYard";
@@ -56,6 +57,7 @@ export default function Office() {
    <TabsContent value="development" className="space-y-4 mt-5">
     <h2 className="text-lg font-semibold">Deine nächsten Schritte</h2>
     <p className="text-sm text-muted-foreground">Deinen gewählten Unternehmensweg und die Wochenbilanz findest Du im Überblick. Hier entwickelst Du Team und Betrieb im Detail.</p>
+    <CompanyStories/>
     <ScenarioProgressPanel/>
     <OfficeDetail title="Entwicklung & Meilensteine" description="Langfristige Ziele und Fortschritte"><DevelopmentPanel state={state}/></OfficeDetail>
     <OfficeDetail title="Chancen in der Spielwelt" description="Neue Möglichkeiten entdecken"><WorldTeaser state={state}/></OfficeDetail>
