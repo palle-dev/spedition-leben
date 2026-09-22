@@ -1,0 +1,17 @@
+{
+  "profiling": false,
+  "before": {
+    "time": 86880,
+    "vehicles": 75,
+    "drivers": 105,
+    "employees": 18,
+    "orders": 5651,
+    "trips": 957,
+    "tours": 1063
+  },
+  "ms": 2315.572983,
+  "gameTime": 88320,
+  "hash": "22fa373b9e3695c5c2f6343cc67b2537bf86486b7f6778b5251e4ec74cdcde2a",
+  "delivered": 4876,
+  "top": []
+}
