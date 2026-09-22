@@ -48,8 +48,8 @@ export function handleCompetitionCommand(state,command,p: any={}) {
     if(c.recruitments.some(a=>a.rivalId===r.id&&a.status==="joining"))throw new Error("Bitte den bereits vereinbarten Personalwechsel abwarten.");
     if(![95,100,110].includes(p.percent))throw new Error("Unbekanntes Kaufangebot.");
     const amount=Math.round(d.valuation.priceCents*p.percent/100);
-    const minimum=r.relationship>=65||r.cashCents<100000?95:100;
-    if(p.percent<minimum){d.counterCents=d.valuation.priceCents;return {ok:true,counterOffer:true};}
+    const minimum=r.relationship>=65||r.cashCents<100000?95:r.relationship<30?110:100;
+    if(p.percent<minimum){d.counterCents=Math.round(d.valuation.priceCents*minimum/100);return {ok:true,counterOffer:true};}
     funds(state,amount);
     pay(state,amount,"1320","Übernahme-Anzahlung: "+r.name,d.id+"_purchase");
     Object.assign(d,{status:"integrating",priceCents:amount,dueMin:Math.max(m+2*DAY,...r.jobs.map(j=>j.endMin),...(c.rentals||[]).filter(x=>x.rivalId===r.id&&x.status==="active").map(x=>x.dueMin)),snapshot:structuredClone(r.business)});
