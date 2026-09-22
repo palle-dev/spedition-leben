@@ -1260,7 +1260,14 @@ export function suggestTours(state, opts) {
   const { vehicleIds, earliestStart, horizonMin, desiredEndCity, latestReturnMin, mode, acceptNew, restrictOrderIds, fastMode, minNewOrderBufferMin = 0, candidateOrderLimit = 12, maxSuggestions = Infinity, allowNewDangerousGoods = true } = opts;
   const restrictSet = restrictOrderIds ? new Set(restrictOrderIds) : null;
   if (maxSuggestions <= 0) return { suggestions: [] };
-  const reliable = plan => plan.ok && plan.deployments.every(d => d.orderStatus !== "offered" || d.deadlineBufferMin >= minNewOrderBufferMin);
+  const reliable = plan => plan.ok && plan.deployments.every(d => {
+    if (d.orderStatus === "offered" && d.deadlineBufferMin < minNewOrderBufferMin) return false;
+    const order = state._orderMap.get(d.orderId);
+    // Confirmation checks ADR as well; exclude invalid candidates here so a
+    // qualified driver or an ordinary offer can actually reach confirmation.
+    return !order?.isDangerousGoods || validateDgTransport(state, order,
+      resources.vehicles.get(plan.vehicleId), resources.drivers.get(plan.driverId), plan.tourEndMin).ok;
+  });
   const suggestions = [];
 
   // Lookup-Maps aufbauen: O(1) Zugriff für buildTourPlan statt O(n) .find().
