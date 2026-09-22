@@ -45,6 +45,7 @@ export function projectDachDelivery(vehicle,order,m,emptyRoute=null){
 export function recordDachDelivery(state,trip,order,vehicle,m){
  if(!trip.transport?.ruleVersion)return;
  const drives=(trip.phases||[]).filter(p=>["empty_drive","loaded_drive"].includes(p.type));
+ if(order&&drives[0]&&countryOf(drives[0].fromCity)!==countryOf(order.fromCity))projectDachDelivery(vehicle,null,trip.startMin,{fromCity:drives[0].fromCity,toCity:order.fromCity});
  projectDachDelivery(vehicle,order,m,{fromCity:drives[0]?.fromCity,toCity:drives.at(-1)?.toCity});
 }
 export const DACH_COMMANDS=["activateDach","registerDachVehicle"];

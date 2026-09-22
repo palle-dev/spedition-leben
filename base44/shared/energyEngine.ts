@@ -126,7 +126,7 @@ export function futureBattery(state,v) {
 export function publicHub(state,city) {return CITIES.includes(city)&&(state.dach?.enabled||countryOf(city)==="DE")&&!(state.energy?.closedPublicCities||[]).includes(city);}
 const routeCache=new Map();
 function electricRoute(state,from,to,maxKm,initialKm) {
- const key=[from,to,maxKm,initialKm,(state.energy?.closedPublicCities||[]).join(",")].join("|");
+ const key=[!!state.dach?.enabled,from,to,maxKm,initialKm,(state.energy?.closedPublicCities||[]).join(",")].join("|");
  if(routeCache.has(key))return routeCache.get(key);
  const nodes=[...new Set([from,to,...CITIES.filter(c=>publicHub(state,c))])],dist=new Map(nodes.map(c=>[c,Infinity])),prev=new Map(),pending=new Set(nodes);
  dist.set(from,0);

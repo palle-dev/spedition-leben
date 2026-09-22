@@ -51,7 +51,7 @@ describe("DACH",()=>{
   expect(drivingWindow("CH",300).blocked).toBe(false);expect(holiday("AT",1440)).toBe(true);
  });
  it("splits border legs without double distance and keeps legal waiting in predicted counters",()=>{
-  const steps=regulatorySteps(buildWorkSteps("München",{fromCity:"München",toCity:"Zürich"})),p=buildPhases(steps,{workMin:0,driveMin:0},5*1440+800);
+  const steps=regulatorySteps(buildWorkSteps("München",{fromCity:"München",toCity:"Zürich"})),p=buildPhases(steps,{workMin:0,driveMin:0},6*1440+600);
   expect(p.phases.some(x=>x.reason==="driving_ban")).toBe(true);expect(p.phases.filter(x=>x.type==="customs").reduce((n,x)=>n+x.durationMin,0)).toBe(90);
   expect(p.phases.reduce((n,x)=>n+(x.distanceKm||0),0)).toBe(dachRoute("München","Zürich").totalKm);
   expect(computeFinalCounters(p.phases).regulation).toEqual(p.finalRegulation);

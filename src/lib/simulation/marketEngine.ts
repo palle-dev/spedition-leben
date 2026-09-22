@@ -496,6 +496,14 @@ function makeMarketOffer(state, m) {
     history: [],
   };
 
+  prepareDachOffer(state,offer,anchors,m);
+  offer.feasible = checkOfferFeasibility(state, offer);
+  return offer;
+}
+
+function prepareDachOffer(state,offer,anchors,m){
+  const {fromCity,toCity}=offer;
+  if(state.dach?.enabled)offer.transportRulesVersion=DACH_RULE_VERSION;
   if(state.dach?.enabled){
     // One representative route calculation per offer, never a fleet-wide legal search.
     const anchor=Object.keys(anchors).sort((a,b)=>getDistance(a,fromCity)-getDistance(b,fromCity))[0]||fromCity;
@@ -505,8 +513,6 @@ function makeMarketOffer(state, m) {
     offer.deliveryDeadlineMin=Math.max(offer.deliveryDeadlineMin,baseline.endMin+1440);
     offer.paymentCents+=baseline.customsCents||0;
   }
-  offer.feasible = checkOfferFeasibility(state, offer);
-  return offer;
 }
 
 // ---------- Marktwelle ----------
@@ -594,12 +600,14 @@ export function generateDgWave(state, m, log) {
   for (let i = 0; i < fillVs; i++) {
     const profile = vsProfiles[Math.floor(rng() * vsProfiles.length)];
     const offer = makeDgOffer(state, profile, m, rng);
+    prepareDachOffer(state,offer,computeAnchorCities(state),m);
     state.orders.push(offer);
     dgGenerated++;
   }
   for (let i = 0; i < fillTk; i++) {
     const profile = tkProfiles[Math.floor(rng() * tkProfiles.length)];
     const offer = makeDgOffer(state, profile, m, rng);
+    prepareDachOffer(state,offer,computeAnchorCities(state),m);
     state.orders.push(offer);
     dgGenerated++;
   }

@@ -1,3 +1,4 @@
+import { countryOf } from "./dachGeography.ts";
 import { governedTransport, validateDachTransport, projectDachDelivery } from "./dachEngine.ts";
 import { regulatorySteps, transportCosts, DACH_RULE_VERSION } from "./dachRules.ts";
 import { isElectric, electricWorkSteps, futureBattery } from "./energyEngine.ts";
@@ -265,7 +266,9 @@ export function buildDeployment(state, order, vehicle, startCity, earliestStart,
   const fuel = electric.energy ? electric.energy.publicCostCents : fuelCents(totalKm, vehicle.consumptionPer100km);
   const toll = charges?.tollCents ?? tollCents(totalKm);
   const customs = charges?.customsCents || 0;
-  const ruleError=validateDachTransport(state,order,vehicle,result.endMin);
+  const validationVehicle={...vehicle,dachCabotage:vehicle.dachCabotage?structuredClone(vehicle.dachCabotage):undefined};
+  if(governed&&countryOf(startCity)!==countryOf(order.fromCity))projectDachDelivery(validationVehicle,null,earliestStart,{fromCity:startCity,toCity:order.fromCity});
+  const ruleError=(!state.dach?.enabled&&[startCity,order.fromCity,order.toCity].some(c=>countryOf(c)!=="DE"))?"Zuerst den DACH-Betrieb aktivieren.":validateDachTransport(state,order,validationVehicle,result.endMin);
 
   // Aufbau-Bonus: passender Spezial-Lkw erhält höhere Vergütung.
   const bodyBonusFactor = computeBodyBonusFactor(order, vehicle);
@@ -313,7 +316,7 @@ export function buildEmptyDeployment(state, fromCity, toCity, vehicle, earliestS
   const fuel = electric.energy ? electric.energy.publicCostCents : fuelCents(d, vehicle.consumptionPer100km);
   const toll = charges?.tollCents ?? tollCents(d);
   return {
-    energy: electric.energy, energyError: electric.error || null,
+    energy: electric.energy, energyError: electric.error || (!state.dach?.enabled&&[fromCity,toCity].some(c=>countryOf(c)!=="DE")?"Zuerst den DACH-Betrieb aktivieren.":null),
     ...(governed?{transport:{...charges,ruleVersion:DACH_RULE_VERSION},customsCents:0,finalRegulation:result.finalRegulation}:{}),
     orderId: null,
     orderStatus: null,
