@@ -1,3 +1,4 @@
+import CompetitionPanel from "@/components/world/CompetitionPanel";
 import React, { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Anchor, ArrowRight, BookOpen, Check, Clock, Compass, Flag, Heart, Loader2, Truck } from "lucide-react";
@@ -86,12 +87,7 @@ export default function GameWorld() {
         })}
       </div>}
       {tab === "competition" && <div className="space-y-6">
-        <div className="grid lg:grid-cols-3 gap-4">{w.rivals.map(r => <article key={r.id} className={card + " p-5 space-y-4"}>
-          <div><p className="text-xs text-sky-200">{r.city} · {r.person}</p><h2 className="text-lg font-semibold mt-1">{r.name}</h2><p className="text-xs text-muted-foreground mt-1">{r.strategy}</p></div>
-          <p className="text-sm text-slate-300 leading-relaxed">{r.description}</p>
-          <dl className="grid grid-cols-2 gap-x-3 gap-y-4 text-sm">{[["Betriebsreserve", money(r.cashCents)], ["Freie Lkw", (r.fleet - r.jobs.length) + " / " + r.fleet], ["Verlässlichkeit", r.reliability + " / 100"], ["Verhältnis zu dir", r.relationship + " / 100"], ["Zuschläge", r.wins], ["Abgewickelt", r.completed]].map(([label, value]) => <div key={label}><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-1 font-medium tabular-nums">{value}</dd></div>)}</dl>
-          <p className="text-xs text-muted-foreground border-t border-white/10 pt-3">Regionales Tagesgeschäft zuletzt: {money(r.lastDayNetCents)}. Gewonnene Ausschreibungen binden zusätzlich Geld und Lkw für zwei Tage.</p>
-        </article>)}</div>
+        <CompetitionPanel />
         <section className={card + " p-5 space-y-3"}><h2 className="text-lg font-semibold">Ausschreibungen am Kai</h2><p className="text-sm text-muted-foreground leading-relaxed">Alle drei Spieltage erscheinen zwei Transporte. Ein Gebot ist kostenlos und bis zum Zuschlag änderbar. <strong className="text-foreground">Bei Gewinn wird der Auftrag verbindlich angenommen.</strong> Plane Fahrzeug, Fahrer und Anfahrt selbst; normale Storno- und Verspätungsregeln gelten. Der Erlös entsteht erst durch die Lieferung.</p><p className="text-xs text-sky-200">Nächste Runde: {when(w.nextTenderMin)}</p>
           <details className="text-xs text-muted-foreground"><summary className="cursor-pointer py-1">Wie wird entschieden?</summary><p className="pt-2 leading-relaxed">Punkte = (130 − Preis in % des Richtpreises) × 0,65 + Verlässlichkeit × 0,35 + (Qualitätsvorsprung + Verhandlungsvorsprung) × 0,6. Die höchste Punktzahl gewinnt; bei Gleichstand zuerst der niedrigere Preis, danach eine feste Anbieterreihenfolge. Konkurrenten brauchen freie Lkw und genügend Reserve. Deine Spielwelt-Zusagen sind auf die Anzahl eigener geeigneter Lkw und fester Fahrer begrenzt; bereits geplante normale Touren musst du selbst berücksichtigen. Zuschläge und Lieferungen verändern eure Möglichkeiten für spätere Runden.</p></details>
         </section>

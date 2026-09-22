@@ -1,3 +1,4 @@
+import { getCompetitionEventTimes } from "./competitionDeals.ts";
 import { currentOrders } from "./orderLookup.ts";
 // Extrahiert aus simulationEngine.ts: Berechnet das nächste Simulations-Ereignis.
 // Reine Lesefunktion — verändert keinen Zustand.
@@ -171,6 +172,7 @@ export function earliestEventAfter(state, t, maxMin) {
   if (state.acquisition) {
     for (const tm of getAcquisitionEventTimes(state, t, maxMin)) cand(tm);
   }
+  for (const tm of getCompetitionEventTimes(state)) cand(tm);
   for (const tm of getWorldEventTimes(state)) cand(tm);
   return best;
 }

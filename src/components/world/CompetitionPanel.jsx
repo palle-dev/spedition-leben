@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Building2, Users, Truck, ArrowRight, Handshake, Loader2 } from "lucide-react";
+import { Building2, Users, ArrowRight, Handshake, Loader2 } from "lucide-react";
 import { useGame } from "@/lib/gameContext";
 import { independentRival, rivalCapacity, rivalStaff, competitionPriceFactor } from "@/lib/simulation/competitionCore";
 import { PERSONNEL_ROLES } from "@/lib/simulation/gameRules";

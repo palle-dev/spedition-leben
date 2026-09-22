@@ -215,7 +215,7 @@ function makeTenderBatch(state, m) {
       customer: ["Kontor am Anleger", "Deichland Handel"][i], fromCity: origin, toCity, tons: 6 + 2 * i,
       cargo: "Stückgut", baseCents, costCents, publishedAtMin: m, closeMin: m + WORLD_DAY,
       deliveryDeadlineMin: m + 5 * WORLD_DAY, status: "open", bid: null, winnerId: null, orderId: null,
-      offers: w.rivals.filter(r => r.cashCents >= costCents && r.jobs.length < r.fleet).map(r => {
+      offers: w.rivals.filter(r => independentRival(r) && r.cashCents >= costCents && r.jobs.length < rivalCapacity(r)).map(r => {
         const percent = r.pricePercent + Math.floor(rng(w) * 7) - 3;
         return { rivalId: r.id, percent, paymentCents: Math.round(baseCents * percent / 100), score: tenderScore(percent, r.reliability) };
       }),
