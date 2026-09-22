@@ -32,6 +32,7 @@ import Leadership from '@/pages/Leadership';
 import BusinessModels from '@/pages/BusinessModels';
 import NetworkMap from '@/pages/NetworkMap';
 import GameWorld from '@/pages/GameWorld';
+import Admin from '@/pages/Admin';
 // Add page imports here
 
 const AuthenticatedApp = () => {
@@ -86,6 +87,7 @@ const AuthenticatedApp = () => {
         <Route path="/netzwerk" element={<NetworkMap />} />
         <Route path="/spielwelt" element={<GameWorld />} />
       </Route>
+      <Route path="/admin" element={<Admin />} />
     </Route>
     <Route path="*" element={<PageNotFound />} />
   </Routes>

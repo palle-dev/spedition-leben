@@ -2,12 +2,13 @@ import PhoneCenter from "@/components/game/PhoneCenter";
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
+import { useAuth } from "@/lib/AuthContext";
 import MoneyText from "@/components/MoneyText";
 import FrachtfieberSignet from "@/components/brand/FrachtfieberSignet";
 import FrachtfieberMobileSignet from "@/components/brand/FrachtfieberMobileSignet";
 import SaveSlotsDialog from "@/components/game/SaveSlotsDialog";
 import MailModal from "@/components/mail/MailModal";
-import { Sparkles, Mail as MailIcon, Save, Loader2, HardDrive, HelpCircle, LogOut, Settings, Menu } from "lucide-react";
+import { Sparkles, Mail as MailIcon, Save, Loader2, HardDrive, HelpCircle, LogOut, Settings, Menu, Shield } from "lucide-react";
 import HelpPanel from "@/components/help/HelpPanel";
 import SettingsDialog from "@/components/game/SettingsDialog";
 import { getMailboxStats } from "@/lib/mailData";
@@ -19,6 +20,7 @@ import { base44 } from "@/api/base44Client";
 // Obere Statusleiste: FERNWERK-Marke, Welt-Umschaltung, beide Konten, Bewegungs-Toggle.
 export default function ShellHeader() {
   const { state, motionEnabled, toggleMotion, dirty, save, saving } = useGame();
+  const { user: authUser } = useAuth();
   const { slot } = useHeaderSlot();
   const navigate = useNavigate();
   const location = useLocation();
@@ -129,6 +131,11 @@ export default function ShellHeader() {
                 <Sparkles className={`w-4 h-4 shrink-0 ${motionEnabled ? "text-lime" : ""}`} /> {motionEnabled ? "Animationen aus" : "Animationen an"}
               </button>
               <div className="h-px bg-white/10 my-1" />
+              {authUser?.role === "admin" && (
+                <button onClick={() => navigate("/admin")} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-lime hover:bg-lime/5 transition">
+                  <Shield className="w-4 h-4 shrink-0" /> Admin
+                </button>
+              )}
               <button onClick={() => base44.auth.logout("/login")} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-coral hover:bg-coral/5 transition">
                 <LogOut className="w-4 h-4 shrink-0" /> Abmelden
               </button>
@@ -185,6 +192,16 @@ export default function ShellHeader() {
           >
             <Sparkles className={`w-4 h-4 ${motionEnabled ? "text-lime" : ""}`} />
           </button>
+          {authUser?.role === "admin" && (
+            <button
+              onClick={() => navigate("/admin")}
+              className="w-9 h-9 grid place-items-center rounded-full border border-lime/30 bg-lime/10 text-lime transition shrink-0 hover:bg-lime/20"
+              aria-label="Admin-Bereich"
+              title="Admin-Bereich"
+            >
+              <Shield className="w-4 h-4" />
+            </button>
+          )}
           <button
             onClick={() => base44.auth.logout("/login")}
             className="w-9 h-9 grid place-items-center rounded-full border border-white/10 bg-white/5 text-muted-foreground hover:text-coral transition shrink-0"
