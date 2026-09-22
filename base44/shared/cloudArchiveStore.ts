@@ -181,12 +181,24 @@ export async function hydrateCloudArchive(blocks: any, ownerId: string, state: a
 }
 
 export async function stageCloudArchive(blocks: any, ownerId: string, state: any, previous: any = null, previousRefs: Record<string, string> | null = {}, storage: any = null): Promise<{ state: any; archive_blocks: Record<string, string> }> {
+  // Single-file mode: upload the entire state (history included) as ONE private
+  // file. This replaces the per-chunk block system that caused HTTP 500 failures
+  // on long games — dozens of concurrent uploads overwhelmed the server.
+  // Tradeoff: no cross-save dedup (re-uploads each time), but far more reliable.
+  // hydrateCloudArchive already handles this format via hydrateState + inline-data
+  // pass-through, so existing saves using the old block format still load.
+  if (storage?.uploadPrivateFile) {
+    const json = JSON.stringify(state);
+    const blob = new Blob([json], { type: "application/json" });
+    const file = new File([blob], "state.json", { type: "application/json" });
+    const { file_uri } = await withRetry(() => storage.uploadPrivateFile({ file }));
+    return { state: URI_PREFIX + file_uri, archive_blocks: {} };
+  }
+  // Fallback without storage: legacy inline-block path (keeps old saves working
+  // when private-file storage is unavailable — e.g. contract tests).
   const all = chunks(state);
   const refs: Record<string, string> = {};
   const toCreate: { chunk: any; storedData: string }[] = [];
-  // Reuse blocks already committed in the previous cloud record. The chunk-id
-  // IS the content hash, so a matching previousRef guarantees identical content
-  // — no need to hydrate the previous state (which may be a file URI) to compare.
   const reused = new Set<string>();
   for (const c of all) {
     if (typeof previousRefs?.[c.id] === "string") {
@@ -194,9 +206,6 @@ export async function stageCloudArchive(blocks: any, ownerId: string, state: any
       reused.add(c.id);
     }
   }
-  // Fetch existing blocks only for chunks not already reused (dedup by content hash).
-  // Avoids fetching all owner blocks, which silently dropped blocks beyond the
-  // 1000-row limit and broke saves of long games.
   const newChunks = all.filter((c: any) => !reused.has(c.id));
   const existingByHash = newChunks.length > 0
     ? await fetchBlocksByHashes(blocks, ownerId, newChunks.map((c: any) => c.id))
@@ -211,26 +220,13 @@ export async function stageCloudArchive(blocks: any, ownerId: string, state: any
     const existing = existingByHash.get(c.id);
     if (existing) {
       if (!validRecord(existing, ownerId, c)) throw new CloudArchiveError("Cloud-Archivindex stimmt nicht überein.");
-      // File-based blocks were verified at upload time; base64 blocks verify now.
       if (!isFileUri(existing.data)) await verifyBase64(existing.data, c.id);
       refs[c.id] = existing.id;
       return reference(c);
     }
-    // New block: upload file now, queue for bulk create to avoid per-chunk DB writes.
-    let storedData: string;
-    if (storage?.uploadPrivateFile) {
-      const binary = atob(data);
-      const blob = new Blob([Uint8Array.from(binary, (ch: number) => ch.charCodeAt(0))], { type: "application/gzip" });
-      const file = new File([blob], c.id + ".gz", { type: "application/gzip" });
-      const { file_uri } = await withRetry(() => storage.uploadPrivateFile({ file }));
-      storedData = URI_PREFIX + file_uri;
-    } else {
-      storedData = data;
-    }
-    toCreate.push({ chunk: c, storedData });
+    toCreate.push({ chunk: c, storedData: data });
     return reference(c);
   });
-  // Bulk create all new blocks in ONE DB call to avoid per-chunk create rate limits.
   if (toCreate.length > 0) {
     const created = await withRetry(() => blocks.bulkCreate(toCreate.map(({ chunk, storedData }) => ({
       owner_id: ownerId, content_hash: chunk.id, descriptor: reference(chunk), data: storedData,
@@ -242,6 +238,5 @@ export async function stageCloudArchive(blocks: any, ownerId: string, state: any
     }
   }
   const strippedState = stateWithChunks(state, items);
-  const stateRef = await stageState(storage, strippedState);
-  return { state: stateRef, archive_blocks: refs };
+  return { state: strippedState, archive_blocks: refs };
 }
