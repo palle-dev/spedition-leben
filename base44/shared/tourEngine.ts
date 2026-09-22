@@ -1277,7 +1277,7 @@ export function suggestTours(state, opts) {
   const startMin = earliestStart || state.gameTime;
   const maxMin = startMin + (horizonMin || 48 * 60);
   const availabilitySensitive = new Set();
-  for (const item of [...(state.absences?.sicknesses || []), ...(state.absences?.vacationRequests || []), ...(state.training?.enrollments || []), ...(state.training?.apprenticeships || [])]) availabilitySensitive.add(item.personId);
+  for (const item of [...(state.absences?.sicknesses || []), ...(state.absences?.vacationRequests || []), ...(state.training?.enrollments || []), ...(state.training?.apprenticeships || []), ...(state.training?.qualifications || [])]) availabilitySensitive.add(item.personId);
   const usedDriverIds = new Set();
   const usedOrderIds = new Set();
 
@@ -1458,7 +1458,7 @@ export function suggestTours(state, opts) {
         _cached("futD:" + driver.id, () => futureDriverLocation(state, driver)),
         _cached("ea:" + vehicleId + "|" + driver.id, () => earliestAvailable(state, vehicle, driver)),
         _cached("nrs:" + vehicleId + "|" + driver.id, () => nextReservationStart(state, vehicle, driver)),
-        counters.workMin, counters.driveMin,
+        counters.workMin, counters.driveMin, counters.regulation ?? null,
         driver.isTempStaff && Number.isFinite(driver.tempReturnMin) ? driver.tempReturnMin : null,
       ]);
       if (seenDriverConditions.has(conditions)) continue;
