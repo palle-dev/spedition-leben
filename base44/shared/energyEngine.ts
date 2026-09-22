@@ -28,7 +28,7 @@ function siteFor(state,branchId) {
  return state.energy.sites[branchId] ||= emptyEnergySite();
 }
 export function installEnergyUpgrade(state,p) {
- const b=(state.branches||[]).find(b=>b.id===p.branchId&&b.status==="active"),u=ENERGY_UPGRADES[p.upgrade];
+ const b=(state.branches||[]).find(b=>b.id===p.branchId&&b.status==="active"),u=Object.hasOwn(ENERGY_UPGRADES,p.upgrade)?ENERGY_UPGRADES[p.upgrade]:null;
  if(!b||!u)throw Error("Aktive Filiale und gültiger Energieausbau erforderlich.");
  if(state.company.accountCents<u.priceCents||state.openCosts?.some(c=>c.account==="company"))throw Error("Firmenkonto reicht nicht aus oder betriebliche Kosten sind offen.");
  const site=siteFor(state,b.id);

@@ -31,7 +31,6 @@ import {
 } from "./gameRules.ts";
 import { hasPendingTour, getOrderReservation, buildDeployment, buildEmptyDeployment, buildTourPlan, confirmTour as doConfirmTour, cancelTour as doCancelTour, processTours, onTripCompleted, findReturnLoads, suggestTours, futureLocation, futureDriverLocation, _clearPlanCache } from "./tourEngine.ts";
 import {
-  buildPhases, buildWorkSteps, buildEmptyWorkSteps,
   computeFinalCounters, resetCounters, needsRest, migrateTripPhases,
 } from "./driverTimeEngine.ts";
 import { checkAchievements, migrateState } from "./progressEngine.ts";
@@ -1007,7 +1006,6 @@ export function applyCommand(state, command, params) {
       if (v.locationCity !== d.locationCity) throw new Error("Fahrer und Lkw befinden sich an unterschiedlichen Orten.");
       if (v.locationCity !== p.fromCity) throw new Error("Fahrzeug und Fahrer müssen am Abfahrtsort sein.");
       if (!p.fromCity || !p.toCity || p.fromCity === p.toCity) throw new Error("Start und Ziel müssen zwei verschiedene Städte sein.");
-      const workSteps = buildEmptyWorkSteps(p.fromCity, p.toCity);
       const counters = { workMin: d.workMinutesSinceRest || 0, driveMin: d.driveMinutesSinceBreak || 0 };
       const phaseResult = buildEmptyDeployment(state,p.fromCity,p.toCity,v,state.gameTime,counters);
       if (phaseResult.energyError) throw new Error(phaseResult.energyError);
