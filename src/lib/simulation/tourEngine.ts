@@ -449,6 +449,7 @@ export function buildTourPlan(state, opts) {
       }
       if (order.status === "offered") acceptedOrderIds.push(orderId);
       deployments.push(dep);
+      if (governedTransport(state,order)) projectDachDelivery(planningVehicle,order,dep.endMin);
       totalKm += dep.totalKm; emptyKm += dep.emptyKm; loadedKm += dep.loadedKm;
       totalFuel += dep.fuelCents; totalToll += dep.tollCents; totalCustoms += dep.customsCents||0; totalPayment += dep.paymentCents;
       if (dep.deadlineBufferMin !== null && dep.deadlineBufferMin < minBuffer) minBuffer = dep.deadlineBufferMin;
@@ -1074,7 +1075,7 @@ export function processTours(state, m, log) {
     }
 
     // Liquidität prüfen
-    const fuelToll = nextDep.dep.fuelCents + nextDep.dep.tollCents;
+    const fuelToll = nextDep.dep.fuelCents + nextDep.dep.tollCents + (nextDep.dep.customsCents||0);
     if (state.company.accountCents < fuelToll) {
       tour.pauseReason = "Firmenkonto reicht für Kraftstoff und Maut (" + (fuelToll / 100).toFixed(2) + " €) nicht. Kostet: " + (fuelToll / 100).toFixed(2) + " €.";
       log.push({ type: "tour_paused", tour: tour.id, reason: tour.pauseReason });

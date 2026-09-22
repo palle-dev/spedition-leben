@@ -19,26 +19,33 @@ export function validateDachTransport(state,order,vehicle,endMin){
  if(from!==to||from===home)return null;
  if(from==="CH")return "Schweizer Binnenauftrag: benötigt einen lokal zugelassenen Schweizer Betrieb und Lkw. Eine Filialzuweisung allein ersetzt die Registrierung nicht.";
  if(home==="CH")return "Schweizer Betreiber: keine EU-Kabotageberechtigung für diesen Binnenauftrag.";
- const c=vehicle.dachCabotage;
- if(!c||c.country!==from||!c.inboundAtMin)return "Kabotage: zuerst einen beladenen grenzüberschreitenden Transport mit diesem Lkw vollständig zustellen.";
+ const c=vehicle.dachCabotage?.[from];
+ if(!c||!Number.isFinite(c.inboundAtMin))return "Kabotage: zuerst einen beladenen grenzüberschreitenden Transport mit diesem Lkw vollständig zustellen.";
  if((c.cooldownUntilMin||0)>state.gameTime)return "Kabotage: die viertägige Abkühlfrist ist noch nicht beendet.";
  const limit=(Math.floor(c.inboundAtMin/1440)+8)*1440;
  if(endMin>=limit)return "Kabotage: Lieferung liegt außerhalb des siebentägigen Zeitfensters.";
  if(c.count>=3)return "Kabotage: maximal drei Binnenlieferungen nach der internationalen Einfahrt.";
  return null;
 }
-export function projectDachDelivery(vehicle,order,m){
- if(!order)return;
- const from=countryOf(order.fromCity),to=countryOf(order.toCity),home=vehicle.operatorCountry||"DE",old=vehicle.dachCabotage;
+// At most three country records per truck; no growing transport history in the hot state.
+export function projectDachDelivery(vehicle,order,m,emptyRoute=null){
+ const route=order||emptyRoute;if(!route)return;
+ const from=countryOf(route.fromCity),to=countryOf(route.toCity),home=vehicle.operatorCountry||"DE";
+ vehicle.dachCabotage ||= {};
  if(from!==to){
-  const cooldown=(old?.count>0)?(Math.floor(old.lastCabotageMin/1440)+5)*1440:(old?.cooldownUntilMin||0);
-  vehicle.dachCabotage={country:to,inboundAtMin:m,count:0,cooldownUntilMin:old?.country===to?cooldown:0,priorCountry:old?.country,priorCooldownUntilMin:cooldown};
-  if(old?.priorCountry===to)vehicle.dachCabotage.cooldownUntilMin=Math.max(vehicle.dachCabotage.cooldownUntilMin,old.priorCooldownUntilMin||0);
- }else if(from!==home&&old){old.count++;old.lastCabotageMin=m;}
+  const exit=vehicle.dachCabotage[from];
+  if(exit?.count>0)exit.cooldownUntilMin=Math.max(exit.cooldownUntilMin||0,(Math.floor(exit.lastCabotageMin/1440)+5)*1440);
+  if(exit)exit.inboundAtMin=null;
+  const previous=vehicle.dachCabotage[to];
+  vehicle.dachCabotage[to]={inboundAtMin:order?m:null,count:0,cooldownUntilMin:previous?.cooldownUntilMin||0};
+ }else if(order&&from!==home&&vehicle.dachCabotage[from]){
+  const c=vehicle.dachCabotage[from];c.count++;c.lastCabotageMin=m;
+ }
 }
 export function recordDachDelivery(state,trip,order,vehicle,m){
  if(!trip.transport?.ruleVersion)return;
- projectDachDelivery(vehicle,order,m);
+ const drives=(trip.phases||[]).filter(p=>["empty_drive","loaded_drive"].includes(p.type));
+ projectDachDelivery(vehicle,order,m,{fromCity:drives[0]?.fromCity,toCity:drives.at(-1)?.toCity});
 }
 export const DACH_COMMANDS=["activateDach","registerDachVehicle"];
 export function handleDachCommand(state,command,p:any={}){

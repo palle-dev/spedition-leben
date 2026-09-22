@@ -1,3 +1,5 @@
+import { countryOf } from "./dachGeography.ts";
+import { DACH_RULE_VERSION } from "./dachRules.ts";
 import { competitionPriceFactor } from "./competitionCore.ts";
 import { currentOrders } from "./orderLookup.ts";
 import { recordOrderOutcome } from "./customerEngine.ts";
@@ -20,7 +22,7 @@ import {
   SERVICE_START_MIN,
   pickCargoCategory, checkBodyTypeCompatibility,
 } from "./gameRules.ts";
-import { earliestAvailable, createAvailabilityReader } from "./tourEngine.ts";
+import { earliestAvailable, createAvailabilityReader, buildDeployment } from "./tourEngine.ts";
 import {
   DG_PROFILES, makeDgOffer, computeDgFleetN,
 } from "./dangerousGoodsEngine.ts";
@@ -175,7 +177,8 @@ function computeAnchorCities(state) {
 // Der Anker-Bonus wird auf 6 begrenzt, damit kein einzelner Kunde
 // durch Rückkopplung aktiver Touren den gesamten Markt dominiert.
 function pickCustomer(state, anchors, rng) {
-  const weights = CUSTOMER_PROFILES.map(c => {
+  const customers = CUSTOMER_PROFILES.filter(c => state.dach?.enabled || c.depots.every(city=>countryOf(city)==="DE"));
+  const weights = customers.map(c => {
     let bonus = 0;
     for (const depot of c.depots) {
       if (anchors[depot]) bonus += anchors[depot];
@@ -184,9 +187,9 @@ function pickCustomer(state, anchors, rng) {
     // Verschiebt die Verteilung, ohne die Gesamtzahl der Angebote zu erhöhen.
     const region = getRegionOfCity(c.depots[0]);
     const demandFactor = getDemandFactor(state, region, "standard");
-    return (8 + Math.min(bonus, 6)) * demandFactor;
+    return (countryOf(c.depots[0])!=="DE"&&!bonus?1:8 + Math.min(bonus, 6)) * demandFactor;
   });
-  return weightedPick(CUSTOMER_PROFILES, weights, rng);
+  return weightedPick(customers, weights, rng);
 }
 
 // Wählt ein Depot des Kunden.
@@ -204,7 +207,7 @@ function pickDestination(state, customer, fromCity, anchors, rng) {
     if (rel[1] === fromCity) return rel[0];
   }
   // Sonst: gewichtet nach Ankerstädten
-  const cities = CITIES.filter(c => c !== fromCity);
+  const cities = CITIES.filter(c => (state.dach?.enabled || countryOf(c)==="DE") && c !== fromCity);
   const weights = cities.map(c => (anchors[c] || 0) + 1);
   return weightedPick(cities, weights, rng);
 }
@@ -343,6 +346,7 @@ function checkOfferFeasibility(state, offer) {
   const loadedKm = getDistance(offer.fromCity, offer.toCity);
   const opMin = LOAD_MIN + driveMinutes(loadedKm) + UNLOAD_MIN;
 
+  let legalChecks=0;
   for (const v of state.vehicles || []) {
     if (v.status === "archived" || v.condition < 20) continue;
     if (v.capacityTons < offer.tons) continue;
@@ -361,6 +365,12 @@ function checkOfferFeasibility(state, offer) {
       const avail = context ? Math.max(context.vehicleAvailability.get(v), context.driverAvailability.get(d)) : earliestAvailable(state, v, d);
       if (avail > maxPickup) continue;
 
+      if(state.dach?.enabled){
+        if(++legalChecks>12)return false;
+        const plan=buildDeployment(state,offer,v,v.locationCity,avail,{workMin:d.workMinutesSinceRest||0,driveMin:d.driveMinutesSinceBreak||0,regulation:d.regulation});
+        if(!plan.energyError&&plan.endMin<=offer.deliveryDeadlineMin&&(plan.phases.find(p=>p.type==="loading")?.startMin||avail)<=offer.latestLoadStartMin)return true;
+        continue;
+      }
       // Fahrzeug reist erst leer zur Abholung, dann beginnt der Ladungsprozess.
       const arriveAtPickup = avail + emptyDriveMin;
       const pickupStart = Math.max(arriveAtPickup, offer.earliestPickupMin);
@@ -417,7 +427,7 @@ function makeMarketOffer(state, m) {
   // Bei Regional-Fokus: bevorzugt kurze Distanzen (≤150 km)
   let toCity;
   if (wRegional > 0.45 && rng() < wRegional) {
-    const nearby = CITIES.filter(c => c !== fromCity && getDistance(fromCity, c) <= 150);
+    const nearby = CITIES.filter(c => (state.dach?.enabled || countryOf(c)==="DE") && c !== fromCity && getDistance(fromCity, c) <= 150);
     if (nearby.length > 0) {
       toCity = nearby[Math.floor(rng() * nearby.length)];
     } else {
@@ -460,6 +470,7 @@ function makeMarketOffer(state, m) {
   const tw = computeTimeWindows(state, m, offerType, fromCity, toCity, km, rng);
 
   const offer = {
+    ...(state.dach?.enabled?{transportRulesVersion:DACH_RULE_VERSION}:{}),
     id: uid(state, "o"),
     customerId: customer.id,
     customer: customer.name,
@@ -485,6 +496,15 @@ function makeMarketOffer(state, m) {
     history: [],
   };
 
+  if(state.dach?.enabled){
+    // One representative route calculation per offer, never a fleet-wide legal search.
+    const anchor=Object.keys(anchors).sort((a,b)=>getDistance(a,fromCity)-getDistance(b,fromCity))[0]||fromCity;
+    const baseline=buildDeployment(state,offer,{capacityTons:24,consumptionPer100km:30,operatorCountry:countryOf(fromCity)},anchor,m,{workMin:0,driveMin:0});
+    const load=baseline.phases.find(p=>p.type==="loading")?.startMin||m;
+    offer.latestLoadStartMin=Math.max(offer.latestLoadStartMin,load+720);
+    offer.deliveryDeadlineMin=Math.max(offer.deliveryDeadlineMin,baseline.endMin+1440);
+    offer.paymentCents+=baseline.customsCents||0;
+  }
   offer.feasible = checkOfferFeasibility(state, offer);
   return offer;
 }

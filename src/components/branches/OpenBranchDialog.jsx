@@ -1,3 +1,4 @@
+import { countryOf } from "@/lib/simulation/dachGeography";
 import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro } from "@/lib/gameData";
@@ -23,7 +24,7 @@ export default function OpenBranchDialog({ onClose }) {
   const day = Math.floor(state.gameTime / 1440) + 1;
   const existingBranches = state.branches.filter(b => b.status === "active");
   const existingCities = new Set(existingBranches.map(b => b.city));
-  const availableCities = ALL_CITIES.filter(c => !existingCities.has(c));
+  const availableCities = ALL_CITIES.filter(c => !existingCities.has(c) && (state.dach?.enabled || countryOf(c)==="DE"));
 
   const reqCheck = {
     dayOk: day >= BRANCH_MIN_GAME_DAY,
