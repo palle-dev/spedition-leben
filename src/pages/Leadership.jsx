@@ -19,19 +19,6 @@ export default function Leadership() {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
 
-  const allSelected = summary?.pending?.length > 0 && selectedIds.size === summary.pending.length;
-  function toggleSelect(id) {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }
-  function toggleSelectAll() {
-    if (allSelected) setSelectedIds(new Set());
-    else setSelectedIds(new Set(summary.pending.map(r => r.id)));
-  }
-
   const summary = useMemo(() => {
     if (!state.delegation) return null;
     const d = state.delegation;
@@ -46,6 +33,19 @@ export default function Leadership() {
   }, [state]);
 
   if (!summary) return null;
+
+  const allSelected = summary.pending.length > 0 && selectedIds.size === summary.pending.length;
+  function toggleSelect(id) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+  function toggleSelectAll() {
+    if (allSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(summary.pending.map(r => r.id)));
+  }
 
   async function handlePreset(presetId) {
     try {
