@@ -98,17 +98,28 @@ export async function hydrateState(storage: any, state: any): Promise<any> {
   return await response.json();
 }
 
+// Fetches archive blocks by content hash in small batches. A single filter call
+// with hundreds of 64-char hashes exceeds the platform's request-size limit
+// (HTTP 431), so we chunk the $in array into manageable groups.
+async function fetchBlocksByHashes(blocks: any, ownerId: string, hashes: string[], batchSize = 40): Promise<Map<string, any>> {
+  const result = new Map<string, any>();
+  for (let i = 0; i < hashes.length; i += batchSize) {
+    const batch = hashes.slice(i, i + batchSize);
+    if (batch.length === 0) continue;
+    const rows = await blocks.filter({ owner_id: ownerId, content_hash: { $in: batch } }, "-created_date", 1000);
+    for (const row of rows || []) {
+      if (row?.content_hash && !result.has(row.content_hash)) result.set(row.content_hash, row);
+    }
+  }
+  return result;
+}
+
 export async function hydrateCloudArchive(blocks: any, ownerId: string, state: any, refs: Record<string, string> | null = {}, storage: any = null): Promise<any> {
   state = await hydrateState(storage, state);
   const all = chunks(state);
-  // Fetch only blocks for the chunks in this state (content-addressable lookup).
-  // The previous "fetch all owner blocks" approach silently dropped blocks beyond
-  // the 1000-row limit, breaking loads of long games.
-  const rowByHash = new Map<string, any>();
-  if (all.length > 0) {
-    const rows = await blocks.filter({ owner_id: ownerId, content_hash: { $in: all.map((c: any) => c.id) } }, "-created_date", 1000);
-    for (const row of rows || []) rowByHash.set(row.content_hash, row);
-  }
+  // Fetch only blocks for the chunks in this state (content-addressable lookup),
+  // batched to stay within the platform's request-size limit.
+  const rowByHash = all.length > 0 ? await fetchBlocksByHashes(blocks, ownerId, all.map((c: any) => c.id)) : new Map<string, any>();
   const items = await mapWithConcurrency(all, CONCURRENCY, async (c: any) => {
     // Legacy embedded base64 saves (pre-file-storage) pass through directly.
     if (typeof c.data === "string" && !isFileUri(c.data)) return c;
@@ -149,13 +160,9 @@ export async function stageCloudArchive(blocks: any, ownerId: string, state: any
   // Avoids fetching all owner blocks, which silently dropped blocks beyond the
   // 1000-row limit and broke saves of long games.
   const newChunks = all.filter((c: any) => !reused.has(c.id));
-  const existingByHash = new Map<string, any>();
-  if (newChunks.length > 0) {
-    const rows = await blocks.filter({ owner_id: ownerId, content_hash: { $in: newChunks.map((c: any) => c.id) } }, "-created_date", 1000);
-    for (const row of rows || []) {
-      if (row?.content_hash && !existingByHash.has(row.content_hash)) existingByHash.set(row.content_hash, row);
-    }
-  }
+  const existingByHash = newChunks.length > 0
+    ? await fetchBlocksByHashes(blocks, ownerId, newChunks.map((c: any) => c.id))
+    : new Map<string, any>();
   const items: any[] = await mapWithConcurrency(all, CONCURRENCY, async (c: any) => {
     if (reused.has(c.id)) {
       if (c.data != null) await verifyBase64(c.data, c.id);
