@@ -16,6 +16,11 @@ export function competitionNotice(state, title, text) {
   deliverMessage(state,{fromId:"system",toId:"player",subject:title,body:text+"\n\nSpielwelt → Wettbewerb",gameTime:state.gameTime,
     category:"operations",priority:"normal",dedupKey:record.id});
 }
+function staffName(r,index) {
+  const first=["Jens","Maren","Ole","Nele","Sven","Anja","Timo","Katrin","Lars","Hanna","Jan","Pia"];
+  const last={hansen:["Petersen","Brandes","Lohmann","Tietjen","Ahrens"],nordsprint:["Wulf","Mertens","Sander","Frerichs","Oltmann"],hansecargo:["Seidel","Rabe","Behrens","Jürgens","Martens"]}[r.id]||["Hansen","Meier"];
+  return first[index%first.length]+" "+last[Math.floor(index/first.length)%last.length];
+}
 function makeVehicle(r,index) {
   const profile=VEHICLE_CATALOG.standard;
   return {id:r.id+"_vehicle_"+index,type:profile.label,catalogId:profile.id,bodyType:"planen",
@@ -26,10 +31,10 @@ function makeVehicle(r,index) {
 export function addRivalCapacity(r) {
   const index=++r.business.sequence;
   r.business.vehicles.push(makeVehicle(r,index));
-  r.business.staff.push({id:r.id+"_driver_"+index,name:["Jens","Maren","Ole","Nele","Sven","Anja"][index%6]+" "+r.city+" "+index,
+  r.business.staff.push({id:r.id+"_driver_"+index,name:staffName(r,index),
     role:"driver",costPerDayCents:10000,status:"employed",satisfaction:65,qualifications:["driver_license"]});
   if(r.business.staff.filter(p=>p.role.startsWith("dispatcher")&&p.status==="employed").reduce((n,p)=>n+PERSONNEL_ROLES[p.role].capacity,0)<r.business.vehicles.length)
-    r.business.staff.push({id:r.id+"_dispatcher_"+index,name:"Alex "+r.city+" "+index,role:"dispatcher_senior",costPerDayCents:26000,status:"employed",satisfaction:75,qualifications:["dispatcher_senior"]});
+    r.business.staff.push({id:r.id+"_dispatcher_"+index,name:staffName(r,index+31),role:"dispatcher_senior",costPerDayCents:26000,status:"employed",satisfaction:75,qualifications:["dispatcher_senior",...(r.id==="hansecargo"?["dispo_lead"]:["dispo_efficiency"])]});
   r.fleet=r.business.vehicles.length;
 }
 export function migrateCompetition(state) {
@@ -65,6 +70,14 @@ export function competitionDaily(state,m) {
     r.lastDayNetCents=revenue-costs;
     // A finite balance sheet, one investment per week, no second per-minute dispatch engine.
     const locked=state.competition.deals.some(d=>d.rivalId===r.id&&["review","ready"].includes(d.status));
+    if(!locked&&Math.floor(m/1440)%7===0&&r.cashCents>costs*14+100000) {
+      const team=rivalStaff(r),drivers=team.filter(p=>p.role==="driver").length;
+      const dispatch=team.filter(p=>p.role.startsWith("dispatcher")).reduce((n,p)=>n+PERSONNEL_ROLES[p.role].capacity,0);
+      const role=drivers<b.vehicles.length?"driver":dispatch<b.vehicles.length?"dispatcher_senior":null;
+      if(role){const id=++b.sequence;r.cashCents-=PERSONNEL_ROLES[role].hireFeeCents;
+        b.staff.push({id:r.id+"_replacement_"+id,name:staffName(r,id+13),role,costPerDayCents:PERSONNEL_ROLES[role].costPerDayCents,status:"employed",satisfaction:70,qualifications:[role==="driver"?"driver_license":"dispatcher_senior"]});
+        competitionNotice(state,r.name+" besetzt eine Stelle nach", "Die Firma hat eine freie Stelle aus eigenen Mitteln neu besetzt.");}
+    }
     if(!locked&&Math.floor(m/1440)%7===0&&b.vehicles.length<40&&r.cashCents>3500000+costs*14) {
       r.cashCents-=3500000;addRivalCapacity(r);
       competitionNotice(state,r.name+" wächst","Ein Lkw und ein Fahrer wurden aus der Betriebsreserve finanziert.");

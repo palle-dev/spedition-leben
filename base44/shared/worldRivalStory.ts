@@ -9,7 +9,7 @@ export function ensureRivalStory(state,now=state.gameTime){
  run.path=parent.path||"independent";run.availableAtMin=now+21*1440;
 }
 const c=(id,label,detail,text,effect={},costCents=0)=>({id,label,detail:detail+" Die Folgen treten nach drei Spieltagen ein.",account:"company",costCents,effect:{},delayed:{text,effect}});
-export function rivalScene(state,run){
+function rivalSceneBase(state,run){
  const rivals=state.world.rivals,malte=rivals.find(r=>r.id==="nordsprint"),anna=rivals.find(r=>r.id==="hansen");
  const picks=Object.fromEntries(run.decisions.map(d=>[d.stage,d.choiceId]));
  if(run.stage===0)return {title:"Malte bleibt noch stehen",
@@ -65,4 +65,13 @@ export function rivalScene(state,run){
  "Du bleibst auf deinem Weg, ohne jede Begegnung zu einer Grundsatzfrage zu machen. Die Gespräche und deine Entscheidungen bleiben in der Chronik erhalten.",{trust:2,stress:-2}),
  ]};
  return null;
+}
+
+export function rivalScene(state,run){
+ const scene=rivalSceneBase(state,run);if(!scene)return scene;
+ const acquired=state.world.rivals.filter(r=>r.businessStatus==="acquired");
+ if(!acquired.length)return scene;
+ const text="Seit der Übernahme von "+acquired.map(r=>r.name).join(", ")+" begegnet ihr euch mit einer veränderten gemeinsamen Firmengeschichte. Die früheren Inhaber behalten ihre persönliche Sicht auf deine Entscheidungen. "+
+ scene.text.replace("Niemand hat seine Firma oder seine Interessen abgegeben.","Eure Rollen haben sich verändert, eure persönlichen Interessen bleiben.").replace("wenn wir uns morgen wieder um denselben Auftrag bewerben?","wenn sich unsere geschäftlichen Rollen verändern?");
+ return {...scene,text,choices:scene.choices.map(choice=>({...choice,delayed:{...choice.delayed,text:choice.delayed.text.replace("Ihr seid weiterhin Konkurrenten, aber", "Ihr habt eine gemeinsame Firmengeschichte, und").replace("Eine gemeinsame Firma oder zusätzliche Transportpflicht ist daraus nicht entstanden.","Diese fachliche Arbeit begründet keine zusätzlichen Transportpflichten.")}}))};
 }
