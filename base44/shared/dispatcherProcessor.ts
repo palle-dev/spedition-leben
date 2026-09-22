@@ -210,7 +210,10 @@ export function processDispatcher(state, emp, m, log) {
   const hasUnplannedAccepted = unplannedCount > 0;
   const hasOfferedOrders = offeredCount > 0;
   if (!hasUnplannedAccepted && !hasOfferedOrders) {
-    emp.lastIdleReason = acceptNew ? "Keine Aufträge auf dem Markt" : "Keine angenommenen Aufträge – autonomer Modus nötig";
+    emp.lastIdleReason = acceptNew ? "Keine gültigen Angebote oder offenen Zusagen verfügbar" :
+      emp.workMode !== "autonomous" ? "Neue Aufträge werden in diesem Arbeitsmodus nicht angenommen" :
+      remainingCapacity <= 0 ? "Betreuungskapazität ausgeschöpft (" + managedVehicles.size + "/" + profile.capacity + " Lkw)" :
+      "Automatische Auftragsannahme ist in den Führungsregeln deaktiviert";
     emp.lastIdleReasonAtMin = m;
     return;
   }
@@ -250,6 +253,7 @@ export function processDispatcher(state, emp, m, log) {
     minNewOrderBufferMin: profile.bufferMin, candidateOrderLimit: profile.candidateOrderLimit,
     maxSuggestions: Math.max(1, remainingCapacity),
     desiredEndCity: null, latestReturnMin: null, mode: state.marketPriority || "balanced", acceptNew,
+    allowNewDangerousGoods: hasDgDispatch(state, emp.id),
     fastMode: state._largeAdvance === false,
   });
 
@@ -439,7 +443,7 @@ export function processDispatcher(state, emp, m, log) {
         const consideredOrders = planningOrdersFor(state).filter(o =>
           (o.status === "offered" && o.acceptDeadlineMin > m) || o.status === "angenommen"
         ).length;
-        reason = "Kein profitabler Auftrag gefunden (" + consideredOrders + " geprüft)";
+        reason = "Keine ausführbare Tour in der begrenzten Auswahl aus " + consideredOrders + " verfügbaren Aufträgen";
       }
     }
     v.idleReason = reason;
@@ -499,6 +503,7 @@ function planSingleVehicleIndexed(state, vehicle, m, log) {
     minNewOrderBufferMin: profile.bufferMin, candidateOrderLimit: profile.candidateOrderLimit, maxSuggestions: 1,
     desiredEndCity: null, latestReturnMin: null,
     mode: state.marketPriority || "balanced", acceptNew,
+    allowNewDangerousGoods: hasDgDispatch(state, dispatcher.id),
     fastMode: state._largeAdvance === false,
   });
   if (result.suggestions.length === 0) return;

@@ -1257,7 +1257,7 @@ export function findReturnLoads(state, primaryOrderId, vehicleId, driverId) {
 // mode: "balanced" | "high_margin" | "low_empty"
 export function suggestTours(state, opts) {
   _clearPlanCache();
-  const { vehicleIds, earliestStart, horizonMin, desiredEndCity, latestReturnMin, mode, acceptNew, restrictOrderIds, fastMode, minNewOrderBufferMin = 0, candidateOrderLimit = 12, maxSuggestions = Infinity } = opts;
+  const { vehicleIds, earliestStart, horizonMin, desiredEndCity, latestReturnMin, mode, acceptNew, restrictOrderIds, fastMode, minNewOrderBufferMin = 0, candidateOrderLimit = 12, maxSuggestions = Infinity, allowNewDangerousGoods = true } = opts;
   const restrictSet = restrictOrderIds ? new Set(restrictOrderIds) : null;
   if (maxSuggestions <= 0) return { suggestions: [] };
   const reliable = plan => plan.ok && plan.deployments.every(d => d.orderStatus !== "offered" || d.deadlineBufferMin >= minNewOrderBufferMin);
@@ -1325,7 +1325,8 @@ export function suggestTours(state, opts) {
   const acceptedPool = availableOrders.filter(o => o.status === "angenommen")
     .sort((a, b) => a.deliveryDeadlineMin - b.deliveryDeadlineMin);
   const offeredPool = acceptNew ? availableOrders.filter(o => o.status === "offered" &&
-    o.acceptDeadlineMin > startMin && o.deliveryDeadlineMin > startMin) : [];
+    o.acceptDeadlineMin > startMin && o.deliveryDeadlineMin > startMin &&
+    (allowNewDangerousGoods || !o.isDangerousGoods)) : [];
 
   const rankOrders = createPlanningOrderRanking([...acceptedPool, ...offeredPool]);
 
@@ -1408,7 +1409,8 @@ export function suggestTours(state, opts) {
     const acceptedOrders = acceptedPool.filter(suitable);
     const offeredOrders = offeredPool.filter(suitable);
 
-    const allOrders = [...acceptedOrders, ...offeredOrders];
+    const vehicleOrders = [...acceptedOrders, ...offeredOrders];
+    const allOrders = [...vehicleOrders];
     // CPU-Schutz: die Doppel-Tour-Suche ist O(n²). Bei vielen Aufträgen
     // wird die Liste begrenzt, damit die kombinatorische Explosion (und damit
     // CPU-Timeouts) vermieden wird.
@@ -1444,6 +1446,7 @@ export function suggestTours(state, opts) {
       chainMap.get(o.fromCity).push(o);
     }
     const seenDriverConditions = new Set();
+    const evaluatedDrivers = [];
     for (const driver of candidateDrivers) {
       // buildTourPlan always rejects different future locations. Avoid all
       // single/double-order attempts for this provably infeasible pair.
@@ -1460,6 +1463,7 @@ export function suggestTours(state, opts) {
       ]);
       if (seenDriverConditions.has(conditions)) continue;
       seenDriverConditions.add(conditions);
+      evaluatedDrivers.push(driver);
       let driverBestPlan = null;
       let driverBestOrders = null;
 
@@ -1505,6 +1509,29 @@ export function suggestTours(state, opts) {
         bestPlan = driverBestPlan;
         bestOrders = driverBestOrders;
         bestDriver = driver;
+      }
+    }
+
+    // A high ranked offer is not necessarily feasible. If the primary search
+    // finds nothing, inspect further SINGLE orders in a bounded linear pass.
+    // Never expand the quadratic combination search or relax commitment checks.
+    if (!bestPlan && vehicleOrders.length > allOrders.length && evaluatedDrivers.length) {
+      const primaryIds = new Set(allOrders.map(o => o.id));
+      const remaining = vehicleOrders.filter(o => !primaryIds.has(o.id));
+      const fallbackOrders = rankOrders(remaining, vehicleFutureCity, orderLimit * 4);
+      for (const order of fallbackOrders) {
+        for (const driver of evaluatedDrivers) {
+          const plan = buildTourPlan(state, {
+            vehicleId, driverId: driver.id, orderIds: [order.id], desiredEndCity, latestReturnMin,
+          });
+          if (!plan.ok || !reliable(plan) || plan.tourEndMin > maxMin ||
+              !isDriverAvailableForTour(state, driver, plan.earliestStartMin, plan.driverFreeMin) ||
+              (order.status === "offered" && plan.totalContributionCents <= 0)) continue;
+          if (!bestPlan || comparePlans(plan, bestPlan, mode) < 0) {
+            bestPlan = plan; bestOrders = [order.id]; bestDriver = driver;
+          }
+        }
+        if (bestPlan) break;
       }
     }
 
