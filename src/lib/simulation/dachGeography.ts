@@ -12,7 +12,7 @@ const DE_COORDS = {
   Ulm: [9.9900, 48.4011]
 };
 // Representative logistics locations cover all 16 German states, 9 Austrian states and 26 Swiss cantons.
-export const EXTRA_LOCATIONS = [
+export const EXTRA_LOCATIONS: [string,string,string,number,number][] = [
  ["Schwerin","DE","MV",11.407,53.629],["Potsdam","DE","BB",13.065,52.391],["Mainz","DE","RP",8.247,49.992],["Wiesbaden","DE","HE",8.239,50.083],
  ["Wien","AT","W",16.374,48.208],["Graz","AT","ST",15.439,47.071],["Linz","AT","OO",14.286,48.306],["Salzburg","AT","SA",13.055,47.809],["Innsbruck","AT","TI",11.404,47.269],["Klagenfurt","AT","KA",14.306,46.624],["St. Pölten","AT","NO",15.625,48.204],["Eisenstadt","AT","BU",16.528,47.846],["Bregenz","AT","VO",9.747,47.503],["Wels","AT","OO",14.026,48.166],["Villach","AT","KA",13.85,46.61],
  ["Zürich","CH","ZH",8.542,47.377],["Bern","CH","BE",7.447,46.948],["Luzern","CH","LU",8.31,47.051],["Altdorf","CH","UR",8.644,46.881],["Schwyz","CH","SZ",8.653,47.021],["Sarnen","CH","OW",8.246,46.897],["Stans","CH","NW",8.365,46.958],["Glarus","CH","GL",9.067,47.04],["Zug","CH","ZG",8.517,47.166],["Fribourg","CH","FR",7.162,46.806],["Solothurn","CH","SO",7.537,47.208],["Basel","CH","BS",7.588,47.56],["Liestal","CH","BL",7.735,47.485],["Schaffhausen","CH","SH",8.635,47.696],["Herisau","CH","AR",9.278,47.386],["Appenzell","CH","AI",9.409,47.331],["St. Gallen","CH","SG",9.377,47.425],["Chur","CH","GR",9.532,46.851],["Aarau","CH","AG",8.046,47.393],["Frauenfeld","CH","TG",8.899,47.557],["Bellinzona","CH","TI",9.023,46.195],["Lausanne","CH","VD",6.632,46.52],["Sion","CH","VS",7.36,46.233],["Neuchâtel","CH","NE",6.931,46.99],["Genf","CH","GE",6.143,46.204],["Delémont","CH","JU",7.345,47.365],["Lugano","CH","TI",8.952,46.004],["Winterthur","CH","ZH",8.724,47.5],
@@ -20,8 +20,8 @@ export const EXTRA_LOCATIONS = [
 export const CITY_LATLON = {...DE_COORDS,...Object.fromEntries(EXTRA_LOCATIONS.map(([name,c,r,lng,lat])=>[name,[lng,lat]]))};
 export const CITIES=Object.keys(CITY_LATLON);
 export const COUNTRY_NAMES={DE:"Deutschland",AT:"Österreich",CH:"Schweiz"};
-export function countryOf(city){return EXTRA_LOCATIONS.find(x=>x[0]===city)?.[1] || (DE_COORDS[city]?"DE":null);}
-export const CITY_COUNTRY=Object.fromEntries(CITIES.map(c=>[c,countryOf(c)]));
+export const CITY_COUNTRY={...Object.fromEntries(Object.keys(DE_COORDS).map(c=>[c,"DE"])),...Object.fromEntries(EXTRA_LOCATIONS.map(x=>[x[0],x[1]]))};
+export function countryOf(city){return CITY_COUNTRY[city]||null;}
 const borders=[
  {id:"Walserberg",countries:["DE","AT"],point:[12.949,47.774]},
  {id:"Kiefersfelden",countries:["DE","AT"],point:[12.188,47.61]},

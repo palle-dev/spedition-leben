@@ -2555,5 +2555,6 @@ export function applyCommand(state, command, params) {
   if (finalAchs.length && !result.newAchievements) result.newAchievements = finalAchs;
   // Belohnungsansprueche nach Erfolgsprüfung aktualisieren (Auftrag 26)
   checkRewardClaims(state);
+  migrateDach(state);
   return { state, result };
 }
