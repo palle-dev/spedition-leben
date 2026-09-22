@@ -420,7 +420,7 @@ export function buildTourPlan(state, opts) {
     let totalFuel = 0, totalToll = 0, totalCustoms = 0, totalPayment = 0;
     let minBuffer = Infinity;
     let counters = { ...initCounters };
-    const planningVehicle = {...vehicle,dachCabotage:vehicle.dachCabotage?structuredClone(vehicle.dachCabotage):null,...(isElectric(vehicle)?{batteryKWh:futureBattery(state,vehicle)}:{})};
+    let planningVehicle = null;
 
     for (const orderId of orderIds) {
       const order = _orderById(state, orderId);
@@ -439,6 +439,7 @@ export function buildTourPlan(state, opts) {
           optimistic.delivery > order.deliveryDeadlineMin + 240) {
         return { ok: false as const, error: "Lieferfrist oder Ladefenster selbst ohne zusätzliche Pausen nicht erreichbar." };
       }
+      planningVehicle ||= {...vehicle,dachCabotage:vehicle.dachCabotage?structuredClone(vehicle.dachCabotage):null,...(isElectric(vehicle)?{batteryKWh:futureBattery(state,vehicle)}:{})};
       const dep = buildDeployment(state, order, planningVehicle, currentCity, t, counters);
       if (dep.energyError) return {ok:false as const,error:dep.energyError};
       if (dep.energy) planningVehicle.batteryKWh=dep.energy.finalBatteryKWh;

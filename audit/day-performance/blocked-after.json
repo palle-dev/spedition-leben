@@ -8,150 +8,150 @@
     "trips": 0,
     "tours": 0
   },
-  "ms": 3374.530704,
+  "ms": 730.3831959999998,
   "gameTime": 540,
   "hash": "f8213416d86886a4f1eddd4fe7180ac8d022370a9f0014d294d9bff88eca07ee",
   "delivered": 0,
   "top": [
     [
-      "_tryPlan tourEngine.ts:442",
-      2133680
-    ],
-    [
       "_cached tourEngine.ts:113",
-      274461
-    ],
-    [
-      "suggestTours tourEngine.ts:1316",
-      160799
-    ],
-    [
-      "buildTourPlan tourEngine.ts:403",
-      114717
+      162710
     ],
     [
       "dispatch :-1",
-      97837
+      87026
     ],
     [
-      "(garbage collector) :-1",
-      79450
+      "suggestTours tourEngine.ts:1317",
+      82350
+    ],
+    [
+      "buildTourPlan tourEngine.ts:403",
+      60805
+    ],
+    [
+      "_tryPlan tourEngine.ts:442",
+      52288
     ],
     [
       "processDispatcher dispatcherProcessor.ts:118",
-      76439
-    ],
-    [
-      "dachRoute dachGeography.ts:42",
-      68830
-    ],
-    [
-      "getCargoCategory gameRules.ts:264",
-      67066
+      48230
     ],
     [
       " planningOrderRanking.ts:21",
-      65579
+      32731
     ],
     [
-      "suitable tourEngine.ts:1479",
-      60293
+      "dachRoute dachGeography.ts:42",
+      29913
     ],
     [
-      " tourEngine.ts:1420",
-      27956
+      "(garbage collector) :-1",
+      26885
     ],
     [
-      " tourEngine.ts:1591",
-      20559
+      "suitable tourEngine.ts:1480",
+      24464
     ],
     [
-      "_orderById tourEngine.ts:138",
-      17825
+      "getCargoCategory gameRules.ts:264",
+      24429
     ],
     [
-      "checkBodyTypeCompatibility gameRules.ts:299",
-      17781
-    ],
-    [
-      "_vehicleById tourEngine.ts:124",
-      14409
-    ],
-    [
-      " dispatcherProcessor.ts:461",
-      11492
-    ],
-    [
-      "getDistance dachGeography.ts:55",
-      11140
+      " tourEngine.ts:1592",
+      17244
     ],
     [
       "optimisticDeliveryEnd planningLowerBound.ts:11",
-      10907
+      13903
     ],
     [
       "buildPhases driverTimeEngine.ts:67",
-      9860
+      13330
+    ],
+    [
+      " tourEngine.ts:1421",
+      12915
     ],
     [
       "buildDeployment tourEngine.ts:281",
-      9808
-    ],
-    [
-      " dachRules.ts:67",
-      8590
+      9611
     ],
     [
       "normalizeDriverLedger dachRules.ts:110",
-      8514
+      7955
     ],
     [
       " dachGeography.ts:49",
-      6557
+      7792
+    ],
+    [
+      "_vehicleById tourEngine.ts:124",
+      7384
+    ],
+    [
+      "_orderById tourEngine.ts:138",
+      5985
     ],
     [
       "makeMarketOffer marketEngine.ts:389",
-      5913
-    ],
-    [
-      "isElectric energyEngine.ts:23",
-      5812
-    ],
-    [
-      "hasPendingTour tourEngine.ts:80",
-      5700
-    ],
-    [
-      "earliestAvailable tourEngine.ts:176",
-      5603
-    ],
-    [
-      "_driverById tourEngine.ts:131",
-      5526
-    ],
-    [
-      " tourEngine.ts:1379",
-      5399
-    ],
-    [
-      "score planningOrderRanking.ts:9",
-      4878
+      4863
     ],
     [
       "processEventsAt simulationEngine.ts:386",
-      4028
+      4682
+    ],
+    [
+      "getDistance dachGeography.ts:55",
+      4647
+    ],
+    [
+      " dachRules.ts:67",
+      4624
+    ],
+    [
+      "regulatorySteps dachRules.ts:59",
+      4102
+    ],
+    [
+      "_driverById tourEngine.ts:131",
+      3985
+    ],
+    [
+      "computeLogReturn investmentEngine.ts:242",
+      3674
+    ],
+    [
+      " dispatcherProcessor.ts:461",
+      3483
+    ],
+    [
+      "score planningOrderRanking.ts:9",
+      3389
+    ],
+    [
+      " tourEngine.ts:1459",
+      3262
+    ],
+    [
+      "planningDriverCounters tourEngine.ts:382",
+      3234
+    ],
+    [
+      "checkOfferFeasibility marketEngine.ts:329",
+      3139
+    ],
+    [
+      "computeAnchorCities marketEngine.ts:129",
+      2749
+    ],
+    [
+      "advanceToIndexed simulationEngine.ts:714",
+      2451
     ],
     [
       "holiday dachRules.ts:81",
-      3703
-    ],
-    [
-      "drivingWindow dachRules.ts:97",
-      3136
-    ],
-    [
-      "set length :-1",
-      2628
+      2409
     ]
   ]
 }
