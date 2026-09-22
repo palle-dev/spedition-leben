@@ -64,7 +64,7 @@ export default function RivalActivityFeed({ state }) {
                 </div>
               </div>
               <button
-                onClick={() => navigate("/personal")}
+                onClick={() => navigate("/spielwelt?view=competition")}
                 className="text-xs px-3 py-1.5 rounded-lg bg-red-500/15 border border-red-400/30 text-red-200 hover:bg-red-500/25 transition shrink-0"
               >
                 Reagieren
@@ -85,7 +85,7 @@ export default function RivalActivityFeed({ state }) {
                 </div>
               </div>
               <button
-                onClick={() => navigate("/postfach")}
+                onClick={() => navigate("/spielwelt?view=competition")}
                 className="text-xs px-3 py-1.5 rounded-lg bg-lime/15 border border-lime/30 text-lime hover:bg-lime/25 transition shrink-0"
               >
                 Prüfen

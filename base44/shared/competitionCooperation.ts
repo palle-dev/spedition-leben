@@ -7,7 +7,7 @@ export function startCompetitionRental(state,rival,m,incomeCents) {
   if(!independentRival(rival)||rival.cashCents<incomeCents)return false;
   const vehicle=(state.vehicles||[]).find(v=>v.status==="free"&&(v.ownership_type||"owned")==="owned"&&!v.markedForSale&&!v.maintenanceUntil&&!v.isElectric&&v.powertrain!=="electric"&&(v.condition||0)>=50&&
     !(state.trips||[]).some(t=>t.vehicleId===v.id&&t.status==="in_progress")&&
-    !(state.tours||[]).some(t=>t.status==="active"&&(t.deployments||[]).some(d=>d.vehicleId===v.id&&["planned","in_progress"].includes(d.status)))&&
+    !(state.tours||[]).some(t=>["active","planned"].includes(t.status)&&(t.deployments||[]).some(d=>d.vehicleId===v.id&&["planned","in_progress"].includes(d.status)))&&
     !(state.employees||[]).some(e=>(e.assignedVehicleIds||[]).includes(v.id)));
   const drivers=(rival.business?.staff||[]).filter(p=>p.role==="driver"&&p.status==="employed").length;
   if(!vehicle||drivers<=rival.jobs.length)return false;

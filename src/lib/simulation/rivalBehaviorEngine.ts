@@ -738,7 +738,7 @@ function formatGameTime(min) {
   return "Tag " + day + ", " + (h < 10 ? "0" : "") + h + ":" + (mm < 10 ? "0" : "") + mm;
 }
 function driverCommitted(state, id) {
-  return (state.trips || []).some(t => t.driverId === id && t.status === "in_progress") || (state.tours || []).some(t => t.status === "active" && (t.deployments || []).some(d => d.driverId === id && ["planned", "in_progress"].includes(d.status)));
+  return (state.trips || []).some(t => t.driverId === id && t.status === "in_progress") || (state.tours || []).some(t => ["active", "planned"].includes(t.status) && (t.deployments || []).some(d => d.driverId === id && ["planned", "in_progress"].includes(d.status)));
 }
 function receivePoachedDriver(state, rival, driver) {
   migrateCompetition(state);

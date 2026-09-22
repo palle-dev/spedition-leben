@@ -1,6 +1,7 @@
 import React from "react";
 
 const MAP = {
+  rented_out: { label: "Vermietet", cls: "text-violet-300" },
   free: { label: "Bereit", cls: "text-lime" },
   on_trip: { label: "Unterwegs", cls: "text-amber-300" },
   maintenance: { label: "Wartung", cls: "text-sky-300" },

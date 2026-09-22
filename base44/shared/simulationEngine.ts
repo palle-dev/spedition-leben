@@ -1162,6 +1162,7 @@ export function applyCommand(state, command, params) {
       if ((v.ownership_type || "owned") !== "owned") throw new Error("Nur eigene Fahrzeuge können verkauft werden.");
       if (v.status === "archived" || v.status === "sold") throw new Error("Fahrzeug wurde bereits verkauft oder archiviert.");
       // Fahrzeug muss frei sein (nicht auf Tour, nicht in Wartung, nicht ladend/entladend)
+      if (v.status === "rented_out") throw new Error("Fahrzeug ist vermietet. Verkauf erst nach Rückgabe.");
       if (v.status === "on_trip") throw new Error("Fahrzeug ist auf Tour. Vormerken möglich, Verkauf erst nach Tourende.");
       if (v.status === "maintenance") throw new Error("Fahrzeug ist in Wartung. Verkauf erst nach Wartungsende.");
       // Verbindliches Angebot prüfen oder neu erstellen
