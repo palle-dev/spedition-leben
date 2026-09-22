@@ -2,7 +2,6 @@ import {Link} from "react-router-dom";
 import CompanyStories from "@/components/office/CompanyStories";
 import JourneyPanel from "@/components/office/JourneyPanel";
 import DayRecap from "@/components/office/DayRecap";
-import CompanyYard from "@/components/office/CompanyYard";
 import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import OfficeHeader from "@/components/office/OfficeHeader";
@@ -29,7 +28,7 @@ export default function Office() {
  const [period,setPeriod]=useState("today");
  if(!state)return null;
  return <div className="px-4 sm:px-6 lg:px-10 py-5 max-w-[1400px] mx-auto space-y-5">
-  <OfficeHeader state={state} period={period} setPeriod={setPeriod}/>
+  <OfficeHeader period={period} setPeriod={setPeriod}/>
   <Tabs defaultValue="overview" key={state.meta?.partyId}>
    <TabsList aria-label="Bürobereiche" className="grid grid-cols-2 sm:grid-cols-4 h-auto w-full gap-1 bg-slate-950/70 border border-white/10 p-1.5">
     <TabsTrigger value="overview" className="py-2.5">Überblick</TabsTrigger>
@@ -38,7 +37,6 @@ export default function Office() {
     <TabsTrigger value="reports" className="py-2.5">Berichte & Verlauf</TabsTrigger>
    </TabsList>
    <TabsContent value="overview" className="space-y-5 mt-5">
-    <CompanyYard/>
     <OfficeKPIs state={state} period={period}/>
     <section className="space-y-3"><h2 className="text-lg font-semibold">Jetzt wichtig</h2><DailyOverview state={state} maxItems={3}/></section>
     <JourneyPanel/>
