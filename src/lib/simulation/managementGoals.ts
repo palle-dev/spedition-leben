@@ -20,7 +20,7 @@ export function setManagementGoal(s,p){
  const branchId=e.role==="branch_manager"?e.assignedBranchId:null;
  if(e.role==="branch_manager"&&!(s.branches||[]).some(b=>b.id===branchId&&b.status==="active"))throw Error("Keine aktive Filiale zugewiesen.");
  const j=s.journey;j.mandateSeq=(j.mandateSeq||0)+1;
- j.mandates.push({id:String(j.mandateSeq),employeeId:e.id,name:e.name,branchId,kind:p.kind,status:"active",startedAtMin:s.gameTime,dueMin:(Math.floor(s.gameTime/1440)+14)*1440,baseline:{...totals(s,branchId)}});
+ j.mandates.push({id:String(j.mandateSeq),employeeId:e.id,name:e.name,branchId,kind:p.kind,status:"active",startedAtMin:s.gameTime,dueMin:(Math.ceil(s.gameTime/1440)+14)*1440,baseline:{...totals(s,branchId)}});
  const completed=j.mandates.filter(g=>g.status!=="active");if(completed.length>16){const remove=new Set(completed.slice(0,-16).map(g=>g.id));j.mandates=j.mandates.filter(g=>!remove.has(g.id));}
  return {ok:true};
 }
@@ -28,7 +28,7 @@ export function cancelManagementGoal(s,p){const g=s.journey?.mandates.find(g=>g.
 export function processManagementGoals(s,m){
  for(const g of s.journey?.mandates||[]){if(g.status!=="active")continue;
  const e=(s.employees||[]).find(e=>e.id===g.employeeId&&e.employmentStatus==="employed");
- if(!e||!["assistant","branch_manager"].includes(e.role)||(g.branchId&&(e.role!=="branch_manager"||e.assignedBranchId!==g.branchId||!s.branches.some(b=>b.id===g.branchId&&b.status==="active")))){close(s,g,"interrupted");continue;}
+ if(!e||(!g.branchId&&e.role!=="assistant")||!["assistant","branch_manager"].includes(e.role)||(g.branchId&&(e.role!=="branch_manager"||e.assignedBranchId!==g.branchId||!s.branches.some(b=>b.id===g.branchId&&b.status==="active")))){close(s,g,"interrupted");continue;}
  if(m>=g.dueMin){const r=managementGoalProgress(s,g);close(s,g,g.kind==="reliability"&&r.delivered<10?"insufficient":r.met?"achieved":"missed");}
  }
 }

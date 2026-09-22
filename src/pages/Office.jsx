@@ -1,3 +1,4 @@
+import {Link} from "react-router-dom";
 import CompanyStories from "@/components/office/CompanyStories";
 import JourneyPanel from "@/components/office/JourneyPanel";
 import DayRecap from "@/components/office/DayRecap";
@@ -57,6 +58,7 @@ export default function Office() {
    <TabsContent value="development" className="space-y-4 mt-5">
     <h2 className="text-lg font-semibold">Deine nächsten Schritte</h2>
     <p className="text-sm text-muted-foreground">Deinen gewählten Unternehmensweg und die Wochenbilanz findest Du im Überblick. Hier entwickelst Du Team und Betrieb im Detail.</p>
+    <Link to="/fuehrung" className="block rounded-2xl border border-lime/25 bg-slate-950 p-5 focus-visible:outline focus-visible:outline-lime"><strong>Richtung geben statt alles selbst steuern →</strong><span className="block text-sm text-muted-foreground mt-1">14-Tage-Ziele für Assistenz und Filialleiter – mit messbarer Bilanz.</span></Link>
     <CompanyStories/>
     <ScenarioProgressPanel/>
     <OfficeDetail title="Entwicklung & Meilensteine" description="Langfristige Ziele und Fortschritte"><DevelopmentPanel state={state}/></OfficeDetail>
