@@ -62,7 +62,7 @@ function validRecord(row: any, ownerId: string, c: any): boolean {
 
 // Bounded concurrency: processes async tasks in parallel batches to avoid
 // sequential round-trips per chunk (the main cause of multi-minute sync hangs).
-const CONCURRENCY = 5;
+const CONCURRENCY = 3;
 // Retry transient server errors (disconnects, timeouts) that were causing
 // HTTP 500 failures during archive block uploads on long-running saves.
 async function withRetry<T>(fn: () => Promise<T>, retries = 3, baseDelayMs = 1500): Promise<T> {
@@ -80,6 +80,26 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 3, baseDelayMs = 150
     }
   }
   throw new Error("withRetry: unreachable");
+}
+// Retry fetch calls that fail with transient network errors (disconnects,
+// timeouts) — common when downloading many archive blocks from private storage.
+async function fetchWithRetry(url: string, retries = 3, baseDelayMs = 1500): Promise<Response> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url);
+      if (response.ok || attempt === retries) return response;
+      // 5xx server errors are worth retrying; 4xx are not.
+      if (response.status >= 500 && attempt < retries) {
+        await new Promise(r => setTimeout(r, baseDelayMs * (attempt + 1)));
+        continue;
+      }
+      return response;
+    } catch (error) {
+      if (attempt === retries) throw error;
+      await new Promise(r => setTimeout(r, baseDelayMs * (attempt + 1)));
+    }
+  }
+  throw new Error("fetchWithRetry: unreachable");
 }
 async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
   const results: R[] = new Array(items.length);
@@ -110,8 +130,8 @@ export async function hydrateState(storage: any, state: any): Promise<any> {
   if (typeof state !== "string" || !isFileUri(state)) return state;
   if (!storage?.createSignedUrl) throw new CloudArchiveError("Storage-Funktionen fehlen zum Laden des Spielstands.");
   const file_uri = state.slice(URI_PREFIX.length);
-  const { signed_url } = await storage.createSignedUrl({ file_uri });
-  const response = await fetch(signed_url);
+  const { signed_url } = await withRetry(() => storage.createSignedUrl({ file_uri }));
+  const response = await fetchWithRetry(signed_url);
   if (!response.ok) throw new CloudArchiveError("Spielstand konnte nicht geladen werden (" + response.status + ").");
   return await response.json();
 }
@@ -124,7 +144,7 @@ async function fetchBlocksByHashes(blocks: any, ownerId: string, hashes: string[
   for (let i = 0; i < hashes.length; i += batchSize) {
     const batch = hashes.slice(i, i + batchSize);
     if (batch.length === 0) continue;
-    const rows = await blocks.filter({ owner_id: ownerId, content_hash: { $in: batch } }, "-created_date", 1000);
+    const rows = await withRetry(() => blocks.filter({ owner_id: ownerId, content_hash: { $in: batch } }, "-created_date", 1000));
     for (const row of rows || []) {
       if (row?.content_hash && !result.has(row.content_hash)) result.set(row.content_hash, row);
     }
@@ -146,8 +166,8 @@ export async function hydrateCloudArchive(blocks: any, ownerId: string, state: a
     if (isFileUri(row.data)) {
       if (!storage?.createSignedUrl) throw new CloudArchiveError("Storage-Funktionen fehlen zum Laden des Archivblocks.");
       const file_uri = row.data.slice(URI_PREFIX.length);
-      const { signed_url } = await storage.createSignedUrl({ file_uri });
-      const response = await fetch(signed_url);
+      const { signed_url } = await withRetry(() => storage.createSignedUrl({ file_uri }));
+      const response = await fetchWithRetry(signed_url);
       if (!response.ok) throw new CloudArchiveError("Cloud-Archivblock konnte nicht geladen werden (" + response.status + ").");
       const buffer = await response.arrayBuffer();
       const base64 = bytesToBase64(buffer);
@@ -212,9 +232,9 @@ export async function stageCloudArchive(blocks: any, ownerId: string, state: any
   });
   // Bulk create all new blocks in ONE DB call to avoid per-chunk create rate limits.
   if (toCreate.length > 0) {
-    const created = await blocks.bulkCreate(toCreate.map(({ chunk, storedData }) => ({
+    const created = await withRetry(() => blocks.bulkCreate(toCreate.map(({ chunk, storedData }) => ({
       owner_id: ownerId, content_hash: chunk.id, descriptor: reference(chunk), data: storedData,
-    })));
+    }))));
     const createdArray = Array.isArray(created) ? created : [created];
     for (const row of createdArray) {
       if (!row?.id) throw new CloudArchiveError("Cloud-Archivblock wurde nicht bestätigt.");

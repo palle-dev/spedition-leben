@@ -95,8 +95,10 @@ export async function withCloudRetry(task, { isCurrent = () => Boolean(true), wa
     if (!isCurrent()) return { skipped: true };
     try { return await task(); }
     catch (error) {
+      const msg = error.message || '';
       const transient = [429, 502, 503, 504].includes(Number(error.status)) ||
-        (!error.status && (/Network|Failed to fetch|timeout/i.test(error.message || '') || ['ERR_NETWORK','ECONNABORTED'].includes(error.code)));
+        (Number(error.status) === 500 && /disconnect|timeout|network|fetch|ECONNRESET|socket/i.test(msg)) ||
+        (!error.status && (/Network|Failed to fetch|timeout|disconnect|socket/i.test(msg) || ['ERR_NETWORK','ECONNABORTED'].includes(error.code)));
       if (!transient || attempt === 2) throw error;
       await wait(attempt === 0 ? 500 : 1500);
     }
