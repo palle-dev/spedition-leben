@@ -15,7 +15,7 @@ const metrics=[
  ["gridKWh","Netzbezug Filialladen"],["truckKWh","In Lkw-Batterien (Filialen)"],["chargeLossKWh","Ladeverluste Filialen"],
  ["publicKWh","Netzbezug unterwegs"],["publicBatteryKWh","In Lkw-Batterien (unterwegs)"],["driveKWh","Fahrverbrauch"],
 ];
-export default function EnergyPanel({branchId:fixedBranchId}) {
+export default function EnergyPanel({branchId:fixedBranchId=null}) {
  const {state,send,showToast,busy}=useGame();
  const [selection,setSelection]=useState(fixedBranchId||"all"),[period,setPeriod]=useState("30"),[pending,setPending]=useState(false);
  const selected=fixedBranchId||selection,today=Math.floor(state.gameTime/1440)+1;
@@ -104,6 +104,7 @@ export default function EnergyPanel({branchId:fixedBranchId}) {
   <details className="text-xs text-muted-foreground space-y-2"><summary className="cursor-pointer">Spielmodell, Tarife und Abrechnung</summary><p>Fiktive Spielwerte: Filialnetz 0,30 €/kWh, öffentliche Lader 0,65 €/kWh, Einspeisung 0,08 €/kWh. Ladeeffizienz 92 %, Speicher je Richtung 95 %. Stundenweise Sonnenkurve mit Jahreszeit, Stadt und deterministischem Wetter; keine reale Ertragsprognose und kein Gebäudeverbrauch.</p><p>Netzstrom und Einspeisung werden täglich um Mitternacht abgerechnet. Unterwegs-Ladungen werden zum Fahrtstart bezahlt. Öffentliche Lkw-Ladehubs in allen 30 Spielstädten: maximal 300 kW, fünf Minuten Anschlusszeit je Stopp. Ladeleistung wird auf die Fahrzeugleistung begrenzt, Ladezeit zählt konservativ als Arbeitszeit. Keine realen Stationsdaten oder Live-Belegungen. Reichweitenreserve 10 %, öffentliches Ladeziel 90 %. Umwege, Lenkpausen und Ruhezeiten zählen zur Lieferzeit.</p></details>
  </section>;
 }
+/** @param {import("recharts").TooltipProps<number, string>} props */
 function EnergyChartTooltip({active,payload,label}) {
  if(!active||!payload?.length)return null;
  const total=payload.reduce((sum,item)=>sum+Number(item.value||0),0);

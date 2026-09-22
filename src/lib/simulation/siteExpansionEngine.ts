@@ -285,7 +285,7 @@ export function previewExpansion(state, { branchId, type, slots = 1 }) {
   const activeProject = getActiveProject(state, branchId);
   if (activeProject) {
     return {
-      ok: false,
+      ok: false as const,
       error: "An diesem Standort läuft bereits ein Bauprojekt ("
         + EXPANSION_CONFIG[activeProject.type]?.label + "). "
         + "Fertigstellung: " + formatGameTime(activeProject.completionMin) + ".",
@@ -293,9 +293,9 @@ export function previewExpansion(state, { branchId, type, slots = 1 }) {
   }
 
   const cfg = EXPANSION_CONFIG[type];
-  if (!["parking", "workshop", "breakArea"].includes(type)) return { ok: false, error: "Unbekannter Ausbau-Typ: " + type };
+  if (!["parking", "workshop", "breakArea"].includes(type)) return { ok: false as const, error: "Unbekannter Ausbau-Typ: " + type };
   if (type !== "breakArea" && (!Number.isInteger(slots) || slots < cfg.minSlots || slots > cfg.maxSlots)) {
-    return { ok: false, error: `Bitte eine ganze Anzahl zwischen ${cfg.minSlots} und ${cfg.maxSlots} wählen.` };
+    return { ok: false as const, error: `Bitte eine ganze Anzahl zwischen ${cfg.minSlots} und ${cfg.maxSlots} wählen.` };
   }
 
   let costCents, buildTimeMin, dailyCostCents, effectDescription;
@@ -320,7 +320,7 @@ export function previewExpansion(state, { branchId, type, slots = 1 }) {
       (mechanics < currentSlots + n ? `Hinweis: Es fehlen ${currentSlots + n - mechanics} Mechaniker für volle Auslastung.` : "");
   } else if (type === "breakArea") {
     if (b.breakAreaLevel >= 2) {
-      return { ok: false, error: "Aufenthaltsbereich ist bereits voll ausgebaut (Stufe 2)." };
+      return { ok: false as const, error: "Aufenthaltsbereich ist bereits voll ausgebaut (Stufe 2)." };
     }
     costCents = cfg.costCents;
     buildTimeMin = cfg.buildTimeMin;
@@ -332,7 +332,7 @@ export function previewExpansion(state, { branchId, type, slots = 1 }) {
   }
 
   return {
-    ok: true,
+    ok: true as const,
     type,
     branchId,
     branchName: b.name,

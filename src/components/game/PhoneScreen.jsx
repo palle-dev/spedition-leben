@@ -3,7 +3,7 @@ import { DialogContent, DialogClose } from "@/components/ui/dialog";
 import { X, Phone } from "lucide-react";
 import "./phoneScreen.css";
 
-export default function PhoneScreen({children,gameTime=0,conversation=false,footer,closingDisabled=false}) {
+export default function PhoneScreen({children,gameTime=0,conversation=false,footer=null,closingDisabled=false}) {
  const minute=((Math.floor(gameTime)%1440)+1440)%1440;
  const time=String(Math.floor(minute/60)).padStart(2,"0")+":"+String(minute%60).padStart(2,"0");
  return <DialogContent className={"ff-phone "+(conversation?"ff-phone-call":"")} onEscapeKeyDown={e=>{if(closingDisabled)e.preventDefault();}} onPointerDownOutside={e=>{if(closingDisabled)e.preventDefault();}}>

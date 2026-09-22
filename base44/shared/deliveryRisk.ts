@@ -1,4 +1,7 @@
 import { currentOrders } from "./orderLookup.ts";
+type RiskVehicle = { id: string; status?: string };
+type RiskDriver = { id: string; sickUntil?: number; attendance?: string; name?: string; portraitId?: string };
+type RiskDisruption = { id: string; status?: string };
 // Read-only risk detection; no random draws, events, finance, or mutation.
 export function getDeliveryRisks(state) {
  const now=state.gameTime||0, trips=new Map(), plans=new Map(), issues=new Map();
@@ -8,7 +11,7 @@ export function getDeliveryRisks(state) {
   for(const d of t.deployments||[])if(d.orderId&&["planned","active"].includes(d.status))plans.set(d.orderId,{...d,vehicleId:t.vehicleId,driverId:t.driverId});
  }
  for(const d of state.disruptions?.items||[])if(d.status!=="completed")for(const id of d.orderIds||[])issues.set(id,d);
- const vehicles=new Map((state.vehicles||[]).map(v=>[v.id,v])),drivers=new Map((state.drivers||[]).map(d=>[d.id,d]));
+ const vehicles=new Map<string, RiskVehicle>((state.vehicles||[]).map(v=>[v.id,v])),drivers=new Map<string, RiskDriver>((state.drivers||[]).map(d=>[d.id,d]));
  const risks=[];
  for(const o of currentOrders(state)){
   if(!["angenommen","unterwegs"].includes(o.status)||!Number.isFinite(o.deliveryDeadlineMin))continue;
@@ -30,7 +33,7 @@ export function getDeliveryRisks(state) {
 // Management escalation: routine lateness stays visible in orders, not on the phone.
 export const ROUTINE_DELAY_MIN = 120;
 export function getEscalatedDeliveryRisks(state, risks = getDeliveryRisks(state)) {
- const issues=new Map((state.disruptions?.items||[]).map(d=>[d.id,d]));
+ const issues=new Map<string, RiskDisruption>((state.disruptions?.items||[]).map(d=>[d.id,d]));
  return risks.filter(r=>{
   const issue=issues.get(r.disruptionId);
   if(issue?.status==="measure_running")return false;

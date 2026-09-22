@@ -9,7 +9,7 @@ export const ADVISOR_DEFAULTS={enabled:false,allowBuy:true,allowSell:true,allowS
 export function getAdvisorPolicy(state,depotId){return {...ADVISOR_DEFAULTS,...state.investment?.advisor?.policies?.[depotId]};}
 const label=id=>id==="company"?"Firma":"Privat";
 const money=n=>(n/100).toFixed(2)+" EUR";
-function note(state,subject,body,key){
+function note(state,subject,body,key: string | undefined = undefined){
  deliverMessage(state,{fromId:ADVISOR_ID,toId:"player",subject,body,gameTime:state.gameTime,category:"investment",priority:"normal",...(key?{dedupKey:key}:{})});
 }
 function requireAdvisor(state){const a=state.investment?.advisor;if(!a?.hired)throw Error("Bitte den Investmentberater zuerst beauftragen.");return a;}
@@ -117,7 +117,7 @@ export function processInvestmentAdvisor(state,m){
   if(!choice){rt.lastSummary="Keine passende Order innerhalb des Mandats, der Reserven und Handelszeiten.";continue;}
   try{
    const result=placeOrder(state,{depotId:id,...choice,orderType:"market",timeInForce:"DAY"});
-   result.order.advisorManaged=true;
+   Object.assign(result.order, {advisorManaged:true});
    rt.trades++;rt.touched.push(choice.instrumentId);
    if(choice.side==="buy")rt.spentCents+=choice.budgetCents;
    rt.lastSummary=(choice.side==="buy"?"Kauf":"Verkauf")+" "+choice.instrumentId+": "+choice.reason;
