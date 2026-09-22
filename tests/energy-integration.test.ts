@@ -64,3 +64,9 @@ it("keeps a 250-electric-truck / 10-depot energy day bounded and reports increme
  expect(Object.values(s.energy.sites).every((x:any)=>x.daily.length===1)).toBe(true);
  console.log(JSON.stringify({benchmark:"energy subsystem only; stationary synthetic fleet",trucks:250,depots:10,minutes:1440,elapsedMs:Math.round(ms*10)/10}));
 });
+
+it("keeps actual electric delivery and depot energy consistent for day/hour/quarter-hour advances",()=>{
+ const origin=setup();confirmTour(origin,opts(origin));const start=origin.gameTime;
+ const states=[1440,60,15].map(step=>{const s=structuredClone(origin);const b=s.branches[0];s.energy.sites[b.id]={...emptyEnergySite(),pvKwp:100,storageKWh:100,storageKw:50,dcChargers:1};for(let m=0;m<2880;m+=step)applyCommand(s,"advanceTime",{minutes:step,silentPhoneAdvance:true});expect(s.gameTime).toBe(start+2880);return s;});
+ for(const s of states.slice(1)){expect(s.orders.find(o=>o.id==="electric-order").status).toBe("geliefert");expect(s.vehicles[0].batteryKWh).toBeCloseTo(states[0].vehicles[0].batteryKWh,6);for(const [id,site]of Object.entries(states[0].energy.sites))for(const k of Object.keys(site.totals))expect(s.energy.sites[id].totals[k]).toBeCloseTo(site.totals[k],6);}
+});
