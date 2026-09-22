@@ -14,6 +14,7 @@ import { formatGameTime } from "@/lib/gameData";
 import EventOverlay from "@/components/EventOverlay";
 import ToastStack from "@/components/notifications/ToastStack";
 import { HeaderSlotProvider } from "@/lib/headerSlot";
+import CinematicLoader from "@/components/game/CinematicLoader";
 
 export default function GameShell() {
   return (
@@ -36,7 +37,7 @@ function GameShellContent() {
       </div>
     </div>
   );
-  if (loading) return <LoadingScreen />;
+  if (loading) return <CinematicLoader />;
   const downloadBackup = async () => {
     try {
     const data = await exportGame();
@@ -106,14 +107,6 @@ function GameShellContent() {
         <EventOverlay overlay={overlay} onDismiss={dismissOverlay} />
       </div>
     </MotionConfig>
-  );
-}
-
-function LoadingScreen() {
-  return (
-    <div className="fixed inset-0 grid place-items-center bg-ink">
-      <div role="status" aria-live="polite" className="text-center space-y-4"><div className="w-10 h-10 mx-auto border-2 border-lime/30 border-t-lime rounded-full animate-spin" /><p className="text-foreground">Spiel wird vorbereitet …</p></div>
-    </div>
   );
 }
 

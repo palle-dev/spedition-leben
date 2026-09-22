@@ -95,7 +95,8 @@ module.exports = {
         'reveal': { from: { opacity: '0', transform: 'translateY(14px)' }, to: { opacity: '1', transform: 'translateY(0)' } },
         'pop': { '0%': { transform: 'scale(.6)', opacity: '0' }, '65%': { transform: 'scale(1.05)' }, '100%': { transform: 'scale(1)', opacity: '1' } },
         'pulse-ring': { '0%, 100%': { boxShadow: '0 0 0 0 hsl(var(--lime) / 0.15)' }, '50%': { boxShadow: '0 0 0 12px hsl(var(--lime) / 0.04)' } },
-        'flow': { to: { strokeDashoffset: '-100' } }
+        'flow': { to: { strokeDashoffset: '-100' } },
+        'road-flow': { from: { transform: 'translateX(0)' }, to: { transform: 'translateX(-36px)' } }
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -103,7 +104,8 @@ module.exports = {
         'reveal': 'reveal 0.6s cubic-bezier(.2,.75,.2,1) both',
         'pop': 'pop 0.6s cubic-bezier(.2,.75,.2,1) both',
         'pulse-ring': 'pulse-ring 1.8s ease-in-out infinite',
-        'flow': 'flow 12s linear infinite'
+        'flow': 'flow 12s linear infinite',
+        'road-flow': 'road-flow 0.35s linear infinite'
       }
     }
   },
