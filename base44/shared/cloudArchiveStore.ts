@@ -101,16 +101,18 @@ export async function hydrateState(storage: any, state: any): Promise<any> {
 export async function hydrateCloudArchive(blocks: any, ownerId: string, state: any, refs: Record<string, string> | null = {}, storage: any = null): Promise<any> {
   state = await hydrateState(storage, state);
   const all = chunks(state);
-  // Fetch all owner blocks in ONE call to avoid per-chunk DB get calls (rate limits).
-  const allRows = await blocks.filter({ owner_id: ownerId }, "-created_date", 1000);
-  const rowById = new Map<string, any>();
-  for (const row of allRows || []) rowById.set(row.id, row);
+  // Fetch only blocks for the chunks in this state (content-addressable lookup).
+  // The previous "fetch all owner blocks" approach silently dropped blocks beyond
+  // the 1000-row limit, breaking loads of long games.
+  const rowByHash = new Map<string, any>();
+  if (all.length > 0) {
+    const rows = await blocks.filter({ owner_id: ownerId, content_hash: { $in: all.map((c: any) => c.id) } }, "-created_date", 1000);
+    for (const row of rows || []) rowByHash.set(row.content_hash, row);
+  }
   const items = await mapWithConcurrency(all, CONCURRENCY, async (c: any) => {
     // Legacy embedded base64 saves (pre-file-storage) pass through directly.
     if (typeof c.data === "string" && !isFileUri(c.data)) return c;
-    const ref = refs?.[c.id];
-    if (typeof ref !== "string" || !ref) throw new CloudArchiveError("Cloud-Archivverweis fehlt.");
-    const row = rowById.get(ref);
+    const row = rowByHash.get(c.id);
     if (!validRecord(row, ownerId, c)) throw new CloudArchiveError("Kein Zugriff auf diesen Cloud-Archivblock.");
     if (isFileUri(row.data)) {
       if (!storage?.createSignedUrl) throw new CloudArchiveError("Storage-Funktionen fehlen zum Laden des Archivblocks.");
@@ -131,26 +133,35 @@ export async function hydrateCloudArchive(blocks: any, ownerId: string, state: a
 
 export async function stageCloudArchive(blocks: any, ownerId: string, state: any, previous: any = null, previousRefs: Record<string, string> | null = {}, storage: any = null): Promise<{ state: any; archive_blocks: Record<string, string> }> {
   const all = chunks(state);
-  const known = new Map(chunks(previous).map((c: any) => [c.id, c]));
-  // Fetch all owner blocks in ONE call to avoid per-chunk DB filter calls (rate limits).
-  const allRows = await blocks.filter({ owner_id: ownerId }, "-created_date", 1000);
-  const existingByHash = new Map<string, any>();
-  for (const row of allRows || []) {
-    if (row?.content_hash && !existingByHash.has(row.content_hash)) existingByHash.set(row.content_hash, row);
-  }
   const refs: Record<string, string> = {};
   const toCreate: { chunk: any; storedData: string }[] = [];
-  const items: any[] = await mapWithConcurrency(all, CONCURRENCY, async (c: any) => {
-    const old = known.get(c.id);
-    const same = old && archiveIdentity(old) === archiveIdentity(c);
-    // Only server-owned prior references are reusable. Incoming reference maps
-    // are ignored. No read or write is needed for already committed blocks.
-    if (same && typeof previousRefs?.[c.id] === "string" && old.data == null) {
-      if (c.data != null) await verifyBase64(c.data, c.id);
+  // Reuse blocks already committed in the previous cloud record. The chunk-id
+  // IS the content hash, so a matching previousRef guarantees identical content
+  // — no need to hydrate the previous state (which may be a file URI) to compare.
+  const reused = new Set<string>();
+  for (const c of all) {
+    if (typeof previousRefs?.[c.id] === "string") {
       refs[c.id] = previousRefs[c.id];
+      reused.add(c.id);
+    }
+  }
+  // Fetch existing blocks only for chunks not already reused (dedup by content hash).
+  // Avoids fetching all owner blocks, which silently dropped blocks beyond the
+  // 1000-row limit and broke saves of long games.
+  const newChunks = all.filter((c: any) => !reused.has(c.id));
+  const existingByHash = new Map<string, any>();
+  if (newChunks.length > 0) {
+    const rows = await blocks.filter({ owner_id: ownerId, content_hash: { $in: newChunks.map((c: any) => c.id) } }, "-created_date", 1000);
+    for (const row of rows || []) {
+      if (row?.content_hash && !existingByHash.has(row.content_hash)) existingByHash.set(row.content_hash, row);
+    }
+  }
+  const items: any[] = await mapWithConcurrency(all, CONCURRENCY, async (c: any) => {
+    if (reused.has(c.id)) {
+      if (c.data != null) await verifyBase64(c.data, c.id);
       return reference(c);
     }
-    const data = c.data ?? (same ? old.data : null);
+    const data = c.data;
     await verifyBase64(data, c.id);
     const existing = existingByHash.get(c.id);
     if (existing) {
