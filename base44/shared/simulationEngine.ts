@@ -1,3 +1,5 @@
+import { migrateEnergy, processEnergyUntil, processElectricPhase, installEnergyUpgrade, isElectric } from "./energyEngine.ts";
+import { electricFields } from "./electricCatalog.ts";
 import { retainHistory } from "./historyRetention.ts";
 import { withSimulationOrders, currentOrders, findOrder } from "./orderLookup.ts";
 import {hireInvestmentAdvisor,configureInvestmentAdvisor,stopInvestmentAdvisor,processInvestmentAdvisor} from "./investmentAdvisor.ts";
@@ -27,7 +29,7 @@ import {
   VEHICLE_BODY_TYPES, getVehicleBodyType, getVehicleEffectiveMaintenanceCost,
   checkBodyTypeCompatibility,
 } from "./gameRules.ts";
-import { hasPendingTour, getOrderReservation, buildDeployment, buildTourPlan, confirmTour as doConfirmTour, cancelTour as doCancelTour, processTours, onTripCompleted, findReturnLoads, suggestTours, futureLocation, futureDriverLocation, _clearPlanCache } from "./tourEngine.ts";
+import { hasPendingTour, getOrderReservation, buildDeployment, buildEmptyDeployment, buildTourPlan, confirmTour as doConfirmTour, cancelTour as doCancelTour, processTours, onTripCompleted, findReturnLoads, suggestTours, futureLocation, futureDriverLocation, _clearPlanCache } from "./tourEngine.ts";
 import {
   buildPhases, buildWorkSteps, buildEmptyWorkSteps,
   computeFinalCounters, resetCounters, needsRest, migrateTripPhases,
@@ -484,6 +486,7 @@ function completeTrip(state, trip, m, log) {
   planSingleVehicle(state, vehicle, m, log);
 }
 function processEventsAt(state, m, log) {
+  processEnergyUntil(state,m);
   // Spielzeit auf Ereigniszeit aktualisieren (startDeployment nutzt state.gameTime)
   state.gameTime = m;
   // 1. Phasenabschlüsse (Fahrt, Pause, Ruhe, Laden, Entladen)
@@ -493,6 +496,7 @@ function processEventsAt(state, m, log) {
     if (trip.currentPhase >= phases.length) continue;
     const phase = phases[trip.currentPhase];
     if (phase.endMin !== m) continue;
+    processElectricPhase(state,trip,phase,m);
     trip.currentPhase++;
     if (phase.type === "empty_drive" || phase.type === "loaded_drive") {
       trip.drivenKm = (trip.drivenKm || 0) + (phase.distanceKm || 0);
@@ -812,6 +816,7 @@ function planTrip(state, order, vehicle, driver) {
   const plan = buildDeployment(state, order, vehicle, vehicle.locationCity, state.gameTime, {
     workMin: driver.workMinutesSinceRest || 0, driveMin: driver.driveMinutesSinceBreak || 0,
   });
+  if (plan.energyError) throw new Error(plan.energyError);
   if ((Number.isFinite(vehicle.rentalReturnMin) && plan.endMin > vehicle.rentalReturnMin) ||
       (driver.isTempStaff && Number.isFinite(driver.tempReturnMin) && plan.endMin > driver.tempReturnMin)) throw new Error("Einsatz endet nach Ablauf der Miete oder Personalvertretung.");
   return { ...plan, totalDuration: plan.durationMin };
@@ -820,7 +825,7 @@ function planTrip(state, order, vehicle, driver) {
 
 // ---------- Befehle ----------
 export function applyCommand(state, command, params) {
-  _clearPlanCache(); migrateState(state);
+  _clearPlanCache(); migrateState(state); migrateEnergy(state);
   [migrateAcquisition, migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories, migrateSegmentFields, migrateBusinessFocus, migrateSegmentStats, migrateMarketDynamics, migrateDevelopmentGoals, migrateDisruptions, migrateUsedVehicleMarket, migratePartners, migrateSiteExpansion, migrateWorld, migrateKeyAccounts, migrateRivalBehavior].forEach(fn => fn(state));
   const p = params || {};
   let result;
@@ -958,17 +963,17 @@ export function applyCommand(state, command, params) {
       if (maybeGenerateTechnicalDefectForTrip(state, v, d, o, state.gameTime, [])) {
         throw new Error("Technischer Defekt! " + v.id + " kann den Transport nicht antreten. Siehe Störungen im Büro.");
       }
-      const fuel = fuelCents(plan.totalKm, v.consumptionPer100km);
+      const fuel = plan.fuelCents;
       const toll = tollCents(plan.totalKm);
       const totalCost = fuel + toll;
       if (state.company.accountCents < totalCost) throw new Error("Firmenkonto reicht für Kraftstoff und Maut (" + (totalCost / 100).toFixed(2) + " €) nicht aus.");
-      addBooking(state, state.gameTime, "Kraftstoff: " + o.customer, -fuel, "company", "fuel:" + o.id, { vehicleId: v.id, orderId: o.id, branchId: v.branchId });
+      addBooking(state, state.gameTime, (isElectric(v) ? "Ladestrom unterwegs: " : "Kraftstoff: ") + o.customer, -fuel, "company", "fuel:" + o.id, { vehicleId: v.id, orderId: o.id, branchId: v.branchId });
       addBooking(state, state.gameTime, "Maut: " + o.customer, -toll, "company", "toll:" + o.id, { vehicleId: v.id, orderId: o.id, branchId: v.branchId });
       const trip = {
         id: uid(state, "t"), branchId: v.branchId, type: "loaded", orderId: o.id, vehicleId: v.id, driverId: d.id,
         phases: plan.phases, initialCounters: { workMin: d.workMinutesSinceRest || 0, driveMin: d.driveMinutesSinceBreak || 0 }, currentPhase: 0, startMin: state.gameTime, endMin: plan.endMin,
         status: "in_progress", paymentCents: plan.paymentCents, fuelCents: fuel, tollCents: toll,
-        totalKm: plan.totalKm, drivenKm: 0,
+        totalKm: plan.totalKm, drivenKm: 0, energy: plan.energy,
       };
       state.trips.push(trip);
       v.status = "on_trip"; v.tripId = trip.id;
@@ -1003,19 +1008,20 @@ export function applyCommand(state, command, params) {
       if (!p.fromCity || !p.toCity || p.fromCity === p.toCity) throw new Error("Start und Ziel müssen zwei verschiedene Städte sein.");
       const workSteps = buildEmptyWorkSteps(p.fromCity, p.toCity);
       const counters = { workMin: d.workMinutesSinceRest || 0, driveMin: d.driveMinutesSinceBreak || 0 };
-      const phaseResult = buildPhases(workSteps, counters, state.gameTime);
+      const phaseResult = buildEmptyDeployment(state,p.fromCity,p.toCity,v,state.gameTime,counters);
+      if (phaseResult.energyError) throw new Error(phaseResult.energyError);
       if ((Number.isFinite(v.rentalReturnMin) && phaseResult.endMin > v.rentalReturnMin) ||
           (d.isTempStaff && Number.isFinite(d.tempReturnMin) && phaseResult.endMin > d.tempReturnMin)) throw new Error("Leerfahrt endet nach Ablauf der Miete oder Personalvertretung.");
-      const dist = getDistance(p.fromCity, p.toCity);
-      const fuel = fuelCents(dist, v.consumptionPer100km);
+      const dist = phaseResult.totalKm;
+      const fuel = phaseResult.fuelCents;
       const toll = tollCents(dist);
       if (state.company.accountCents < fuel + toll) throw new Error("Firmenkonto reicht für Kraftstoff und Maut nicht aus.");
-      addBooking(state, state.gameTime, "Kraftstoff (Leerfahrt)", -fuel, "company", "emptyfuel", { vehicleId: v.id, branchId: v.branchId });
+      addBooking(state, state.gameTime, (isElectric(v) ? "Ladestrom unterwegs: Leerfahrt" : "Kraftstoff (Leerfahrt)"), -fuel, "company", "emptyfuel", { vehicleId: v.id, branchId: v.branchId });
       addBooking(state, state.gameTime, "Maut (Leerfahrt)", -toll, "company", "emptytoll", { vehicleId: v.id, branchId: v.branchId });
       const trip = {
         id: uid(state, "t"), branchId: v.branchId, type: "empty", orderId: null, vehicleId: v.id, driverId: d.id,
         phases: phaseResult.phases, initialCounters: counters, currentPhase: 0, startMin: state.gameTime, endMin: phaseResult.endMin,
-        status: "in_progress", paymentCents: 0, fuelCents: fuel, tollCents: toll, totalKm: dist, drivenKm: 0,
+        status: "in_progress", paymentCents: 0, fuelCents: fuel, tollCents: toll, totalKm: dist, drivenKm: 0, energy: phaseResult.energy,
       };
       state.trips.push(trip);
       v.status = "on_trip"; v.tripId = trip.id;
@@ -1058,7 +1064,7 @@ export function applyCommand(state, command, params) {
         bookValueCents: buyPrice, condition: 85,
         locationCity: buyBranch.city, status: "free", tripId: null, maintenanceUntil: null,
         ownership_type: "owned", odometerKm: 0, acquiredAtMin: state.gameTime, referencePriceCents: Math.round(profile.referencePriceCents * bodyType.priceMultiplier),
-        markedForSale: false, saleOffer: null, };
+        markedForSale: false, saleOffer: null, ...electricFields(profile,bodyType), };
       state.vehicles.push(v);
       registerAsset(state, {
         vehicleId: v.id, account: "1200",
@@ -2502,6 +2508,7 @@ export function applyCommand(state, command, params) {
     }
 
     default: {
+      if(command === "installEnergyUpgrade"){ensureNotBlocked(state);result=installEnergyUpgrade(state,p);break;}
       if (["startWorld", "chooseWorldStory", "bidWorldTender", "withdrawWorldBid", "cancelWorldAppointment"].includes(command)) ensureNotBlocked(state);
       const worldResult = handleWorldCommand(state, command, p);
       if (worldResult !== null) { result = worldResult; break; }

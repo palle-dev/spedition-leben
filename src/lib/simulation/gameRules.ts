@@ -1,3 +1,4 @@
+import { ELECTRIC_MODELS } from "./electricCatalog.ts";
 // Statische Spielweltdaten und reine Berechnungsregeln für "Frachtfieber".
 // Diese Werte sind vereinfachte, veränderbare Spielwerte – keine Abbildung realer Preise oder Vorschriften.
 
@@ -105,6 +106,7 @@ export const VEHICLE_REFERENCE_PRICE = 3000000; // 30.000 €
 // und Verbrauchswerten. Die Wahl hängt von Aufträgen, Geschäftsmodell und finanziellen
 // Möglichkeiten ab. Geschwindigkeit und Fahrerzeitregeln bleiben für alle Typen gleich.
 export const VEHICLE_CATALOG = {
+  ...Object.fromEntries(Object.values(ELECTRIC_MODELS).map(m=>[m.id,{...m,powertrain:"electric",consumptionPer100km:0,referencePriceCents:m.priceCents,maintenanceCostCents:120000,maintenanceDurationMin:360,description:"Elektrischer Lkw. Reichweite und Ladezeit werden in der Disposition berücksichtigt.",suitableFor:["regional","normal","express"]}])),
   regional: {
     id: "regional",
     label: "Regional-Lkw",
@@ -147,6 +149,7 @@ export const VEHICLE_CATALOG_LIST = [
   VEHICLE_CATALOG.regional,
   VEHICLE_CATALOG.standard,
   VEHICLE_CATALOG.heavy,
+  ...Object.keys(ELECTRIC_MODELS).map(id=>VEHICLE_CATALOG[id]),
 ];
 
 export function getVehicleProfile(vehicle) {

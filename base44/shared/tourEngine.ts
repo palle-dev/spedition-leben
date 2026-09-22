@@ -1,3 +1,4 @@
+import { isElectric, electricWorkSteps, futureBattery } from "./energyEngine.ts";
 import { createPlanningOrderRanking } from './planningOrderRanking.ts';
 import { preserveHistory } from "./historyRetention.ts";
 import { findOrder, planningOrdersFor } from "./orderLookup.ts";
@@ -241,7 +242,7 @@ export function futureDriverLocation(state, driver) {
 // counters: {workMin, driveMin} — aktuelle Fahrerzähler (werden fortgeschrieben).
 export function buildDeployment(state, order, vehicle, startCity, earliestStart, counters) {
   // DG: erweiterte Lade-/Entladezeiten verwenden (Auftrag 32)
-  const workSteps = buildWorkSteps(startCity, order);
+  let workSteps = buildWorkSteps(startCity, order);
   if (order.isDangerousGoods) {
     const loadMin = getEffectiveLoadMin(order);
     const unloadMin = getEffectiveUnloadMin(order);
@@ -250,12 +251,14 @@ export function buildDeployment(state, order, vehicle, startCity, earliestStart,
       if (s.type === "unloading") s.durationMin = unloadMin;
     }
   }
+  const electric = electricWorkSteps(state, vehicle, workSteps);
+  workSteps = electric.steps;
   const result = buildPhases(workSteps, counters || { workMin: 0, driveMin: 0 }, earliestStart);
 
   const totalKm = workSteps.reduce((s, step) => s + (step.distanceKm || 0), 0);
-  const emptyKm = startCity !== order.fromCity ? getDistance(startCity, order.fromCity) : 0;
-  const loadedKm = getDistance(order.fromCity, order.toCity);
-  const fuel = fuelCents(totalKm, vehicle.consumptionPer100km);
+  const emptyKm = workSteps.filter(s=>s.type==="empty_drive").reduce((n,s)=>n+(s.distanceKm||0),0);
+  const loadedKm = workSteps.filter(s=>s.type==="loaded_drive").reduce((n,s)=>n+(s.distanceKm||0),0);
+  const fuel = electric.energy ? electric.energy.publicCostCents : fuelCents(totalKm, vehicle.consumptionPer100km);
   const toll = tollCents(totalKm);
 
   // Aufbau-Bonus: passender Spezial-Lkw erhält höhere Vergütung.
@@ -263,6 +266,7 @@ export function buildDeployment(state, order, vehicle, startCity, earliestStart,
   const adjustedPayment = Math.round(order.paymentCents * bodyBonusFactor);
 
   return {
+    energy: electric.energy, energyError: electric.error || null,
     orderId: order.id,
     orderStatus: order.status,
     customer: order.customer,
@@ -293,12 +297,14 @@ export function buildDeployment(state, order, vehicle, startCity, earliestStart,
 
 // Plant eine Leerfahrt als eigenen Einsatz mit phasenbasierter Fahrerzeitplanung.
 export function buildEmptyDeployment(state, fromCity, toCity, vehicle, earliestStart, counters) {
-  const workSteps = buildEmptyWorkSteps(fromCity, toCity);
+  const electric = electricWorkSteps(state, vehicle, buildEmptyWorkSteps(fromCity, toCity));
+  const workSteps = electric.steps;
   const result = buildPhases(workSteps, counters || { workMin: 0, driveMin: 0 }, earliestStart);
-  const d = getDistance(fromCity, toCity);
-  const fuel = fuelCents(d, vehicle.consumptionPer100km);
+  const d = workSteps.reduce((n,s)=>n+(s.distanceKm||0),0);
+  const fuel = electric.energy ? electric.energy.publicCostCents : fuelCents(d, vehicle.consumptionPer100km);
   const toll = tollCents(d);
   return {
+    energy: electric.energy, energyError: electric.error || null,
     orderId: null,
     orderStatus: null,
     customer: "Leerfahrt",
@@ -400,6 +406,7 @@ export function buildTourPlan(state, opts) {
     let totalFuel = 0, totalToll = 0, totalPayment = 0;
     let minBuffer = Infinity;
     let counters = { ...initCounters };
+    const planningVehicle = isElectric(vehicle) ? {...vehicle,batteryKWh:futureBattery(state,vehicle)} : vehicle;
 
     for (const orderId of orderIds) {
       const order = _orderById(state, orderId);
@@ -413,7 +420,9 @@ export function buildTourPlan(state, opts) {
       // Aufbau-Kompatibilität: strikte Frachtarten erfordern passenden Aufbau.
       const bodyCheck = checkBodyTypeCompatibility(order, vehicle);
       if (!bodyCheck.ok) return { ok: false as const, error: bodyCheck.error };
-      const dep = buildDeployment(state, order, vehicle, currentCity, t, counters);
+      const dep = buildDeployment(state, order, planningVehicle, currentCity, t, counters);
+      if (dep.energyError) return {ok:false as const,error:dep.energyError};
+      if (dep.energy) planningVehicle.batteryKWh=dep.energy.finalBatteryKWh;
       if (order.windowVersion >= 2 && dep.phases.find(p => p.type === "loading")?.startMin > order.latestLoadStartMin) {
         return { ok: false as const, error: "Ladefenster von " + order.customer + " wird überschritten." };
       }
@@ -440,7 +449,8 @@ export function buildTourPlan(state, opts) {
 
     let returnDeployment = null;
     if (desiredEndCity && currentCity !== desiredEndCity) {
-      const dep = buildEmptyDeployment(state, currentCity, desiredEndCity, vehicle, t, counters);
+      const dep = buildEmptyDeployment(state, currentCity, desiredEndCity, planningVehicle, t, counters);
+      if (dep.energyError) return {ok:false as const,error:dep.energyError};
       returnDeployment = dep;
       totalKm += dep.totalKm; emptyKm += dep.emptyKm;
       totalFuel += dep.fuelCents; totalToll += dep.tollCents;
@@ -798,6 +808,8 @@ function startDeployment(state, tour, dep, depIndex) {
   const fresh = order
     ? buildDeployment(state, order, vehicle, vehicle.locationCity, state.gameTime, initialCounters)
     : buildEmptyDeployment(state, vehicle.locationCity, dep.toCity, vehicle, state.gameTime, initialCounters);
+  if (fresh.energyError) throw new Error(fresh.energyError);
+  if (state.company.accountCents < fresh.fuelCents+fresh.tollCents) throw new Error("Firmenkonto reicht für den aktuellen Energie- und Mautbedarf nicht.");
   Object.assign(dep, fresh);
 
   // Phasen aus dem Deployment übernehmen, bei zeitlicher Abweichung verschieben
@@ -825,6 +837,7 @@ function startDeployment(state, tour, dep, depIndex) {
     status: "in_progress",
     paymentCents: dep.paymentCents,
     fuelCents: dep.fuelCents,
+    energy: dep.energy,
     tollCents: dep.tollCents,
     totalKm: dep.totalKm,
     drivenKm: 0,
@@ -832,7 +845,7 @@ function startDeployment(state, tour, dep, depIndex) {
   };
 
   // Kraftstoff und Maut einmal beim Start buchen (nicht pro Pause-Block)
-  addBooking(state, state.gameTime, "Kraftstoff: " + (dep.customer || "Leerfahrt"), -dep.fuelCents, "company", "fuel:" + tripId, { branchId: vehicle.branchId, vehicleId: vehicle.id, orderId: dep.orderId });
+  addBooking(state, state.gameTime, (isElectric(vehicle) ? "Ladestrom unterwegs: " : "Kraftstoff: ") + (dep.customer || "Leerfahrt"), -dep.fuelCents, "company", "fuel:" + tripId, { branchId: vehicle.branchId, vehicleId: vehicle.id, orderId: dep.orderId });
   addBooking(state, state.gameTime, "Maut: " + (dep.customer || "Leerfahrt"), -dep.tollCents, "company", "toll:" + tripId, { branchId: vehicle.branchId, vehicleId: vehicle.id, orderId: dep.orderId });
 
   // DG-Abwicklungsgebühr beim tatsächlichen Ladungsbeginn (Auftrag 32)
@@ -1067,7 +1080,7 @@ export function processTours(state, m, log) {
     if (nextDep.dep.orderId) {
       const order = state.orders.find(o => o.id === nextDep.dep.orderId);
       const fresh = buildDeployment(state, order, vehicle, vehicle.locationCity, m, planningDriverCounters(state, driver));
-      if (order.tons > vehicle.capacityTons || !checkBodyTypeCompatibility(order, vehicle).ok ||
+      if (fresh.energyError || order.tons > vehicle.capacityTons || !checkBodyTypeCompatibility(order, vehicle).ok ||
           (order.windowVersion >= 2 && fresh.phases.find(p => p.type === "loading")?.startMin > order.latestLoadStartMin) ||
           (order.isDangerousGoods && !validateDgTransport(state, order, vehicle, driver, fresh.endMin).ok)) {
         tour.pauseReason = "Auftrag ist mit den aktuellen Ressourcen oder Ladezeiten nicht mehr ausführbar.";

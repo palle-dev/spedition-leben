@@ -114,7 +114,7 @@ export function buildPhases(workSteps, counters, earliestStart) {
       if (chunk <= 0) break;
 
       // 4. Phase erzeugen
-      const phase: {type: string; startMin: number; endMin: number; durationMin: number; fromCity?: string; toCity?: string; distanceKm?: number; totalDurationMin?: number; completedMin?: number} = {
+      const phase: {type: string; startMin: number; endMin: number; durationMin: number; fromCity?: string; toCity?: string; distanceKm?: number; totalDurationMin?: number; completedMin?: number; chargeKWh?: number; chargeKw?: number} = {
         type: step.type,
         startMin: t,
         endMin: t + chunk,
@@ -133,6 +133,7 @@ export function buildPhases(workSteps, counters, earliestStart) {
         phase.completedMin = chunk;
       }
 
+      if (step.type === "charging") { phase.chargeKWh = step.chargeKWh * chunk / step.durationMin; phase.chargeKw = step.chargeKw; }
       phases.push(phase);
       t += chunk;
       remainingDur -= chunk;

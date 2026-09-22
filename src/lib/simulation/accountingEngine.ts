@@ -34,6 +34,8 @@ export const ACCOUNTS: Record<string, { no: string; name: string; type: string; 
   "4100": { no: "4100", name: "Versicherungsentschädigungen", type: "revenue", group: "other_revenue" },
   "4200": { no: "4200", name: "Gewinne aus Anlagenverkauf", type: "revenue", group: "other_revenue" },
   // Aufwendungen
+  "5005": { no:"5005", name:"Ladestrom", type:"expense", group:"direct_costs" },
+  "4210": { no:"4210", name:"PV-Einspeisung", type:"revenue", group:"other_revenue" },
   "5000": { no: "5000", name: "Kraftstoff", type: "expense", group: "direct_costs" },
   "5010": { no: "5010", name: "Maut", type: "expense", group: "direct_costs" },
   "5020": { no: "5020", name: "Fremdtransporte", type: "expense", group: "direct_costs" },
@@ -204,6 +206,7 @@ export function postJournal(state, data) {
 // Wird von addBooking genutzt, um Buchungstexten (z.B. "Kraftstoff: ...")
 // die korrekten Aufwands-/Ertragskonten zuzuordnen.
 export const CAUSE_ACCOUNT_MAP = {
+  "Ladestrom":"5005", "Ladestrom unterwegs":"5005", "PV-Einspeisung":"4210", "Energieanlage":"1220",
   "Kraftstoff": "5000", "Maut": "5010", "Vergütung": "4000",
   "Fahrerlohn": "5100", "Standort": "5200", "Lohn": "5120",
   "Private Entnahme": "2010", "Stornogebühr": "5700",

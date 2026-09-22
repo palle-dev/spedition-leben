@@ -1,3 +1,4 @@
+import { ELECTRIC_MODELS, electricFields } from "./electricCatalog.ts";
 // Finanzierungs-Engine für FERNWERK – Auftrag 17.
 // Kredite (Ratendarlehen) und Lkw-Leasing als vollständig spielbare Finanzierung.
 // Reine Logik – keine Auth, keine Speicherung. Wird von simulationEngine importiert.
@@ -16,6 +17,7 @@ export const LOAN_TERMS = [12, 24, 36];
 export const DAY_MIN = 1440;
 
 export const LEASING_OFFERS = {
+ ...Object.fromEntries(Object.values(ELECTRIC_MODELS).map(m=>[m.id+"_flex",{...m,id:m.id+"_flex",catalogId:m.id,vehicleType:m.label,powertrain:"electric",consumptionPer100km:0,referencePriceCents:m.priceCents,termMonths:24,specialPaymentCents:0,includedKm:240000,mileageRatePerKmCents:12,buyoutPriceCents:Math.round(m.priceCents*0.5),minConditionAtReturn:70,conditionPenaltyPerPointCents:6000,returnLocationCity:"Hamburg"}])),
   // ---------- Regional-Lkw ----------
   regional_flex: {
     id: "regional_flex",
@@ -575,6 +577,7 @@ export function getAllLeasingOffers() {
     LEASING_OFFERS.standard_flex,
     LEASING_OFFERS.standard,
     LEASING_OFFERS.heavy_flex,
+    ...Object.keys(ELECTRIC_MODELS).map(id=>LEASING_OFFERS[id+"_flex"]),
   ];
 }
 
@@ -604,6 +607,7 @@ export function leaseTruck(state, { provisionCity, offerId, branchId, bodyType }
     ownership_type: "leased", leasingContractId: null, odometerKm: 0,
     acquiredAtMin: startMin, referencePriceCents: Math.round(baseRef * body.priceMultiplier),
     markedForSale: false, saleOffer: null,
+    ...electricFields(offer, body),
   };
   state.vehicles.push(vehicle);
 
