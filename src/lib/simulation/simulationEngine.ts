@@ -1,3 +1,4 @@
+import { processCompanyStories } from "./companyStories.ts";
 import { migrateJourney, processJourney, handleJourneyCommand } from "./playerJourney.ts";
 import { migrateDach, DACH_COMMANDS, handleDachCommand, recordDachDelivery } from "./dachEngine.ts";
 import { COMPETITION_COMMANDS, handleCompetitionCommand } from "./competitionDeals.ts";
@@ -643,6 +644,7 @@ function processEventsAt(state, m, log) {
   // 4. Tagesabrechnung (Mitternacht)
   if (m % 1440 === 0 && m > 0) {
     processJourney(state,m);
+    processCompanyStories(state,m);
     const dlog = doDailyAccounting(state, m);
     log.push({ type: "daily_accounting", min: m, details: dlog });
     // Auftrag 25: Krankheitsgenerator, Urlaubsverbrauch, Sauberkeitsverlust

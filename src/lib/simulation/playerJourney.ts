@@ -1,3 +1,4 @@
+import { recordCompanyStoryEvent, chooseCompanyStory } from "./companyStories.ts";
 import { countryOf } from "./dachGeography.ts";
 import { preserveHistory } from "./historyRetention.ts";
 const DAY=1440;
@@ -29,6 +30,7 @@ export function recordJourneyEvent(s,e){
  if(e.type==="course_completed")t.courses++;
  if(e.type==="contract_accepted")t.contracts++;
  if(e.type==="personal_appointment_done")t.personal++;
+ recordCompanyStoryEvent(s,e);
  processJourney(s,e.gameTime);
 }
 function archive(s,type,record){preserveHistory(s,"events",[{id:"journey:"+type+":"+record.id,type:"journey_"+type,gameTime:s.gameTime,details:record,isSystem:true,seen:true}]);}
@@ -37,7 +39,7 @@ export function startJourneyPath(s,path){
  migrateJourney(s);const j=s.journey;if(!JOURNEY_PATHS.some(p=>p.id===path))throw Error("Unbekannter Entwicklungsweg.");
  if(j.goals.length&&!j.goals.every(g=>g.completedAtMin!=null))throw Error("Der gewählte Weg läuft noch. Erst abschließen oder bewusst beenden.");
  const fleet=(s.vehicles||[]).filter(v=>!["sold","archived"].includes(v.status)).length,scale=Math.max(1,Math.ceil(fleet/10));
- const definitions=path==="reliable"?[["onTime",Math.min(100,5*scale),"Wort halten","Pünktliche Lieferungen","/disposition"],["contracts",1,"Vertrauen gewinnt","Neue Kundenverträge","/kunden"],["delivered",Math.min(1000,25*scale),"Ein Netz, das trägt","Abgeschlossene Lieferungen","/disposition"]]:
+ const definitions: any[][]=path==="reliable"?[["onTime",Math.min(100,5*scale),"Wort halten","Pünktliche Lieferungen","/disposition"],["contracts",1,"Vertrauen gewinnt","Neue Kundenverträge","/kunden"],["delivered",Math.min(1000,25*scale),"Ein Netz, das trägt","Abgeschlossene Lieferungen","/disposition"]]:
  path==="people"?[["personal",1,"Zeit, die zählt","Eingehaltene persönliche Termine","/zuhause"],["courses",Math.min(10,scale),"Gemeinsam besser","Abgeschlossene Weiterbildungen","/personal"],["onTime",Math.min(500,15*scale),"Erfolg als Team","Pünktliche Lieferungen","/disposition"]]:
  [["electric",Math.min(100,3*scale),"Leise voraus","Lieferungen mit E-Lkw","/fuhrpark"],["courses",Math.min(5,scale),"Wissen bewegt","Abgeschlossene Weiterbildungen","/personal"],["foreign",Math.min(100,5*scale),"Neue Horizonte","Lieferungen nach Österreich oder in die Schweiz","/filialen"]];
  j.path=path;j.round++;j.goals=definitions.map(([metric,target,title,description,link],i)=>({id:j.round+":"+i,metric,target,title,description,link,baseline:j.totals[metric]||0,startedAtMin:s.gameTime,completedAtMin:null}));
@@ -54,8 +56,9 @@ export function processJourney(s,m){
  }
 }
 export function handleJourneyCommand(s,command,p){
- if(!["chooseJourneyPath","abandonJourneyPath","setCompanyIdentity"].includes(command))return null;
+ if(!["chooseJourneyPath","abandonJourneyPath","setCompanyIdentity","chooseCompanyStory"].includes(command))return null;
  migrateJourney(s);const j=s.journey;
+ if(command==="chooseCompanyStory")return chooseCompanyStory(s,p);
  if(command==="chooseJourneyPath")return startJourneyPath(s,p.path);
  if(command==="abandonJourneyPath"){
   if(p.round!==j.round)throw Error("Der Entwicklungsweg hat sich geändert.");
