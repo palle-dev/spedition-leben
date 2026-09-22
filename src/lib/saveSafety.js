@@ -1,3 +1,4 @@
+import { migrateCompetition } from "./simulation/competitionCore";
 import { isCompleteSnapshot } from "./simulation/snapshotValidation";
 import { migrateApprovals } from "./simulation/delegationEngine";
 import { ensureWorldContinuation } from "./simulation/worldContinuation";
@@ -56,5 +57,6 @@ export function prepareOwnedLoadedState(state) {
   // Freigaben vor der ersten Anzeige normalisieren, auch ohne Spielbefehl.
   migrateApprovals(state);
   ensureWorldContinuation(state);
+  migrateCompetition(state);
   return state;
 }

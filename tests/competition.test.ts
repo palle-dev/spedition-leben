@@ -110,3 +110,10 @@ it("integrates acquisitions identically through the real event loop and reuses s
  expect(a.competition.deals[0].status).toBe("completed");expect(a.branches.length).toBe(branches+(existing?0:1));
  expect(getAccountBalance(a,"1320")).toBe(0);
 });
+
+it("makes legacy competition available immediately on loading without costs",()=>{
+ const s=fresh();delete s.competition;for(const r of s.world.rivals){delete r.business;delete r.businessStatus;}
+ const cash=s.company.accountCents,original=copy(s);const loaded:any=prepareLoadedState(s);
+ expect(loaded.competition.version).toBe(1);expect(loaded.world.rivals.every(r=>r.business.staff.length>0)).toBe(true);
+ expect(loaded.company.accountCents).toBe(cash);expect(s).toEqual(original);
+});
