@@ -428,19 +428,28 @@ export function GameProvider({ children }) {
   const loadCloudGame = useCallback(async (cloudId) => {
     let token;
     setBusy(true);
+    setLoading(true);
+    setLoadingProgress(0);
+    setLoadingPhase("");
     try {
       token = beginStateChange();
+      const onProgress = (pct, phase) => {
+        if (isCurrentSession(token)) { setLoadingProgress(pct); setLoadingPhase(phase); }
+      };
+      onProgress(5, "Cloud-Spielstand wird heruntergeladen …");
       const res = await loadCloudSave(cloudId);
       if (!isCurrentSession(token)) return { skipped: true };
       if (res.error) throw new Error(res.error);
       const meta = makeSyncMeta(res.party_id || res.state?.meta?.partyId || generatePartyId(),
         cloudId, res.revision, "synced", Date.now(), null);
-      return await activateState(res.state, token, meta);
+      const result = await activateState(res.state, token, meta, false, onProgress);
+      if (result.ok && isCurrentSession(token)) onProgress(100, "Bereit zur Abfahrt …");
+      return result;
     } catch (error) {
       if (!token || isCurrentSession(token)) showToast(error.message, "error");
       return { ok: false, error: error.message };
     } finally {
-      if (!token || isCurrentSession(token)) { changingStateRef.current = false; setBusy(false); }
+      if (!token || isCurrentSession(token)) { changingStateRef.current = false; setBusy(false); setLoading(false); }
     }
   }, [beginStateChange, isCurrentSession, activateState, showToast]);
 
