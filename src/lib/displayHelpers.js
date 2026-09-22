@@ -124,7 +124,7 @@ export function getVehiclePosition(vehicle, state) {
     const phase = phases[currentIdx];
 
     // Laden/Entladen: an der Stadt
-    if (phase.type === "loading" || phase.type === "unloading" || phase.type === "load" || phase.type === "unload") {
+    if (phase.type === "charging" || phase.type === "loading" || phase.type === "unloading" || phase.type === "load" || phase.type === "unload") {
       return CITY_COORDS[phase.fromCity] || CITY_COORDS[vehicle.locationCity] || null;
     }
 
@@ -176,7 +176,7 @@ export function tripPhaseLabel(trip) {
   if (idx === undefined || idx >= phases.length) return "Angekommen";
   const phase = phases[idx];
   const labels = {
-    empty_drive: "Leerfahrt", loading: "Laden", loaded_drive: "Beladene Fahrt",
+    charging: "Batterie laden", empty_drive: "Leerfahrt", loading: "Laden", loaded_drive: "Beladene Fahrt",
     break: "Fahrpause", daily_rest: "Ruhezeit", unloading: "Entladen",
     empty: "Leerfahrt", load: "Laden", drive: "Beladene Fahrt", unload: "Entladen",
   };
@@ -239,6 +239,7 @@ export function getNextEvent(state) {
 }
 
 function phaseShort(type) {
+  if (type === "charging") return "Batterie laden";
   if (type === "empty" || type === "empty_drive") return "Leerfahrt";
   if (type === "load" || type === "loading") return "Laden";
   if (type === "drive" || type === "loaded_drive") return "Fahrt";

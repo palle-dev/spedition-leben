@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro } from "@/lib/gameData";
-import { vehicleDisplayName } from "@/lib/displayHelpers";
+import { vehicleDisplayName, vehicleTypeLabel } from "@/lib/displayHelpers";
 import Portrait from "@/components/ui/Portrait";
 import EnergyPanel from "@/components/branches/EnergyPanel";
 import SiteExpansionCard from "@/components/branches/SiteExpansionCard";
@@ -263,7 +263,7 @@ export default function BranchDetailDialog({ branch, onClose, onMoveResource }) 
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{vehicleDisplayName(v)}</div>
                     <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
-                      <span>{v.type === "regional" ? "Regional" : v.type === "standard" ? "Standard" : "Schwer"}</span>
+                      <span>{vehicleTypeLabel(v)}</span>
                       <span>·</span>
                       <span>{v.bodyType === "box" ? "Planen" : v.bodyType === "reefer" ? "Kühlwagen" : v.bodyType === "tank" ? "Tankwagen" : v.bodyType === "tipper" ? "Kipper" : v.bodyType}</span>
                       {v.licensePlate && <><span>·</span><span>{v.licensePlate}</span></>}

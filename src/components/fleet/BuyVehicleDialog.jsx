@@ -46,7 +46,7 @@ export default function BuyVehicleDialog({ branchId, branchCity, onClose }) {
 
         {/* Fahrzeuggröße */}
         <label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-2 block">Fahrzeuggröße</label>
-        <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
           {VEHICLE_CATALOG_LIST.map(v => {
             const price = Math.round(v.priceCents * body.priceMultiplier);
             return (
