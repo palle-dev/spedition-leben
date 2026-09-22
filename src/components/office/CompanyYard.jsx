@@ -15,7 +15,7 @@ export default function CompanyYard(){
  const energy=state.energy?.sites?.[branch?.id],sites=(state.branches||[]).filter(b=>b.status==="active").length;
  const night=state.gameTime%1440<360||state.gameTime%1440>=1200;
  async function save(){setSaving(true);try{await send("setCompanyIdentity",{color:color||brand.color,motto:motto??brand.motto});setEdit(false);showToast("Dein Unternehmen trägt jetzt Deine Handschrift.","success");}catch(e){showToast(e.message,"error");}finally{setSaving(false);}}
- return <section className={"ff-yard "+(motionEnabled?"ff-yard-motion":"")} style={{"--yard-color":accent}} aria-label="Dein persönlicher Betriebshof">
+ return <section className={"ff-yard "+(motionEnabled?"ff-yard-motion":"")} style={/** @type {React.CSSProperties} */ ({"--yard-color":accent})} aria-label="Dein persönlicher Betriebshof">
   <div className="ff-yard-top"><div><p className="ff-yard-eyebrow">{night?"NACHTSCHICHT":"DEIN UNTERNEHMEN IN BEWEGUNG"} · {branch?.city||"Hauptstandort"}</p><h2>{state.company?.name||"Deine Spedition"}</h2><p>{brand.motto}</p></div><button className="ff-yard-customize" onClick={()=>{setColor(brand.color);setMotto(brand.motto);setEdit(!edit);}} aria-expanded={edit}><Palette size={16}/><span>Gestalten</span></button></div>
   <svg viewBox="0 0 980 290" role="img" aria-label="Betriebshof mit eigener Lackierung und tatsächlich installierter Energieausstattung" className="ff-yard-scene">
    <defs><linearGradient id={id+"ground"} x2="0" y2="1"><stop stopColor="#243840"/><stop offset="1" stopColor="#111f28"/></linearGradient><linearGradient id={id+"roof"} x2="1" y2="1"><stop stopColor="#415966"/><stop offset="1" stopColor="#273c45"/></linearGradient></defs>
