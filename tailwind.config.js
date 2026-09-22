@@ -96,7 +96,9 @@ module.exports = {
         'pop': { '0%': { transform: 'scale(.6)', opacity: '0' }, '65%': { transform: 'scale(1.05)' }, '100%': { transform: 'scale(1)', opacity: '1' } },
         'pulse-ring': { '0%, 100%': { boxShadow: '0 0 0 0 hsl(var(--lime) / 0.15)' }, '50%': { boxShadow: '0 0 0 12px hsl(var(--lime) / 0.04)' } },
         'flow': { to: { strokeDashoffset: '-100' } },
-        'road-flow': { from: { transform: 'translateX(0)' }, to: { transform: 'translateX(-36px)' } }
+        'container-drop': { '0%': { transform: 'translateY(-100px)', opacity: '0' }, '10%': { opacity: '1' }, '65%': { transform: 'translateY(0px)', opacity: '1' }, '72%': { transform: 'translateY(0px)', opacity: '1' }, '82%': { transform: 'translateY(0px)', opacity: '0' }, '100%': { transform: 'translateY(-100px)', opacity: '0' } },
+        'light-shaft': { '0%': { opacity: '0' }, '10%': { opacity: '0.6' }, '65%': { opacity: '0.35' }, '72%': { opacity: '0' }, '100%': { opacity: '0' } },
+        'impact-flash': { '0%, 65%': { opacity: '0' }, '68%': { opacity: '0.9' }, '78%': { opacity: '0' }, '100%': { opacity: '0' } }
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -105,7 +107,9 @@ module.exports = {
         'pop': 'pop 0.6s cubic-bezier(.2,.75,.2,1) both',
         'pulse-ring': 'pulse-ring 1.8s ease-in-out infinite',
         'flow': 'flow 12s linear infinite',
-        'road-flow': 'road-flow 0.35s linear infinite'
+        'container-drop': 'container-drop 2s cubic-bezier(0.2, 0.75, 0.2, 1) infinite',
+        'light-shaft': 'light-shaft 2s ease-in-out infinite',
+        'impact-flash': 'impact-flash 2s ease-out infinite'
       }
     }
   },
