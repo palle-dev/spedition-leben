@@ -434,7 +434,7 @@ export function buildTourPlan(state, opts) {
       // Aufbau-Kompatibilität: strikte Frachtarten erfordern passenden Aufbau.
       const bodyCheck = checkBodyTypeCompatibility(order, vehicle);
       if (!bodyCheck.ok) return { ok: false as const, error: bodyCheck.error };
-      const optimistic = optimisticDeliveryEnd(state, order, currentCity, t, counters);
+      const optimistic = optimisticDeliveryEnd(state, order, currentCity, t, counters, isElectric(vehicle));
       if ((order.windowVersion >= 2 && optimistic.loadingStart > order.latestLoadStartMin) ||
           optimistic.delivery > order.deliveryDeadlineMin + 240) {
         return { ok: false as const, error: "Lieferfrist oder Ladefenster selbst ohne zusätzliche Pausen nicht erreichbar." };
