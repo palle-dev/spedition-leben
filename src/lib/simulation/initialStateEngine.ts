@@ -1,3 +1,4 @@
+import {migrateJourney} from "./playerJourney.ts";
 // Initialzustand-Erzeugung für "Frachtfieber".
 // Aus simulationEngine.ts extrahiert, um die Dateigröße zu reduzieren.
 // Trennung: initialStateEngine (Startzustand) · simulationEngine (Regeln/Zustand).
@@ -177,6 +178,7 @@ export function createInitialState(names) {
   initStartApplicants(state);
   // Investment-Markt und Depots initialisieren (Auftrag 33)
   initInvestment(state);
+  migrateJourney(state);
   // migrateMarket creates the market; scenarios may add loans.
   return { state: state as typeof state & {market: {rngSeed?: number}; loans?: {status: string; remainingPrincipalCents: number}[]} };
 }

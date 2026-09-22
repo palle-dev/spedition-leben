@@ -1,3 +1,4 @@
+import {migrateJourney} from "./simulation/playerJourney";
 import { migrateDach } from "./simulation/dachEngine";
 import { migrateCompetition } from "./simulation/competitionCore";
 import { isCompleteSnapshot } from "./simulation/snapshotValidation";
@@ -60,5 +61,6 @@ export function prepareOwnedLoadedState(state) {
   ensureWorldContinuation(state);
   migrateCompetition(state);
   migrateDach(state);
+  migrateJourney(state);
   return state;
 }

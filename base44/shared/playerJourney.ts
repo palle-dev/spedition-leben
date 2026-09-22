@@ -34,7 +34,7 @@ export function recordJourneyEvent(s,e){
  recordCompanyStoryEvent(s,e);
  processJourney(s,e.gameTime);
 }
-function archive(s,type,record){preserveHistory(s,"events",[{id:"journey:"+type+":"+record.id,type:"journey_"+type,gameTime:s.gameTime,details:record,isSystem:true,seen:true}]);}
+function archive(s,type,record){preserveHistory(s,"events",[{id:"journey:"+type+":"+record.id,type:"journey_"+type,title:record.title||({week:"Deine Wochenbilanz",path:"Dein Unternehmensweg"})[type]||"Dein Meilenstein",gameTime:s.gameTime,details:record,isSystem:true,seen:true}]);}
 export function journeyProgress(s,g){return Math.max(0,(s.journey?.totals[g.metric]||0)-g.baseline);}
 export function startJourneyPath(s,path){
  migrateJourney(s);const j=s.journey;if(!JOURNEY_PATHS.some(p=>p.id===path))throw Error("Unbekannter Entwicklungsweg.");

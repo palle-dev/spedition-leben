@@ -1,7 +1,7 @@
 import { preserveHistory } from "./historyRetention.ts";
 const DAY=1440;
 const employed=(s,id)=>(s.drivers||[]).find(p=>p.id===id&&p.employmentStatus==="employed");
-function finish(s,a,status){a.status=status;a.closedAtMin=s.gameTime;preserveHistory(s,"events",[{id:"company_story:"+a.id,type:"company_story",gameTime:s.gameTime,isSystem:true,seen:true,details:structuredClone(a)}]);s.journey.nextArcMin=s.gameTime+10*DAY;}
+function finish(s,a,status){a.status=status;a.closedAtMin=s.gameTime;preserveHistory(s,"events",[{id:"company_story:"+a.id,type:"company_story",title:"Geschichte mit "+a.name,gameTime:s.gameTime,isSystem:true,seen:true,details:structuredClone(a)}]);s.journey.nextArcMin=s.gameTime+10*DAY;}
 export function processCompanyStories(s,m){
  const j=s.journey;if(!j)return;
  const active=j.arcs.find(a=>a.status==="decision"||a.status==="waiting");

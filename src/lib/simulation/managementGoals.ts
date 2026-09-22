@@ -11,7 +11,7 @@ export function managementGoalProgress(s,g){
  const t=totals(s,g.branchId),delivered=Math.max(0,t.delivered-g.baseline.delivered),onTime=Math.max(0,t.onTime-g.baseline.onTime),vehicles=fleet(s,g.branchId).length,staff=drivers(s,g.branchId).length;
  return {delivered,onTime,percent:delivered?Math.round(100*onTime/delivered):null,vehicles,staff,met:g.kind==="reliability"?delivered>=10&&onTime/delivered>=.9:vehicles>0&&staff>=vehicles};
 }
-function close(s,g,status){g.result=managementGoalProgress(s,g);g.status=status;g.closedAtMin=s.gameTime;preserveHistory(s,"events",[{id:"management_goal:"+g.id,type:"management_goal",gameTime:s.gameTime,isSystem:true,seen:true,details:structuredClone(g)}]);}
+function close(s,g,status){g.result=managementGoalProgress(s,g);g.status=status;g.closedAtMin=s.gameTime;preserveHistory(s,"events",[{id:"management_goal:"+g.id,type:"management_goal",title:"Führungsbilanz: "+g.name,gameTime:s.gameTime,isSystem:true,seen:true,details:structuredClone(g)}]);}
 export function setManagementGoal(s,p){
  const e=(s.employees||[]).find(e=>e.id===p.employeeId&&e.employmentStatus==="employed"&&["assistant","branch_manager"].includes(e.role));
  if(!e)throw Error("Keine beschäftigte Führungskraft ausgewählt.");
