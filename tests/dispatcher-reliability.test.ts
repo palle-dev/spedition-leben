@@ -76,3 +76,14 @@ it('Schichtverstärkung übernimmt neue Zusagen, wenn der erste Disponent ausgel
  const free=s.vehicles.find(v=>v.status==='free');planSingleVehicle(s,free,s.gameTime,[]);
  expect(dispatcherVehicleIds(s,'second').size).toBe(1);
 });
+
+it('sucht hinter einer unbrauchbaren Spitzenauswahl nach einem ausführbaren Auftrag',()=>{
+ const s=base();const good=s.orders[0];good.paymentCents=100000;
+ const bad=Array.from({length:12},(_,i)=>({...structuredClone(good),id:'impossible'+i,paymentCents:10000000,deliveryDeadlineMin:s.gameTime+1}));
+ s.orders=[...bad,good];
+ const exact=buildTourPlan(s,{vehicleId:'v0',driverId:'d0',orderIds:[good.id]});expect(exact.ok).toBe(true);expect(exact.totalContributionCents).toBeGreaterThan(0);
+ expect(search(s).suggestions.some(x=>x.orderIds.includes(good.id))).toBe(true);
+ const emp=s.employees[0];processDispatcher(s,emp,s.gameTime,[]);
+ expect(s.orders.find(o=>o.id===good.id).status).not.toBe('offered');
+ expect(s.orders.filter(o=>o.id.startsWith('impossible')).every(o=>o.status==='offered')).toBe(true);
+});
