@@ -1,0 +1,46 @@
+{
+  "baseline": false,
+  "baselineCommit": "9bf5c39f4e1b66e96f8a08d5517229fbf60194a9",
+  "count": 250,
+  "node": "v20.20.2",
+  "days": [
+    {
+      "run": 1,
+      "ms": 4123.291743,
+      "delivered": 533,
+      "failed": 0,
+      "tours": 786
+    },
+    {
+      "run": 2,
+      "ms": 4001.4860880000015,
+      "delivered": 533,
+      "failed": 0,
+      "tours": 786
+    },
+    {
+      "run": 3,
+      "ms": 3999.377109000001,
+      "delivered": 533,
+      "failed": 0,
+      "tours": 786
+    }
+  ],
+  "dayMedianMs": 4001.4860880000015,
+  "blockedSelection": [
+    {
+      "ms": 46.45237199999974,
+      "suggestions": 250
+    },
+    {
+      "ms": 40.35699899999963,
+      "suggestions": 250
+    },
+    {
+      "ms": 40.38842800000202,
+      "suggestions": 250
+    }
+  ],
+  "selectionMedianMs": 40.38842800000202,
+  "limits": "Synthetic fresh fleet and market. One warmup, three independent clones. Engine only, not browser or aged user save. Day fixture starts all trucks on tours; blocked-selection fixture starts all trucks free. Dispatcher staffing/capital supplied synthetically; natural simulation during measured day."
+}
