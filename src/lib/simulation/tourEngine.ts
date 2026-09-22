@@ -1088,6 +1088,17 @@ export function processTours(state, m, log) {
       }
     }
 
+    // Refresh energy and cash requirements for both loaded and return legs.
+    const nextOrder = nextDep.dep.orderId ? state.orders.find(o => o.id === nextDep.dep.orderId) : null;
+    const currentPlan = nextOrder
+      ? buildDeployment(state, nextOrder, vehicle, vehicle.locationCity, m, planningDriverCounters(state, driver))
+      : buildEmptyDeployment(state, vehicle.locationCity, nextDep.dep.toCity, vehicle, m, planningDriverCounters(state, driver));
+    if (currentPlan.energyError || state.company.accountCents < currentPlan.fuelCents + currentPlan.tollCents) {
+      tour.pauseReason = currentPlan.energyError || "Firmenkonto reicht für den aktuellen Energie- und Mautbedarf nicht.";
+      log.push({type: "tour_paused", tour: tour.id, reason: tour.pauseReason});
+      continue;
+    }
+
     // Stoerungsmanagement: Technischen Defekt vor Tourbeginn pruefen
     if (maybeGenerateTechnicalDefect(state, tour, nextDep.dep, m, log)) {
       // Defekt aufgetreten — Tour blockiert, Einsatz nicht starten

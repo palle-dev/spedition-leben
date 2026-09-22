@@ -3,7 +3,7 @@ import { useGame } from "@/lib/gameContext";
 import { Button } from "@/components/ui/button";
 import { History, Loader2 } from "lucide-react";
 
-const labels = { accountingJournal: "Buchungsjournal", expiredOffers: "Abgelaufene Angebote", accountingTasks: "Erledigte Buchhaltungsaufgaben",
+const labels = { energyDays: "PV & E-Mobilität: Tagesdaten", accountingJournal: "Buchungsjournal", expiredOffers: "Abgelaufene Angebote", accountingTasks: "Erledigte Buchhaltungsaufgaben",
   orders: "Aufträge", trips: "Fahrten", tours: "Touren", receipts: "Belege", bookings: "Buchungen",
   events: "Meldungen", mailMessages: "E-Mails", mailConversations: "Unterhaltungen", mailConversationVersions: "Frühere Unterhaltungen",
   mailTasks: "Postfachaufgaben", appointments: "Termine", approvals: "Freigaben", assistantDecisions: "Assistent",
