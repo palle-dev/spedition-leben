@@ -20,7 +20,7 @@ function byId(state,id) {
 function newId(state,prefix){return prefix+"_"+(++state.competition.sequence);}
 function personFor(r,id){const p=rivalStaff(r).find(p=>p.id===id);if(!p)throw new Error("Diese Person steht nicht mehr zur Verfügung.");return p;}
 function activeBranch(state,id){const b=state.branches.find(b=>b.id===id&&b.status==="active");if(!b)throw new Error("Bitte eine aktive Zielfiliale wählen.");return b;}
-export function handleCompetitionCommand(state,command,p={}) {
+export function handleCompetitionCommand(state,command,p: any={}) {
   if(!COMPETITION_COMMANDS.includes(command))return null;
   migrateCompetition(state);
   if(!state.competition)throw new Error("Bitte zuerst die Spielwelt betreten.");

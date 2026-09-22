@@ -46,6 +46,9 @@ export function migrateCompetition(state) {
     r.business={version:1,sequence:0,vehicles:[],staff:[],siteCostCents:8000,regularDeliveries:0,totalRevenueCents:0,totalExpensesCents:0};
     const size=Math.max(0,Math.floor(r.fleet||0));
     for(let i=0;i<size;i++)addRivalCapacity(r);
+    if(size>=5)for(const role of ["accountant", "mechanic"]){const index=++r.business.sequence;
+      r.business.staff.push({id:r.id+"_staff_"+index,name:staffName(r,index+24),role,costPerDayCents:PERSONNEL_ROLES[role].costPerDayCents,status:"employed",satisfaction:70,qualifications:[]});}
+
   }
 }
 export function competitionPriceFactor(state,city) {
