@@ -1,0 +1,157 @@
+{
+  "before": {
+    "time": 86880,
+    "vehicles": 75,
+    "drivers": 105,
+    "employees": 18,
+    "orders": 5651,
+    "trips": 957,
+    "tours": 1063
+  },
+  "ms": 3550.6277950000003,
+  "gameTime": 88320,
+  "hash": "22fa373b9e3695c5c2f6343cc67b2537bf86486b7f6778b5251e4ec74cdcde2a",
+  "delivered": 4876,
+  "top": [
+    [
+      "(garbage collector) :-1",
+      272566
+    ],
+    [
+      "buildDeployment tourEngine.ts:280",
+      182638
+    ],
+    [
+      "getDeliveryRisks deliveryRisk.ts:7",
+      172347
+    ],
+    [
+      "dachRoute dachGeography.ts:42",
+      157726
+    ],
+    [
+      "_tryPlan tourEngine.ts:441",
+      155967
+    ],
+    [
+      "suggestTours tourEngine.ts:1310",
+      143966
+    ],
+    [
+      "processDispatcher dispatcherProcessor.ts:118",
+      137620
+    ],
+    [
+      "processEventsAt simulationEngine.ts:386",
+      131425
+    ],
+    [
+      "planningResources tourEngine.ts:55",
+      125922
+    ],
+    [
+      "advanceToIndexed simulationEngine.ts:714",
+      97178
+    ],
+    [
+      "dispatch :-1",
+      94858
+    ],
+    [
+      "processTours tourEngine.ts:999",
+      90217
+    ],
+    [
+      "deliverMessage mailEngine.ts:225",
+      89311
+    ],
+    [
+      " planningOrderRanking.ts:21",
+      79738
+    ],
+    [
+      "_cached tourEngine.ts:112",
+      76631
+    ],
+    [
+      "validateResolution disruptionEngine.ts:1084",
+      69787
+    ],
+    [
+      "earliestEventAfter eventScheduler.ts:28",
+      60495
+    ],
+    [
+      "computeOptions disruptionEngine.ts:204",
+      59378
+    ],
+    [
+      " phoneCommunications.ts:9",
+      58814
+    ],
+    [
+      "processEmployeesIndexed dispatcherProcessor.ts:65",
+      51401
+    ],
+    [
+      "getDistance dachGeography.ts:55",
+      44782
+    ],
+    [
+      "buildPhases driverTimeEngine.ts:67",
+      40019
+    ],
+    [
+      "startDeployment tourEngine.ts:853",
+      39466
+    ],
+    [
+      "buildTourPlan tourEngine.ts:402",
+      38348
+    ],
+    [
+      " phoneProposals.ts:39",
+      38187
+    ],
+    [
+      " disruptionEngine.ts:1106",
+      37104
+    ],
+    [
+      " disruptionEngine.ts:206",
+      28550
+    ],
+    [
+      "isElectric energyEngine.ts:23",
+      28481
+    ],
+    [
+      "computeAnchorCities marketEngine.ts:129",
+      24362
+    ],
+    [
+      " tourEngine.ts:777",
+      24191
+    ],
+    [
+      "driverTrip tourEngine.ts:110",
+      24166
+    ],
+    [
+      "compare planningOrderRanking.ts:13",
+      23017
+    ],
+    [
+      "withTourValidation tourEngine.ts:667",
+      22874
+    ],
+    [
+      "makeMarketOffer marketEngine.ts:389",
+      22285
+    ],
+    [
+      "retainHistory historyRetention.ts:18",
+      20457
+    ]
+  ]
+}
