@@ -14,9 +14,11 @@ export default function CinematicLoader({ progress = 0, phase = "" }) {
     >
       {/* F-Logo */}
       <div className="relative flex flex-col items-center mb-10">
-        <div className="w-12 h-12 rounded-xl bg-lime flex items-center justify-center mb-2.5 shadow-[0_0_24px_rgba(196,245,111,0.3)]">
-          <span className="text-ink font-bold text-2xl leading-none">F</span>
-        </div>
+        <img
+          src="https://media.base44.com/images/public/6aa52ebc01a939da57f8b78f/d627d2612_icon-512.png"
+          alt="Frachtfieber"
+          className="w-12 h-12 rounded-xl object-cover mb-2.5 shadow-[0_0_24px_rgba(196,245,111,0.3)]"
+        />
         <span className="text-lg font-medium tracking-wide text-foreground/90">
           Frachtfieber
         </span>
