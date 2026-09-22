@@ -12,12 +12,12 @@ export default function JournalView({ state }) {
 
   const { queryJournal } = useGame();
   const [snapshot, setSnapshot] = useState(state);
-  const [page, setPage] = useState({ rows: [], before: null, filterKey: null });
+  const [page, setPage] = useState({ rows: [], before: null });
   const [busy, setBusy] = useState(false), [error, setError] = useState(null);
   const request = useRef(0);
   useEffect(() => {
     if (state.meta?.partyId !== snapshot.meta?.partyId) {
-      request.current++; setSnapshot(state); setPage({ rows: [], before: null, filterKey: null }); setSelected(null);
+      request.current++; setSnapshot(state); setPage({ rows: [], before: null }); setSelected(null);
     }
   }, [state, snapshot]);
   const filters = useMemo(() => ({ search, account: accountFilter, type: typeFilter }), [search, accountFilter, typeFilter]);

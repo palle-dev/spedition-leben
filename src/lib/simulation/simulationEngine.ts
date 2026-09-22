@@ -1,7 +1,3 @@
-import {processManagementGoals} from "./managementGoals.ts";
-import { processCompanyStories } from "./companyStories.ts";
-import { migrateJourney, processJourney, handleJourneyCommand } from "./playerJourney.ts";
-import { migrateDach, DACH_COMMANDS, handleDachCommand, recordDachDelivery } from "./dachEngine.ts";
 import { COMPETITION_COMMANDS, handleCompetitionCommand } from "./competitionDeals.ts";
 import { migrateCompetition } from "./competitionCore.ts";
 import { migrateEnergy, processEnergyUntil, processElectricPhase, installEnergyUpgrade, isElectric } from "./energyEngine.ts";
@@ -393,9 +389,8 @@ function completeTrip(state, trip, m, log) {
   } else {
     // Neues Modell: Zähler aus Phasen ableiten, Ruhe nur bei erschöpftem Budget
     const counters = computeFinalCounters(phases, trip.initialCounters || {
-      workMin: driver.workMinutesSinceRest || 0, driveMin: driver.driveMinutesSinceBreak || 0, ...(state.dach?.enabled?{regulation:driver.regulation}:{}),
+      workMin: driver.workMinutesSinceRest || 0, driveMin: driver.driveMinutesSinceBreak || 0,
     });
-    if(counters.regulation)driver.regulation=counters.regulation;
     driver.workMinutesSinceRest = counters.workMin;
     driver.driveMinutesSinceBreak = counters.driveMin;
     if (driver.workMinutesSinceRest >= WORK_BUDGET_MIN) {
@@ -408,7 +403,6 @@ function completeTrip(state, trip, m, log) {
   }
 
   if (trip.type === "empty") {
-    recordDachDelivery(state,trip,null,vehicle,m);
     onTripCompleted(state, trip, m, log);
     recordEmptyTrip(state, trip);
     log.push({ type: "emptytrip_completed", trip: trip.id, vehicle: vehicle.id, driver: driver.id, atCity: finalCity });
@@ -424,7 +418,6 @@ function completeTrip(state, trip, m, log) {
     log.push({ type: "delivery_duplicate_ignored", trip: trip.id, order: trip.orderId, atMin: m });
     return;
   }
-  recordDachDelivery(state,trip,order,vehicle,m);
   order.status = "geliefert"; order.deliveredAtMin = m;
   const onTime = m <= order.deliveryDeadlineMin;
   const payment = onTime ? trip.paymentCents : Math.round(trip.paymentCents * 0.9);
@@ -644,9 +637,6 @@ function processEventsAt(state, m, log) {
   processEmployeeExit(state, m, log); processStoryDeadlines(state, m, log); processStoryAppointments(state, m, log);
   // 4. Tagesabrechnung (Mitternacht)
   if (m % 1440 === 0 && m > 0) {
-    processJourney(state,m);
-    processCompanyStories(state,m);
-    processManagementGoals(state,m);
     const dlog = doDailyAccounting(state, m);
     log.push({ type: "daily_accounting", min: m, details: dlog });
     // Auftrag 25: Krankheitsgenerator, Urlaubsverbrauch, Sauberkeitsverlust
@@ -826,7 +816,7 @@ function advanceToIndexed(state, targetMin, log, reportStart, stopOnDeliveryRisk
 // ---------- Dispositionsplanung ----------
 function planTrip(state, order, vehicle, driver) {
   const plan = buildDeployment(state, order, vehicle, vehicle.locationCity, state.gameTime, {
-    workMin: driver.workMinutesSinceRest || 0, driveMin: driver.driveMinutesSinceBreak || 0, ...(state.dach?.enabled?{regulation:driver.regulation}:{}),
+    workMin: driver.workMinutesSinceRest || 0, driveMin: driver.driveMinutesSinceBreak || 0,
   });
   if (plan.energyError) throw new Error(plan.energyError);
   if ((Number.isFinite(vehicle.rentalReturnMin) && plan.endMin > vehicle.rentalReturnMin) ||
@@ -838,7 +828,6 @@ function planTrip(state, order, vehicle, driver) {
 // ---------- Befehle ----------
 export function applyCommand(state, command, params) {
   _clearPlanCache(); migrateState(state); migrateEnergy(state);
-  migrateDach(state); migrateJourney(state);
   [migrateAcquisition, migrateAbsences, migrateServices, migrateRewards, migratePurchases, migrateWorkshop, migratePersonnelMarket, migrateTraining, migrateDangerousGoods, migrateInvestment, migrateBranches, migrateRelationship, migrateDating, migrateCustomerRelations, migrateContracts, migrateDelegation, migrateApprovals, migrateStories, migrateSegmentFields, migrateBusinessFocus, migrateSegmentStats, migrateMarketDynamics, migrateDevelopmentGoals, migrateDisruptions, migrateUsedVehicleMarket, migratePartners, migrateSiteExpansion, migrateWorld, migrateCompetition, migrateKeyAccounts, migrateRivalBehavior].forEach(fn => fn(state));
   const p = params || {};
   let result;
@@ -977,18 +966,16 @@ export function applyCommand(state, command, params) {
         throw new Error("Technischer Defekt! " + v.id + " kann den Transport nicht antreten. Siehe Störungen im Büro.");
       }
       const fuel = plan.fuelCents;
-      const toll = plan.tollCents;
-      const customs=plan.customsCents||0;
-      const totalCost = fuel + toll + customs;
+      const toll = tollCents(plan.totalKm);
+      const totalCost = fuel + toll;
       if (state.company.accountCents < totalCost) throw new Error("Firmenkonto reicht für Kraftstoff und Maut (" + (totalCost / 100).toFixed(2) + " €) nicht aus.");
       addBooking(state, state.gameTime, (isElectric(v) ? "Ladestrom unterwegs: " : "Kraftstoff: ") + o.customer, -fuel, "company", "fuel:" + o.id, { vehicleId: v.id, orderId: o.id, branchId: v.branchId });
       addBooking(state, state.gameTime, "Maut: " + o.customer, -toll, "company", "toll:" + o.id, { vehicleId: v.id, orderId: o.id, branchId: v.branchId });
-      if(customs)addBooking(state,state.gameTime,"Zollagentur: "+o.customer,-customs,"company","customs:"+o.id,{vehicleId:v.id,orderId:o.id,branchId:v.branchId});
       const trip = {
         id: uid(state, "t"), branchId: v.branchId, type: "loaded", orderId: o.id, vehicleId: v.id, driverId: d.id,
-        phases: plan.phases, initialCounters: { workMin: d.workMinutesSinceRest || 0, driveMin: d.driveMinutesSinceBreak || 0, ...(state.dach?.enabled?{regulation:d.regulation}:{}) }, currentPhase: 0, startMin: state.gameTime, endMin: plan.endMin,
+        phases: plan.phases, initialCounters: { workMin: d.workMinutesSinceRest || 0, driveMin: d.driveMinutesSinceBreak || 0 }, currentPhase: 0, startMin: state.gameTime, endMin: plan.endMin,
         status: "in_progress", paymentCents: plan.paymentCents, fuelCents: fuel, tollCents: toll,
-        totalKm: plan.totalKm, drivenKm: 0, energy: plan.energy,transport:plan.transport,customsCents:customs,
+        totalKm: plan.totalKm, drivenKm: 0, energy: plan.energy,
       };
       state.trips.push(trip);
       v.status = "on_trip"; v.tripId = trip.id;
@@ -1021,21 +1008,21 @@ export function applyCommand(state, command, params) {
       if (v.locationCity !== d.locationCity) throw new Error("Fahrer und Lkw befinden sich an unterschiedlichen Orten.");
       if (v.locationCity !== p.fromCity) throw new Error("Fahrzeug und Fahrer müssen am Abfahrtsort sein.");
       if (!p.fromCity || !p.toCity || p.fromCity === p.toCity) throw new Error("Start und Ziel müssen zwei verschiedene Städte sein.");
-      const counters = { workMin: d.workMinutesSinceRest || 0, driveMin: d.driveMinutesSinceBreak || 0, ...(state.dach?.enabled?{regulation:d.regulation}:{}) };
+      const counters = { workMin: d.workMinutesSinceRest || 0, driveMin: d.driveMinutesSinceBreak || 0 };
       const phaseResult = buildEmptyDeployment(state,p.fromCity,p.toCity,v,state.gameTime,counters);
       if (phaseResult.energyError) throw new Error(phaseResult.energyError);
       if ((Number.isFinite(v.rentalReturnMin) && phaseResult.endMin > v.rentalReturnMin) ||
           (d.isTempStaff && Number.isFinite(d.tempReturnMin) && phaseResult.endMin > d.tempReturnMin)) throw new Error("Leerfahrt endet nach Ablauf der Miete oder Personalvertretung.");
       const dist = phaseResult.totalKm;
       const fuel = phaseResult.fuelCents;
-      const toll = phaseResult.tollCents;
+      const toll = tollCents(dist);
       if (state.company.accountCents < fuel + toll) throw new Error("Firmenkonto reicht für Kraftstoff und Maut nicht aus.");
       addBooking(state, state.gameTime, (isElectric(v) ? "Ladestrom unterwegs: Leerfahrt" : "Kraftstoff (Leerfahrt)"), -fuel, "company", "emptyfuel", { vehicleId: v.id, branchId: v.branchId });
       addBooking(state, state.gameTime, "Maut (Leerfahrt)", -toll, "company", "emptytoll", { vehicleId: v.id, branchId: v.branchId });
       const trip = {
         id: uid(state, "t"), branchId: v.branchId, type: "empty", orderId: null, vehicleId: v.id, driverId: d.id,
         phases: phaseResult.phases, initialCounters: counters, currentPhase: 0, startMin: state.gameTime, endMin: phaseResult.endMin,
-        status: "in_progress", paymentCents: 0, fuelCents: fuel, tollCents: toll, totalKm: dist, drivenKm: 0, energy: phaseResult.energy,transport:phaseResult.transport,
+        status: "in_progress", paymentCents: 0, fuelCents: fuel, tollCents: toll, totalKm: dist, drivenKm: 0, energy: phaseResult.energy,
       };
       state.trips.push(trip);
       v.status = "on_trip"; v.tripId = trip.id;
@@ -2523,8 +2510,6 @@ export function applyCommand(state, command, params) {
     }
 
     default: {
-      const journeyResult=handleJourneyCommand(state,command,p);if(journeyResult!==null){result=journeyResult;break;}
-      if(DACH_COMMANDS.includes(command)){ensureNotBlocked(state);result=handleDachCommand(state,command,p);break;}
       if(COMPETITION_COMMANDS.includes(command)){ensureNotBlocked(state);result=handleCompetitionCommand(state,command,p);break;}
       if(command === "installEnergyUpgrade"){ensureNotBlocked(state);result=installEnergyUpgrade(state,p);break;}
       if (["startWorld", "chooseWorldStory", "bidWorldTender", "withdrawWorldBid", "cancelWorldAppointment"].includes(command)) ensureNotBlocked(state);
@@ -2562,6 +2547,5 @@ export function applyCommand(state, command, params) {
   if (finalAchs.length && !result.newAchievements) result.newAchievements = finalAchs;
   // Belohnungsansprueche nach Erfolgsprüfung aktualisieren (Auftrag 26)
   checkRewardClaims(state);
-  migrateDach(state);
   return { state, result };
 }

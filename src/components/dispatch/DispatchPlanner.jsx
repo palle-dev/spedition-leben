@@ -21,7 +21,7 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
     if (!order || !vehicle) return null;
 
     const counters = driver
-      ? { workMin: driver.workMinutesSinceRest || 0, driveMin: driver.driveMinutesSinceBreak || 0, regulation:driver.regulation }
+      ? { workMin: driver.workMinutesSinceRest || 0, driveMin: driver.driveMinutesSinceBreak || 0 }
       : { workMin: 0, driveMin: 0 };
     const result = buildDeployment(state, order, vehicle, vehicle.locationCity, state.gameTime, counters);
     const totalKm = result.totalKm;
@@ -34,7 +34,7 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
       emptyKm, driveKm, totalKm, energy: result.energy, energyError: result.energyError,
       totalDuration: result.endMin - state.gameTime,
       endMin: result.endMin,
-      fuel, toll, customs:result.customsCents||0, transport:result.transport,
+      fuel, toll,
       phases: result.phases,
       summary,
       finalWorkMin: result.finalWorkMin,
@@ -51,7 +51,7 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
     if (vehicle.condition < 20) return "Fahrzeugzustand unter 20 – Wartung erforderlich.";
     if (vehicle.locationCity !== driver.locationCity) return "Fahrer und Lkw sind an verschiedenen Orten.";
     if (order.tons > vehicle.capacityTons) return `Überladung: ${order.tons} t überschreiten ${vehicle.capacityTons} t Nutzlast.`;
-    if (state.company.accountCents < (plan ? ((plan.fuel + plan.toll) * 100 + plan.customs) : 0)) return "Firmenkonto reicht für Kraftstoff und Maut nicht aus.";
+    if (state.company.accountCents < (plan ? (plan.fuel + plan.toll) * 100 : 0)) return "Firmenkonto reicht für Kraftstoff und Maut nicht aus.";
     return null;
   }, [vehicle, driver, order, plan, state.gameTime, state.company.accountCents]);
 
@@ -205,7 +205,6 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
       {plan && (
         <div className="space-y-2 border-t border-white/10 pt-3">
           <div className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground mb-1">Vorschau</div>
-          {plan.transport && <div className="rounded-lg bg-slate-950 border border-white/15 p-3 text-xs space-y-1"><p>Ländermaut: {plan.transport.breakdown.map(x=>x.country+": "+formatEuro(x.cents)).join(" · ")}</p><p>Zollagentur: {formatEuro(plan.customs)} · {plan.transport.documents?.join(" · ")}</p><p className="text-slate-400">Modellstrecke und Tarifprofile gemäß DACH-Regeln unter Filialen.</p></div>}
           {plan.energy && <div className="rounded-lg border border-lime/20 p-3 text-xs space-y-1"><p>Akku bei Start: {Math.round(plan.energy.startBatteryKWh)} kWh · bei Ankunft: {Math.round(plan.energy.finalBatteryKWh)} kWh</p>{plan.energy.stops.map((s, i) => <p key={i}>Ladestopp {s.city}: {Math.round(s.kWh)} kWh · {s.minutes} min · {s.kw} kW</p>)}<p className="text-muted-foreground">Ladezeiten, Umwege und Batteriereserve sind eingeplant. Depotstrom wird separat in der Energieauswertung abgerechnet.</p></div>}
           {plan.phases.map((p, i) => (
             <div key={i} className="flex items-center justify-between text-xs">
@@ -222,17 +221,16 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
             <SummaryRow label="Beladene Fahrt" value={`${plan.driveKm} km`} />
             <SummaryRow label="Einsatzdauer" value={`${Math.floor(plan.totalDuration / 60)} h ${plan.totalDuration % 60} min`} />
             {plan.summary.breakCount > 0 && <SummaryRow icon={Coffee} label="Fahrpausen" value={`${plan.summary.breakCount}× 45 min`} />}
-            {plan.summary.restCount > 0 && <SummaryRow icon={Moon} label="Ruhezeiten" value={`${plan.summary.restCount} · siehe Phasen`} />}
+            {plan.summary.restCount > 0 && <SummaryRow icon={Moon} label="Ruhezeiten" value={`${plan.summary.restCount}× 12 h`} />}
             <SummaryRow label="Ankunft" value={formatGameTime(plan.endMin)} />
             <SummaryRow label="Fristpuffer" value={buffer != null ? `${buffer >= 0 ? "+" : ""}${Math.floor(Math.abs(buffer) / 60)} h ${Math.abs(buffer) % 60} min` : "—"} tone={buffer >= 0 ? "ok" : "late"} />
             <SummaryRow icon={Fuel} label={plan.energy ? "Ladestrom unterwegs" : "Kraftstoff"} value={formatEuro(plan.fuel * 100)} />
             <SummaryRow icon={CreditCard} label="Maut" value={formatEuro(plan.toll * 100)} />
-            <SummaryRow icon={CreditCard} label="Zollagentur" value={formatEuro(plan.customs)} />
-            <SummaryRow label="Sofortkosten" value={formatEuro(((plan.fuel + plan.toll) * 100 + plan.customs))} strong />
+            <SummaryRow label="Sofortkosten" value={formatEuro((plan.fuel + plan.toll) * 100)} strong />
             <SummaryRow label="Vergütung bei Lieferung" value={formatEuro(order.paymentCents)} />
             <div className="flex items-center justify-between pt-2 border-t border-white/10">
               <span className="text-xs text-muted-foreground">Beitrag vor Fixkosten und Depotstrom</span>
-              <span className="text-lg font-medium text-lime tabular-nums">{formatEuro(order.paymentCents - ((plan.fuel + plan.toll) * 100 + plan.customs))}</span>
+              <span className="text-lg font-medium text-lime tabular-nums">{formatEuro(order.paymentCents - (plan.fuel + plan.toll) * 100)}</span>
             </div>
           </div>
         </div>

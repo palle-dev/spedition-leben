@@ -227,7 +227,6 @@ function TourPreview({ plan }) {
         <Stat label="Gesamt-km" value={`${plan.totalKm} km`} icon={Route} />
         <Stat label="Leer-km" value={`${plan.emptyKm} km`} icon={Truck} />
         <Stat label="Vergütung" value={formatEuro(plan.totalPaymentCents)} icon={CreditCard} />
-        <Stat label="Zollagentur" value={formatEuro(plan.totalCustomsCents||0)} icon={CreditCard} />
         <Stat label="Variable Kosten" value={formatEuro(plan.totalVariableCostCents)} icon={Fuel} />
         <Stat label="Beitrag vor Fixkosten" value={formatEuro(plan.totalContributionCents)} icon={CheckCircle2} highlight />
         <Stat label="Fristpuffer" value={plan.minDeadlineBufferMin != null ? `${Math.floor(plan.minDeadlineBufferMin / 60)} h` : "—"} icon={Clock} />

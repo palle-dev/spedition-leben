@@ -1,7 +1,3 @@
-import { optimisticDeliveryEnd } from './planningLowerBound.ts';
-import { countryOf } from "./dachGeography.ts";
-import { governedTransport, validateDachTransport, projectDachDelivery } from "./dachEngine.ts";
-import { regulatorySteps, transportCosts, DACH_RULE_VERSION } from "./dachRules.ts";
 import { isElectric, electricWorkSteps, futureBattery } from "./energyEngine.ts";
 import { createPlanningOrderRanking } from './planningOrderRanking.ts';
 import { preserveHistory } from "./historyRetention.ts";
@@ -256,28 +252,21 @@ export function buildDeployment(state, order, vehicle, startCity, earliestStart,
     }
   }
   const electric = electricWorkSteps(state, vehicle, workSteps);
-  const governed=governedTransport(state,order);
-  const charges=governed?transportCosts(vehicle,electric.steps):null;
-  workSteps = governed?regulatorySteps(electric.steps):electric.steps;
+  workSteps = electric.steps;
   const result = buildPhases(workSteps, counters || { workMin: 0, driveMin: 0 }, earliestStart);
 
   const totalKm = workSteps.reduce((s, step) => s + (step.distanceKm || 0), 0);
   const emptyKm = workSteps.filter(s=>s.type==="empty_drive").reduce((n,s)=>n+(s.distanceKm||0),0);
   const loadedKm = workSteps.filter(s=>s.type==="loaded_drive").reduce((n,s)=>n+(s.distanceKm||0),0);
   const fuel = electric.energy ? electric.energy.publicCostCents : fuelCents(totalKm, vehicle.consumptionPer100km);
-  const toll = charges?.tollCents ?? tollCents(totalKm);
-  const customs = charges?.customsCents || 0;
-  const validationVehicle={...vehicle,dachCabotage:vehicle.dachCabotage?structuredClone(vehicle.dachCabotage):undefined};
-  if(governed&&countryOf(startCity)!==countryOf(order.fromCity))projectDachDelivery(validationVehicle,null,earliestStart,{fromCity:startCity,toCity:order.fromCity});
-  const ruleError=(!state.dach?.enabled&&[startCity,order.fromCity,order.toCity].some(c=>countryOf(c)!=="DE"))?"Zuerst den DACH-Betrieb aktivieren.":validateDachTransport(state,order,validationVehicle,result.endMin);
+  const toll = tollCents(totalKm);
 
   // Aufbau-Bonus: passender Spezial-Lkw erhält höhere Vergütung.
   const bodyBonusFactor = computeBodyBonusFactor(order, vehicle);
   const adjustedPayment = Math.round(order.paymentCents * bodyBonusFactor);
 
   return {
-    energy: electric.energy, energyError: electric.error || ruleError || (governed&&order.isDangerousGoods&&charges.breakdown.some(x=>x.country!=="DE")?"Internationale Gefahrgutroute ist noch nicht freigegeben.":null),
-    ...(governed?{transport:{...charges,ruleVersion:DACH_RULE_VERSION,documents:charges.customsCents?["CMR-Frachtbrief","Handelsrechnung und Packliste","Ausfuhr-/Einfuhranmeldung durch Zollagentur"]:[countryOf(order.fromCity)!==countryOf(order.toCity)?"CMR-Frachtbrief":"Frachtbrief"]},customsCents:customs,finalRegulation:result.finalRegulation}:{}),
+    energy: electric.energy, energyError: electric.error || null,
     orderId: order.id,
     orderStatus: order.status,
     customer: order.customer,
@@ -297,10 +286,10 @@ export function buildDeployment(state, order, vehicle, startCity, earliestStart,
     finalDriveMin: result.finalDriveMin,
     fuelCents: fuel,
     tollCents: toll,
-    variableCostCents: fuel + toll + customs,
+    variableCostCents: fuel + toll,
     paymentCents: adjustedPayment,
     bodyBonusFactor,
-    contributionCents: adjustedPayment - fuel - toll - customs,
+    contributionCents: adjustedPayment - fuel - toll,
     deliveryDeadlineMin: order.deliveryDeadlineMin,
     deadlineBufferMin: order.deliveryDeadlineMin - result.endMin,
   };
@@ -309,16 +298,13 @@ export function buildDeployment(state, order, vehicle, startCity, earliestStart,
 // Plant eine Leerfahrt als eigenen Einsatz mit phasenbasierter Fahrerzeitplanung.
 export function buildEmptyDeployment(state, fromCity, toCity, vehicle, earliestStart, counters) {
   const electric = electricWorkSteps(state, vehicle, buildEmptyWorkSteps(fromCity, toCity));
-  const governed=governedTransport(state,null);
-  const charges=governed?transportCosts(vehicle,electric.steps):null;
-  const workSteps = governed?regulatorySteps(electric.steps):electric.steps;
+  const workSteps = electric.steps;
   const result = buildPhases(workSteps, counters || { workMin: 0, driveMin: 0 }, earliestStart);
   const d = workSteps.reduce((n,s)=>n+(s.distanceKm||0),0);
   const fuel = electric.energy ? electric.energy.publicCostCents : fuelCents(d, vehicle.consumptionPer100km);
-  const toll = charges?.tollCents ?? tollCents(d);
+  const toll = tollCents(d);
   return {
-    energy: electric.energy, energyError: electric.error || (!state.dach?.enabled&&[fromCity,toCity].some(c=>countryOf(c)!=="DE")?"Zuerst den DACH-Betrieb aktivieren.":null),
-    ...(governed?{transport:{...charges,ruleVersion:DACH_RULE_VERSION},customsCents:0,finalRegulation:result.finalRegulation}:{}),
+    energy: electric.energy, energyError: electric.error || null,
     orderId: null,
     orderStatus: null,
     customer: "Leerfahrt",
@@ -353,7 +339,7 @@ function planningDriverCounters(state, driver) {
     // Zähler zurück; fehlendes freeSinceMin ist kein Nachweis für 12h Ruhe.
     const rested = driver.status === "resting" || (driver.status === "free" &&
       driver.freeSinceMin != null && state.gameTime - driver.freeSinceMin >= REST_MIN);
-    let initCounters: any = { ...(state.dach?.enabled?{regulation:driver.regulation}:{}), workMin: rested ? 0 : (driver.workMinutesSinceRest || 0),
+    let initCounters = { workMin: rested ? 0 : (driver.workMinutesSinceRest || 0),
       driveMin: rested ? 0 : (driver.driveMinutesSinceBreak || 0) };
     if (driver.status === "on_trip") {
       const trip = driverTrip(state, driver.id);
@@ -404,7 +390,7 @@ export function buildTourPlan(state, opts) {
   const deployments = [];
   const acceptedOrderIds = [];
   let totalKm = 0, emptyKm = 0, loadedKm = 0;
-  let totalFuel = 0, totalToll = 0, totalCustoms = 0, totalPayment = 0;
+  let totalFuel = 0, totalToll = 0, totalPayment = 0;
   let minBuffer = Infinity;
 
   // Fahrerzähler über alle Einsätze hinweg fortführen
@@ -417,10 +403,10 @@ export function buildTourPlan(state, opts) {
     const deployments = [];
     const acceptedOrderIds = [];
     let totalKm = 0, emptyKm = 0, loadedKm = 0;
-    let totalFuel = 0, totalToll = 0, totalCustoms = 0, totalPayment = 0;
+    let totalFuel = 0, totalToll = 0, totalPayment = 0;
     let minBuffer = Infinity;
     let counters = { ...initCounters };
-    let planningVehicle = null;
+    const planningVehicle = isElectric(vehicle) ? {...vehicle,batteryKWh:futureBattery(state,vehicle)} : vehicle;
 
     for (const orderId of orderIds) {
       const order = _orderById(state, orderId);
@@ -434,12 +420,6 @@ export function buildTourPlan(state, opts) {
       // Aufbau-Kompatibilität: strikte Frachtarten erfordern passenden Aufbau.
       const bodyCheck = checkBodyTypeCompatibility(order, vehicle);
       if (!bodyCheck.ok) return { ok: false as const, error: bodyCheck.error };
-      const optimistic = optimisticDeliveryEnd(state, order, currentCity, t, counters, isElectric(vehicle));
-      if ((order.windowVersion >= 2 && optimistic.loadingStart > order.latestLoadStartMin) ||
-          optimistic.delivery > order.deliveryDeadlineMin + 240) {
-        return { ok: false as const, error: "Lieferfrist oder Ladefenster selbst ohne zusätzliche Pausen nicht erreichbar." };
-      }
-      planningVehicle ||= {...vehicle,dachCabotage:vehicle.dachCabotage?structuredClone(vehicle.dachCabotage):null,...(isElectric(vehicle)?{batteryKWh:futureBattery(state,vehicle)}:{})};
       const dep = buildDeployment(state, order, planningVehicle, currentCity, t, counters);
       if (dep.energyError) return {ok:false as const,error:dep.energyError};
       if (dep.energy) planningVehicle.batteryKWh=dep.energy.finalBatteryKWh;
@@ -459,12 +439,11 @@ export function buildTourPlan(state, opts) {
       }
       if (order.status === "offered") acceptedOrderIds.push(orderId);
       deployments.push(dep);
-      if (governedTransport(state,order)) projectDachDelivery(planningVehicle,order,dep.endMin);
       totalKm += dep.totalKm; emptyKm += dep.emptyKm; loadedKm += dep.loadedKm;
-      totalFuel += dep.fuelCents; totalToll += dep.tollCents; totalCustoms += dep.customsCents||0; totalPayment += dep.paymentCents;
+      totalFuel += dep.fuelCents; totalToll += dep.tollCents; totalPayment += dep.paymentCents;
       if (dep.deadlineBufferMin !== null && dep.deadlineBufferMin < minBuffer) minBuffer = dep.deadlineBufferMin;
       currentCity = order.toCity;
-      counters = { workMin: dep.finalWorkMin, driveMin: dep.finalDriveMin, ...(dep.finalRegulation?{regulation:dep.finalRegulation}:{}) };
+      counters = { workMin: dep.finalWorkMin, driveMin: dep.finalDriveMin };
       t = dep.endMin;
     }
 
@@ -474,8 +453,8 @@ export function buildTourPlan(state, opts) {
       if (dep.energyError) return {ok:false as const,error:dep.energyError};
       returnDeployment = dep;
       totalKm += dep.totalKm; emptyKm += dep.emptyKm;
-      totalFuel += dep.fuelCents; totalToll += dep.tollCents; totalCustoms += dep.customsCents||0;
-      counters = { workMin: dep.finalWorkMin, driveMin: dep.finalDriveMin, ...(dep.finalRegulation?{regulation:dep.finalRegulation}:{}) };
+      totalFuel += dep.fuelCents; totalToll += dep.tollCents;
+      counters = { workMin: dep.finalWorkMin, driveMin: dep.finalDriveMin };
       t = dep.endMin;
     }
 
@@ -504,10 +483,10 @@ export function buildTourPlan(state, opts) {
       ok: true as const, hasMidTourRest,
       deployments, returnDeployment, acceptedOrderIds,
       totalKm, emptyKm, loadedKm,
-      totalFuelCents: totalFuel, totalTollCents: totalToll, totalCustomsCents:totalCustoms,
-      totalVariableCostCents: totalFuel + totalToll + totalCustoms,
+      totalFuelCents: totalFuel, totalTollCents: totalToll,
+      totalVariableCostCents: totalFuel + totalToll,
       totalPaymentCents: totalPayment,
-      totalContributionCents: totalPayment - totalFuel - totalToll - totalCustoms,
+      totalContributionCents: totalPayment - totalFuel - totalToll,
       earliestStartMin: planStart,
       lastDeliveryEndMin: lastDeliveryEnd,
       tourEndMin, driverFreeMin,
@@ -531,7 +510,7 @@ export function buildTourPlan(state, opts) {
     planResult.error || (planResult.ok && planResult.hasMidTourRest)
   );
   if (needsRestFirst) {
-    const restFirstResult = _tryPlan(earliestStart + REST_MIN, { ...initCounters, workMin: 0, driveMin: 0 });
+    const restFirstResult = _tryPlan(earliestStart + REST_MIN, { workMin: 0, driveMin: 0 });
     if (restFirstResult.ok) planResult = restFirstResult;
   }
 
@@ -561,11 +540,11 @@ export function checkTourLiquidity(state, deployments, returnDeployment, startMi
   // Sammle alle Zeitpunkte chronologisch
   const events = [];
   for (const dep of deployments) {
-    events.push({ min: dep.startMin, type: "cost", amount: dep.fuelCents + dep.tollCents + (dep.customsCents||0), label: "Einsatz " + (dep.customer || "Leer") });
+    events.push({ min: dep.startMin, type: "cost", amount: dep.fuelCents + dep.tollCents, label: "Einsatz " + (dep.customer || "Leer") });
     events.push({ min: dep.endMin, type: "income", amount: dep.paymentCents, label: "Vergütung " + (dep.customer || "") });
   }
   if (returnDeployment) {
-    events.push({ min: returnDeployment.startMin, type: "cost", amount: returnDeployment.fuelCents + returnDeployment.tollCents + (returnDeployment.customsCents||0), label: "Rückkehr" });
+    events.push({ min: returnDeployment.startMin, type: "cost", amount: returnDeployment.fuelCents + returnDeployment.tollCents, label: "Rückkehr" });
   }
   // Bekannte zukünftige Tageskosten (vereinfacht: pro Tag bis Tour-Ende)
   const tourEnd = returnDeployment ? returnDeployment.endMin : (deployments.length > 0 ? deployments[deployments.length - 1].endMin : startMin);
@@ -830,7 +809,7 @@ function startDeployment(state, tour, dep, depIndex, preparedPlan = null) {
     ? buildDeployment(state, order, vehicle, vehicle.locationCity, state.gameTime, initialCounters)
     : buildEmptyDeployment(state, vehicle.locationCity, dep.toCity, vehicle, state.gameTime, initialCounters));
   if (fresh.energyError) throw new Error(fresh.energyError);
-  if (state.company.accountCents < fresh.fuelCents+fresh.tollCents+(fresh.customsCents||0)) throw new Error("Firmenkonto reicht für den aktuellen Energie- und Mautbedarf nicht.");
+  if (state.company.accountCents < fresh.fuelCents+fresh.tollCents) throw new Error("Firmenkonto reicht für den aktuellen Energie- und Mautbedarf nicht.");
   Object.assign(dep, fresh);
 
   // Phasen aus dem Deployment übernehmen, bei zeitlicher Abweichung verschieben
@@ -858,7 +837,7 @@ function startDeployment(state, tour, dep, depIndex, preparedPlan = null) {
     status: "in_progress",
     paymentCents: dep.paymentCents,
     fuelCents: dep.fuelCents,
-    energy: dep.energy, transport:dep.transport,customsCents:dep.customsCents||0,
+    energy: dep.energy,
     tollCents: dep.tollCents,
     totalKm: dep.totalKm,
     drivenKm: 0,
@@ -868,8 +847,6 @@ function startDeployment(state, tour, dep, depIndex, preparedPlan = null) {
   // Kraftstoff und Maut einmal beim Start buchen (nicht pro Pause-Block)
   addBooking(state, state.gameTime, (isElectric(vehicle) ? "Ladestrom unterwegs: " : "Kraftstoff: ") + (dep.customer || "Leerfahrt"), -dep.fuelCents, "company", "fuel:" + tripId, { branchId: vehicle.branchId, vehicleId: vehicle.id, orderId: dep.orderId });
   addBooking(state, state.gameTime, "Maut: " + (dep.customer || "Leerfahrt"), -dep.tollCents, "company", "toll:" + tripId, { branchId: vehicle.branchId, vehicleId: vehicle.id, orderId: dep.orderId });
-
-  if(dep.customsCents)addBooking(state,state.gameTime,"Zollagentur: "+(dep.customer||"Transport"),-dep.customsCents,"company","customs:"+tripId,{branchId:vehicle.branchId,vehicleId:vehicle.id,orderId:dep.orderId});
 
   // DG-Abwicklungsgebühr beim tatsächlichen Ladungsbeginn (Auftrag 32)
   if (dep.orderId) {
@@ -1085,7 +1062,7 @@ export function processTours(state, m, log) {
     }
 
     // Liquidität prüfen
-    const fuelToll = nextDep.dep.fuelCents + nextDep.dep.tollCents + (nextDep.dep.customsCents||0);
+    const fuelToll = nextDep.dep.fuelCents + nextDep.dep.tollCents;
     if (state.company.accountCents < fuelToll) {
       tour.pauseReason = "Firmenkonto reicht für Kraftstoff und Maut (" + (fuelToll / 100).toFixed(2) + " €) nicht. Kostet: " + (fuelToll / 100).toFixed(2) + " €.";
       log.push({ type: "tour_paused", tour: tour.id, reason: tour.pauseReason });
@@ -1105,7 +1082,7 @@ export function processTours(state, m, log) {
     const currentPlan = nextOrder
       ? buildDeployment(state, nextOrder, vehicle, vehicle.locationCity, m, planningDriverCounters(state, driver))
       : buildEmptyDeployment(state, vehicle.locationCity, nextDep.dep.toCity, vehicle, m, planningDriverCounters(state, driver));
-    if (currentPlan.energyError || state.company.accountCents < currentPlan.fuelCents + currentPlan.tollCents + (currentPlan.customsCents||0)) {
+    if (currentPlan.energyError || state.company.accountCents < currentPlan.fuelCents + currentPlan.tollCents) {
       tour.pauseReason = currentPlan.energyError || "Firmenkonto reicht für den aktuellen Energie- und Mautbedarf nicht.";
       log.push({type: "tour_paused", tour: tour.id, reason: tour.pauseReason});
       continue;
@@ -1264,17 +1241,10 @@ export function findReturnLoads(state, primaryOrderId, vehicleId, driverId) {
 // mode: "balanced" | "high_margin" | "low_empty"
 export function suggestTours(state, opts) {
   _clearPlanCache();
-  const { vehicleIds, earliestStart, horizonMin, desiredEndCity, latestReturnMin, mode, acceptNew, restrictOrderIds, fastMode, minNewOrderBufferMin = 0, candidateOrderLimit = 12, maxSuggestions = Infinity, allowNewDangerousGoods = true } = opts;
+  const { vehicleIds, earliestStart, horizonMin, desiredEndCity, latestReturnMin, mode, acceptNew, restrictOrderIds, fastMode, minNewOrderBufferMin = 0, candidateOrderLimit = 12, maxSuggestions = Infinity } = opts;
   const restrictSet = restrictOrderIds ? new Set(restrictOrderIds) : null;
   if (maxSuggestions <= 0) return { suggestions: [] };
-  const reliable = plan => plan.ok && plan.deployments.every(d => {
-    if (d.orderStatus === "offered" && !(d.deadlineBufferMin >= minNewOrderBufferMin)) return false;
-    const order = state._orderMap.get(d.orderId);
-    // Confirmation checks ADR as well; exclude invalid candidates here so a
-    // qualified driver or an ordinary offer can actually reach confirmation.
-    return !order?.isDangerousGoods || validateDgTransport(state, order,
-      resources.vehicles.get(plan.vehicleId), resources.drivers.get(plan.driverId), plan.tourEndMin).ok;
-  });
+  const reliable = plan => plan.ok && plan.deployments.every(d => d.orderStatus !== "offered" || d.deadlineBufferMin >= minNewOrderBufferMin);
   const suggestions = [];
 
   // Lookup-Maps aufbauen: O(1) Zugriff für buildTourPlan statt O(n) .find().
@@ -1291,7 +1261,7 @@ export function suggestTours(state, opts) {
   const startMin = earliestStart || state.gameTime;
   const maxMin = startMin + (horizonMin || 48 * 60);
   const availabilitySensitive = new Set();
-  for (const item of [...(state.absences?.sicknesses || []), ...(state.absences?.vacationRequests || []), ...(state.training?.enrollments || []), ...(state.training?.apprenticeships || []), ...(state.training?.qualifications || [])]) availabilitySensitive.add(item.personId);
+  for (const item of [...(state.absences?.sicknesses || []), ...(state.absences?.vacationRequests || []), ...(state.training?.enrollments || []), ...(state.training?.apprenticeships || [])]) availabilitySensitive.add(item.personId);
   const usedDriverIds = new Set();
   const usedOrderIds = new Set();
 
@@ -1339,8 +1309,7 @@ export function suggestTours(state, opts) {
   const acceptedPool = availableOrders.filter(o => o.status === "angenommen")
     .sort((a, b) => a.deliveryDeadlineMin - b.deliveryDeadlineMin);
   const offeredPool = acceptNew ? availableOrders.filter(o => o.status === "offered" &&
-    o.acceptDeadlineMin > startMin && o.deliveryDeadlineMin > startMin &&
-    (allowNewDangerousGoods || !o.isDangerousGoods)) : [];
+    o.acceptDeadlineMin > startMin && o.deliveryDeadlineMin > startMin) : [];
 
   const rankOrders = createPlanningOrderRanking([...acceptedPool, ...offeredPool]);
 
@@ -1423,8 +1392,7 @@ export function suggestTours(state, opts) {
     const acceptedOrders = acceptedPool.filter(suitable);
     const offeredOrders = offeredPool.filter(suitable);
 
-    const vehicleOrders = [...acceptedOrders, ...offeredOrders];
-    const allOrders = [...vehicleOrders];
+    const allOrders = [...acceptedOrders, ...offeredOrders];
     // CPU-Schutz: die Doppel-Tour-Suche ist O(n²). Bei vielen Aufträgen
     // wird die Liste begrenzt, damit die kombinatorische Explosion (und damit
     // CPU-Timeouts) vermieden wird.
@@ -1460,8 +1428,6 @@ export function suggestTours(state, opts) {
       chainMap.get(o.fromCity).push(o);
     }
     const seenDriverConditions = new Set();
-    const evaluatedDrivers = [];
-    const firstOrderChecks = new Map();
     for (const driver of candidateDrivers) {
       // buildTourPlan always rejects different future locations. Avoid all
       // single/double-order attempts for this provably infeasible pair.
@@ -1473,32 +1439,16 @@ export function suggestTours(state, opts) {
         _cached("futD:" + driver.id, () => futureDriverLocation(state, driver)),
         _cached("ea:" + vehicleId + "|" + driver.id, () => earliestAvailable(state, vehicle, driver)),
         _cached("nrs:" + vehicleId + "|" + driver.id, () => nextReservationStart(state, vehicle, driver)),
-        counters.workMin, counters.driveMin, counters.regulation ?? null,
+        counters.workMin, counters.driveMin,
         driver.isTempStaff && Number.isFinite(driver.tempReturnMin) ? driver.tempReturnMin : null,
       ]);
       if (seenDriverConditions.has(conditions)) continue;
       seenDriverConditions.add(conditions);
-      evaluatedDrivers.push(driver);
-      // A provably impossible first delivery cannot become feasible by adding
-      // a return load. Avoid rebuilding that same failed prefix for every pair.
-      // This cache lives only in this read-only search, never across events.
-      const start = _cached("ea:" + vehicleId + "|" + driver.id, () => earliestAvailable(state, vehicle, driver));
-      const checked = new Map();
-      const canStartWith = order => {
-        if (checked.has(order.id)) return checked.get(order.id);
-        const bound = optimisticDeliveryEnd(state, order, vehicleFutureCity, start, counters, isElectric(vehicle));
-        const possible = !(bound.delivery > order.deliveryDeadlineMin + 240 ||
-          (order.windowVersion >= 2 && bound.loadingStart > order.latestLoadStartMin));
-        checked.set(order.id, possible);
-        return possible;
-      };
-      firstOrderChecks.set(driver.id, canStartWith);
       let driverBestPlan = null;
       let driverBestOrders = null;
 
       // Einzel-Touren
       for (const o of allOrders) {
-        if (!canStartWith(o)) continue;
         const plan = buildTourPlan(state, {
           vehicleId, driverId: driver.id,
           orderIds: [o.id],
@@ -1516,7 +1466,6 @@ export function suggestTours(state, opts) {
 
       // Doppel-Touren (Hin + Rück) — Ketten-Map für O(n·k) statt O(n²)
       for (const o1 of allOrders) {
-        if (!canStartWith(o1)) continue;
         const chainable = chainMap.get(o1.toCity) || [];
         for (const o2 of chainable) {
           if (o1.id === o2.id) continue;
@@ -1540,30 +1489,6 @@ export function suggestTours(state, opts) {
         bestPlan = driverBestPlan;
         bestOrders = driverBestOrders;
         bestDriver = driver;
-      }
-    }
-
-    // A high ranked offer is not necessarily feasible. If the primary search
-    // finds nothing, inspect further SINGLE orders in a bounded linear pass.
-    // Never expand the quadratic combination search or relax commitment checks.
-    if (!bestPlan && vehicleOrders.length > allOrders.length && evaluatedDrivers.length) {
-      const primaryIds = new Set(allOrders.map(o => o.id));
-      const remaining = vehicleOrders.filter(o => !primaryIds.has(o.id));
-      const fallbackOrders = rankOrders(remaining, vehicleFutureCity, orderLimit * 4);
-      for (const order of fallbackOrders) {
-        for (const driver of evaluatedDrivers) {
-          if (!firstOrderChecks.get(driver.id)(order)) continue;
-          const plan = buildTourPlan(state, {
-            vehicleId, driverId: driver.id, orderIds: [order.id], desiredEndCity, latestReturnMin,
-          });
-          if (!plan.ok || !reliable(plan) || plan.tourEndMin > maxMin ||
-              !isDriverAvailableForTour(state, driver, plan.earliestStartMin, plan.driverFreeMin) ||
-              (order.status === "offered" && plan.totalContributionCents <= 0)) continue;
-          if (!bestPlan || comparePlans(plan, bestPlan, mode) < 0) {
-            bestPlan = plan; bestOrders = [order.id]; bestDriver = driver;
-          }
-        }
-        if (bestPlan) break;
       }
     }
 

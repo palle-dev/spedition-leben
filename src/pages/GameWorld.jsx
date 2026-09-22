@@ -1,4 +1,3 @@
-import CompanyStories from "@/components/office/CompanyStories";
 import CompetitionPanel from "@/components/world/CompetitionPanel";
 import React, { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -45,7 +44,6 @@ export default function GameWorld() {
         </div>}
       </div>
     </header>
-    {tab === "stories" && <CompanyStories/>}
     {blocked && <p role="status" className="rounded-xl border border-coral/30 bg-coral/5 p-4 text-sm">Du nimmst gerade an einem Termin teil. Neue Entscheidungen und Gebote sind danach wieder möglich.</p>}
     {!w?.active ? <section className={card + " p-6 sm:p-8 space-y-6"}>
       <div className="grid sm:grid-cols-3 gap-6">

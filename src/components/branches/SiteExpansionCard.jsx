@@ -10,7 +10,7 @@ export default function SiteExpansionCard({ branchId }) {
   const [slots, setSlots] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const overview = useMemo(() => getSiteOverview(state, branchId), [state, branchId]);
-  const preview = useMemo(/** @returns {ReturnType<typeof previewExpansion>} */ () => {
+  const preview = useMemo(() => {
     try { return previewExpansion(state, { branchId, type, slots }); }
     catch (e) { return { ok: false, error: e.message }; }
   }, [state, branchId, type, slots]);
@@ -18,7 +18,7 @@ export default function SiteExpansionCard({ branchId }) {
   const project = overview.activeProject;
   const cfg = EXPANSION_CONFIG[type];
   const blocked = (state.appointments || []).some(a => a.status === "active");
-  const affordable = preview.ok === true && state.company.accountCents >= preview.costCents;
+  const affordable = preview.ok && state.company.accountCents >= preview.costCents;
   const processing = submitting || busy || !!backgroundAdvance?.active;
   const progress = Math.max(0, Math.min(100, project?.progressPct || 0));
   async function build() {
@@ -64,7 +64,7 @@ export default function SiteExpansionCard({ branchId }) {
               {Array.from({ length: cfg.maxSlots }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}</option>)}
             </select>
           </label>}
-          {preview.ok === true ? (
+          {preview.ok ? (
             <div className="rounded-xl bg-white/5 p-3 space-y-2 text-sm" aria-live="polite">
               <p className="flex justify-between gap-3"><span>Baukosten einmalig</span><strong>{formatEuro(preview.costCents)}</strong></p>
               <p className="flex justify-between gap-3"><span>Zusätzliche Kosten ab Fertigstellung</span><strong className="shrink-0">+{formatEuro(preview.dailyCostCents)} / Tag</strong></p>
@@ -73,7 +73,7 @@ export default function SiteExpansionCard({ branchId }) {
               <p className="text-xs text-muted-foreground">Firmenkonto nach Beauftragung: {formatEuro(state.company.accountCents - preview.costCents)}</p>
             </div>
           ) : <p role="status" className="text-sm text-amber-300">{preview.error}</p>}
-          {preview.ok === true && !affordable && <p className="text-sm text-coral flex items-center gap-2"><AlertTriangle className="w-4 h-4" />Das Firmenkonto reicht für diesen Ausbau nicht aus.</p>}
+          {preview.ok && !affordable && <p className="text-sm text-coral flex items-center gap-2"><AlertTriangle className="w-4 h-4" />Das Firmenkonto reicht für diesen Ausbau nicht aus.</p>}
           {blocked && <p className="text-xs text-amber-300">Bauaufträge sind während deines privaten Termins gesperrt.</p>}
           <button onClick={build} disabled={processing || !affordable || blocked} className="w-full rounded-lg bg-lime text-ink font-semibold px-4 py-3 disabled:opacity-40">{submitting ? "Wird beauftragt…" : "Ausbau verbindlich beauftragen"}</button>
           <p className="text-xs text-muted-foreground">Ein Bauprojekt gleichzeitig je Standort. Die Baukosten werden sofort bezahlt.</p>

@@ -1,16 +1,15 @@
-import {MANAGEMENT_GOALS,activeManagementGoal,setManagementGoal,managementGoalProgress} from "./managementGoals.ts";
 import { deliverMessage, isEmployeeAvailable } from "./mailEngine.ts";
 import { isPersonAvailable } from "./absenceEngine.ts";
 import { isPersonInTraining } from "./trainingEngine.ts";
 
-const ASSISTANT: [string,string,boolean][] = [
+const ASSISTANT = [
  ["autoAcceptOrders","Auftragsannahme",true],["autoDispatch","Disposition",false],
  ["accounting","Buchhaltungsunterstützung",true],["costOptimization","Kostenoptimierung",true],
  ["staffDevelopment","Personalentwicklung",true],["autoBookTraining","Kurse verbindlich buchen",true],
  ["orderMonitoring","Lieferfristen überwachen",true],["fleetUtilizationMonitoring","Flottenauslastung prüfen",true],
  ["managementReport","Liquidität und Personalbedarf täglich berichten",false]
 ];
-const BRANCH: [string,string,boolean][] = [
+const BRANCH = [
  ["fleet","Fuhrpark und Wartung",true],["staff","Einstellungen und Weiterbildung",true],
  ["growth","Fahrzeugbeschaffung und Werkstattausbau",true],["orders","Aufträge und Disposition",true],
  ["costs","Standortkosten optimieren",true],["managementReport","Standortlage täglich berichten",false]
@@ -35,12 +34,11 @@ export function managementReport(state,employee) {
   lines.push("Firmenkonto: "+(state.company.accountCents/100).toFixed(2)+" EUR.",
    "Offene Betriebskosten: "+(due/100).toFixed(2)+" EUR. Buchhalterische offene Posten bitte zusätzlich prüfen.");
  }
- const goal=activeManagementGoal(state,employee.id);if(goal){const r=managementGoalProgress(state,goal);lines.push("Führungsziel: "+MANAGEMENT_GOALS.find(x=>x.id===goal.kind)?.label+"; Bilanz an Tag "+(Math.floor(goal.dueMin/1440)+1)+". "+(goal.kind==="reliability"?r.onTime+" von "+r.delivered+" Lieferungen pünktlich (mindestens 10 nötig).":r.staff+" Fahrer für "+r.vehicles+" Lkw."));}
  return lines.join("\n");
 }
 export function getManagementPhoneActions(state,employee) {
  const assistant=employee.role==="assistant",config=assistant?(state.assistantConfig||{}):(employee.responsibilities||{});
- const actions: any[]=(assistant?ASSISTANT:BRANCH).map(([key,label,defaultValue])=>{
+ const actions=(assistant?ASSISTANT:BRANCH).map(([key,label,defaultValue])=>{
   const current=config[key]??defaultValue;
   return {id:"responsibility:"+key,label:(current?"Entziehen: ":"Übertragen: ")+label,
    description:(current?"Diese dauerhafte Zuständigkeit wird deaktiviert. Bereits beauftragte Maßnahmen bleiben bestehen.":"Diese Zuständigkeit wird dauerhaft übertragen. Bestehende Ausgabenregeln, Qualifikationen und Freigaben gelten weiterhin.")+(assistant?" Die Einstellung gilt für die Assistenzfunktion im Unternehmen.":" Sie gilt ausschließlich für diesen Standort."),
@@ -48,7 +46,6 @@ export function getManagementPhoneActions(state,employee) {
  });
  actions.unshift({id:"management_report",label:"Liquidität, Personal und Betriebsrisiken prüfen",description:"Eine aktuelle Lageeinschätzung wird ohne Buchungen erstellt und im Postfach abgelegt.",params:{action:"management_report"}});
  if(!assistant)for(const amount of [50000,200000,500000])actions.push({id:"management_budget:"+amount,label:"Autonomes Tagesbudget: "+amount/100+" €",description:"Gemeinsame Obergrenze pro Spieltag für selbstständige Standortmaßnahmen. Darüber wird eine Freigabe benötigt. Bereits ausgegebenes Tagesbudget bleibt angerechnet.",params:{action:"management_budget:"+amount,amountCents:amount}});
- if(state.journey&&!activeManagementGoal(state,employee.id))for(const goal of MANAGEMENT_GOALS)actions.push({id:"management_goal:"+goal.id,label:"14-Tage-Ziel: "+goal.label,description:goal.detail+" Bestehende Budgets und Befugnisse gelten unverändert.",params:{action:"management_goal:"+goal.id,kind:goal.id}});
  return actions;
 }
 export function executeManagementPhoneAction(state,employee,p) {
@@ -57,7 +54,6 @@ export function executeManagementPhoneAction(state,employee,p) {
  if(JSON.stringify(action.params)!==JSON.stringify(Object.fromEntries(Object.keys(action.params).map(k=>[k,p[k]]))))throw Error("Die Zuständigkeit hat sich geändert. Bitte erneut prüfen.");
  let summary;
  if(p.action==="management_report")summary=managementReport(state,employee);
- else if(p.action.startsWith("management_goal:")){setManagementGoal(state,{employeeId:employee.id,kind:p.kind});summary="Führungsziel übernommen. Die Bilanz erscheint unter Führung & Delegation.";}
  else if(p.action.startsWith("management_budget:")){employee.autonomousDailyBudgetCents=p.amountCents;summary="Tagesbudget auf "+p.amountCents/100+" EUR gesetzt.";}
  else {
   const key=p.action.slice("responsibility:".length);

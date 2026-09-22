@@ -67,9 +67,6 @@ export function processEmployees(state, m, log) {
   return withDispatchLookup(state, () => processEmployeesIndexed(state, m, log));
 }
 function processEmployeesIndexed(state, m, log) {
-  // Share ONLY empty read-only searches within this synchronous round.
-  // Clear before any handler or confirmation can change planning inputs.
-  const failedSearches = new Map();
   const clock = m % 1440;
   const inServiceHours = clock >= SERVICE_START_MIN && clock < SERVICE_END_MIN;
   // Inkrementelle Disposition: completeTrip löst planSingleVehicle aus,
@@ -85,12 +82,10 @@ function processEmployeesIndexed(state, m, log) {
       // während 24×60 sie innerhalb 1h aufnimmt — unterschiedliche Ergebnisse.
       // Die kontextsensitive Skip-Cache in processDispatcher verhindert
       // redundante suggestTours-Aufrufe, wenn sich die Lage nicht geändert hat.
-      processDispatcher(state, emp, m, log, failedSearches);
+      processDispatcher(state, emp, m, log);
     } else if (inServiceHours && (emp.role === "accountant" || emp.role === "accountant_senior")) {
-      failedSearches.clear();
       processAccountant(state, emp, m, log);
     } else if (inServiceHours && emp.role === "cleaner") {
-      failedSearches.clear();
       processCleaner(state, emp, m, log);
     }
   }
@@ -121,7 +116,7 @@ function processCleaner(state, emp, m, log) {
 // Disponent verarbeitet seine zugewiesenen Lkw.
 // Modus A: erstellt Vorschläge für freie Fahrzeuge mit angenommenen Aufträgen.
 // Modus B/C: nutzt suggestTours für flottenweite Planung.
-export function processDispatcher(state, emp, m, log, failedSearches = null) {
+export function processDispatcher(state, emp, m, log) {
   if (isPersonInTraining(state, emp.id, m)) return;
   const profile = dispatcherProfile(state, emp);
   const managedVehicles = dispatcherVehicleIds(state, emp.id);
@@ -143,7 +138,6 @@ export function processDispatcher(state, emp, m, log, failedSearches = null) {
 
   // ---------- Modus A: Vorschläge vorbereiten ----------
   if (emp.workMode === "suggestions") {
-    failedSearches?.clear();
     const hasAcceptedOrders = planningOrdersFor(state).some(o => o.status === "angenommen");
     const hasFreeVehicles = poolVehicles.some(v => v.status === "free" || v.status === "resting");
     if (!hasAcceptedOrders || !hasFreeVehicles) {
@@ -206,7 +200,6 @@ export function processDispatcher(state, emp, m, log, failedSearches = null) {
   let unplannedCount = 0, offeredCount = 0;
   for (const o of planningOrdersFor(state)) {
     if (o.status === "angenommen" && o.deliveryDeadlineMin + 240 <= m) {
-      failedSearches?.clear();
       o.status = "failed";
       o.failedAtMin = m;
       log.push({ type: "order_failed", order: o.id, customer: o.customer, reason: "Lieferfrist überschritten (Dispatcher-Bereinigung)" });
@@ -217,10 +210,7 @@ export function processDispatcher(state, emp, m, log, failedSearches = null) {
   const hasUnplannedAccepted = unplannedCount > 0;
   const hasOfferedOrders = offeredCount > 0;
   if (!hasUnplannedAccepted && !hasOfferedOrders) {
-    emp.lastIdleReason = acceptNew ? "Keine gültigen Angebote oder offenen Zusagen verfügbar" :
-      emp.workMode !== "autonomous" ? "Neue Aufträge werden in diesem Arbeitsmodus nicht angenommen" :
-      remainingCapacity <= 0 ? "Betreuungskapazität ausgeschöpft (" + managedVehicles.size + "/" + profile.capacity + " Lkw)" :
-      "Automatische Auftragsannahme ist in den Führungsregeln deaktiviert";
+    emp.lastIdleReason = acceptNew ? "Keine Aufträge auf dem Markt" : "Keine angenommenen Aufträge – autonomer Modus nötig";
     emp.lastIdleReasonAtMin = m;
     return;
   }
@@ -255,20 +245,13 @@ export function processDispatcher(state, emp, m, log, failedSearches = null) {
   }
   emp._lastPlanContext = contextKey;
 
-  const searchOptions = {
+  const result = suggestTours(state, {
     vehicleIds: poolVehicleIds, earliestStart: m, horizonMin,
     minNewOrderBufferMin: profile.bufferMin, candidateOrderLimit: profile.candidateOrderLimit,
     maxSuggestions: Math.max(1, remainingCapacity),
     desiredEndCity: null, latestReturnMin: null, mode: state.marketPriority || "balanced", acceptNew,
-    allowNewDangerousGoods: hasDgDispatch(state, emp.id),
     fastMode: state._largeAdvance === false,
-  };
-  const searchKey = failedSearches ? JSON.stringify(searchOptions) : null;
-  const result = failedSearches?.has(searchKey) ? { suggestions: [] } : suggestTours(state, searchOptions);
-  if (result.suggestions.length === 0) failedSearches?.set(searchKey, true);
-  // Even a failed confirmation may have side effects. Never carry a cached
-  // negative result across an attempt, approval request or accepted order.
-  else failedSearches?.clear();
+  });
 
   const usedVehicleIds = new Set();
   const usedOrderIds = new Set();
@@ -413,7 +396,6 @@ export function processDispatcher(state, emp, m, log, failedSearches = null) {
   // Confirmations above are complete; this loop only writes idle annotations.
   // Build lazily once, so fully working fleets incur no reservation scan.
   let reservedResources = null;
-  let consideredOrders = null;
   for (const v of poolVehicles) {
     if (usedVehicleIds.has(v.id)) { v.idleReason = null; continue; }
     if (v.status === "on_trip") { v.idleReason = "Unterwegs"; continue; }
@@ -454,10 +436,10 @@ export function processDispatcher(state, emp, m, log, failedSearches = null) {
       } else if (!hasUnplannedAccepted && !hasOfferedOrders) {
         reason = acceptNew ? "Keine (profitablen) Aufträge verfügbar" : "Keine angenommenen Aufträge – autonomer Modus oder manuelle Annahme nötig";
       } else {
-        consideredOrders ??= planningOrdersFor(state).filter(o =>
+        const consideredOrders = planningOrdersFor(state).filter(o =>
           (o.status === "offered" && o.acceptDeadlineMin > m) || o.status === "angenommen"
         ).length;
-        reason = "Keine ausführbare Tour in der begrenzten Auswahl aus " + consideredOrders + " verfügbaren Aufträgen";
+        reason = "Kein profitabler Auftrag gefunden (" + consideredOrders + " geprüft)";
       }
     }
     v.idleReason = reason;
@@ -517,7 +499,6 @@ function planSingleVehicleIndexed(state, vehicle, m, log) {
     minNewOrderBufferMin: profile.bufferMin, candidateOrderLimit: profile.candidateOrderLimit, maxSuggestions: 1,
     desiredEndCity: null, latestReturnMin: null,
     mode: state.marketPriority || "balanced", acceptNew,
-    allowNewDangerousGoods: hasDgDispatch(state, dispatcher.id),
     fastMode: state._largeAdvance === false,
   });
   if (result.suggestions.length === 0) return;

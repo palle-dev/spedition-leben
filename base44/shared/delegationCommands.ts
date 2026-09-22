@@ -4,7 +4,7 @@
 import {
   migrateDelegation, migrateApprovals, getDelegationSummary,
   applyPreset, updateRule, clearBranchOverride,
-  approveApproval, rejectApproval, deleteApproval, expireApprovals,
+  approveApproval, rejectApproval, expireApprovals,
   PRESETS,
 } from "./delegationEngine.ts";
 import { executeApprovedAction } from "./approvalActions.ts";
@@ -33,10 +33,6 @@ export function handleDelegationCommand(state, command, p) {
 
     case "rejectApproval": {
       return rejectApproval(state, p.requestId);
-    }
-
-    case "deleteApproval": {
-      return deleteApproval(state, p.requestId);
     }
 
     case "expireApprovals": {

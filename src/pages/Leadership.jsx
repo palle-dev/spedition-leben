@@ -1,4 +1,3 @@
-import ManagementGoals from "@/components/office/ManagementGoals";
 import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
 import { ROLE_LABELS } from "@/lib/gameData";
@@ -113,7 +112,6 @@ export default function Leadership() {
 
   return (
     <div className="px-4 sm:px-6 lg:px-12 py-6 lg:py-8 max-w-[1600px] mx-auto space-y-6">
-      <ManagementGoals/>
       {/* Kopfzeile */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>

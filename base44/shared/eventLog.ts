@@ -1,4 +1,3 @@
-import { recordJourneyEvent } from "./playerJourney.ts";
 import { retainLatestHistory } from "./historyRetention.ts";
 // Dauerhaftes Ereignisprotokoll für FERNWERK – Auftrag 23.
 // Speichert bestätigte Geschäftsereignisse mit stabiler ID, Revision und Sequenz.
@@ -76,7 +75,6 @@ export function pushEvent(state, {
   };
   state.events.push(ev);
   recordExperienceEvent(state, ev);
-  recordJourneyEvent(state, ev);
 
   // Begrenzung: älteste Ereignisse entfernen, aber nie die letzten 200
   if (state.events.length > MAX_EVENTS) {

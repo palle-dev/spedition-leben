@@ -2,7 +2,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { buildTrafficNetwork, withTraffic, getRouteTrafficProfile } from "@/lib/trafficMapData";
-import { CITY_GEO, buildPlanRouteGeoJSON } from "@/lib/geoData";
+import { buildPlanRouteGeoJSON } from "@/lib/geoData";
 import MapLegend from "@/components/dispatch/MapLegend";
 
 const routeData = { routes: { "Hamburg->Bremen": { coordinates: Array.from({ length: 30 }, (_, i) => [9.99 - i * 0.04, 53.55 - i * 0.02]) } } };
@@ -10,7 +10,7 @@ describe("Verkehrsdarstellung", () => {
   it("zeigt ein begrenztes Netz auch ohne aktive Touren oder Straßengeometrien", () => {
     const data = buildTrafficNetwork(null, 480);
     expect(data.features.length).toBeGreaterThan(25);
-    expect(data.features.length).toBeLessThanOrEqual(Object.keys(CITY_GEO).length * 3);
+    expect(data.features.length).toBeLessThanOrEqual(90);
     for (const feature of data.features) {
       expect(feature.geometry.coordinates.length).toBeGreaterThanOrEqual(2);
       expect(feature.properties.trafficLevel).toBeGreaterThanOrEqual(0);

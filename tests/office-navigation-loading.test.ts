@@ -6,7 +6,7 @@ import {describe,it,expect,vi,beforeEach,afterEach} from "vitest";
 const fixture=vi.hoisted(()=>({game:{} as any,calls:[] as any[]}));
 vi.mock("@/lib/experienceSound",()=>({useSoundEnabled:()=>true,useSoundVolume:()=>.65,usePhoneAudioStatus:()=>"",phoneRingUrl:"test.wav",getSoundVolume:()=>.65,setSoundEnabled:vi.fn(),playPhoneSound:vi.fn(),stopPhoneSound:vi.fn()}));
 vi.mock("@/lib/gameContext",()=>({useGame:()=>fixture.game}));
-vi.mock("react-router-dom",()=>({useNavigate:()=>vi.fn(),useLocation:()=>({pathname:"/"}),Link:({to,children,...props})=>React.createElement("a",{...props,href:to},children)}));
+vi.mock("react-router-dom",()=>({useNavigate:()=>vi.fn(),useLocation:()=>({pathname:"/"})}));
 vi.mock("@/api/base44Client",()=>({base44:{auth:{logout:vi.fn()}}}));
 vi.mock("@/components/scenarios/ScenarioPicker",()=>({default:()=>null}));
 vi.mock("@/lib/communicationData",()=>({getCommunicationQueue:()=>({calls:fixture.calls,emails:[]}),deadlineLabel:()=>"Lieferung prüfen"}));

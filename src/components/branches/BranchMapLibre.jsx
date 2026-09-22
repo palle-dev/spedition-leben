@@ -6,10 +6,10 @@ import { AlertTriangle, Building2 } from "lucide-react";
 
 const MAP_STYLE = "https://tiles.openfreemap.org/styles/dark";
 /** @type {[number, number]} */
-const MAP_CENTER = [10.8, 50.0];
+const MAP_CENTER = [10.2, 51.0];
 const MAP_ZOOM = 5.2;
 /** @type {[[number, number], [number, number]]} */
-const MAX_BOUNDS = [[4, 45], [18, 56]];
+const MAX_BOUNDS = [[4, 46], [16, 56]];
 
 // Echte MapLibre-Karte für Filialstandorte.
 // Zeigt aktive Filialen als Lime-Marker mit Popup-Details.

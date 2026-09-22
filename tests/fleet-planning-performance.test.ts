@@ -1,7 +1,6 @@
 import {describe,it,expect} from 'vitest';
 import {createInitialState,applyCommand} from '@/lib/simulation/simulationEngine';
 import {suggestTours,buildTourPlan,_clearPlanCache} from '@/lib/simulation/tourEngine';
-import {countryOf} from '@/lib/simulation/dachGeography';
 import {CITY_LATLON,getDistance} from '@/lib/simulation/gameRules';
 
 function setup() {
@@ -39,9 +38,8 @@ describe('Ergebnisgleiche Großflotten-Planung',()=>{
   _clearPlanCache();const plan=buildTourPlan(s,{vehicleId:s.vehicles[0].id,driverId:'candidate_0',orderIds:[s.orders[0].id]});
   expect(plan.ok).toBe(true);
  });
- it('behält für deutsche Stadtpaare die bisherige Entfernungsformel exakt bei',()=>{
+ it('behält für alle Stadtpaare die bisherige Entfernungsformel exakt bei',()=>{
   for(const [a,[x1,y1]] of Object.entries(CITY_LATLON))for(const [b,[x2,y2]] of Object.entries(CITY_LATLON)){
-   if(countryOf(a)!=='DE'||countryOf(b)!=='DE')continue;
    const lat=(y2-y1)*Math.PI/180,lng=(x2-x1)*Math.PI/180;
    const h=Math.sin(lat/2)**2+Math.cos(y1*Math.PI/180)*Math.cos(y2*Math.PI/180)*Math.sin(lng/2)**2;
    const expected=Math.round(2*6371*Math.asin(Math.min(1,Math.sqrt(h)))*1.2/5)*5;

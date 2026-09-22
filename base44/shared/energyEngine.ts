@@ -1,4 +1,3 @@
-import { countryOf } from "./dachGeography.ts";
 import { CITIES, CITY_LATLON, getDistance, driveMinutes } from "./gameRules.ts";
 import { ENERGY_RULES as R, ENERGY_UPGRADES } from "./electricCatalog.ts";
 import { addBooking, registerAsset } from "./accountingEngine.ts";
@@ -123,10 +122,10 @@ export function futureBattery(state,v) {
 }
 // Public game network: one truck-capable DC hub per game city, 300 kW.
 // Paths use actual game-city distances; detours are included in time and tolls.
-export function publicHub(state,city) {return CITIES.includes(city)&&(state.dach?.enabled||countryOf(city)==="DE")&&!(state.energy?.closedPublicCities||[]).includes(city);}
+export function publicHub(state,city) {return CITIES.includes(city)&&!(state.energy?.closedPublicCities||[]).includes(city);}
 const routeCache=new Map();
 function electricRoute(state,from,to,maxKm,initialKm) {
- const key=[!!state.dach?.enabled,from,to,maxKm,initialKm,(state.energy?.closedPublicCities||[]).join(",")].join("|");
+ const key=[from,to,maxKm,initialKm,(state.energy?.closedPublicCities||[]).join(",")].join("|");
  if(routeCache.has(key))return routeCache.get(key);
  const nodes=[...new Set([from,to,...CITIES.filter(c=>publicHub(state,c))])],dist=new Map(nodes.map(c=>[c,Infinity])),prev=new Map(),pending=new Set(nodes);
  dist.set(from,0);

@@ -128,12 +128,11 @@ export default function RouteDetailOverlay({ trip, state, routeData, onClose, on
             <div className="border-t border-white/10 pt-2 space-y-1.5">
               {order && <Row icon={Package} label="Vergütung" value={formatEuro(trip.paymentCents)} />}
               <Row icon={Fuel} label="Kraftstoff" value={formatEuro(trip.fuelCents)} tone="cost" />
-              <Row icon={CreditCard} label="Zollagentur" value={formatEuro(trip.customsCents||0)} />
-        <Row icon={CreditCard} label="Maut" value={formatEuro(trip.tollCents)} tone="cost" />
+              <Row icon={CreditCard} label="Maut" value={formatEuro(trip.tollCents)} tone="cost" />
               <div className="flex items-center justify-between pt-1.5 border-t border-white/10">
                 <span className="text-[11px] text-muted-foreground">Beitrag</span>
                 <span className="text-sm font-semibold text-lime tabular-nums">
-                  {formatEuro((order?.paymentCents || 0) - trip.fuelCents - trip.tollCents - (trip.customsCents||0))}
+                  {formatEuro((order?.paymentCents || 0) - trip.fuelCents - trip.tollCents)}
                 </span>
               </div>
             </div>

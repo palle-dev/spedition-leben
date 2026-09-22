@@ -8,12 +8,12 @@ export function phaseLabel(type) {
   const labels = {
     empty_drive: "Leerfahrt",
     loading: "Laden",
-    charging: "Batterie laden", customs: "Zollabwicklung",
+    charging: "Batterie laden",
     loaded_drive: "Beladene Fahrt",
     break: "Fahrpause",
     daily_rest: "Ruhezeit",
     unloading: "Entladen",
-    wait: "Wartezeit / Fahrverbot",
+    wait: "Warten auf Ladefenster",
   };
   return labels[type] || type;
 }
@@ -22,12 +22,12 @@ export function phaseShortLabel(type) {
   const labels = {
     empty_drive: "Leer",
     loading: "Laden",
-    charging: "Batterie laden", customs: "Zollabwicklung",
+    charging: "Batterie laden",
     loaded_drive: "Fahrt",
     break: "Pause",
     daily_rest: "Ruhe",
     unloading: "Entladen",
-    wait: "Wartezeit / Fahrverbot",
+    wait: "Warten auf Ladefenster",
   };
   return labels[type] || type;
 }

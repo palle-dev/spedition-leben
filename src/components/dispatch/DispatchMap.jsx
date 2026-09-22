@@ -13,10 +13,10 @@ import { AlertTriangle } from "lucide-react";
 
 const MAP_STYLE = "https://tiles.openfreemap.org/styles/dark";
 /** @type {[number, number]} */
-const MAP_CENTER = [10.8, 50];
+const MAP_CENTER = [10.2, 51.0];
 const MAP_ZOOM = 5.0;
 /** @type {[[number, number], [number, number]]} */
-const MAX_BOUNDS = [[4, 45], [18, 56]];
+const MAX_BOUNDS = [[4, 46], [16, 56]];
 
 // Verkehrsbasierte Farbexpression für MapLibre
 const TRAFFIC_COLOR_EXPR = TRAFFIC_COLOR_EXPRESSION;

@@ -3,9 +3,6 @@ import {useGame} from "@/lib/gameContext";
 import {getAdvisorPolicy,ADVISOR_ID} from "@/lib/simulation/investmentAdvisor";
 import {formatEuro} from "@/lib/gameData";
 
-/** @type {Array<[string, string, number, number, number]>} */
-const POLICY_FIELDS = [["dailyBudgetCents","Kaufbudget pro Tag (€)",100,10,1000000000],["reserveCents","Depotreserve (€)",100,0,1000000000],["maxPositionPct","Max. Einzelposition (%)",1,5,100],["stopLossPct","Verlustgrenze (%)",1,1,90],["takeProfitPct","Gewinnziel (%)",1,1,500],["maxTradesPerDay","Max. Orders pro Tag",1,1,12]];
-
 export default function AdvisorMandate({depotId,phone=false}){
  const {state,send,busy,backgroundAdvance}=useGame();
  const initial=getAdvisorPolicy(state,depotId);
@@ -30,7 +27,7 @@ export default function AdvisorMandate({depotId,phone=false}){
  <div className="rounded-xl border border-white/10 p-3">{check("enabled","Autonomen Handel aktivieren")}{check("allowBuy","Käufe erlauben")}{check("allowSell","Verkäufe erlauben – auch bestehende Positionen")}{check("allowStocks","Aktien handeln")}{check("allowCrypto","Krypto handeln")}</div>
  <label className="block text-xs">Strategie<select aria-label="Anlagestrategie" value={policy.strategy} onChange={e=>setPolicy(p=>({...p,strategy:e.target.value}))} className="block w-full bg-slate-900 border border-white/20 rounded-lg p-3 mt-2"><option value="defensive">Defensiv · nur niedrige Risikoklassen</option><option value="balanced">Ausgewogen · niedrige und mittlere Risiken</option><option value="growth">Wachstum · positive Kurstrends, auch hohe Risiken</option></select></label>
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
- {POLICY_FIELDS.map(([key,label,factor,min,max])=><label key={key} className="block text-xs">{label}<input aria-label={label} type="number" min={min} max={max} step={factor===100?.01:1} value={Number.isFinite(policy[key])?policy[key]/factor:""} onChange={e=>setPolicy(p=>({...p,[key]:e.target.value===""?NaN:Math.round(Number(e.target.value)*factor)}))} className="w-full rounded-lg border border-white/20 bg-slate-900 p-3 mt-2"/></label>)}
+ {[["dailyBudgetCents","Kaufbudget pro Tag (€)",100,10,1000000000],["reserveCents","Depotreserve (€)",100,0,1000000000],["maxPositionPct","Max. Einzelposition (%)",1,5,100],["stopLossPct","Verlustgrenze (%)",1,1,90],["takeProfitPct","Gewinnziel (%)",1,1,500],["maxTradesPerDay","Max. Orders pro Tag",1,1,12]].map(([key,label,factor,min,max])=><label key={key} className="block text-xs">{label}<input aria-label={label} type="number" min={min} max={max} step={factor===100?.01:1} value={Number.isFinite(policy[key])?policy[key]/factor:""} onChange={e=>setPolicy(p=>({...p,[key]:e.target.value===""?NaN:Math.round(Number(e.target.value)*factor)}))} className="w-full rounded-lg border border-white/20 bg-slate-900 p-3 mt-2"/></label>)}
  </div>
  <p className="text-xs text-slate-400">Prüfung stündlich in Spielzeit. Gewinn-/Verlustgrenzen lösen Verkaufsaufträge aus, garantieren aber keinen Ausführungskurs. Positionsgrenze gilt bei neuen Käufen. Bereits heute beauftragte Käufe bleiben auf das Tagesbudget angerechnet.</p>
  <button type="button" disabled={stale} onClick={()=>setReview(true)} className="w-full rounded-xl bg-emerald-400 text-slate-950 p-3 font-semibold disabled:opacity-40">Mandat prüfen</button>

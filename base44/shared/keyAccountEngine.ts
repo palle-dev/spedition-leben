@@ -614,7 +614,7 @@ export function evaluateKeyAccountContracts(state, m, log) {
     contract.status = "completed";
 
     const totalTransports = contract.transportsPerDay * KEY_ACCOUNT_DURATION_DAYS;
-    const successRate = totalTransports > 0 ? Number((contract.deliveredCount / totalTransports * 100).toFixed(0)) : 0;
+    const successRate = totalTransports > 0 ? (contract.deliveredCount / totalTransports * 100).toFixed(0) : 0;
     const netRevenue = contract.revenueCents - contract.penaltyCents;
 
     deliverMessage(state, {

@@ -1,4 +1,3 @@
-import {managementPriority} from "./managementGoals.ts";
 import { retainHistory } from "./historyRetention.ts";
 import {branchResponsibilityAllows} from "./managementResponsibilities.ts";
 import { deliverMessage } from "./mailEngine.ts";
@@ -277,9 +276,7 @@ function createDecision(state: any, manager: any, branch: any): any | null {
   const id = uid(state, "bd");
 
   // Wachstumsbedarf hat Priorität — Filialleiter identifiziert Lücken
-  const candidate = managementPriority(state,manager,branch);
-  const priority = candidate && branchResponsibilityAllows(manager,candidate) ? candidate : null;
-  const growthNeed = priority ? (["hire_driver","maintenance"].includes(priority) ? null : priority) : identifyGrowthNeed(state, branch);
+  const growthNeed = identifyGrowthNeed(state, branch);
   if (growthNeed && branchResponsibilityAllows(manager,growthNeed)) {
     return createGrowthDecision(state, id, manager, branch, growthNeed);
   }
@@ -287,7 +284,7 @@ function createDecision(state: any, manager: any, branch: any): any | null {
   // Kein Wachstumsbedarf — zufällige operative Entscheidung
   const types = ["hire_driver", "accept_order", "maintenance", "cost_optimization", "staff_training"].filter(type=>branchResponsibilityAllows(manager,type));
   if(!types.length)return null;
-  const type = priority || types[Math.floor(nextRandom(state) * types.length)];
+  const type = types[Math.floor(nextRandom(state) * types.length)];
 
   if (type === "hire_driver") {
     return {
@@ -369,7 +366,7 @@ function findTrainingCandidate(state: any, branch: any): any | null {
   }
 
   for (const p of persons) {
-    if (isPersonInTraining(state, p.id, state.gameTime)) continue;
+    if (isPersonInTraining(state, p.id)) continue;
     if (!isPersonAvailable(state, p.id, state.gameTime)) continue;
 
     for (const course of COURSE_CATALOG) {
@@ -499,7 +496,7 @@ function applyDecision(state: any, decision: any) {
     if (!decision.personId || !decision.courseId) return false;
     const found = findPerson(state, decision.personId);
     if (!found || !isActivelyEmployed(found.person)) return false;
-    if (isPersonInTraining(state, decision.personId, state.gameTime)) return false;
+    if (isPersonInTraining(state, decision.personId)) return false;
     const course = COURSE_CATALOG.find((c: any) => c.id === decision.courseId);
     if (!course) return false;
     if (state.company.accountCents < course.feeCents) return false;

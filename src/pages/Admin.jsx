@@ -401,7 +401,7 @@ export default function Admin() {
   );
 }
 
-function StatCell({ value, format = null, tone = null }) {
+function StatCell({ value, format, tone }) {
   if (value == null) return <span className="text-muted-foreground/40">—</span>;
   const formatted = format ? format(value) : value;
   const cls = tone === "coral" ? "text-coral" : tone === "lime" ? "text-lime" : "";

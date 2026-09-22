@@ -2,9 +2,52 @@
 // (Die verbindlichen Werte liegen serverseitig in base44/shared/gameRules.ts;
 // dies ist die ungefähre Spiegelung für Darstellung und Dispositionsplanung in der UI.)
 
-import { CITIES, CITY_LATLON, getDistance } from "./simulation/dachGeography.ts";
-export { CITIES, CITY_LATLON, getDistance };
-export const CITY_COORDS=CITY_LATLON;
+// 30 Städte – deckt ganz Deutschland ab (Spiegel von base44/shared/gameRules.ts).
+export const CITIES = [
+  "Hamburg", "Bremen", "Kiel", "Lübeck", "Hannover", "Berlin", "Rostock", "Magdeburg",
+  "München", "Köln", "Düsseldorf", "Frankfurt", "Stuttgart", "Leipzig", "Dresden",
+  "Nürnberg", "Dortmund", "Essen", "Mannheim", "Freiburg", "Braunschweig", "Erfurt",
+  "Kassel", "Münster", "Osnabrück", "Saarbrücken", "Regensburg", "Würzburg",
+  "Bielefeld", "Ulm"
+];
+
+// Reale Koordinaten [Längengrad, Breitengrad] für Entfernungsberechnung und Karte.
+export const CITY_LATLON = {
+  Hamburg: [9.9937, 53.5511], Bremen: [8.8072, 53.0758], Kiel: [10.1394, 54.3233],
+  Lübeck: [10.6866, 53.8697], Hannover: [9.7322, 52.3759], Berlin: [13.4050, 52.5200],
+  Rostock: [12.0989, 54.0922], Magdeburg: [11.6276, 52.1205],
+  München: [11.5820, 48.1351], Köln: [6.9603, 50.9375], Düsseldorf: [6.7760, 51.2217],
+  Frankfurt: [8.6821, 50.1109], Stuttgart: [9.1829, 48.7758], Leipzig: [12.3878, 51.3438],
+  Dresden: [13.7373, 51.0506], Nürnberg: [11.0775, 49.4539], Dortmund: [7.4653, 51.5136],
+  Essen: [7.0127, 51.4556], Mannheim: [8.4914, 49.4891], Freiburg: [7.8491, 47.9990],
+  Braunschweig: [10.5276, 52.2688], Erfurt: [11.0290, 50.9847], Kassel: [9.4797, 51.3128],
+  Münster: [7.6261, 51.9607], Osnabrück: [8.0472, 52.2790], Saarbrücken: [7.0019, 49.2354],
+  Regensburg: [12.1016, 49.0175], Würzburg: [9.9296, 49.7924], Bielefeld: [8.5285, 52.0300],
+  Ulm: [9.9900, 48.4011]
+};
+
+// Kompatibilität: älterer Code referenziert CITY_COORDS.
+export const CITY_COORDS = CITY_LATLON;
+
+// Straßenfaktor: Haversine-Luftlinie × 1,2 approximiert Straßenentfernung.
+const ROAD_FACTOR = 1.2;
+
+function haversineKm(a, b) {
+  const [lng1, lat1] = a, [lng2, lat2] = b;
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const sLat = Math.sin(dLat / 2), sLng = Math.sin(dLng / 2);
+  const h = sLat * sLat + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * sLng * sLng;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+export function getDistance(a, b) {
+  if (a === b) return 0;
+  const c1 = CITY_LATLON[a], c2 = CITY_LATLON[b];
+  if (!c1 || !c2) return 0;
+  return Math.round(haversineKm(c1, c2) * ROAD_FACTOR / 5) * 5;
+}
 
 export const AVG_SPEED = 60;
 export const LOAD_MIN = 60;

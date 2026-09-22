@@ -2,9 +2,56 @@ import { ELECTRIC_MODELS } from "./electricCatalog.ts";
 // Statische Spielweltdaten und reine Berechnungsregeln für "Frachtfieber".
 // Diese Werte sind vereinfachte, veränderbare Spielwerte – keine Abbildung realer Preise oder Vorschriften.
 
-import { CITIES, CITY_LATLON, getDistance, DACH_CUSTOMERS } from "./dachGeography.ts";
-export { CITIES, CITY_LATLON, getDistance };
+// 30 Städte – deckt ganz Deutschland ab (Nord, Süd, West, Ost, Mitte).
+export const CITIES = [
+  "Hamburg", "Bremen", "Kiel", "Lübeck", "Hannover", "Berlin", "Rostock", "Magdeburg",
+  "München", "Köln", "Düsseldorf", "Frankfurt", "Stuttgart", "Leipzig", "Dresden",
+  "Nürnberg", "Dortmund", "Essen", "Mannheim", "Freiburg", "Braunschweig", "Erfurt",
+  "Kassel", "Münster", "Osnabrück", "Saarbrücken", "Regensburg", "Würzburg",
+  "Bielefeld", "Ulm"
+];
+
+// Reale Koordinaten [Längengrad, Breitengrad] für Entfernungsberechnung und Karte.
+export const CITY_LATLON = {
+  Hamburg: [9.9937, 53.5511], Bremen: [8.8072, 53.0758], Kiel: [10.1394, 54.3233],
+  Lübeck: [10.6866, 53.8697], Hannover: [9.7322, 52.3759], Berlin: [13.4050, 52.5200],
+  Rostock: [12.0989, 54.0922], Magdeburg: [11.6276, 52.1205],
+  München: [11.5820, 48.1351], Köln: [6.9603, 50.9375], Düsseldorf: [6.7760, 51.2217],
+  Frankfurt: [8.6821, 50.1109], Stuttgart: [9.1829, 48.7758], Leipzig: [12.3878, 51.3438],
+  Dresden: [13.7373, 51.0504], Nürnberg: [11.0775, 49.4539], Dortmund: [7.4653, 51.5136],
+  Essen: [7.0127, 51.4556], Mannheim: [8.4914, 49.4891], Freiburg: [7.8491, 47.9990],
+  Braunschweig: [10.5276, 52.2688], Erfurt: [11.0290, 50.9847], Kassel: [9.4797, 51.3128],
+  Münster: [7.6261, 51.9607], Osnabrück: [8.0472, 52.2790], Saarbrücken: [7.0019, 49.2354],
+  Regensburg: [12.1016, 49.0175], Würzburg: [9.9296, 49.7924], Bielefeld: [8.5285, 52.0302],
+  Ulm: [9.9900, 48.4011]
+};
+
+// Kompatibilität: älterer Code referenziert CITY_COORDS.
 export const CITY_COORDS = CITY_LATLON;
+
+// Straßenfaktor: Haversine-Luftlinie × 1,2 approximiert Straßenentfernung.
+const ROAD_FACTOR = 1.2;
+
+function haversineKm(a, b) {
+  const [lng1, lat1] = a, [lng2, lat2] = b;
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const sLat = Math.sin(dLat / 2), sLng = Math.sin(dLng / 2);
+  const h = sLat * sLat + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * sLng * sLng;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+// Die Weltkoordinaten sind statisch: 30 × 30 Distanzen einmal berechnen.
+// Kein Spielstand-Cache, keine Rundungsänderung, kein unbegrenztes Wachstum.
+const CITY_DISTANCES = new Map(Object.entries(CITY_LATLON).map(([from, a]) => [
+  from, new Map(Object.entries(CITY_LATLON).map(([to, b]) => [
+    to, from === to ? 0 : Math.round(haversineKm(a, b) * ROAD_FACTOR / 5) * 5,
+  ])),
+]));
+export function getDistance(a, b) {
+  return CITY_DISTANCES.get(a)?.get(b) ?? 0;
+}
 
 // Spielkonstanten (Cent-basiert für Geld).
 export const FUEL_PRICE = 1.70; // €/Liter
@@ -406,7 +453,6 @@ export const CUSTOMER_NAMES = [
 // Stabile fiktive Unternehmen mit Versanddepots und bevorzugten Relationen.
 // Ein Kundendepot muss am Abholort existieren; kein Kunde versendet aus jeder Stadt.
 export const CUSTOMER_PROFILES = [
-  ...DACH_CUSTOMERS,
   { id: "c01", name: "Hanse Handelskontor", industry: "Handel", contact: "Frau Brandt",
     depots: ["Hamburg"],
     preferredRelations: [["Hamburg","Bremen"],["Hamburg","Hannover"],["Hamburg","Lübeck"]],
