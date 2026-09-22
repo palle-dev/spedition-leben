@@ -1461,6 +1461,7 @@ export function suggestTours(state, opts) {
     }
     const seenDriverConditions = new Set();
     const evaluatedDrivers = [];
+    const firstOrderChecks = new Map();
     for (const driver of candidateDrivers) {
       // buildTourPlan always rejects different future locations. Avoid all
       // single/double-order attempts for this provably infeasible pair.
@@ -1478,11 +1479,26 @@ export function suggestTours(state, opts) {
       if (seenDriverConditions.has(conditions)) continue;
       seenDriverConditions.add(conditions);
       evaluatedDrivers.push(driver);
+      // A provably impossible first delivery cannot become feasible by adding
+      // a return load. Avoid rebuilding that same failed prefix for every pair.
+      // This cache lives only in this read-only search, never across events.
+      const start = _cached("ea:" + vehicleId + "|" + driver.id, () => earliestAvailable(state, vehicle, driver));
+      const checked = new Map();
+      const canStartWith = order => {
+        if (checked.has(order.id)) return checked.get(order.id);
+        const bound = optimisticDeliveryEnd(state, order, vehicleFutureCity, start, counters, isElectric(vehicle));
+        const possible = !(bound.delivery > order.deliveryDeadlineMin + 240 ||
+          (order.windowVersion >= 2 && bound.loadingStart > order.latestLoadStartMin));
+        checked.set(order.id, possible);
+        return possible;
+      };
+      firstOrderChecks.set(driver.id, canStartWith);
       let driverBestPlan = null;
       let driverBestOrders = null;
 
       // Einzel-Touren
       for (const o of allOrders) {
+        if (!canStartWith(o)) continue;
         const plan = buildTourPlan(state, {
           vehicleId, driverId: driver.id,
           orderIds: [o.id],
@@ -1500,6 +1516,7 @@ export function suggestTours(state, opts) {
 
       // Doppel-Touren (Hin + Rück) — Ketten-Map für O(n·k) statt O(n²)
       for (const o1 of allOrders) {
+        if (!canStartWith(o1)) continue;
         const chainable = chainMap.get(o1.toCity) || [];
         for (const o2 of chainable) {
           if (o1.id === o2.id) continue;
@@ -1535,6 +1552,7 @@ export function suggestTours(state, opts) {
       const fallbackOrders = rankOrders(remaining, vehicleFutureCity, orderLimit * 4);
       for (const order of fallbackOrders) {
         for (const driver of evaluatedDrivers) {
+          if (!firstOrderChecks.get(driver.id)(order)) continue;
           const plan = buildTourPlan(state, {
             vehicleId, driverId: driver.id, orderIds: [order.id], desiredEndCity, latestReturnMin,
           });
