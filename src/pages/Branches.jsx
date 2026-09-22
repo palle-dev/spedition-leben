@@ -10,6 +10,7 @@ import OpenBranchDialog from "@/components/branches/OpenBranchDialog";
 import MoveResourceDialog from "@/components/branches/MoveResourceDialog";
 import AssignEmployeeDialog from "@/components/branches/AssignEmployeeDialog";
 import BranchDecisionsPanel from "@/components/branches/BranchDecisionsPanel";
+import BranchDetailDialog from "@/components/branches/BranchDetailDialog";
 import { Building2, Plus, Truck, Users, MapPin, ArrowRight, LayoutGrid, List, Briefcase, Network } from "lucide-react";
 import { Link } from "react-router-dom";
 import PageHint from "@/components/help/PageHint";
@@ -20,6 +21,7 @@ export default function Branches() {
   const [moveContext, setMoveContext] = useState(null); // { type, branchId }
   const [selectedResource, setSelectedResource] = useState(null); // resource object
   const [selectedBranchId, setSelectedBranchId] = useState(null);
+  const [detailBranch, setDetailBranch] = useState(null);
   const [tab, setTab] = useState("overview"); // "overview" | "map"
 
   const activeBranches = (state.branches || []).filter(b => b.status === "active");
@@ -122,6 +124,7 @@ export default function Branches() {
                   key={b.id}
                   branch={{ ...b, totalDailyCostCents: computeBranchDailyCost(state, b) }}
                   onMoveResource={(ctx) => { setMoveContext(ctx); setSelectedBranchId(b.id); }}
+                  onOpenDetail={() => setDetailBranch({ ...b, totalDailyCostCents: computeBranchDailyCost(state, b) })}
                 />
               ))}
               {activeBranches.length === 0 && (
@@ -132,6 +135,15 @@ export default function Branches() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Branch Detail Dialog */}
+      {detailBranch && (
+        <BranchDetailDialog
+          branch={detailBranch}
+          onClose={() => setDetailBranch(null)}
+          onMoveResource={(ctx) => { setMoveContext(ctx); setSelectedBranchId(ctx.branchId); setDetailBranch(null); }}
+        />
       )}
 
       {/* Open Branch Dialog */}
