@@ -1,0 +1,19 @@
+{
+  "tests": {
+    "exitCode": 0,
+    "passed": 121,
+    "failed": 0
+  },
+  "build": {
+    "exitCode": 0
+  },
+  "uiLint": {
+    "exitCode": 0
+  },
+  "typecheck": {
+    "exitCode": 2,
+    "note": "Existing project-wide type errors remain; see README.",
+    "dachErrors": []
+  },
+  "simulationCopiesMatch": true
+}
