@@ -1,3 +1,5 @@
+import { buildPhases, buildWorkSteps } from "./driverTimeEngine.ts";
+import { regulatorySteps, DACH_RULE_VERSION } from "./dachRules.ts";
 import { retainLatestHistory } from "./historyRetention.ts";
 // Kundenbeziehungs- und Rahmenvertrag-Engine für FERNWERK.
 // Dauerkundenbeziehungen mit Vertrauen, Statistiken und Rahmenverträgen.
@@ -489,6 +491,12 @@ export function processContractDay(state, m, log) {
         contractDay: day,
         contractTransportNo: n,
       };
+      if(state.dach?.enabled){
+        order.transportRulesVersion=DACH_RULE_VERSION;
+        const legal=buildPhases(regulatorySteps(buildWorkSteps(order.fromCity,order)),{workMin:0,driveMin:0},order.earliestPickupMin);
+        order.deliveryDeadlineMin=Math.max(order.deliveryDeadlineMin,legal.endMin+contract.deliveryBufferMin);
+        order.latestLoadStartMin=Math.max(order.latestLoadStartMin,legal.phases.find(p=>p.type==="loading")?.startMin||order.earliestPickupMin);
+      }
       state.orders.push(order);
       contract.orderIds.push(orderId);
       contract.generatedCount++;

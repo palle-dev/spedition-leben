@@ -86,7 +86,7 @@ export function openBranch(state, { city, name }) {
   const branch = {
     id: branchId,
     name: branchName,
-    city,
+    city, country:countryOf(city),
     costPerDayCents: BRANCH_COST_PER_DAY,
     openedAtMin: state.gameTime,
     status: "active",
@@ -102,6 +102,7 @@ export function openBranch(state, { city, name }) {
     id: uid(state, "v"), branchId, type: STANDARD_TRUCK.type, capacityTons: 12,
     consumptionPer100km: 28, bookValueCents: VEHICLE_PRICE, condition: 85,
     locationCity: city, status: "free", tripId: null, maintenanceUntil: null,
+    operatorCountry:countryOf(city), registrationCountry:countryOf(city),
     ownership_type: "owned", odometerKm: 0, acquiredAtMin: state.gameTime,
     referencePriceCents: VEHICLE_PRICE, markedForSale: false, saleOffer: null,
   };
@@ -197,11 +198,10 @@ export function previewMoveVehicle(state, { vehicleId, targetBranchId }) {
     // Same city — instant move
     return { ok: true, instant: true, distKm: 0, fuelCents: 0, tollCents: 0, durationMin: 0 };
   }
-  const dist = getDistance(v.locationCity, target.city);
-  const fuel = fuelCents(dist, v.consumptionPer100km);
-  const toll = tollCents(dist);
-  const driveMin = driveMinutes(dist);
-  return { ok: true, instant: false, distKm: dist, fuelCents: fuel, tollCents: toll, durationMin: driveMin + LOAD_UNLOAD };
+  const driver=(state.drivers||[]).find(d=>d.status==="free"&&d.locationCity===v.locationCity);
+  const plan=buildEmptyDeployment(state,v.locationCity,target.city,v,state.gameTime,{workMin:driver?.workMinutesSinceRest||0,driveMin:driver?.driveMinutesSinceBreak||0,regulation:driver?.regulation});
+  if(plan.energyError)throw new Error(plan.energyError);
+  return {ok:true,instant:false,distKm:plan.totalKm,fuelCents:plan.fuelCents,tollCents:plan.tollCents,durationMin:plan.durationMin};
 }
 
 const LOAD_UNLOAD = 0;
@@ -250,7 +250,7 @@ export function moveVehicle(state, { vehicleId, targetBranchId }) {
   }
 
   // Gebühren buchen
-  addBooking(state, state.gameTime, "Kraftstoff (Überstellung)", -fuel, "company", "move_vehicle_fuel:" + v.id + ":" + state.gameTime);
+  addBooking(state, state.gameTime, (v.powertrain==="electric"?"Ladestrom unterwegs: Überstellung":"Kraftstoff (Überstellung)"), -fuel, "company", "move_vehicle_fuel:" + v.id + ":" + state.gameTime);
   addBooking(state, state.gameTime, "Maut (Überstellung)", -toll, "company", "move_vehicle_toll:" + v.id + ":" + state.gameTime);
 
   const trip = {

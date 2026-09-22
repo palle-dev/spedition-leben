@@ -13,7 +13,7 @@ export function phaseLabel(type) {
     break: "Fahrpause",
     daily_rest: "Ruhezeit",
     unloading: "Entladen",
-    wait: "Warten auf Ladefenster",
+    wait: "Wartezeit / Fahrverbot",
   };
   return labels[type] || type;
 }
@@ -27,7 +27,7 @@ export function phaseShortLabel(type) {
     break: "Pause",
     daily_rest: "Ruhe",
     unloading: "Entladen",
-    wait: "Warten auf Ladefenster",
+    wait: "Wartezeit / Fahrverbot",
   };
   return labels[type] || type;
 }

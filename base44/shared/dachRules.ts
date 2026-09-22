@@ -1,6 +1,7 @@
 import { countryOf, dachRoute } from "./dachGeography.ts";
 export const DACH_RULE_VERSION="DACH-2026.1";
 export const DACH_SOURCES=[
+ {label:"Deutschland: Mauttarife",url:"https://www.toll-collect.de/de/toll_collect/bezahlen/maut_tarife/p1745_mauttarife_07_2024.html"},
  {label:"EU: Lenk- und Ruhezeiten",url:"https://transport.ec.europa.eu/transport-modes/road/social-provisions/driving-time-and-rest-periods_en"},
  {label:"EU: Kabotage",url:"https://transport.ec.europa.eu/transport-modes/road/mobility-package-i/market-rules/rules-cabotage-applicable-21-february-2022_en"},
  {label:"Deutschland: § 30 StVO",url:"https://www.gesetze-im-internet.de/stvo_2013/__30.html"},
