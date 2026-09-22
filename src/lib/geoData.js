@@ -90,7 +90,7 @@ export function getVehicleGeoPosition(vehicle, state, routeData) {
     if (phase.type === "empty_drive" || phase.type === "loaded_drive" || phase.type === "empty" || phase.type === "drive") {
       const dur = phase.endMin - phase.startMin;
       const progress = dur > 0 ? Math.min(1, Math.max(0, (state.gameTime - phase.startMin) / dur)) : 0;
-      const route = phase.routeCoordinates?{coordinates:phase.routeCoordinates}:getRouteGeometry(phase.fromCity, phase.toCity, routeData);
+      const route = phase.routeCoordinates?{coordinates:phase.routeCoordinates,approximate:true}:getRouteGeometry(phase.fromCity, phase.toCity, routeData);
       if (route) return interpolateAlongRoute(route.coordinates, progress);
       const from = CITY_GEO[phase.fromCity], to = CITY_GEO[phase.toCity];
       if (!from || !to) return cityGeo || null;
@@ -98,7 +98,7 @@ export function getVehicleGeoPosition(vehicle, state, routeData) {
     }
 
     // Pause/Ruhe: an Position des letzten Fahr-Abschnitts bleiben
-    if (phase.type === "break" || phase.type === "daily_rest") {
+    if (["break","daily_rest","customs","wait","charging"].includes(phase.type)) {
       let lastDrive = null;
       for (let i = idx - 1; i >= 0; i--) {
         const p = phases[i];
@@ -140,8 +140,8 @@ export function buildTripRouteGeoJSON(trip, routeData) {
     const phase = phases[i];
     const t = phase.type;
     // Nur Fahr-Phasen zeichnen; Pause/Ruhe/Laden/Entladen überspringen
-    if (t === "load" || t === "loading" || t === "unload" || t === "unloading" || t === "break" || t === "daily_rest") continue;
-    const route = phase.routeCoordinates?{coordinates:phase.routeCoordinates}:getRouteGeometry(phase.fromCity, phase.toCity, routeData);
+    if (!["empty","empty_drive","drive","loaded_drive"].includes(t)) continue;
+    const route = phase.routeCoordinates?{coordinates:phase.routeCoordinates,approximate:true}:getRouteGeometry(phase.fromCity, phase.toCity, routeData);
     const isCurrent = i === idx;
     const isPast = i < idx;
     const legType = (t === "empty" || t === "empty_drive") ? "empty" : "drive";
@@ -156,7 +156,7 @@ export function buildTripRouteGeoJSON(trip, routeData) {
         features.push({
           type: "Feature",
           geometry: { type: "LineString", coordinates: coords },
-          properties: { tripId: trip.id, legType, fromCity: phase.fromCity, toCity: phase.toCity, isCurrent, isPast, fallback: false }
+          properties: { tripId: trip.id, legType, fromCity: phase.fromCity, toCity: phase.toCity, isCurrent, isPast, fallback: !!route.approximate }
         });
       } else {
         const segLen = Math.floor(coords.length / SEGMENT_COUNT);
@@ -168,7 +168,7 @@ export function buildTripRouteGeoJSON(trip, routeData) {
           features.push({
             type: "Feature",
             geometry: { type: "LineString", coordinates: segCoords },
-            properties: { tripId: trip.id, legType, fromCity: phase.fromCity, toCity: phase.toCity, isCurrent, isPast, fallback: false, segmentIndex: s, segmentCount: SEGMENT_COUNT }
+            properties: { tripId: trip.id, legType, fromCity: phase.fromCity, toCity: phase.toCity, isCurrent, isPast, fallback: !!route.approximate, segmentIndex: s, segmentCount: SEGMENT_COUNT }
           });
         }
       }
@@ -238,8 +238,8 @@ export function buildTourRouteGeoJSON(plan, routeData) {
     const depPhases = dep.phases || dep.legs || [];
     for (const phase of depPhases) {
       const t = phase.type;
-      if (t === "load" || t === "loading" || t === "unload" || t === "unloading" || t === "break" || t === "daily_rest") continue;
-      const route = phase.routeCoordinates?{coordinates:phase.routeCoordinates}:getRouteGeometry(phase.fromCity, phase.toCity, routeData);
+      if (!["empty","empty_drive","drive","loaded_drive"].includes(t)) continue;
+      const route = phase.routeCoordinates?{coordinates:phase.routeCoordinates,approximate:true}:getRouteGeometry(phase.fromCity, phase.toCity, routeData);
       const coords = route ? route.coordinates : [CITY_GEO[phase.fromCity], CITY_GEO[phase.toCity]].filter(Boolean);
       if (!coords || coords.length < 2) continue;
       const legType = (t === "empty" || t === "empty_drive") ? "empty" : "drive";
