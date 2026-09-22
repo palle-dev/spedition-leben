@@ -4,7 +4,7 @@ import { formatEuro } from "@/lib/gameData";
 import { ENERGY_UPGRADES, ENERGY_RULES, emptyEnergySite, isElectric } from "@/lib/simulation/energyEngine";
 import { vehicleDisplayName } from "@/lib/displayHelpers";
 import { Sun, BatteryCharging, PlugZap, Download } from "lucide-react";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from "recharts";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 
 const num=n=>Number(n||0).toLocaleString("de-DE",{maximumFractionDigits:1});
 const cell="px-3 py-2 text-right whitespace-nowrap tabular-nums";
@@ -65,10 +65,32 @@ export default function EnergyPanel({branchId:fixedBranchId}) {
    <Stat title="Einspeiseerlös im Zeitraum" value={formatEuro(Math.round(totals.exportRevenueCents||0))}/>
    <Stat title="Investitionen seit Installation" value={formatEuro(sites.reduce((n,s)=>n+s.site.investmentCents,0))}/>
   </div>
-  <div className="glass rounded-xl border border-white/10 p-4 space-y-3">
-   <h3 className="font-medium">Woher kommt der Ladestrom?</h3>
-   {chart.length?<div style={{height:260}}><ResponsiveContainer width="100%" height="100%"><BarChart data={chart}><XAxis dataKey="day" tickFormatter={d=>"Tag "+d}/><YAxis unit=" kWh"/><Tooltip formatter={v=>num(v)+" kWh"}/><Legend/><Bar dataKey="solar" name="PV + Speicher" stackId="a" fill="#c4f56f"/><Bar dataKey="grid" name="Filialnetz" stackId="a" fill="#60a5fa"/><Bar dataKey="public" name="Unterwegs" stackId="a" fill="#c084fc"/></BarChart></ResponsiveContainer></div>:<p className="text-sm text-muted-foreground">Noch keine Energiedaten. Installiere PV oder Ladepunkte und lasse Spielzeit vergehen.</p>}
-   <p className="text-xs text-muted-foreground">Energie am Ladeeingang, vor Ladeverlusten. Diagramm und CSV zeigen die letzten höchstens 90 Tage; ältere Tagesdaten bleiben im Historienarchiv. Gesamtzähler bleiben erhalten.</p>
+  <div className="rounded-2xl border border-white/10 p-4 sm:p-6 space-y-5 min-w-0" style={{background:"#101b21",color:"#f1f5f9"}}>
+   <div className="flex flex-wrap items-start justify-between gap-3">
+    <div><h3 className="font-semibold text-base">Woher kommt der Ladestrom?</h3><p className="text-sm mt-1" style={{color:"#a9bbc7"}}>Täglicher Energiebezug deiner elektrischen Flotte</p></div>
+    {chart.length>0&&<span className="rounded-full px-3 py-1 text-xs border border-white/15" style={{color:"#d9e5ed"}}>Tag {chart[0].day} – {chart[chart.length-1].day}</span>}
+   </div>
+   <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+    {[["#c4f56f","PV + Speicher"],["#60a5fa","Filialnetz"],["#c084fc","Unterwegs"]].map(([color,label])=><span key={label} className="inline-flex items-center gap-2" style={{color:"#e2e8f0"}}><span className="h-2.5 w-2.5 rounded-sm" style={{background:color}}/>{label}</span>)}
+   </div>
+   {chart.some(d=>d.solar+d.grid+d.public>0)?<div style={{height:300,minWidth:0}}>
+    <ResponsiveContainer width="100%" height="100%">
+     <BarChart data={chart} margin={{top:12,right:12,bottom:8,left:0}} barCategoryGap="28%" accessibilityLayer>
+      <CartesianGrid vertical={false} stroke="#33454f" strokeDasharray="3 6"/>
+      <XAxis dataKey="day" tickFormatter={d=>"Tag "+d} tick={{fill:"#becdd7",fontSize:12}} tickLine={false} axisLine={{stroke:"#40535e"}} minTickGap={28} tickMargin={12}/>
+      <YAxis width={66} tickFormatter={v=>num(v)} tick={{fill:"#becdd7",fontSize:12}} tickLine={false} axisLine={false} tickMargin={8} label={{value:"kWh",position:"insideTopLeft",fill:"#becdd7",fontSize:11,dy:-12}}/>
+      <Tooltip content={<EnergyChartTooltip/>} cursor={{fill:"#ffffff",fillOpacity:0.045}} wrapperStyle={{zIndex:20,outline:"none"}} isAnimationActive={false}/>
+      <Bar dataKey="solar" name="PV + Speicher" stackId="energy" fill="#c4f56f" maxBarSize={42} isAnimationActive={false}/>
+      <Bar dataKey="grid" name="Filialnetz" stackId="energy" fill="#60a5fa" maxBarSize={42} isAnimationActive={false}/>
+      <Bar dataKey="public" name="Unterwegs" stackId="energy" fill="#c084fc" maxBarSize={42} isAnimationActive={false}/>
+     </BarChart>
+    </ResponsiveContainer>
+   </div>:<div className="rounded-xl border border-dashed border-white/15 px-5 py-10 text-center" style={{background:"#14232b"}}>
+    <PlugZap className="mx-auto mb-3 h-7 w-7" style={{color:"#c4f56f"}}/>
+    <p className="font-medium">Noch kein Ladestrom im gewählten Zeitraum</p>
+    <p className="text-sm mt-2 max-w-xl mx-auto" style={{color:"#b6c6d1"}}>PV-Erzeugung allein ist noch kein Lkw-Ladeverbrauch. Sobald deine E-Lkw Strom laden, siehst du hier die Verteilung nach Stromquelle. PV-Erträge und Einspeisung stehen in der Energiebilanz.</p>
+   </div>}
+   <p className="text-xs leading-relaxed" style={{color:"#a9bbc7"}}>Energie am Ladeeingang, vor Ladeverlusten. Diagramm und CSV zeigen die letzten höchstens 90 Tage; ältere Tagesdaten bleiben im Historienarchiv. Gesamtzähler bleiben erhalten.</p>
   </div>
   <details className="glass rounded-xl border border-white/10 p-4" open><summary className="cursor-pointer font-medium">Detaillierte Energiebilanz</summary><dl className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3 mt-4">{metrics.map(([key,label])=><div key={key}><dt className="text-xs text-muted-foreground">{label}</dt><dd className="tabular-nums">{num(totals[key])} kWh</dd></div>)}</dl></details>
   <div className="grid xl:grid-cols-2 gap-4">{sites.map(({branch:b,site:s})=><article key={b.id} className="glass rounded-xl border border-white/10 p-4 space-y-3">
@@ -82,4 +104,18 @@ export default function EnergyPanel({branchId:fixedBranchId}) {
   <details className="text-xs text-muted-foreground space-y-2"><summary className="cursor-pointer">Spielmodell, Tarife und Abrechnung</summary><p>Fiktive Spielwerte: Filialnetz 0,30 €/kWh, öffentliche Lader 0,65 €/kWh, Einspeisung 0,08 €/kWh. Ladeeffizienz 92 %, Speicher je Richtung 95 %. Stundenweise Sonnenkurve mit Jahreszeit, Stadt und deterministischem Wetter; keine reale Ertragsprognose und kein Gebäudeverbrauch.</p><p>Netzstrom und Einspeisung werden täglich um Mitternacht abgerechnet. Unterwegs-Ladungen werden zum Fahrtstart bezahlt. Öffentliche Lkw-Ladehubs in allen 30 Spielstädten: maximal 300 kW, fünf Minuten Anschlusszeit je Stopp. Ladeleistung wird auf die Fahrzeugleistung begrenzt, Ladezeit zählt konservativ als Arbeitszeit. Keine realen Stationsdaten oder Live-Belegungen. Reichweitenreserve 10 %, öffentliches Ladeziel 90 %. Umwege, Lenkpausen und Ruhezeiten zählen zur Lieferzeit.</p></details>
  </section>;
 }
+function EnergyChartTooltip({active,payload,label}) {
+ if(!active||!payload?.length)return null;
+ const total=payload.reduce((sum,item)=>sum+Number(item.value||0),0);
+ return <div style={{background:"#0b141b",color:"#f8fafc",border:"1px solid #526674",borderRadius:14,padding:"14px 16px",boxShadow:"0 12px 32px #0009",width:250,maxWidth:"calc(100vw - 64px)"}}>
+  <p style={{fontWeight:700,fontSize:14,marginBottom:12}}>Tag {label}</p>
+  {payload.map(item=><div key={item.dataKey} style={{display:"flex",alignItems:"center",gap:8,marginTop:9,fontSize:13}}>
+   <span style={{width:9,height:9,borderRadius:3,background:item.color,flexShrink:0}}/>
+   <span style={{flex:1,color:"#dce6ed"}}>{item.name}</span>
+   <span style={{fontVariantNumeric:"tabular-nums",fontWeight:600,color:"#ffffff"}}>{num(item.value)} kWh</span>
+  </div>)}
+  <div style={{display:"flex",justifyContent:"space-between",gap:12,borderTop:"1px solid #354854",paddingTop:10,marginTop:12,fontSize:13,fontWeight:700}}><span>Gesamt</span><span>{num(total)} kWh</span></div>
+ </div>;
+}
+
 function Stat({title,value}){return <div className="glass rounded-xl border border-white/10 p-4"><p className="text-xs text-muted-foreground">{title}</p><p className="text-xl font-semibold tabular-nums mt-1">{value}</p></div>;}
