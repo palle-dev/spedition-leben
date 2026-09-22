@@ -413,6 +413,7 @@ export function processDispatcher(state, emp, m, log, failedSearches = null) {
   // Confirmations above are complete; this loop only writes idle annotations.
   // Build lazily once, so fully working fleets incur no reservation scan.
   let reservedResources = null;
+  let consideredOrders = null;
   for (const v of poolVehicles) {
     if (usedVehicleIds.has(v.id)) { v.idleReason = null; continue; }
     if (v.status === "on_trip") { v.idleReason = "Unterwegs"; continue; }
@@ -453,7 +454,7 @@ export function processDispatcher(state, emp, m, log, failedSearches = null) {
       } else if (!hasUnplannedAccepted && !hasOfferedOrders) {
         reason = acceptNew ? "Keine (profitablen) Aufträge verfügbar" : "Keine angenommenen Aufträge – autonomer Modus oder manuelle Annahme nötig";
       } else {
-        const consideredOrders = planningOrdersFor(state).filter(o =>
+        consideredOrders ??= planningOrdersFor(state).filter(o =>
           (o.status === "offered" && o.acceptDeadlineMin > m) || o.status === "angenommen"
         ).length;
         reason = "Keine ausführbare Tour in der begrenzten Auswahl aus " + consideredOrders + " verfügbaren Aufträgen";
