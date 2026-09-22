@@ -71,6 +71,7 @@ export function rivalScene(state,run){
  const scene=rivalSceneBase(state,run);if(!scene)return scene;
  const acquired=state.world.rivals.filter(r=>r.businessStatus==="acquired");
  if(!acquired.length)return scene;
+ if(run.stage===0&&acquired.some(r=>r.id==="nordsprint"))scene.text="Malte Kröger bleibt nach einem Gespräch am Kai noch bei dir stehen. Seit der Übernahme von NordSprint hat sich seine Rolle verändert. Er möchte über seinen bisherigen Weg sprechen. „Was hältst du eigentlich von mir, wenn wir einmal die Zahlen beiseitelassen?“";
  const text="Seit der Übernahme von "+acquired.map(r=>r.name).join(", ")+" begegnet ihr euch mit einer veränderten gemeinsamen Firmengeschichte. Die früheren Inhaber behalten ihre persönliche Sicht auf deine Entscheidungen. "+
  scene.text.replace("Niemand hat seine Firma oder seine Interessen abgegeben.","Eure Rollen haben sich verändert, eure persönlichen Interessen bleiben.").replace("wenn wir uns morgen wieder um denselben Auftrag bewerben?","wenn sich unsere geschäftlichen Rollen verändern?");
  return {...scene,text,choices:scene.choices.map(choice=>({...choice,delayed:{...choice.delayed,text:choice.delayed.text.replace("Ihr seid weiterhin Konkurrenten, aber", "Ihr habt eine gemeinsame Firmengeschichte, und").replace("Eine gemeinsame Firma oder zusätzliche Transportpflicht ist daraus nicht entstanden.","Diese fachliche Arbeit begründet keine zusätzlichen Transportpflichten.")}}))};

@@ -10,7 +10,7 @@ const labels = { energyDays: "PV & E-Mobilität: Tagesdaten", accountingJournal:
   delegationDecisions: "Delegation", investmentPrices: "Kursverlauf", investmentTransfers: "Depottransfers",
   investmentFills: "Handelsausführungen", investmentOrders: "Investmentorders", investmentPerformance: "Depotentwicklung",
   investmentAdvisor: "Investmentberater", investmentStaking: "Staking", customerRelations: "Kundenbeziehungen",
-  competitionRentals: "Fahrzeugvermietungen", competitionDaily: "Wettbewerbszahlen", competitionDeals: "Firmenübernahmen", competitionRecruiting: "Personalabwerbung",
+  competitionRoster: "Früheres Konkurrenzpersonal", competitionRentals: "Fahrzeugvermietungen", competitionDaily: "Wettbewerbszahlen", competitionDeals: "Firmenübernahmen", competitionRecruiting: "Personalabwerbung",
   disruptions: "Störungen", storyRuns: "Geschichten", privateChronicle: "Private Chronik", worldChronicle: "Spielwelt", worldEncounters: "Begegnungen im Alltag",
   marketEvents: "Marktereignisse", applicants: "Bewerber", gifts: "Geschenke", dates: "Verabredungen", promises: "Versprechen",
   driverSatisfaction: "Fahrerzufriedenheit", poachingAttempts: "Abwerbungen", cooperationOffers: "Kooperationsangebote", cooperations: "Kooperationen", branchDecisions: "Filialentscheidungen", settledCosts: "Beglichene Kosten", autoDecisionDays: "Automatische Entscheidungen" };

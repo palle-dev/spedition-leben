@@ -1,3 +1,4 @@
+import { startCompetitionRental,processCompetitionCooperation } from "../src/lib/simulation/competitionCooperation";
 import { describe,it,expect } from "vitest";
 import { createInitialState,applyCommand } from "../src/lib/simulation/simulationEngine";
 import { applyCommand as serverCommand } from "../base44/shared/simulationEngine";
@@ -88,4 +89,24 @@ describe("persistent competition",()=>{
   s.trips=s.trips.filter(t=>t.id!=="test");resolvePoachingAttempts(s,s.gameTime,[]);
   expect(d.employmentStatus).toBe("terminated");expect(r.fleet).toBe(fleet);expect(r.business.staff.some(p=>p.id==="poached_"+d.id)).toBe(true);
  });
+});
+
+it("rents one real free truck, blocks selling and pays once on return",()=>{
+ const s=fresh(),r=s.world.rivals[0],cash=s.company.accountCents,capacity=rivalCapacity(r),reserve=r.cashCents;
+ for(const e of s.employees)e.assignedVehicleIds=[];
+ expect(startCompetitionRental(s,r,s.gameTime,40000)).toBe(true);
+ const rental=s.competition.rentals[0],v=s.vehicles.find(v=>v.id===rental.vehicleId);
+ expect(v.status).toBe("rented_out");expect(rivalCapacity(r)).toBe(capacity-1);expect(r.cashCents).toBe(reserve-40000);
+ expect(s.company.accountCents).toBe(cash);expect(()=>cmd(s,"sellVehicle",{vehicleId:v.id})).toThrow(/vermietet/);
+ s.gameTime=rental.dueMin;processCompetitionCooperation(s,s.gameTime);processCompetitionCooperation(s,s.gameTime);
+ expect(v.status).toBe("free");expect(s.company.accountCents).toBe(cash+40000);expect(rivalCapacity(r)).toBe(capacity);
+});
+it("integrates acquisitions identically through the real event loop and reuses same-city sites",()=>{
+ const s=fresh(),d=inspect(s),city=s.world.rivals[0].city;
+ const existing=s.branches.find(b=>b.city===city);const branches=s.branches.length;
+ cmd(s,"offerCompetitorPurchase",{dealId:d.id,percent:100});const a=copy(s),b=copy(s);
+ advance(a,3*1440);advance(b,3*1440,60);
+ expect(a.competition).toEqual(b.competition);expect(a.vehicles).toEqual(b.vehicles);expect(a.company.accountCents).toBe(b.company.accountCents);
+ expect(a.competition.deals[0].status).toBe("completed");expect(a.branches.length).toBe(branches+(existing?0:1));
+ expect(getAccountBalance(a,"1320")).toBe(0);
 });

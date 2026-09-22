@@ -5,7 +5,7 @@ export const COMPETITION_DAY = 1440;
 export const independentRival = r => !!r && (!r.businessStatus || r.businessStatus === "independent");
 export const rivalStaff = r => (r.business?.staff || []).filter(p => p.status === "employed");
 export function rivalCapacity(r) {
-  return r.business ? Math.min(r.business.vehicles.length, rivalStaff(r).filter(p => p.role === "driver").length,
+  return r.business ? Math.min(r.business.vehicles.length, Math.max(0,rivalStaff(r).filter(p => p.role === "driver").length-(r.business.rentedDriverCount||0)),
     rivalStaff(r).filter(p => p.role.startsWith("dispatcher")).reduce((n,p) => n + PERSONNEL_ROLES[p.role].capacity,0)) : r.fleet;
 }
 export function competitionNotice(state, title, text) {

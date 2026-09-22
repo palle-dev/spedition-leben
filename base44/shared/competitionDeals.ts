@@ -138,9 +138,13 @@ export function processCompetition(state,m) {
       const branch=state.branches.find(b=>b.id===a.branchId&&b.status==="active")||state.branches.find(b=>b.status==="active");
       if(!branch)continue;
       const p=r.business.staff.find(p=>p.id===a.personId);
-      a.employeeId=joinPlayer(state,p,branch,a.salaryCents,r.name);p.status="departed";a.status="completed";a.completedAtMin=m;
+      a.employeeId=joinPlayer(state,p,branch,a.salaryCents,r.name);p.status="departed";p.departedAtMin=m;a.status="completed";a.completedAtMin=m;
       competitionNotice(state,a.personName+" beginnt",a.personName+" arbeitet jetzt an "+branch.name+". Die vereinbarte Vergütung wird regulär abgerechnet.");
     }
+  }
+  for(const r of state.world.rivals){
+    const staff=r.business.staff,departed=staff.filter(p=>p.status==="departed"),archive=new Set(departed.slice(0,-20));
+    r.business.staff=retainHistory(state,"competitionRoster",staff,staff.filter(p=>!archive.has(p)),r.id);
   }
   for(const [key,kind] of [["deals","competitionDeals"],["recruitments","competitionRecruiting"]]){
     const all=c[key],terminal=all.filter(x=>!["review","ready","integrating","pending","accepted","joining"].includes(x.status)&&m>=(x.cooldownUntilMin||0));

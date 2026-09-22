@@ -14,7 +14,7 @@ export function startCompetitionRental(state,rival,m,incomeCents) {
   state.competition.rentals ||= [];
   if(state.competition.rentals.some(x=>x.rivalId===rival.id&&x.status==="active"))return false;
   const rental={id:"rental_"+(++state.competition.sequence),rivalId:rival.id,vehicleId:vehicle.id,startedAtMin:m,dueMin:m+1440,incomeCents,status:"active"};
-  rival.cashCents-=incomeCents;vehicle.status="rented_out";state.competition.rentals.push(rental);
+  rival.cashCents-=incomeCents;rival.business.rentedDriverCount=(rival.business.rentedDriverCount||0)+1;vehicle.status="rented_out";state.competition.rentals.push(rental);
   competitionNotice(state,"Lkw an "+rival.name+" vermietet","Ein freier, nicht zugewiesener Lkw ist für einen Tag gebunden. Die vereinbarte Nettovergütung wird bei Rückgabe gebucht. Betriebskosten und Fahrer stellt der Mieter.");
   return true;
 }
@@ -26,6 +26,8 @@ export function processCompetitionCooperation(state,m) {
     if(!v)throw new Error("Gemietetes Fahrzeug fehlt: "+x.vehicleId);
     if(v.status==="rented_out")v.status="free";
     postJournal(state,{text:"Fahrzeugvermietung",sourceEventId:x.id,vehicleId:v.id,lines:[{account:"1000",debit:x.incomeCents},{account:"4220",credit:x.incomeCents}]});
+    const rival=state.world.rivals.find(r=>r.id===x.rivalId);
+    if(rival?.business)rival.business.rentedDriverCount=Math.max(0,(rival.business.rentedDriverCount||0)-1);
     x.status="completed";x.completedAtMin=m;
     competitionNotice(state,"Miet-Lkw zurück", "Der Lkw steht wieder zur Verfügung. "+(x.incomeCents/100).toFixed(2)+" € wurden dem Firmenkonto gutgeschrieben.");
   }
