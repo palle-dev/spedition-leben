@@ -1,0 +1,18 @@
+{
+  "baseline": "0ba625f985f2171b1c1b7b23e83b19410ea985eb",
+  "profiling": false,
+  "before": {
+    "time": 480,
+    "vehicles": 100,
+    "drivers": 100,
+    "employees": 10,
+    "orders": 500,
+    "trips": 0,
+    "tours": 0
+  },
+  "ms": 104754.310476,
+  "gameTime": 1920,
+  "hash": "96d538e5888b26497caeeca647b7291eb9d99b4818eb7714234d3a49fcdce297",
+  "delivered": 0,
+  "top": []
+}
