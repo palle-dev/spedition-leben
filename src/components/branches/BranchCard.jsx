@@ -8,7 +8,7 @@ import {
   ArrowRight, Activity, Gauge, Percent,
 } from "lucide-react";
 
-export default function BranchCard({ branch, onMoveResource }) {
+export default function BranchCard({ branch, onMoveResource, onOpenDetail }) {
   const { state, send, showToast } = useGame();
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(branch.name);
@@ -81,9 +81,9 @@ export default function BranchCard({ branch, onMoveResource }) {
       {/* Header mit Akzentleiste */}
       <div className={`h-0.5 ${branch.isHeadquarters ? "bg-amber-300/60" : "bg-lime/40"}`} />
       <div className="p-4 space-y-3.5">
-        {/* Titel */}
+        {/* Titel — klickbar für Detail-Ansicht */}
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0 cursor-pointer" onClick={onOpenDetail}>
             {branch.isHeadquarters ? <Crown className="w-4 h-4 text-amber-300 shrink-0" /> : <Building2 className="w-4 h-4 text-lime/70 shrink-0" />}
             {editing ? (
               <div className="flex items-center gap-1.5">
@@ -98,9 +98,9 @@ export default function BranchCard({ branch, onMoveResource }) {
               </div>
             ) : (
               <div className="flex items-center gap-1.5 min-w-0">
-                <span className="font-medium truncate">{branch.name}</span>
+                <span className="font-medium truncate group-hover:text-lime transition">{branch.name}</span>
                 {!branch.isHeadquarters && (
-                  <button onClick={() => { setEditing(true); setEditName(branch.name); }} className="text-muted-foreground hover:text-foreground transition shrink-0">
+                  <button onClick={(e) => { e.stopPropagation(); setEditing(true); setEditName(branch.name); }} className="text-muted-foreground hover:text-foreground transition shrink-0">
                     <Edit2 className="w-3 h-3" />
                   </button>
                 )}
@@ -194,25 +194,34 @@ export default function BranchCard({ branch, onMoveResource }) {
         {/* Aktionen */}
         <div className="flex gap-1.5 pt-1">
           <button
+            onClick={onOpenDetail}
+            className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 bg-lime/10 border border-lime/20 text-xs text-lime hover:bg-lime/20 transition"
+          >
+            <Building2 className="w-3.5 h-3.5" /> Details
+          </button>
+          <button
             onClick={() => onMoveResource({ type: "vehicle", branchId: branch.id })}
             disabled={vehicles.length === 0}
-            className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 bg-white/5 border border-white/10 text-xs hover:bg-white/10 disabled:opacity-40 transition"
+            className="flex items-center justify-center gap-1.5 rounded-lg py-2 px-2.5 bg-white/5 border border-white/10 text-xs hover:bg-white/10 disabled:opacity-40 transition"
+            title="Lkw verschieben"
           >
-            <Truck className="w-3.5 h-3.5" /> Lkw
+            <Truck className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => onMoveResource({ type: "driver", branchId: branch.id })}
             disabled={drivers.length === 0}
-            className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 bg-white/5 border border-white/10 text-xs hover:bg-white/10 disabled:opacity-40 transition"
+            className="flex items-center justify-center gap-1.5 rounded-lg py-2 px-2.5 bg-white/5 border border-white/10 text-xs hover:bg-white/10 disabled:opacity-40 transition"
+            title="Fahrer verschieben"
           >
-            <Users className="w-3.5 h-3.5" /> Fahrer
+            <Users className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => onMoveResource({ type: "employee", branchId: branch.id })}
             disabled={allStaff.length === 0}
-            className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 bg-white/5 border border-white/10 text-xs hover:bg-white/10 disabled:opacity-40 transition"
+            className="flex items-center justify-center gap-1.5 rounded-lg py-2 px-2.5 bg-white/5 border border-white/10 text-xs hover:bg-white/10 disabled:opacity-40 transition"
+            title="Personal verschieben"
           >
-            <Briefcase className="w-3.5 h-3.5" /> Personal
+            <Briefcase className="w-3.5 h-3.5" />
           </button>
           {!branch.isHeadquarters && (
             <button
