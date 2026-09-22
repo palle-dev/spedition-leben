@@ -40,11 +40,12 @@ async function main(){
  const before={time:s.gameTime,vehicles:s.vehicles.length,drivers:s.drivers.length,employees:s.employees.length,orders:s.orders.length,trips:s.trips.length,tours:s.tours.length};
  const inspector=require('node:inspector'),session=new inspector.Session();session.connect();
  const post=m=>new Promise((resolve,reject)=>session.post(m,(e,r)=>e?reject(e):resolve(r)));
- await post('Profiler.enable');await post('Profiler.start');
+ const profiling=!args.includes('--no-profile');
+ if(profiling){await post('Profiler.enable');await post('Profiler.start');}
  const t=performance.now();applyCommand(s,'advanceTime',{minutes:Number(arg('--minutes',1440)),silentPhoneAdvance:true});const ms=performance.now()-t;
- const {profile}=await post('Profiler.stop');session.disconnect();
+ const profile=profiling?(await post('Profiler.stop')).profile:{nodes:[],samples:[],timeDeltas:[]};session.disconnect();
  const nodes=new Map(profile.nodes.map(n=>[n.id,n])),counts=new Map();
  for(let i=0;i<profile.samples.length;i++){const n=nodes.get(profile.samples[i]);const key=n.callFrame.functionName+' '+n.callFrame.url.split('/').pop()+':'+n.callFrame.lineNumber;counts.set(key,(counts.get(key)||0)+profile.timeDeltas[i]);}
- const result={baseline,before,ms,gameTime:s.gameTime,hash:createHash('sha256').update(JSON.stringify(s)).digest('hex'),delivered:s.stats.totalDeliveries,top:[...counts].sort((a,b)=>b[1]-a[1]).slice(0,35)};
+ const result={baseline,profiling,before,ms,gameTime:s.gameTime,hash:createHash('sha256').update(JSON.stringify(s)).digest('hex'),delivered:s.stats.totalDeliveries,top:[...counts].sort((a,b)=>b[1]-a[1]).slice(0,35)};
  fs.writeFileSync(arg('--output','/tmp/day-profile.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result));
 }main().catch(e=>{console.error(e);process.exitCode=1});
