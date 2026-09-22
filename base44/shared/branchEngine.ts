@@ -1,6 +1,7 @@
 import { addBooking, postJournal, registerAsset } from "./accountingEngine.ts";
 import { isPersonAvailable } from "./absenceEngine.ts";
-import { buildPhases, buildEmptyWorkSteps } from "./driverTimeEngine.ts";
+import { buildEmptyDeployment } from "./tourEngine.ts";
+import { countryOf } from "./dachGeography.ts";
 // Filial-Engine für FERNWERK – Standorte eröffnen, verwalten, stilllegen.
 // Reine Logik – keine Auth, keine Speicherung. Wird von simulationEngine importiert.
 
@@ -59,6 +60,7 @@ export function checkBranchRequirements(state) {
 
 export function openBranch(state, { city, name }) {
   migrateBranches(state);
+  if(countryOf(city)!=="DE"&&!state.dach?.enabled)throw new Error("DACH-Betrieb zuerst unter Filialen → DACH & Regeln aktivieren.");
   if (!city || !CITIES.includes(city)) throw new Error("Ungültige Stadt.");
   if (state.branches.some(b => b.city === city && b.status === "active")) {
     throw new Error("In " + city + " gibt es bereits eine aktive Filiale.");
@@ -239,9 +241,10 @@ export function moveVehicle(state, { vehicleId, targetBranchId }) {
     return { ok: true, instant: true, vehicleId, targetBranchId };
   }
 
-  const dist = getDistance(v.locationCity, target.city);
-  const fuel = fuelCents(dist, v.consumptionPer100km);
-  const toll = tollCents(dist);
+  const initialCounters = { workMin: driver.workMinutesSinceRest || 0, driveMin: driver.driveMinutesSinceBreak || 0, regulation:driver.regulation };
+  const plan = buildEmptyDeployment(state,v.locationCity,target.city,v,state.gameTime,initialCounters);
+  if(plan.energyError)throw new Error(plan.energyError);
+  const dist=plan.totalKm,fuel=plan.fuelCents,toll=plan.tollCents;
   if (state.company.accountCents < fuel + toll) {
     throw new Error("Firmenkonto reicht für Kraftstoff und Maut nicht aus.");
   }
@@ -249,14 +252,13 @@ export function moveVehicle(state, { vehicleId, targetBranchId }) {
   // Gebühren buchen
   addBooking(state, state.gameTime, "Kraftstoff (Überstellung)", -fuel, "company", "move_vehicle_fuel:" + v.id + ":" + state.gameTime);
   addBooking(state, state.gameTime, "Maut (Überstellung)", -toll, "company", "move_vehicle_toll:" + v.id + ":" + state.gameTime);
-  const initialCounters = { workMin: driver.workMinutesSinceRest || 0, driveMin: driver.driveMinutesSinceBreak || 0 };
-  const plan = buildPhases(buildEmptyWorkSteps(v.locationCity, target.city), initialCounters, state.gameTime);
+
   const trip = {
     id: uid(state, "t"), type: "empty", orderId: null, vehicleId: v.id, driverId: driver.id,
     phases: plan.phases, initialCounters,
     currentPhase: 0, startMin: state.gameTime, endMin: plan.endMin,
     status: "in_progress", paymentCents: 0, fuelCents: fuel, tollCents: toll,
-    totalKm: dist, drivenKm: 0, targetBranchId, isRelocation: true,
+    totalKm: dist, drivenKm: 0, targetBranchId, isRelocation: true, energy:plan.energy,transport:plan.transport,
   };
   state.trips.push(trip);
   v.status = "on_trip"; v.tripId = trip.id;

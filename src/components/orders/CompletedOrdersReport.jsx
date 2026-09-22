@@ -85,7 +85,7 @@ export default function CompletedOrdersReport({ state }) {
       }
       const vehicle = trip ? vehicleById.get(trip.vehicleId) || null : null;
       const onTime = o.status === "geliefert" && o.deliveredAtMin != null ? (o.deliveredAtMin <= o.deliveryDeadlineMin) : null;
-      const contribution = trip ? (trip.paymentCents || o.paidCents || o.paymentCents) - (trip.fuelCents || 0) - (trip.tollCents || 0) : null;
+      const contribution = trip ? (trip.paymentCents || o.paidCents || o.paymentCents) - (trip.fuelCents || 0) - (trip.tollCents || 0) - (trip.customsCents || 0) : null;
       out.push({
         ...o,
         _trip: trip,
@@ -473,6 +473,7 @@ function OrderDetail({ order, state }) {
     { label: "Bezahlt (Ist)", value: order.paidCents != null ? formatEuro(order.paidCents) : "—" },
     { label: "Distanz", value: `${order._km} km` },
     { label: "Treibstoff", value: trip ? formatEuro(trip.fuelCents || 0) : "—" },
+    { label: "Zollagentur", value: trip ? formatEuro(trip.customsCents || 0) : "—" },
     { label: "Maut", value: trip ? formatEuro(trip.tollCents || 0) : "—" },
     { label: "Deckungsbeitrag", value: order._contribution != null ? formatEuro(order._contribution) : "—", highlight: true },
   ];

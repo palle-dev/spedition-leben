@@ -1,3 +1,4 @@
+import { drivingWindow, regulatoryBudget, normalizeDriverLedger } from "./dachRules.ts";
 // Fahrerzeit-Engine für FERNWERK (Regeländerung 16).
 // Phasenbasierte Planung: Zerlegt Arbeitsschritte in Abschnitte mit
 // Fahrpausen (45 Min) und Ruhezeiten (720 Min) nach dem einheitlichen Fahrerzeitmodell.
@@ -71,6 +72,7 @@ export function buildPhases(workSteps, counters, earliestStart) {
   let t = earliestStart;
   let workMin = counters.workMin || 0;
   let driveMin = counters.driveMin || 0;
+  let regulation = workSteps.some(s=>s.regulatory) ? normalizeDriverLedger(counters.regulation, earliestStart) : null;
 
   for (const step of workSteps) {
     let remainingDur = step.durationMin;
@@ -85,6 +87,17 @@ export function buildPhases(workSteps, counters, earliestStart) {
     }
 
     while (remainingDur > 0) {
+      let legalBudget=Infinity;
+      if(regulation){
+        const legal=regulatoryBudget(regulation,t,isDriving);regulation=legal.ledger;
+        if(legal.rest){phases.push({type:"daily_rest",restReason:"weekly",startMin:t,endMin:t+legal.rest,durationMin:legal.rest,regulatory:true});t+=legal.rest;workMin=0;driveMin=0;regulation=normalizeDriverLedger(regulation,t);regulation.weeklyRestEndMin=t;continue;}
+        legalBudget=legal.budget;
+        if(isDriving){const window=drivingWindow(step.country,t);
+          if(window.blocked){const duration=window.nextMin-t;phases.push({type:"wait",reason:"driving_ban",country:step.country,regulatory:true,startMin:t,endMin:window.nextMin,durationMin:duration});t=window.nextMin;continue;}
+          legalBudget=Math.min(legalBudget,window.nextMin-t);
+        }
+      }
+
       // 1. Vollständige Ruhe vor weiterer Arbeit (auch wenn beide Grenzen erreicht)
       if (workMin >= WORK_BUDGET_MIN) {
         phases.push({ type: "daily_rest", startMin: t, endMin: t + REST_MIN, durationMin: REST_MIN });
@@ -110,12 +123,13 @@ export function buildPhases(workSteps, counters, earliestStart) {
         budget = Math.min(workBudget, driveBudget);
       }
 
-      const chunk = Math.min(remainingDur, budget);
+      const chunk = Math.min(remainingDur, budget, legalBudget);
       if (chunk <= 0) break;
 
       // 4. Phase erzeugen
-      const phase: {type: string; startMin: number; endMin: number; durationMin: number; fromCity?: string; toCity?: string; distanceKm?: number; totalDurationMin?: number; completedMin?: number; chargeKWh?: number; chargeKw?: number} = {
+      const phase: any = {
         type: step.type,
+        ...(regulation?{regulatory:true,country:step.country,border:step.border}:{}),
         startMin: t,
         endMin: t + chunk,
         durationMin: chunk,
@@ -127,6 +141,11 @@ export function buildPhases(workSteps, counters, earliestStart) {
         // Distanz proportional; letzte Teilstrecke bekommt Rest exakt
         const chunkKm = remainingDur === chunk ? remainingDist : Math.round(remainingDist * chunk / remainingDur);
         phase.distanceKm = chunkKm;
+        if(step.routeCoordinates){
+          const [a,b]=step.routeCoordinates,lerp=f=>[a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f];
+          const start=(step.durationMin-remainingDur)/step.durationMin;
+          phase.routeCoordinates=[lerp(start),lerp(start+chunk/step.durationMin)];
+        }
         remainingDist -= chunkKm;
       } else {
         phase.totalDurationMin = step.durationMin;
@@ -138,11 +157,11 @@ export function buildPhases(workSteps, counters, earliestStart) {
       t += chunk;
       remainingDur -= chunk;
       workMin += chunk;
-      if (isDriving) driveMin += chunk;
+      if (isDriving) {driveMin += chunk;if(regulation)regulation.thisWeek+=chunk;}
     }
   }
 
-  return { phases, endMin: t, finalWorkMin: workMin, finalDriveMin: driveMin };
+  return { phases, endMin: t, finalWorkMin: workMin, finalDriveMin: driveMin, ...(regulation?{finalRegulation:regulation}:{}) };
 }
 
 // ---------- Zähler nach Trip-Ende ----------
@@ -152,10 +171,12 @@ export function buildPhases(workSteps, counters, earliestStart) {
  * Zählt Arbeit/Lenkzeit ab der letzten vollständigen Ruhe im Trip.
  * Enthält der Trip keine Ruhe, wird ab Start gezählt.
  */
-export function computeFinalCounters(phases, initialCounters = { workMin: 0, driveMin: 0 }) {
+export function computeFinalCounters(phases, initialCounters: any = { workMin: 0, driveMin: 0 }) {
   let workMin = initialCounters.workMin || 0;
   let driveMin = initialCounters.driveMin || 0;
+  let regulation=phases.some(p=>p.regulatory)?normalizeDriverLedger(initialCounters.regulation,phases[0]?.startMin||0):null;
   for (const p of phases) {
+    if(regulation){regulation=normalizeDriverLedger(regulation,p.startMin);if(p.restReason==="weekly")regulation.weeklyRestEndMin=p.endMin;if(["empty_drive","loaded_drive"].includes(p.type))regulation.thisWeek+=p.durationMin;}
     if (p.type === "daily_rest") { workMin = 0; driveMin = 0; continue; }
     if (p.type === "break") { driveMin = 0; continue; }
     if (p.type === "wait") continue;
@@ -163,7 +184,7 @@ export function computeFinalCounters(phases, initialCounters = { workMin: 0, dri
     workMin += duration;
     if (p.type === "empty_drive" || p.type === "loaded_drive") driveMin += duration;
   }
-  return { workMin, driveMin };
+  return { workMin, driveMin, ...(regulation?{regulation:normalizeDriverLedger(regulation,phases.at(-1)?.endMin||0)}:{}) };
 }
 
 // ---------- Zusammenfassung für Anzeige ----------

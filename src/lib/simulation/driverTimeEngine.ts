@@ -141,6 +141,11 @@ export function buildPhases(workSteps, counters, earliestStart) {
         // Distanz proportional; letzte Teilstrecke bekommt Rest exakt
         const chunkKm = remainingDur === chunk ? remainingDist : Math.round(remainingDist * chunk / remainingDur);
         phase.distanceKm = chunkKm;
+        if(step.routeCoordinates){
+          const [a,b]=step.routeCoordinates,lerp=f=>[a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f];
+          const start=(step.durationMin-remainingDur)/step.durationMin;
+          phase.routeCoordinates=[lerp(start),lerp(start+chunk/step.durationMin)];
+        }
         remainingDist -= chunkKm;
       } else {
         phase.totalDurationMin = step.durationMin;

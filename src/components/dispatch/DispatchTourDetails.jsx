@@ -80,11 +80,12 @@ export default function DispatchTourDetails({ trip, state, routeData, onBack, on
         <div className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground mb-1">Kosten & Vergütung</div>
         {order && <Row icon={Package} label="Vergütung bei Lieferung" value={formatEuro(trip.paymentCents)} />}
         <Row icon={Fuel} label={trip.energy ? "Ladestrom unterwegs (bezahlt)" : "Kraftstoff (bezahlt)"} value={formatEuro(trip.fuelCents)} />
+        <Row icon={CreditCard} label="Zollagentur" value={formatEuro(trip.customsCents||0)} />
         <Row icon={CreditCard} label="Maut (bezahlt)" value={formatEuro(trip.tollCents)} />
         <div className="flex items-center justify-between pt-2 border-t border-white/10">
           <span className="text-xs text-muted-foreground">Beitrag vor Fixkosten</span>
           <span className="text-lg font-medium text-lime tabular-nums">
-            {formatEuro((order?.paymentCents || 0) - trip.fuelCents - trip.tollCents)}
+            {formatEuro((order?.paymentCents || 0) - trip.fuelCents - trip.tollCents - (trip.customsCents||0))}
           </span>
         </div>
       </div>

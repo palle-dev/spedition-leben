@@ -39,6 +39,7 @@ export default function CompletedOrderDetail({ order }) {
     { label: "Bezahlt (Ist)", value: order.paidCents != null ? formatEuroSafe(order.paidCents) : "—" },
     { label: "Distanz", value: `${order._km} km` },
     { label: "Treibstoff", value: trip ? formatEuroSafe(trip.fuelCents || 0) : "—" },
+    { label: "Zollagentur", value: trip ? formatEuroSafe(trip.customsCents || 0) : "—" },
     { label: "Maut", value: trip ? formatEuroSafe(trip.tollCents || 0) : "—" },
     { label: "Deckungsbeitrag", value: order._contribution != null ? formatEuroSafe(order._contribution) : "—", highlight: true },
   ];

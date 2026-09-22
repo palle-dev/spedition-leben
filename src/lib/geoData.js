@@ -30,13 +30,14 @@ export async function loadRouteGeometries() {
 }
 
 export function getRouteGeometry(fromCity, toCity, routeData) {
-  if (!routeData?.routes) return null;
-  const r = routeData.routes[`${fromCity}->${toCity}`];
-  return r?.coordinates ? r : null;
+  const r = routeData?.routes?.[`${fromCity}->${toCity}`];
+  if(r?.coordinates)return r;
+  if(!CITY_GEO[fromCity]||!CITY_GEO[toCity])return null;
+  return dachRoute(fromCity,toCity);
 }
 
 export function hasRealGeometry(fromCity, toCity, routeData) {
-  return !!getRouteGeometry(fromCity, toCity, routeData);
+  return !!routeData?.routes?.[`${fromCity}->${toCity}`]?.coordinates;
 }
 
 // --- Interpolation entlang einer GeoJSON-LineString-Geometrie ---
@@ -89,7 +90,7 @@ export function getVehicleGeoPosition(vehicle, state, routeData) {
     if (phase.type === "empty_drive" || phase.type === "loaded_drive" || phase.type === "empty" || phase.type === "drive") {
       const dur = phase.endMin - phase.startMin;
       const progress = dur > 0 ? Math.min(1, Math.max(0, (state.gameTime - phase.startMin) / dur)) : 0;
-      const route = getRouteGeometry(phase.fromCity, phase.toCity, routeData);
+      const route = phase.routeCoordinates?{coordinates:phase.routeCoordinates}:getRouteGeometry(phase.fromCity, phase.toCity, routeData);
       if (route) return interpolateAlongRoute(route.coordinates, progress);
       const from = CITY_GEO[phase.fromCity], to = CITY_GEO[phase.toCity];
       if (!from || !to) return cityGeo || null;
@@ -103,6 +104,7 @@ export function getVehicleGeoPosition(vehicle, state, routeData) {
         const p = phases[i];
         if (p.type === "empty_drive" || p.type === "loaded_drive" || p.type === "empty" || p.type === "drive") { lastDrive = p; break; }
       }
+      if (lastDrive?.routeCoordinates) return lastDrive.routeCoordinates.at(-1);
       if (lastDrive) {
         const stepFrom = lastDrive.fromCity, stepTo = lastDrive.toCity;
         let totalDur = 0, cumDur = 0;
@@ -139,7 +141,7 @@ export function buildTripRouteGeoJSON(trip, routeData) {
     const t = phase.type;
     // Nur Fahr-Phasen zeichnen; Pause/Ruhe/Laden/Entladen überspringen
     if (t === "load" || t === "loading" || t === "unload" || t === "unloading" || t === "break" || t === "daily_rest") continue;
-    const route = getRouteGeometry(phase.fromCity, phase.toCity, routeData);
+    const route = phase.routeCoordinates?{coordinates:phase.routeCoordinates}:getRouteGeometry(phase.fromCity, phase.toCity, routeData);
     const isCurrent = i === idx;
     const isPast = i < idx;
     const legType = (t === "empty" || t === "empty_drive") ? "empty" : "drive";
@@ -237,7 +239,7 @@ export function buildTourRouteGeoJSON(plan, routeData) {
     for (const phase of depPhases) {
       const t = phase.type;
       if (t === "load" || t === "loading" || t === "unload" || t === "unloading" || t === "break" || t === "daily_rest") continue;
-      const route = getRouteGeometry(phase.fromCity, phase.toCity, routeData);
+      const route = phase.routeCoordinates?{coordinates:phase.routeCoordinates}:getRouteGeometry(phase.fromCity, phase.toCity, routeData);
       const coords = route ? route.coordinates : [CITY_GEO[phase.fromCity], CITY_GEO[phase.toCity]].filter(Boolean);
       if (!coords || coords.length < 2) continue;
       const legType = (t === "empty" || t === "empty_drive") ? "empty" : "drive";
