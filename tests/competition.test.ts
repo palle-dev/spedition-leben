@@ -5,7 +5,7 @@ import { migrateCompetition,rivalCapacity,competitionPriceFactor,competitionDail
 import { handleCompetitionCommand,processCompetition,getCompetitionEventTimes } from "../src/lib/simulation/competitionDeals";
 import { getAccountBalance,postJournal } from "../src/lib/simulation/accountingEngine";
 import { prepareLoadedState } from "../src/lib/saveSafety";
-import { resolvePoachingAttempts,respondToPoachingAttempt } from "../src/lib/simulation/rivalBehaviorEngine";
+import { resolvePoachingAttempts } from "../src/lib/simulation/rivalBehaviorEngine";
 const copy=x=>JSON.parse(JSON.stringify(x));
 function fresh(){
  const s:any=createInitialState({}).state;applyCommand(s,"startWorld",{});
@@ -77,7 +77,7 @@ describe("persistent competition",()=>{
   const s=fresh(),r=s.world.rivals[0];cmd(s,"approachCompetitorEmployee",{rivalId:r.id,personId:r.business.staff[0].id,branchId:s.branches[0].id,salaryPercent:125});
   expect(getCompetitionEventTimes(s)).toContain(s.competition.recruitments[0].dueMin);
   const day=copy(s),hour=copy(s),quarter=copy(s),server=copy(s);
-  advance(day,2*1440);advance(hour,2*1440,60);advance(quarter,2*1440,15);serverCommand(server,"advanceTime",{minutes:2880});
+  advance(day,2*1440);advance(hour,2*1440,60);advance(quarter,2*1440,15);serverCommand(server,"advanceTime",{minutes:1440});serverCommand(server,"advanceTime",{minutes:1440});
   for(const other of [hour,quarter,server]){expect(other.competition).toEqual(day.competition);expect(other.world.rivals).toEqual(day.world.rivals);expect(other.company.accountCents).toBe(day.company.accountCents);}
  });
  it("does not steal a driver from a running trip or mint a competitor truck",()=>{

@@ -1,3 +1,4 @@
+import { startCompetitionRental } from "./competitionCooperation.ts";
 import { independentRival, migrateCompetition } from "./competitionCore.ts";
 import { retainHistory } from "./historyRetention.ts";
 import { retainLatestHistory } from "./historyRetention.ts";
@@ -454,19 +455,19 @@ export function processRivalCooperation(state, m, log) {
       label: "Subunternehmer-Verhältnis",
       description: `${rival.name} bietet an, Ihre Überkapazitäten als Subunternehmer zu nutzen. Sie erhalten zusätzliche Aufträge zu fairen Konditionen.`,
       benefit: "Zusätzliche Aufträge bei Überkapazität",
-      cost: "Keine direkten Kosten — Provision pro Auftrag",
+      cost: "Normale Transportkosten; Vergütung steht im Auftrag",
     },
     {
       id: "shared_route",
       label: "Gemeinsame Relation",
-      description: `${rival.name} schlägt vor, eine gemeinsame Relation zu bedienen. Beide Parteien teilen sich die Transporte und reduzieren Leerfahrten.`,
-      benefit: "Reduzierte Leerfahrten, geteilte Erlöse",
-      cost: "50/50 Aufteilung der Transporte",
+      description: `${rival.name} schlägt vor, eine gemeinsame Relation zu bedienen. Sie erhalten zusätzliche Angebote ab Ihrer Filiale in Richtung seines Standorts.`,
+      benefit: "Zusätzliche Aufträge ab der eigenen Filiale",
+      cost: "Normale Transportkosten; Annahme bleibt freiwillig",
     },
     {
       id: "capacity_rental",
       label: "Kapazitätsvermietung",
-      description: `${rival.name} möchte occasionally Fahrzeuge von Ihnen mieten, wenn eigene Kapazitäten erschöpft sind.`,
+      description: `${rival.name} möchte gelegentlich Fahrzeuge von Ihnen mieten, wenn eigene Kapazitäten erschöpft sind.`,
       benefit: "Zusätzliche Einnahmen durch Fahrzeugvermietung",
       cost: "Fahrzeuge temporär gebunden",
     },
@@ -528,7 +529,7 @@ export function respondToCooperationOffer(state, offerId, response) {
   if (state.gameTime > offer.deadlineMin) throw new Error("Angebot ist abgelaufen.");
 
   const rival = state.world?.rivals.find(r => r.id === offer.rivalId);
-  if (!rival) throw new Error("Konkurrent nicht mehr verfügbar.");
+  if (!independentRival(rival)) throw new Error("Konkurrent nicht mehr verfügbar.");
 
   if (response === "accept") {
     offer.status = "accepted";
@@ -619,14 +620,14 @@ export function processCooperationEffects(state, m, log) {
     }
 
     // Effekte je nach Kooperationsart
-    if (coop.cooperationType === "subcontract") {
+    if (["subcontract", "shared_route"].includes(coop.cooperationType)) {
       // Subunternehmer: Gelegentlich zusätzliche Aufträge vom Konkurrenten
       const roll = rbRng(state);
       if (roll < 0.3) {
         // Zusätzlicher Auftrag generieren (vereinfacht)
         const cities = ["Hamburg", "Bremen", "Hannover", "Berlin", "Kiel"];
-        const fromCity = cities[Math.floor(rbRng(state) * cities.length)];
-        let toCity = cities[Math.floor(rbRng(state) * cities.length)];
+        const fromCity = coop.cooperationType === "shared_route" ? (state.branches.find(b => b.status === "active")?.city || rival.city) : cities[Math.floor(rbRng(state) * cities.length)];
+        let toCity = coop.cooperationType === "shared_route" ? rival.city : cities[Math.floor(rbRng(state) * cities.length)];
         while (toCity === fromCity) toCity = cities[Math.floor(rbRng(state) * cities.length)];
 
         const payment = 80000 + Math.floor(rbRng(state) * 40000); // 800-1200 €
@@ -668,18 +669,7 @@ export function processCooperationEffects(state, m, log) {
       const roll = rbRng(state);
       if (roll < 0.2) {
         const rentalIncome = 30000 + Math.floor(rbRng(state) * 20000); // 300-500 €
-        // Einnahme verbuchen (vereinfacht — kein direktes addBooking hier, nur Info)
-        log.push({ type: "coop_rental_income", income: rentalIncome, rival: rival.id, atMin: m });
-
-        deliverMessage(state, {
-          fromId: "system", toId: "player",
-          subject: "Vermietungseinnahme: " + rival.name,
-          body: `${rival.name} hat eines Ihrer Fahrzeuge gemietet.\n\n` +
-            `Einnahme: ${(rentalIncome / 100).toFixed(2)} €\n` +
-            `Die Vermietung erfolgt automatisch im Rahmen der Kooperation.`,
-          gameTime: m, category: "operations", priority: "low",
-          dedupKey: `coop_rental:${rival.id}:${m}`,
-        });
+        if (startCompetitionRental(state, rival, m, rentalIncome)) log.push({ type: "coop_rental_started", income: rentalIncome, rival: rival.id, atMin: m });
       }
     }
   }

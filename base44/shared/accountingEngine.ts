@@ -13,6 +13,7 @@ import {
 // ---------- Kontenplan ----------
 export const ACCOUNTS: Record<string, { no: string; name: string; type: string; group: string; contra?: boolean }> = {
   // Aktiva
+  "4220": { no: "4220", name: "Fahrzeugvermietung", type: "revenue", group: "other_revenue" },
   "1320": { no: "1320", name: "Anzahlungen für Unternehmensübernahmen", type: "asset", group: "current_assets" },
   "1000": { no: "1000", name: "Firmenbank", type: "asset", group: "current_assets" },
   "1100": { no: "1100", name: "Kundenforderungen", type: "asset", group: "current_assets" },

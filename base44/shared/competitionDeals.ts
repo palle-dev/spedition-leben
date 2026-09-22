@@ -1,3 +1,4 @@
+import { processCompetitionCooperation } from "./competitionCooperation.ts";
 import { migrateCompetition, independentRival, rivalStaff, competitionValuation, competitionNotice, competitionRandom, joinPlayer } from "./competitionCore.ts";
 import { postJournal, registerAsset } from "./accountingEngine.ts";
 import { retainHistory } from "./historyRetention.ts";
@@ -51,7 +52,7 @@ export function handleCompetitionCommand(state,command,p={}) {
     if(p.percent<minimum){d.counterCents=d.valuation.priceCents;return {ok:true,counterOffer:true};}
     funds(state,amount);
     pay(state,amount,"1320","Übernahme-Anzahlung: "+r.name,d.id+"_purchase");
-    Object.assign(d,{status:"integrating",priceCents:amount,dueMin:Math.max(m+2*DAY,...r.jobs.map(j=>j.endMin)),snapshot:structuredClone(r.business)});
+    Object.assign(d,{status:"integrating",priceCents:amount,dueMin:Math.max(m+2*DAY,...r.jobs.map(j=>j.endMin),...(c.rentals||[]).filter(x=>x.rivalId===r.id&&x.status==="active").map(x=>x.dueMin)),snapshot:structuredClone(r.business)});
     r.businessStatus="integrating";
     for(const a of c.recruitments)if(a.rivalId===r.id&&["pending","accepted"].includes(a.status))a.status="cancelled";
     competitionNotice(state,"Übernahme vereinbart: "+r.name,"Der Kaufpreis ist bezahlt. Laufende Ausschreibungen werden vor der Übergabe abgeschlossen. Fahrzeuge, Personal und Standortbetrieb gehen an dich; Bargeld und Altverbindlichkeiten bleiben beim Verkäufer.");
@@ -118,6 +119,7 @@ function closeDeal(state,d,r) {
 export function processCompetition(state,m) {
   migrateCompetition(state);if(!state.competition)return;
   const c=state.competition;
+  processCompetitionCooperation(state,m);
   for(const d of c.deals){
     const r=state.world.rivals.find(r=>r.id===d.rivalId);
     if(d.status==="review"&&d.dueMin<=m){d.status="ready";d.valuation=competitionValuation(r);d.expiresMin=m+7*DAY;
@@ -147,5 +149,5 @@ export function processCompetition(state,m) {
 }
 export function getCompetitionEventTimes(state) {
   const c=state.competition;if(!c)return [];
-  return [...c.deals,...c.recruitments].flatMap(x=>["review","integrating","pending","joining"].includes(x.status)?[x.dueMin]:["ready","accepted"].includes(x.status)?[x.expiresMin]:[]);
+  return [...(c.rentals||[]).filter(x=>x.status==="active").map(x=>x.dueMin), ...[...c.deals,...c.recruitments].flatMap(x=>["review","integrating","pending","joining"].includes(x.status)?[x.dueMin]:["ready","accepted"].includes(x.status)?[x.expiresMin]:[])];
 }
