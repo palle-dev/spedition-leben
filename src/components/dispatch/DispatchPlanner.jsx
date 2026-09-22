@@ -21,7 +21,7 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
     if (!order || !vehicle) return null;
 
     const counters = driver
-      ? { workMin: driver.workMinutesSinceRest || 0, driveMin: driver.driveMinutesSinceBreak || 0 }
+      ? { workMin: driver.workMinutesSinceRest || 0, driveMin: driver.driveMinutesSinceBreak || 0, regulation:driver.regulation }
       : { workMin: 0, driveMin: 0 };
     const result = buildDeployment(state, order, vehicle, vehicle.locationCity, state.gameTime, counters);
     const totalKm = result.totalKm;
@@ -34,7 +34,7 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
       emptyKm, driveKm, totalKm, energy: result.energy, energyError: result.energyError,
       totalDuration: result.endMin - state.gameTime,
       endMin: result.endMin,
-      fuel, toll,
+      fuel, toll, customs:result.customsCents||0, transport:result.transport,
       phases: result.phases,
       summary,
       finalWorkMin: result.finalWorkMin,
@@ -205,6 +205,7 @@ export default function DispatchPlanner({ orderId, onBack, onStarted, onPlanChan
       {plan && (
         <div className="space-y-2 border-t border-white/10 pt-3">
           <div className="text-[10px] tracking-[0.14em] uppercase text-muted-foreground mb-1">Vorschau</div>
+          {plan.transport && <div className="rounded-lg bg-slate-950 border border-white/15 p-3 text-xs space-y-1"><p>Ländermaut: {plan.transport.breakdown.map(x=>x.country+": "+formatEuro(x.cents)).join(" · ")}</p><p>Zollagentur: {formatEuro(plan.customs)} · {plan.transport.documents?.join(" · ")}</p><p className="text-slate-400">Modellstrecke und Tarifprofile gemäß DACH-Regeln unter Filialen.</p></div>}
           {plan.energy && <div className="rounded-lg border border-lime/20 p-3 text-xs space-y-1"><p>Akku bei Start: {Math.round(plan.energy.startBatteryKWh)} kWh · bei Ankunft: {Math.round(plan.energy.finalBatteryKWh)} kWh</p>{plan.energy.stops.map((s, i) => <p key={i}>Ladestopp {s.city}: {Math.round(s.kWh)} kWh · {s.minutes} min · {s.kw} kW</p>)}<p className="text-muted-foreground">Ladezeiten, Umwege und Batteriereserve sind eingeplant. Depotstrom wird separat in der Energieauswertung abgerechnet.</p></div>}
           {plan.phases.map((p, i) => (
             <div key={i} className="flex items-center justify-between text-xs">

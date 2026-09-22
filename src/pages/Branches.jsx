@@ -1,3 +1,4 @@
+import DachPanel from "@/components/branches/DachPanel";
 import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro } from "@/lib/gameData";
@@ -91,10 +92,11 @@ export default function Branches() {
         <TabButton active={tab === "overview"} onClick={() => setTab("overview")} icon={List} label="Übersicht" />
         <TabButton active={tab === "map"} onClick={() => setTab("map")} icon={LayoutGrid} label="Standorte & Karte" />
         <TabButton active={tab === "expansion"} onClick={() => setTab("expansion")} icon={Building2} label="Standortausbau" />
+        <TabButton active={tab === "dach"} onClick={() => setTab("dach")} icon={Network} label="DACH & Regeln" />
         <TabButton active={tab === "energy"} onClick={() => setTab("energy")} icon={Truck} label="Energie & E-Mobilität" />
       </div>
 
-      {tab === "energy" ? <EnergyPanel /> : tab === "expansion" ? (
+      {tab === "dach" ? <DachPanel /> : tab === "energy" ? <EnergyPanel /> : tab === "expansion" ? (
         <div className="grid lg:grid-cols-2 gap-4 items-start">{activeBranches.map(b => <SiteExpansionCard key={b.id} branchId={b.id} />)}</div>
       ) : tab === "overview" ? (
         <BranchOverview onSelectBranch={(b) => setDetailBranch({ ...b, totalDailyCostCents: computeBranchDailyCost(state, b) })} />
