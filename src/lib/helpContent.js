@@ -23,11 +23,11 @@ export const HELP_TOPICS = [
       },
       {
         heading: 'Szenarien',
-        body: 'Neben dem freien Spiel gibt es Szenarien – vordefinierte Herausforderungen mit eigenen Zielen, Startbedingungen und einem festen Zeitrahmen. Szenarien nutzen separate Speicher-Slots und überschreiben keine regulären Spielstände. Operative Eingriffe in Szenarien werden gezählt und im Büro transparent angezeigt. Ein aktives Szenario zeigt seinen Fortschritt direkt auf der Büro-Seite.',
+        body: 'Neben dem freien Spiel gibt es Szenarien – vordefinierte Herausforderungen mit eigenen Zielen, Startbedingungen und einem festen Zeitrahmen. Szenarien nutzen separate Speicher-Slots und überschreiben keine regulären Spielstände. Operative Eingriffe in Szenarien werden gezählt und im Büro transparent angezeigt. Ein aktives Szenario zeigt seinen Fortschritt direkt auf der Büro-Seite. Nach Abschluss kannst du ein Szenario als freie Partie fortsetzen.',
       },
       {
-        heading: 'Zeitsteuerung',
-        body: 'Die Zeit läuft nicht von allein. Über die Steuerung unten rechts treibst du sie voran: „1 Std" springt eine Stunde, „Nächstes Ereignis" läuft bis zur nächsten fälligen Aktion (Fahrtende, Marktwelle, Einladung). „1 Tag" schreibt einen ganzen Tag fort – im Hintergrund werden Touren, Tagesabrechnungen und Ereignisse automatisch abgearbeitet, die UI bleibt dabei nutzbar. Ein dezenter Indikator im Dock zeigt laufende Hintergrundberechnungen an.',
+        heading: 'Zeitsteuerung & Live-Simulation',
+        body: 'Die Zeit läuft nicht von allein. Über die Steuerung unten rechts treibst du sie voran: „1 Std" springt eine Stunde weiter, „+1 Tag" schreibt einen ganzen Tag im Hintergrund fort – die UI bleibt dabei nutzbar, ein Fortschrittsbalken zeigt den Status. Die „Live-Simulation" (Play/Pause-Taste) läuft automatisch: alle 2,5 Sekunden vergehen 15 Spielminuten, bis du pausierst. Bei aktiver Live-Simulation pausiert das Spiel automatisch, wenn du den Tab verlässt. Ein dezenter Indikator im Dock zeigt laufende Hintergrundberechnungen an.',
       },
       {
         heading: 'Die zwei Konten',
@@ -35,15 +35,55 @@ export const HELP_TOPICS = [
       },
       {
         heading: 'Der Spielrhythmus',
-        body: 'Aufträge annehmen → disponieren → Zeit fortsetzen → Lieferung erfolgt → Vergütung landet auf dem Firmenkonto → Tagesabrechnung (Mitternacht) zieht Löhne, Standortkosten und Gehalt ab. Zwischendurch: Privatleben-Entscheidungen (Einladungen, Hobbys, Anschaffungen) beachten und auf Zufriedenheit der Mitarbeiter achten.',
+        body: 'Aufträge annehmen → disponieren → Zeit fortsetzen → Lieferung erfolgt → Vergütung landet auf dem Firmenkonto → Tagesabrechnung (Mitternacht) zieht Löhne, Standortkosten und Gehalt ab. Zwischendurch: Privatleben-Entscheidungen (Einladungen, Hobbys, Anschaffungen) beachten und auf Zufriedenheit der Mitarbeiter achten. Störungen und Liefergefährdungen gehen über das Telefon ein.',
+      },
+      {
+        heading: 'Telefon & Störungen',
+        body: 'Das Telefon-Symbol oben rechts ist deine zentrale Leitstelle. Eingehende Anrufe erscheinen automatisch: Störungen während einer Tour (Stau, Wetter, Fahrzeugausfall), Liefergefährdungen bei drohendem Fristablauf und Testanrufe. Du kannst auch aktiv Mitarbeiter anrufen (Staff-Phone) oder eigene Vorschläge einreichen. Verpasste Anrufe werden als verpasste Telefonate gespeichert. Bei einer Liefergefährdung kann der Tagesvorlauf automatisch pausieren.',
       },
       {
         heading: 'Speichern, Spielstände & Cloud-Sync',
-        body: 'Über das Festplatten-Symbol oben rechts verwaltest du manuelle Spielstände und Autosaves. Du kannst mehrere Slots anlegen, exportieren (JSON) und importieren. Der Spielstand wird zusätzlich in der Datenbank gesichert, wenn du „Speichern" drückst (erscheint nur, wenn ungespeicherte Änderungen vorliegen). Die Cloud-Synchronisation sichert explizite Speicherpunkte – keine stündlichen Ticks. Der Sync-Status (synchronisiert, offline, Konflikt) wird oben rechts transparent angezeigt.',
+        body: 'Über das Festplatten-Symbol oben rechts verwaltest du manuelle Spielstände und Autosaves. Du kannst mehrere Slots anlegen, exportieren (JSON) und importieren. Der Spielstand wird zusätzlich in der Datenbank gesichert, wenn du „Speichern" drückst (erscheint nur, wenn ungespeicherte Änderungen vorliegen). Die Cloud-Synchronisation sichert den gesamten Spielstand als einzelne private Datei – zuverlässig auch bei langen Spielpartien. Der Sync-Status (synchronisiert, offline, Konflikt) wird oben rechts transparent angezeigt. Bei Konflikten kannst du beide Versionen behalten, die lokale oder die Cloud-Version wählen.',
       },
       {
         heading: 'Bewegung & Animationen',
         body: 'Über das Funken-Symbol oben rechts schaltest du Animationen ein oder aus. Im reduzierten Modus laufen Übergänge und Effekte schneller oder gar nicht – nützlich auf langsameren Geräten oder wenn du dich auf Zahlen konzentrieren willst. Alle Animationen respektieren zudem die System-Einstellung „Bewegung reduzieren".',
+      },
+      {
+        heading: 'Welt-Umschaltung',
+        body: 'Die Welt-Umschaltung oben links im Header erlaubt dir, zwischen verschiedenen Spielwelten zu wechseln – etwa zwischen einer aktiven Partie und der Spielwelt mit ihren Geschichten und Wettbewerben.',
+      },
+    ],
+  },
+  {
+    id: 'phone',
+    title: 'Telefon & Störungen',
+    icon: 'Phone',
+    color: 'coral',
+    sections: [
+      {
+        heading: 'Telefonzentrale',
+        body: 'Das Telefon-Symbol oben rechts ist deine zentrale Leitstelle. Eingehende Anrufe erscheinen automatisch als modales Popover – du kannst annehmen oder später zurückrufen. Das Telefon klingelt akustisch (sofern Sound aktiviert) und zeigt den Anrufer, den Grund und die verfügbaren Optionen. Während eines Gesprächs sind andere Aktionen blockiert.',
+      },
+      {
+        heading: 'Störungen während einer Tour',
+        body: 'Während einer aktiven Tour können Störungen auftreten: Stau, schlechtes Wetter, Fahrzeugausfall, Verkehrsunfall. Der Anruf bringt Details zur Störung, zum betroffenen Auftrag und zu den Reaktionsmöglichkeiten: warten (kostet Zeit, aber vielleicht geht es weiter), umleiten (Ziel ändern), abbrechen (Auftrag scheitert). Jede Entscheidung hat Konsequenzen für Timing, Kosten und Reputation. Abgeschlossene Störungen werden im Büro unter „Störungen" protokolliert.',
+      },
+      {
+        heading: 'Liefergefährdung',
+        body: 'Wenn ein angenommener Auftrag droht, die Lieferfrist zu verfehlen, ruft die Leitstelle an. Du siehst den Auftrag, die geplante Ankunft und die verbleibende Zeit. Der Tagesvorlauf kann automatisch pausieren, damit du reagieren kannst. Reagiere schnell – eine verspätete oder nicht erfüllte Lieferung kostet Reputation und Strafgebühren.',
+      },
+      {
+        heading: 'Mitarbeiter anrufen (Staff-Phone)',
+        body: 'Über die Telefonzentrale kannst du aktiv Mitarbeiter anrufen – z. B. einen Fahrer, der eine Pause braucht, oder einen Disponenten mit Fragen. Das Staff-Phone zeigt alle erreichbaren Kontakte mit ihrer Rolle und ihrem aktuellen Status. Telefonate werden in der Spiel-Historie dokumentiert.',
+      },
+      {
+        heading: 'Eigene Vorschläge',
+        body: 'Manchmal bietet das Telefon eigene Vorschläge an – z. B. eine Wartung zu buchen, einen Auftrag anzunehmen oder eine Maßnahme zu ergreifen. Diese Vorschläge sind optional und können angenommen oder abgelehnt werden.',
+      },
+      {
+        heading: 'Verpasste Anrufe',
+        body: 'Wenn du einen Anruf nicht annimmst (z. B. weil der Tab im Hintergrund war), wird er als verpasst gespeichert. Du kannst verpasste Anrufe in der Telefonzentrale einsehen und zurückrufen. Bei Liefergefährdungen kann ein verpasster Anruf bedeuten, dass die Lieferung scheitert.',
       },
     ],
   },
@@ -63,7 +103,7 @@ export const HELP_TOPICS = [
       },
       {
         heading: 'Frachtarten & Aufbau-Kategorien',
-        body: 'Jede Fracht gehört einer Cargo-Kategorie zu, die bestimmt, welcher Lkw-Aufbau erforderlich oder bevorzugt ist: Kühlfracht erfordert einen Kühlwagen, Flüssigtransporte einen Tankwagen, Schüttgut einen Kipper. Standardfracht, Lebensmittel, Getränke und Baustoffe sind Beispielsweise mit jedem Lkw transportierbar, aber der passende Spezial-Lkw erhält einen Preis-Aufschlag (Bonus). Die benötigte Aufbau-Kategorie wird auf jeder Angebotskarte als Badge angezeigt.',
+        body: 'Jede Fracht gehört einer Cargo-Kategorie zu, die bestimmt, welcher Lkw-Aufbau erforderlich oder bevorzugt ist: Kühlfracht erfordert einen Kühlwagen, Flüssigtransporte einen Tankwagen, Schüttgut einen Kipper. Standardfracht, Lebensmittel, Getränke und Baustoffe sind mit jedem Lkw transportierbar, aber der passende Spezial-Lkw erhält einen Preis-Aufschlag (Bonus). Die benötigte Aufbau-Kategorie wird auf jeder Angebotskarte als Badge angezeigt.',
       },
       {
         heading: 'Kunden & Versanddepots',
@@ -91,7 +131,7 @@ export const HELP_TOPICS = [
       },
       {
         heading: 'Eigene & fertige Aufträge',
-        body: 'Im Tab „Eigene Aufträge" siehst du angenommene und laufende Aufträge mit Status, geplanter Ankunft und Lieferfrist. Abgeschlossene und verfallene Aufträge erscheinen im Tab „Fertige Aufträge". Angenommene, noch nicht disponierte Aufträge kannst du von hier aus direkt planen, an Partner vergeben oder stornieren.',
+        body: 'Im Tab „Eigene Aufträge" siehst du angenommene und laufende Aufträge mit Status, geplanter Ankunft und Lieferfrist. Abgeschlossene und verfallene Aufträge erscheinen im Tab „Erledigte Aufträge" mit einem detaillierten Bericht. Angenommene, noch nicht disponierte Aufträge kannst du von hier aus direkt planen, an Partner vergeben oder stornieren.',
       },
       {
         heading: 'Offene Aufträge löschen',
@@ -107,7 +147,7 @@ export const HELP_TOPICS = [
     sections: [
       {
         heading: 'Touren planen',
-        body: 'Auf der Seite „Disposition" planst du, welcher Lkw welchen Auftrag fährt. Wähle einen angenommenen Auftrag, einen freien Lkw und einen freien Fahrer. Das System prüft automatisch: Kapazität, Zustand, gemeinsamer Standort, Aufbau-Kompatibilität, Fahrer-Arbeitszeit, Gefahrgut-Qualifikation und Kontostand.',
+        body: 'Auf der Seite „Disposition" planst du, welcher Lkw welchen Auftrag fährt. Die Seite teilt sich in eine interaktive Karte (links) und einen Arbeitsbereich (rechts) mit Tabs für „Aufträge" (zu disponierende Aufträge) und „Touren" (laufende Touren). Wähle einen angenommenen Auftrag, einen freien Lkw und einen freien Fahrer. Das System prüft automatisch: Kapazität, Zustand, gemeinsamer Standort, Aufbau-Kompatibilität, Fahrer-Arbeitszeit, Gefahrgut-Qualifikation und Kontostand.',
       },
       {
         heading: 'Aufbau-Kompatibilität',
@@ -123,11 +163,11 @@ export const HELP_TOPICS = [
       },
       {
         heading: 'Wochenplanung (FERNWERK)',
-        body: 'Die Disposition unterstützt eine visuelle Wochenplanung: Du kannst Touren im Voraus planen, verschieben und neu zuordnen. Die Planungs-Ansicht zeigt alle Ressourcen (Fahrzeuge, Fahrer) auf einer Zeitachse. So siehst du Engpässe und Leerzeiten und kannst die Flotte optimal auslasten.',
+        body: 'Über das Kalender-Icon in der Dispositions-Toolbar oben kannst du die visuelle Wochenplanung einblenden. Du kannst Touren im Voraus planen, verschieben und neu zuordnen. Die Planungs-Ansicht zeigt alle Ressourcen (Fahrzeuge, Fahrer) auf einer Zeitachse. So siehst du Engpässe und Leerzeiten und kannst die Flotte optimal auslasten. Über das Partner-Icon in der Toolbar erreichst du die Fremdvergabe-Übersicht.',
       },
       {
         heading: 'Karte & Routen',
-        body: 'Die Dispositions-Karte zeigt alle aktiven Touren, Fahrzeugstandorte und Filialen in ganz Deutschland. Du siehst Live-Positionen, geplante Routen und Ankunftszeiten. Klicke auf eine Tour für Details zu Phasen, Fahrer und Ladung.',
+        body: 'Die Dispositions-Karte zeigt alle aktiven Touren, Fahrzeugstandorte und Filialen in ganz Deutschland. Du siehst Live-Positionen, geplante Routen und Ankunftszeiten. Klicke auf eine Tour für Details zu Phasen, Fahrer und Ladung. Die Verkehrslage lässt sich ein- und ausblenden (TrafficCone-Icon). Karten-Aktionen oben rechts: Flotte zeigen, Hauptsitz fokussieren, zur Netzkarte wechseln.',
       },
       {
         heading: 'Auto-Optimierung',
@@ -135,11 +175,11 @@ export const HELP_TOPICS = [
       },
       {
         heading: 'Disponent einstellen',
-        body: 'Ein Disponent (Personal) kann Touren automatisch planen. Im Modus „Vorschläge" erstellt er Vorschläge, die du bestätigst. Im „autonomen Modus" übernimmt er alles selbst – inklusive Auftragsannahme. Seine Kapazität (Anzahl Lkw) lässt sich durch Schulung erhöhen. Ein Disponent mit Gefahrgut-Dispositions-Schulung darf auch ADR-Aufträge disponieren.',
+        body: 'Ein Disponent (Personal) kann Touren automatisch planen. Im Modus „Vorschläge" erstellt er Vorschläge, die du bestätigst. Im „autonomen Modus" übernimmt er alles selbst – inklusive Auftragsannahme. Seine Kapazität (Anzahl Lkw) lässt sich durch Schulung erhöhen. Ein Disponent mit Gefahrgut-Dispositions-Schulung darf auch ADR-Aufträge disponieren. Die Disponenten-Qualität wird im Personal-Tab angezeigt.',
       },
       {
         heading: 'Störungsmanagement',
-        body: 'Während einer Tour können Störungen auftreten (Stau, Wetter, Fahrzeugausfall). Aktive Störungen werden automatisch modal angezeigt und im Büro unter „Störungen" sichtbar. Du kannst auf Störungen reagieren – z. B. warten, umleiten oder abbrechen. Das System protokolliert alle Störungen und ihre Auswirkungen.',
+        body: 'Während einer Tour können Störungen auftreten (Stau, Wetter, Fahrzeugausfall). Aktive Störungen werden über das Telefon automatisch signalisiert und im Büro unter „Störungen" sichtbar. Du kannst auf Störungen reagieren – z. B. warten, umleiten oder abbrechen. Das System protokolliert alle Störungen und ihre Auswirkungen.',
       },
       {
         heading: 'Gefahrgut',
@@ -186,6 +226,10 @@ export const HELP_TOPICS = [
         body: 'Im Tab „Analyse" siehst du Betriebskosten und Ersatz-Empfehlungen pro Fahrzeug: Lieferungen, Ausgaben, Rentabilität, Leerfahrten-Quote und Tageskilometer. Das System warnt bei niedriger Auslastung (nur wenn das Fahrzeug tatsächlich gefahren ist), bei hohem Alter, schlechtem Zustand oder ablaufendem Leasing-Vertrag. Nutze diese Daten, um zu entscheiden, ob sich ein Fahrzeug noch lohnt oder ersetzt werden sollte.',
       },
       {
+        heading: 'Standort wechseln',
+        body: 'Mit „Standort wechseln" auf jeder Fahrzeugkarte verschiebst du einen freien Lkw an eine andere Filiale – das erfordert mindestens zwei aktive Filialen. Die Versetzung kostet Zeit (Leerfahrt) und wird über den MoveResourceDialog abgewickelt.',
+      },
+      {
         heading: 'Belastung & Wartungskosten',
         body: 'Ist deine private Belastung hoch (≥ 80), steigen die Wartungskosten um 25 %. Achte also auf deinen Stress-Spiegel – er wirkt sich direkt auf die Betriebskosten aus.',
       },
@@ -203,7 +247,7 @@ export const HELP_TOPICS = [
       },
       {
         heading: 'Bewerbermarkt & Einstellung',
-        body: 'Im Tab „Bewerber" durchsuchst du den Bewerbermarkt, filterst nach Rolle, Standort und Verfügbarkeit und stellst ein. Jede Einstellung kostet eine einmalige Einstellungsgebühr; danach läuft der Tageslohn. Achte darauf, dass Mechaniker einen Werkstatt-Slot an deiner Filiale brauchen – ohne Werkstatt können sie nicht arbeiten. Bei mehreren Filialen wählst du den Zielstandort.',
+        body: 'Im Tab „Einstellen" durchsuchst du den Bewerbermarkt, filterst nach Rolle, Standort und Verfügbarkeit und stellst ein. Jede Einstellung kostet eine einmalige Einstellungsgebühr; danach läuft der Tageslohn. Achte darauf, dass Mechaniker einen Werkstatt-Slot an deiner Filiale brauchen – ohne Werkstatt können sie nicht arbeiten. Bei mehreren Filialen wählst du den Zielstandort. Bei offenen betrieblichen Kosten ist keine Einstellung möglich.',
       },
       {
         heading: 'Stellen ausschreiben',
@@ -211,23 +255,31 @@ export const HELP_TOPICS = [
       },
       {
         heading: 'Team & Verwaltung',
-        body: 'Im Tab „Team" siehst du alle Mitarbeiter mit Status, Zufriedenheit, Anwesenheit, Standort, Kosten und aktuellen Einsätzen. Du kannst Mitarbeiter kündigen, versetzen oder befördern. Bei mehreren Filialen filterst du nach Standort. Klicke auf eine Person für Detail-Aktionen: Schulung, Abwesenheit, Versetzung, Kündigung.',
+        body: 'Im Tab „Team" siehst du alle Mitarbeiter mit Status, Zufriedenheit, Anwesenheit, Standort, Kosten und aktuellen Einsätzen. Du kannst filtern und suchen, bei mehreren Filialen nach Standort filtern. Klicke auf eine Person für Detail-Aktionen: Zufriedenheit & Gehalt, Weiterbildung, Abwesenheit, Versetzung, Kündigung. Der Austritt kann mit Freistellung oder Weiterarbeit bis Fristende erfolgen.',
+      },
+      {
+        heading: 'Teamklima',
+        body: 'Im Tab „Teamklima" siehst du die Stimmung im Team: Zufriedenheit, Auslastung, Gehaltsgerechtigkeit und das Verhältnis zwischen Fahrern und Angestellten. Klicke auf eine Person, um Details und Handlungsempfehlungen zu sehen.',
+      },
+      {
+        heading: 'Entwicklung',
+        body: 'Im Tab „Entwicklung" siehst du die berufliche Entwicklung deiner Mitarbeiter: Qualifikationen, absolvierte Schulungen, Karrierewege und Empfehlungen für die nächste Weiterbildung. Hier planst du auch die strategische Personalentwicklung.',
       },
       {
         heading: 'Schulung & Beförderung',
         body: 'Mitarbeiter können Kurse buchen: ADR (Gefahrgut), Eco-Drive (Kraftstoffersparnis), erweiterte Disposition, materialeffiziente Wartung, Gefahrgut-Disposition u. a. Kurse kosten Gebühren und Zeit – der Mitarbeiter ist währenddessen abwesend. Beförderungskurse erhöhen die Rolle und das Gehalt (z. B. Disponent → Erfahrener Disponent). Der Assistent kann Schulungen automatisch buchen (Budget konfigurierbar).',
       },
       {
-        heading: 'Qualifikationen',
-        body: 'Im Tab „Qualifikationen" siehst du alle erworbenen und verfügbaren Qualifikationen deiner Mitarbeiter. ADR und Gefahrgut-Disposition sind Voraussetzung für entsprechende Aufträge. Eco-Drive senkt den Kraftstoffverbrauch des Fahrers.',
-      },
-      {
-        heading: 'Ausbildung',
-        body: 'Im Tab „Ausbildung" kannst du Auszubildende annehmen, die über Zeit zu vollwertigen Mitarbeitern heranwachsen. Sie kosten weniger, sind aber anfangs eingeschränkt einsetzbar.',
+        heading: 'Ehemalige Mitarbeiter',
+        body: 'Im Tab „Ehemalige" siehst du ausgeschiedene Fahrer und Angestellte mit ihrem Austrittsdatum. Historische Touren, Buchungen und Nachrichten bleiben erhalten.',
       },
       {
         heading: 'Abwesenheit & Urlaub',
-        body: 'Im Tab „Abwesenheit" planst du Urlaub und siehst Krankheitsfälle. Urlaub gibt Erholung (senkt Belastung, steigert Zufriedenheit), der Mitarbeiter ist aber nicht verfügbar. Krankheit reduziert die Verfügbarkeit und entsteht häufig bei Überlastung.',
+        body: 'Im Tab „Abwesenheiten" planst du Urlaub und siehst Krankheitsfälle. Urlaub gibt Erholung (senkt Belastung, steigert Zufriedenheit), der Mitarbeiter ist aber nicht verfügbar. Krankheit reduziert die Verfügbarkeit und entsteht häufig bei Überlastung.',
+      },
+      {
+        heading: 'Dienstleistungen',
+        body: 'Im Tab „Dienstleistungen" buchst du externe Services wie Reinigung, Abschleppdienst oder Leihpersonal – entlastet dein Team bei Engpässen.',
       },
       {
         heading: 'Zufriedenheit & Betriebsklima',
@@ -258,6 +310,10 @@ export const HELP_TOPICS = [
         body: 'Im Tab „Zeitverlauf" zeigt ein Chart die Entwicklung von Umsatz, Kosten und Gewinn über verschiedene Perioden (Woche, Monat, Quartal). Vergleiche Phasen und erkenne Trends.',
       },
       {
+        heading: 'Finanzierung',
+        body: 'Im Tab „Finanzierung" nimmst du Kredite auf und verwaltest Leasing-Verträge. Kredite haben Zinsen und Laufzeiten; die Rate wird täglich abgebucht. Ein Kredit-Kalkulator zeigt dir vorab die Belastung. Leasing verteilt Lkw-Kosten über die Zeit (Leasingraten). Achte auf Zinsen und Laufzeiten – zu viele Kredite können die Firma in die Verlustzone drücken. Bei schweren Rückständen drohen Mahngebühren und Kreditkündigung.',
+      },
+      {
         heading: 'Einnahmen & Ausgaben',
         body: 'Einnahmen: Liefervergütungen. Ausgaben: Kraftstoff, Maut, Fahrerlöhne, Standortkosten, Wartung, Schulungen, Leasingraten, Kreditzinsen. Die Tagesabrechnung (Mitternacht) zieht Fixkosten ab: Löhne, Standortkosten, Geschäftsführergehalt, Leasingraten, Kreditraten.',
       },
@@ -277,10 +333,6 @@ export const HELP_TOPICS = [
         heading: 'Anlagenverzeichnis',
         body: 'Das Anlagenverzeichnis (Tab „Anlagen") listet alle Firmenfahrzeuge mit Buchwert, Abschreibung und Marktwert. Hier behältst du den Vermögenswert der Flotte im Blick.',
       },
-      {
-        heading: 'Kredite & Finanzierung',
-        body: 'Bei Liquiditätsengpässen kannst du Kredite aufnehmen (Tab „Finanzierung"). Kredite haben Zinsen und Laufzeiten; die Rate wird täglich abgebucht. Ein Kredit-Kalkulator zeigt dir vorab die Belastung. Leasing verteilt Lkw-Kosten über die Zeit (Leasingraten). Achte auf Zinsen und Laufzeiten – zu viele Kredite können die Firma in die Verlustzone drücken. Bei schweren Rückständen drohen Mahngebühren und Kreditkündigung.',
-      },
     ],
   },
   {
@@ -295,31 +347,39 @@ export const HELP_TOPICS = [
       },
       {
         heading: 'Lebensaspekte',
-        body: 'Vier Werte bestimmen dein Privatleben: Beziehung, Gesundheit, Belastung (Stress) und Zufriedenheit. Sie werden kaufmännisch gerundet angezeigt. Jede private Aktivität verändert diese Werte – achte auf die Balance.',
+        body: 'Drei Werte bestimmen dein Privatleben: Beziehung, Zufriedenheit und Belastung (Stress). Sie werden kaufmännisch gerundet angezeigt. Jede private Aktivität verändert diese Werte – achte auf die Balance. Die Belastung wirkt sich direkt auf die Wartungskosten aus (≥ 80 = +25 %).',
       },
       {
         heading: 'Einladungen',
-        body: 'Private Einladungen erscheinen regelmäßig im Postfach oder auf der Zuhause-Seite. Du kannst zusagen, verschieben oder absagen. Jede Entscheidung hat Konsequenzen für Beziehung und Belastung. Ignorierst du eine Einladung bis zum Ablauf der Frist, gilt sie als verpasst.',
+        body: 'Private Einladungen erscheinen regelmäßig im Postfach oder auf der Zuhause-Seite. Du kannst zusagen, verschieben oder absagen. Jede Entscheidung hat Konsequenzen für Beziehung und Belastung. Ignorierst du eine Einladung bis zum Ablauf der Frist, gilt sie als verpasst. Eine Zusage kostet 60 € vom Privatkonto.',
       },
       {
         heading: 'Aktive Aktivitäten',
         body: 'Nimmst du an einer privaten Aktivität teil, sind operative Aktionen (Aufträge, Disposition) gesperrt, bis die Aktivität endet. Oben erscheint ein entsprechender Hinweis. Plane also Touren vor einer Aktivität oder schiebe sie auf eine ruhigere Zeit.',
       },
       {
+        heading: 'Freizeitaktivitäten',
+        body: 'Im Tab „Aktivitäten" kannst du Freizeitaktivitäten starten – z. B. einen Spaziergang (2 Spielstunden, Belastung −8, Zufriedenheit +2). Pro Tag ist eine Freizeitaktivität möglich.',
+      },
+      {
+        heading: 'Belohnungen',
+        body: 'Im Tab „Belohnungen" siehst du verfügbare Belohnungen aus erreichten Erfolgen – Kosmetika, Titel, Albumcover etc. Du kannst Belohnungen beanspruchen und anwenden.',
+      },
+      {
         heading: 'Anschaffungen & Besitz',
-        body: 'Im Kaufkatalog erwirbst du private Güter (Auto, Wohnung, Hobbys etc.), die deine Lebensqualität und Zufriedenheit steigern. Unter „Besitz" siehst du alles, was du bereits hast. Manche Anschaffungen sind Voraussetzung für bestimmte Aktivitäten.',
+        body: 'Im Tab „Anschaffungen" erwirbst du private Güter (Auto, Wohnung, Hobbys etc.), die deine Lebensqualität und Zufriedenheit steigern. Unter „Besitz" siehst du alles, was du bereits hast. Manche Anschaffungen sind Voraussetzung für bestimmte Aktivitäten.',
       },
       {
-        heading: 'Beziehung & Dating',
-        body: 'Das Beziehungs-Panel zeigt den Stand deiner Beziehung. Je nach Spielverlauf kannst du neue Kontakte knüpfen (Dating) oder eine bestehende Beziehung pflegen. Eine stabile Beziehung senkt die Belastung und hebt die Zufriedenheit.',
+        heading: 'Dating-App',
+        body: 'Im Tab „Dating-App" kannst du neue Kontakte knüpfen, falls du noch nicht in einer Beziehung bist. Die App schlägt dir Personen vor, und du kannst Interesse signalisieren.',
       },
       {
-        heading: 'Story & Chronik',
-        body: 'Private Geschichten und Ereignisse werden in einer Chronik festgehalten – einer Langzeit-Erinnerung an wichtige Meilensteine in deinem Leben. Personenbasierte Zuordnung von Ereignissen sorgt dafür, dass Beziehungen und Entwicklungen über die Zeit nachvollziehbar bleiben.',
+        heading: 'Geschichten & Chronik',
+        body: 'Im Tab „Geschichten" erlebst du persönliche Storylines mit Entscheidungen, die deinen Lebensweg prägen. Private Geschichten und Ereignisse werden in der „Chronik" als Langzeit-Erinnerung an wichtige Meilensteine festgehalten. Personenbasierte Zuordnung von Ereignissen sorgt dafür, dass Beziehungen und Entwicklungen über die Zeit nachvollziehbar bleiben.',
       },
       {
-        heading: 'Ziele & Belohnungen',
-        body: 'Private Ziele („Entwicklungsziele" genannt) geben dir persönliche Wachstums-Meilensteine. Erreichst du sie, winken Belohnungen – oft Zufriedenheits- oder Beziehungsboni. Achte auf die Ziel-Anzeige auf der Zuhause-Seite.',
+        heading: 'Lebensziele',
+        body: 'Im Tab „Lebensziele" siehst du persönliche Entwicklungsziele (z. B. „erstes eigenes Auto", „stabile Beziehung", „erste Filiale"). Sie geben dir persönliche Wachstums-Meilensteine und belohnen dich bei Erreichung.',
       },
     ],
   },
@@ -370,20 +430,20 @@ export const HELP_TOPICS = [
         body: 'Über „Filiale eröffnen" wählst du eine Stadt und investierst in einen neuen Standort. Die Eröffnung kostet 50.000 € und erfordert ein Mindestspielalter und ausreichend Kapital (Firmenkonto ≥ 2× Gebühr). Danach laufen Standortkosten täglich. Die Filial-Karte zeigt alle Standorte mit Auslastung und Status.',
       },
       {
+        heading: 'Übersicht & Karte',
+        body: 'Im Tab „Standorte & Karte" siehst du alle Filialen auf einer interaktiven Karte mit Summary-Statistiken (Standorte, Gesamtumsatz, Lieferungen, Tageskosten). Klicke auf einen Marker, um die Filialkarte zu fokussieren. Die Filial-Karten zeigen Ressourcen, Auslastung und Tageskosten pro Standort.',
+      },
+      {
         heading: 'Ressourcen versetzen',
-        body: 'Du kannst Lkw und Mitarbeiter zwischen Filialen versetzen. Das hilft, Engpässe an einem Standort auszugleichen oder neue Filialen zu besetzen. Die Versetzung kostet je nach Entfernung Zeit (Leerfahrt für Lkw, Reise für Fahrer) und Geld (Fahrer-Reisekosten 0,15 €/km).',
+        body: 'Du kannst Lkw, Fahrer und Angestellte zwischen Filialen versetzen. Das hilft, Engpässe an einem Standort auszugleichen oder neue Filialen zu besetzen. Die Versetzung kostet je nach Entfernung Zeit (Leerfahrt für Lkw, Reise für Fahrer) und Geld (Fahrer-Reisekosten 0,15 €/km).',
       },
       {
         heading: 'Standortausbau',
-        body: 'Jede Filiale kann ausgebaut werden – z. B. um zusätzliche Werkstatt-Slots, Lagerfläche oder Bürokapazität. Der Ausbau kostet Geld und Zeit, erhöht aber die Kapazität des Standorts. Nutze den Ausbau, wenn eine Filiale an ihre Grenzen stößt.',
-      },
-      {
-        heading: 'Filialplanung & Karte',
-        body: 'Die Filial-Karte zeigt alle Standorte mit Auslastung und Status. In der Planungs-Ansicht siehst du, wo sich Aufträge und Ressourcen ballen, und kannst strategisch neue Filialen oder Versetzungen planen. Die Netzkarte bietet dazu eine detaillierte Standortanalyse.',
+        body: 'Im Tab „Standortausbau" kannst du jede Filiale ausbauen – z. B. um zusätzliche Werkstatt-Slots, Lagerfläche oder Bürokapazität. Der Ausbau kostet Geld und Zeit, erhöht aber die Kapazität des Standorts. Nutze den Ausbau, wenn eine Filiale an ihre Grenzen stößt.',
       },
       {
         heading: 'Filialleiter & Entscheidungen',
-        body: 'Ab einer zweiten Filiale kannst du Filialleiter einstellen. Sie treffen autonome Entscheidungen für ihre Filiale (Einstellungen, Wartung, Disposition), die du als Geschäftsführer im Entscheidungs-Panel freigeben oder ablehnen kannst. So skaliert das Unternehmen, ohne dass du jeden Standort einzeln steuerst.',
+        body: 'Ab einer zweiten Filiale kannst du Filialleiter einstellen. Sie treffen autonome Entscheidungen für ihre Filiale (Einstellungen, Wartung, Disposition), die du als Geschäftsführer im Entscheidungs-Panel (BranchDecisionsPanel oben auf der Filial-Seite) freigeben oder ablehnen kannst. So skaliert das Unternehmen, ohne dass du jeden Standort einzeln steuerst.',
       },
     ],
   },
@@ -407,7 +467,7 @@ export const HELP_TOPICS = [
       },
       {
         heading: 'Standortanalyse',
-        body: 'Im Tab „Standort" analysierst du eine bestimmte Stadt: Wie viele Aufträge gehen von dort aus? Welche Kunden haben dort Depots? Wie ist die Marktlage? Das hilft bei der Entscheidung, ob sich eine neue Filiale lohnt.',
+        body: 'Im Tab „Standort" analysierst du eine bestimmte Stadt: Wie viele Aufträge gehen von dort aus? Welche Kunden haben dort Depots? Wie ist die Marktlage? Das hilft bei der Entscheidung, ob sich eine neue Filiale lohnt. Von hier kannst du Städte zum Vergleich hinzufügen.',
       },
       {
         heading: 'Standortvergleich',
@@ -427,11 +487,11 @@ export const HELP_TOPICS = [
     sections: [
       {
         heading: 'Mitarbeiterbefugnisse',
-        body: 'Auf der Seite „Führung" legst du fest, welche Handlungen deine Mitarbeiter selbstständig durchführen dürfen und welche deine Freigabe erfordern. Über Voreinstellungen (z. B. „Strikt", „Ausgewogen", „Autonom") setzt du schnell ein Basis-Niveau, das du dann individuell anpassen kannst.',
+        body: 'Auf der Seite „Führung" legst du fest, welche Handlungen deine Mitarbeiter selbstständig durchführen dürfen und welche deine Freigabe erfordern. Über Voreinstellungen („Eng begleiten", „Im Tagesgeschäft entlasten", „Filiale selbstständig führen") setzt du schnell ein Basis-Niveau, das du dann individuell anpassen kannst.',
       },
       {
         heading: 'Unternehmensweite Regeln',
-        body: 'Du definierst: maximale Ausgabe pro Aktion, tägliches Gesamtbudget, Mindestliquidität (Kontopuffer), Freigabe-Modus (bei Freigabe anhalten oder weiterlaufen), automatische Auftragsannahme und automatische Disposition. Diese Regeln gelten unternehmensweit, sofern keine Filial-Überschreibung vorliegt.',
+        body: 'Du definierst: maximale Ausgabe pro Aktion, tägliches Gesamtbudget (skaliert mit aktiver Flotte), Mindestliquidität (Kontopuffer), Freigabe-Modus (bei Freigabe anhalten oder weiterlaufen), automatische Auftragsannahme und automatische Disposition. Diese Regeln gelten unternehmensweit, sofern keine Filial-Überschreibung vorliegt.',
       },
       {
         heading: 'Filial-Überschreibungen',
@@ -439,7 +499,7 @@ export const HELP_TOPICS = [
       },
       {
         heading: 'Freigaben',
-        body: 'Im Tab „Freigaben" siehst du alle ausstehenden Freigabe-Anfragen deiner Mitarbeiter (z. B. eine teure Wartung, eine Einstellung, eine Vertragsänderung). Jede Anfrage zeigt Dringlichkeit, Begründung, Kosten und ggf. Alternativen. Du kannst freigeben oder ablehnen. Im Modus „Weiterlaufen" sammeln sich Freigaben, ohne den Spielverlauf zu blockieren.',
+        body: 'Im Tab „Freigaben" siehst du alle ausstehenden Freigabe-Anfragen deiner Mitarbeiter (z. B. eine teure Wartung, eine Einstellung, eine Vertragsänderung). Jede Anfrage zeigt Dringlichkeit, Begründung, Kosten und ggf. Alternativen. Du kannst freigeben oder ablehnen. Im Modus „Weiterlaufen" sammeln sich Freigaben, ohne den Spielverlauf zu blockieren. Im Modus „Anhalten" pausiert der Tagesvorlauf bei offenen Freigaben.',
       },
       {
         heading: 'Aktivität & Statistik',
@@ -475,11 +535,11 @@ export const HELP_TOPICS = [
     sections: [
       {
         heading: 'Assistent der Geschäftsführung',
-        body: 'Stelle einen Assistenten ein (Personal). Er übernimmt automatisch: Tagesberichte, Auftragsannahme, Gemeinkostenoptimierung, Entscheidungsvorschläge, Buchhaltungs-Support, Auftragsüberwachung, Rückstau-Warnungen, Personalentwicklung und Flottenauslastung-Monitoring. Er entlastet dich spürbar im Tagesgeschäft.',
+        body: 'Stelle einen Assistenten ein (Personal). Er übernimmt automatisch: Tagesberichte, Auftragsannahme, Gemeinkostenoptimierung, Entscheidungsvorschläge, Buchhaltungs-Support, Auftragsüberwachung, Rückstau-Warnungen, Personalentwicklung und Flottenauslastung-Monitoring. Er entlastet dich spürbar im Tagesgeschäft. Im Personal-Detail des Assistenten kannst du seine Konfiguration direkt anpassen.',
       },
       {
         heading: 'Konfiguration',
-        body: 'Im Journal → Assistent-Tab konfigurierst du, welche Funktionen aktiv sind, und setzt Grenzwerte: Mindestmarge für Auto-Annahme, Mindestliquidität, Trainingsbudget, Flottenauslastung-Schwellen etc. Änderungen werden gespeichert und sofort wirksam. Im Assistenten-Log siehst du, was er getan hat.',
+        body: 'Im Personal-Detail des Assistenten (oder im Journal → Assistent-Tab) konfigurierst du, welche Funktionen aktiv sind, und setzt Grenzwerte: Mindestmarge für Auto-Annahme, Mindestliquidität, Trainingsbudget, Flottenauslastung-Schwellen etc. Änderungen werden gespeichert und sofort wirksam. Im Assistenten-Log siehst du, was er getan hat.',
       },
       {
         heading: 'Auto-Annahme',
@@ -487,7 +547,7 @@ export const HELP_TOPICS = [
       },
       {
         heading: 'Disponent & autonomer Modus',
-        body: 'Ein Disponent plant Touren. Im autonomen Modus übernimmt er auch die Auftragsannahme und Disposition komplett. Seine Kapazität (Anzahl betreuter Lkw) lässt sich durch Schulung erhöhen. Für Gefahrgut benötigt er die Gefahrgut-Dispositions-Schulung.',
+        body: 'Ein Disponent plant Touren. Im autonomen Modus übernimmt er auch die Auftragsannahme und Disposition komplett. Seine Kapazität (Anzahl betreuter Lkw) lässt sich durch Schulung erhöhen. Für Gefahrgut benötigt er die Gefahrgut-Dispositions-Schulung. Die Disponenten-Qualität wird im Personal-Tab angezeigt.',
       },
       {
         heading: 'Filialleiter',
@@ -506,16 +566,20 @@ export const HELP_TOPICS = [
     color: 'violet',
     sections: [
       {
-        heading: 'Privates Investment',
-        body: 'Unter „Investment" kannst du Privatkapital am Markt anlegen. Kurse schwanken – kaufe tief, verkaufe hoch. Alternativ: Festgeld (Sparbuch) mit garantierter, aber niedriger Verzinsung. Das Investment ist Teil deines Privatlebens und wird vom Privatkonto aus finanziert.',
+        heading: 'Firmen- & Privatdepot',
+        body: 'Unter „Investment" kannst du sowohl Firmen- als auch Privatkapital am Markt anlegen. Oben rechts schaltest du zwischen Firmendepot und Privatdepot um. Kurse schwanken – kaufe tief, verkaufe hoch. Das Investment ist eine dritte Hauptwelt neben Spedition und Privatleben.',
       },
       {
         heading: 'Markt & Depot',
-        body: 'Im Markt-Browser siehst du verfügbare Anlageinstrumente mit Kursverlauf. Im Depot siehst du deine Bestände mit aktuellem Wert, Gewinn/Verlust und Anteilen. Klicke auf ein Instrument für einen detaillierten Chart.',
+        body: 'Im Tab „Märkte" siehst du verfügbare Anlageinstrumente mit Kursverlauf. Wähle ein Instrument aus, um direkt eine Order aufzugeben. Im Tab „Depot" siehst du deine Bestände mit aktuellem Wert, Gewinn/Verlust und Anteilen – getrennt für Firmen- und Privatdepot.',
       },
       {
         heading: 'Orders & Orderarten',
-        body: 'Du platzierst Kauf- und Verkaufsaufträge. Neben Standard-Orders gibt es erweiterte Orderarten (z. B. Limit-Orders), die zu einem festgelegten Kurs ausgeführt werden. Offene Orders siehst du in der Orders-Tabelle und kannst sie stornieren.',
+        body: 'Du platzierst Kauf- und Verkaufsaufträge. Neben Standard-Orders gibt es erweiterte Orderarten (z. B. Limit-Orders), die zu einem festgelegten Kurs ausgeführt werden. Im Tab „Orders" siehst du alle offenen und ausgeführten Orders und kannst offene stornieren.',
+      },
+      {
+        heading: 'Investmentberater',
+        body: 'Im Tab „Investmentberater" erhältst du KI-gestützte Anlageempfehlungen für dein aktuelles Depot. Der Berater analysiert deine Bestände, die Marktlage und schlägt Anpassungen vor – etwa Rebalancierung oder Risiko-Optimierung. Du kannst die Empfehlungen annehmen oder ignorieren.',
       },
       {
         heading: 'Sparbuch & Staking',
@@ -523,7 +587,7 @@ export const HELP_TOPICS = [
       },
       {
         heading: 'Risiko & Rendite',
-        body: 'Aktien haben höhere Renditechance, aber Kursrisiko. Sparbuch ist sicher, aber Inflation kann den realen Wert mindern. Mische je nach Risikobereitschaft – und behalte immer genug Liquidität auf dem Privatkonto für den Lebensunterhalt.',
+        body: 'Aktien haben höhere Renditechance, aber Kursrisiko. Sparbuch ist sicher, aber Inflation kann den realen Wert mindern. Mische je nach Risikobereitschaft – und behalte immer genug Liquidität auf dem Privatkonto für den Lebensunterhalt bzw. auf dem Firmenkonto für den Betrieb.',
       },
     ],
   },
@@ -535,11 +599,15 @@ export const HELP_TOPICS = [
     sections: [
       {
         heading: 'Postfach',
-        body: 'Im Postfach sammeln sich alle Nachrichten: Auftragsbestätigungen, Assistenten-Berichte, Filialleiter-Anfragen, private Einladungen und System-Meldungen. Ungelesene Nachrichten werden oben rechts mit einem Zähler angezeigt.',
+        body: 'Im Postfach sammeln sich alle Nachrichten: Auftragsbestätigungen, Assistenten-Berichte, Filialleiter-Anfragen, private Einladungen und System-Meldungen. Ungelesene Nachrichten werden oben rechts mit einem Zähler angezeigt. Das Postfach lässt sich auch als modales Fenster über das Brief-Icon im Header öffnen.',
       },
       {
-        heading: 'Konversationen',
-        body: 'Nachrichten sind in Konversationen gegliedert. Du kannst Antworten verfassen (Composer) und so mit Assistent, Filialleitern oder privaten Kontakten kommunizieren. Wichtige Entscheidungen (z. B. Filialleiter-Freigaben) kommen oft per Mail.',
+        heading: 'Konversationen & Composer',
+        body: 'Nachrichten sind in Konversationen gegliedert (Listen- und Detail-Ansicht). Du kannst Antworten verfassen (Composer) und so mit Assistent, Filialleitern oder privaten Kontakten kommunizieren. Wichtige Entscheidungen (z. B. Filialleiter-Freigaben) kommen oft per Mail. Du kannst auch selbst neue Nachrichten verfassen.',
+      },
+      {
+        heading: 'Entscheidungs-Posteingang',
+        body: 'Oben im Postfach erscheint der Entscheidungs-Posteingang (DecisionInbox) – eine Sammlung aller Entscheidungen, die deine Aufmerksamkeit erfordern: Freigabe-Anfragen, Vertragsänderungen, Störungen. Hier entscheidest du zentral, anstatt jede Seite einzeln aufzusuchen.',
       },
       {
         heading: 'Einladungen & Fristen',
@@ -555,15 +623,23 @@ export const HELP_TOPICS = [
     sections: [
       {
         heading: 'Erfolge',
-        body: 'Unter „Erfolge" siehst du alle erreichten und offenen Achievements. Sie belohnen Meilensteine wie die erste Filiale, eine bestimmte Flottengröße, lange Spielzeit oder private Ziele. Manche Erfolge geben Boni auf Zufriedenheit oder Reputation.',
+        body: 'Unter „Erfolge" siehst du alle erreichten und offenen Achievements, kategorisiert nach Bereichen (Unternehmen, Privatleben, Flotte etc.). Sie belohnen Meilensteine wie die erste Filiale, eine bestimmte Flottengröße, lange Spielzeit oder private Ziele. Manche Erfolge geben Boni auf Zufriedenheit oder Reputation.',
       },
       {
-        heading: 'Ziele & XP',
-        body: 'Der Fortschrittsbalken zeigt deine Erfahrung (XP). Je nach Spielhandlung steigt XP und schaltet neue Erfolge frei. Ziele geben dir Orientierung im Spielverlauf – sie sind nicht zwingend, aber hilfreich, um das Unternehmen strategisch aufzubauen.',
+        heading: 'Unternehmensentwicklung',
+        body: 'Ein Stufen-Track zeigt deine Unternehmensentwicklung: Gründung → 250k → 1 Mio. → 5 Mio. Der aktuelle Unternehmenswert wird prominent angezeigt. So siehst du, welche Entwicklungsstufe du erreicht hast und was als Nächstes ansteht.',
       },
       {
-        heading: 'Entwicklungsziele',
-        body: 'Persönliche Entwicklungsziele (z. B. „erstes eigenes Auto", „stabile Beziehung", „erste Filiale") geben dir persönliche Wachstums-Meilensteine. Sie werden im Büro und auf der Zuhause-Seite angezeigt und belohnen dich bei Erreichung.',
+        heading: 'Schwerpunkt & Meilensteine',
+        body: 'Du kannst einen Entwicklungsschwerpunkt wählen (z. B. Flotte, Personal, Kunden), der vorgeschlagene Ziele beeinflusst. Meilensteine zeigen konkrete Fortschrittsziele mit aktuellem Stand und Zielwert – etwa Anzahl Filialen, Fahrer oder Lieferungen.',
+      },
+      {
+        heading: 'Persönliche Ziele',
+        body: 'Du kannst bis zu drei persönliche Ziele anheften, die du verfolgen möchtest. Sie geben dir Orientierung im Spielverlauf – sie sind nicht zwingend, aber hilfreich, um das Unternehmen strategisch aufzubauen. Ziele lassen sich jederzeit hinzufügen oder entfernen.',
+      },
+      {
+        heading: 'XP & Level',
+        body: 'Der Fortschrittsbalken zeigt deine Erfahrung (XP). Je nach Spielhandlung steigt XP und schaltet neue Erfolge frei. Das Level spiegelt deinen Gesamtfortschritt wider.',
       },
     ],
   },
@@ -575,15 +651,71 @@ export const HELP_TOPICS = [
     sections: [
       {
         heading: 'Auslastung',
-        body: 'Unter „Auslastung" siehst du, wie stark Flotte, Fahrer und Filialen ausgelastet sind. Eine hohe Auslastung bedeutet gute Wirtschaftlichkeit, aber auch höhere Belastung. Eine zu niedrige Auslastung verschwendet Fixkosten. Der Assistent warnt bei Unter- oder Überauslastung.',
+        body: 'Unter „Auslastung" siehst du, wie stark Flotte, Fahrer und Filialen ausgelastet sind – wählbar für 7 oder 30 Tage. KPIs zeigen Gesamt-Auslastung, Fahrzeuge auf Tour, ineffiziente Fahrzeuge und unzugewiesene Aufträge. Eine Filialübersicht zeigt Auslastung und Disponenten-Status pro Standort. Eine Fahrzeug-Tabelle listet jedes Fahrzeug mit Auslastung, Status, Umsatz, Lieferungen und Problem-Flags. Der Assistent warnt bei Unter- oder Überauslastung.',
       },
       {
         heading: 'Effizienz',
-        body: 'Unter „Effizienz" analysierst du Kraftstoffverbrauch, Leerfahrten, Wartungsquote und Kosten pro Kilometer. Eco-Drive-geschulte Fahrer senken den Verbrauch, gute Disposition reduziert Leerfahrten. Nutze diese Seite, um Schwachstellen zu finden und gezielt zu optimieren.',
+        body: 'Unter „Effizienz" analysierst du die Zeitverteilung von Fahrern und Fahrzeugen im Detail – wählbar für 7, 30 oder 90 Tage. Gestapelte Balkendiagramme zeigen produktive Fahrt, Leerfahrt, Be-/Entladung und Ruhe/Pause pro Fahrzeug und Fahrer. KPIs zeigen Leerfahrquote, produktive Zeit, Rüstzeit und Erlös pro km. Nutze diese Seite, um Schwachstellen zu finden und gezielt zu optimieren.',
+      },
+      {
+        heading: 'Handlungsbedarf',
+        body: 'Beide Seiten zeigen konkreten Handlungsbedarf: ineffiziente Fahrzeuge, fehlende Disponenten, niedrige Auslastung, hohe Leerfahrquote. Jeder Punkt verlinkt direkt zur passenden Seite, um die Maßnahme zu ergreifen.',
       },
       {
         heading: 'Kennzahlen lesen',
         body: 'Beide Seiten helfen dir, das Unternehmen datengetrieben zu führen. Vergleiche Perioden, erkenne Trends und leite Maßnahmen ab – z. B. Schulungen bei hohem Verbrauch oder eine neue Filiale bei dauerhaft hoher Auslastung.',
+      },
+    ],
+  },
+  {
+    id: 'world',
+    title: 'Spielwelt',
+    icon: 'Anchor',
+    color: 'cyan',
+    sections: [
+      {
+        heading: 'Die Spielwelt',
+        body: 'Die Spielwelt ist eine eigene Erweiterungsebene über dem regulären Spiel. Sie verbindet erzählerische Geschichten, echten Wettbewerb mit KI-Konkurrenten und eine Weltchronik, die deine Entscheidungen dauerhaft festhält. Du betrittst die Spielwelt freiwillig – sie ergänzt das Wirtschafts-Gameplay atmosphärisch, ohne es zu ersetzen. Der Einstieg ist kostenlos; Geschichten und Ausschreibungen beginnen ab deiner jetzigen Spielzeit.',
+      },
+      {
+        heading: 'Geschichten',
+        body: 'Im Tab „Geschichten" erlebst du zusammenhängende Storylines mit mehreren Kapiteln. Jede Geschichte bietet Entscheidungen mit Konsequenzen – einige erfordern einen Termin im Kalender (mit Kosten bei Zusage). Geschichten warten auf dich; ihre Fristen laufen mit der Spielzeit weiter. Es gibt eine Hauptgeschichte, persönliche Geschichten und eine Fortsetzung für dein Team. Abgeschlossene Geschichten zeigen ihr Ende.',
+      },
+      {
+        heading: 'Wettbewerb',
+        body: 'Im Tab „Wettbewerb" trittst du gegen drei KI-Konkurrenten an. Alle drei Spieltage erscheinen zwei Transporte am Kai als Ausschreibungen. Du gibst ein Gebot ab (Prozent des Richtpreises) – kostenlos und bis zum Zuschlag änderbar. Bei Gewinn wird der Auftrag verbindlich angenommen und du musst ihn selbst disponieren. Die Wertung basiert auf Preis, Verlässlichkeit und Qualitäts-/Verhandlungsvorsprung. Konkurrenten brauchen freie Lkw und Reserve; deine Spielwelt-Zusagen sind auf die Anzahl eigener Lkw begrenzt.',
+      },
+      {
+        heading: 'Reputation',
+        body: 'Deine Spielwelt-Reputation besteht aus drei Werten: Verlässlichkeit (0–100), Qualitätsvorsprung (0–20) und Verhandlungsvorsprung (0–20). Zuschläge und erfolgreiche Lieferungen erhöhen die Werte; sie beeinflussen deine Chancen bei künftigen Ausschreibungen.',
+      },
+      {
+        heading: 'Weltchronik',
+        body: 'Im Tab „Weltchronik" siehst du die letzten 180 Einträge deiner Weltgeschichte – Entscheidungen und ihre Konsequenzen, chronologisch aufbereitet. Jeder Eintrag zeigt, auf welche vorherige Entscheidung er zurückgeht. Die Chronik ist dein dauerhaftes Gedächtnis der Spielwelt.',
+      },
+      {
+        heading: 'Konkurrenten',
+        body: 'Die drei KI-Konkurrenten haben eigene Namen, Städte, Strategien und Betriebsreserven. Sie fahren regionales Tagesgeschäft und bieten bei Ausschreibungen mit. Gewonnene Ausschreibungen binden zusätzlich Geld und Lkw für zwei Tage. Ihr Verhältnis zu dir (0–100) beeinflusst die Dynamik.',
+      },
+    ],
+  },
+  {
+    id: 'journal',
+    title: 'Journal & Konkurrenten',
+    icon: 'BookOpen',
+    color: 'lime',
+    sections: [
+      {
+        heading: 'Ereignisjournal',
+        body: 'Im Tab „Ereignisse" siehst du den chronologischen Verlauf aller Spielereignisse: Lieferungen, Buchungen, Terminabschlüsse, Meilensteine und verpasste Einladungen. Die Ereignisse sind nach Tagen gruppiert und zeigen Statistiken (Ereignisse gesamt, Einnahmen, Ausgaben, Lieferungen).',
+      },
+      {
+        heading: 'Konkurrenten',
+        body: 'Im Tab „Konkurrenten" siehst du die Aktivität deiner KI-Konkurrenten: Preis-Anpassungen, Abwerbeversuche, Kooperationsangebote und Fahrer-Abwerbungen. So behältst du im Blick, was die Konkurrenz macht und ob du reagieren musst.',
+      },
+      {
+        heading: 'Assistenten-Protokoll',
+        body: 'Im Tab „Assistent" siehst du das Protokoll des Assistenten der Geschäftsführung – alle automatisierten Aktionen, Berichte und Empfehlungen. Hier kannst du auch die Assistenten-Konfiguration anpassen.',
       },
     ],
   },
@@ -593,47 +725,47 @@ export const HELP_TOPICS = [
 export const PAGE_HINTS = {
   office: {
     title: 'Büro',
-    text: 'Deine zentrale Führungsansicht. Hier siehst du Kennzahlen, Flottenlage, anstehende Entscheidungen, Störungen, Kundenbeziehungen und Trends. Alles Weitere erreichst du über die Navigation unten.',
+    text: 'Deine zentrale Führungsansicht mit vier Tabs: Überblick (Kennzahlen, Wichtiges, Kapazität), Betrieb (Störungen, Stillstand, Kunden, Standorte), Ziele & Entwicklung (Meilensteine, Szenario, Spielwelt-Chancen) und Berichte & Verlauf (Tagesbericht, Trends, Bereiche). Alles Weitere erreichst du über die Navigation unten.',
   },
   orders: {
     title: 'Aufträge',
-    text: 'Hier siehst du Marktangebote und angenommene Aufträge. Nimm profitable Angebote an und disponiere sie dann unter „Disposition". Achte auf die benötigte Aufbau-Kategorie (Badge auf der Karte) und die Lieferfrist.',
+    text: 'Hier siehst du Marktangebote und angenommene Aufträge. Nimm profitable Angebote an und disponiere sie dann unter „Disposition". Achte auf die benötigte Aufbau-Kategorie (Badge auf der Karte) und die Lieferfrist. Massen-Aktion: mehrere auswählen und „Annehmen & verplanen".',
   },
   dispatch: {
     title: 'Disposition',
-    text: 'Plane, welcher Lkw welchen Auftrag fährt. Wähle Auftrag, Lkw und Fahrer – das System prüft automatisch Aufbau-Kompatibilität, Kapazität und Fahrerzeit. Bestätige die Tour, um sie zu starten.',
+    text: 'Plane, welcher Lkw welchen Auftrag fährt. Wähle Auftrag, Lkw und Fahrer – das System prüft automatisch Aufbau-Kompatibilität, Kapazität und Fahrerzeit. Bestätige die Tour, um sie zu starten. Toolbar oben: Wochenplanung und Partner-Fremdvergabe einblendbar.',
   },
   fleet: {
     title: 'Fuhrpark',
-    text: 'Verwalte deine Lkw – drei Größenklassen, vier Aufbauten, Kauf, Leasing oder Gebrauchtmarkt. Wartung ist kilometerbasiert (alle 15.000 km). Ein niedriger Zustand erhöht das Pannenrisiko.',
+    text: 'Verwalte deine Lkw – drei Größenklassen, vier Aufbauten, Kauf, Leasing oder Gebrauchtmarkt. Wartung ist kilometerbasiert (alle 15.000 km). Ein niedriger Zustand erhöht das Pannenrisiko. Tabs: Flotte, Werkstatt, Gefahrgut, Gebraucht, Analyse.',
   },
   personnel: {
     title: 'Personal',
-    text: 'Einstellen, kündigen, schulen. Jede Rolle hat eine Funktion. Achte auf Zufriedenheit und Gesundheit – unzufriedene Mitarbeiter kündigen oder werden krank.',
+    text: 'Einstellen, kündigen, schulen. Jede Rolle hat eine Funktion. Achte auf Zufriedenheit und Gesundheit – unzufriedene Mitarbeiter kündigen oder werden krank. Tabs: Team, Teamklima, Entwicklung, Einstellen, Ehemalige, Abwesenheiten, Dienstleistungen.',
   },
   finances: {
     title: 'Finanzen',
-    text: 'Doppelte Buchführung, Liquiditätsvorschau, Kredite und Leasing. Hier stellst du auch dein Geschäftsführergehalt ein – die tägliche Übertragung vom Firmen- ins Privatkonto.',
+    text: 'Doppelte Buchführung, Liquiditätsvorschau, Kredite und Leasing. Hier stellst du auch dein Geschäftsführergehalt ein – die tägliche Übertragung vom Firmen- ins Privatkonto. Tabs: Übersicht, Liquiditätsvorschau, Zeitverlauf, Finanzierung, Journal, Offene Posten, Auswertungen, Anlagen, Buchhaltung.',
   },
   home: {
     title: 'Zuhause',
-    text: 'Dein Privatleben. Einladungen und Hobbys beeinflussen Beziehung, Gesundheit und Belastung. Vernachlässige es nicht – es wirkt sich auf deine Geschäftsführung aus.',
+    text: 'Dein Privatleben. Einladungen und Hobbys beeinflussen Beziehung, Zufriedenheit und Belastung. Vernachlässige es nicht – es wirkt sich auf deine Geschäftsführung aus. Tabs: Aktivitäten, Belohnungen, Anschaffungen, Besitz, Dating-App, Geschichten, Chronik, Lebensziele.',
   },
   customers: {
     title: 'Kunden',
-    text: 'Dauerkundenbeziehungen, Vertrauen und Rahmenverträge. Nutze Akquise, um Stammkunden zu gewinnen. Ausschreibungen bieten die Chance auf langfristige Verträge.',
+    text: 'Dauerkundenbeziehungen, Vertrauen und Rahmenverträge. Nutze Akquise, um Stammkunden zu gewinnen. Ausschreibungen bieten die Chance auf langfristige Verträge. Klicke einen Kunden an, um sein Profil und Vertrauensentwicklung zu sehen.',
   },
   branches: {
     title: 'Filialen',
-    text: 'Verwalte mehrere Standorte in ganz Deutschland. Jede Filiale hat eigene Kosten und Ressourcen. Filialleiter können autonom entscheiden – du gibst frei.',
+    text: 'Verwalte mehrere Standorte in ganz Deutschland. Jede Filiale hat eigene Kosten und Ressourcen. Filialleiter können autonom entscheiden – du gibst frei. Tabs: Übersicht, Standorte & Karte, Standortausbau.',
   },
   network: {
     title: 'Netzkarte',
-    text: 'Strategische Planungsansicht: Relationen, Rückladungen, Standortanalyse und Vergleich. Nutze sie, um Leerfahrten zu vermeiden und neue Filialen zu planen.',
+    text: 'Strategische Planungsansicht: Relationen, Rückladungen, Standortanalyse und Vergleich. Nutze sie, um Leerfahrten zu vermeiden und neue Filialen zu planen. Ebenen und Filter steuern die Kartenanzeige.',
   },
   leadership: {
     title: 'Führung',
-    text: 'Mitarbeiterbefugnisse festlegen – was selbstständig erlaubt ist und was Freigabe erfordert. Voreinstellungen und Filial-Überschreibungen für feinsteuerung.',
+    text: 'Mitarbeiterbefugnisse festlegen – was selbstständig erlaubt ist und was Freigabe erfordert. Voreinstellungen und Filial-Überschreibungen für Feinsteuerung. Tabs: Mitarbeiterbefugnisse, Freigaben, Aktivität.',
   },
   business: {
     title: 'Geschäftsmodelle',
@@ -641,26 +773,30 @@ export const PAGE_HINTS = {
   },
   investment: {
     title: 'Investment',
-    text: 'Lege Privatkapital an. Aktien bieten Renditechance mit Risiko, das Sparbuch Sicherheit mit niedriger Verzinsung.',
+    text: 'Lege Firmen- und Privatkapital an. Aktien bieten Renditechance mit Risiko, das Sparbuch Sicherheit mit niedriger Verzinsung. Umschalter oben: Firmendepot / Privatdepot. Tabs: Übersicht, Märkte, Depot, Orders, Investmentberater.',
   },
   journal: {
     title: 'Journal',
-    text: 'Verlauf aller Ereignisse: Lieferungen, Finanzen, Assistenten-Aktivität. Hier konfigurierst du auch den Assistenten der Geschäftsführung.',
+    text: 'Verlauf aller Ereignisse: Lieferungen, Finanzen, Assistenten-Aktivität. Tabs: Ereignisse (chronologisch), Konkurrenten (KI-Aktivität), Assistent (Protokoll & Konfiguration).',
   },
   mail: {
     title: 'Postfach',
-    text: 'Alle Nachrichten an einem Ort: Auftragsbestätigungen, Assistenten-Berichte, Filialleiter-Anfragen und private Einladungen.',
+    text: 'Alle Nachrichten an einem Ort: Auftragsbestätigungen, Assistenten-Berichte, Filialleiter-Anfragen und private Einladungen. Oben: Entscheidungs-Posteingang für zentrale Freigaben.',
   },
   achievements: {
     title: 'Erfolge',
-    text: 'Deine erreichten und offenen Meilensteine. Erfolge belohnen strategischen Aufbau und geben Orientierung im Spielverlauf.',
+    text: 'Deine erreichten und offenen Meilensteine, Unternehmensentwicklung, Schwerpunkt, Meilensteine und persönliche Ziele. Erfolge belohnen strategischen Aufbau und geben Orientierung im Spielverlauf.',
   },
   utilization: {
     title: 'Auslastung',
-    text: 'Wie stark sind Flotte, Fahrer und Filialen ausgelastet? Hohe Auslastung = gute Wirtschaftlichkeit, aber achte auf Überlastung.',
+    text: 'Wie stark sind Flotte, Fahrer und Filialen ausgelastet? Hohe Auslastung = gute Wirtschaftlichkeit, aber achte auf Überlastung. KPIs, Filialübersicht, Fahrzeug-Tabelle und Handlungsbedarf.',
   },
   efficiency: {
     title: 'Effizienz',
-    text: 'Kraftstoffverbrauch, Leerfahrten, Wartungsquote. Nutze diese Kennzahlen, um Schwachstellen zu finden und gezielt zu optimieren.',
+    text: 'Zeitverteilung von Fahrern und Fahrzeugen im Detail: produktive Fahrt, Leerfahrt, Be-/Entladung, Ruhe. KPIs: Leerfahrquote, produktive Zeit, Erlös pro km. Nutze diese Kennzahlen, um Schwachstellen zu finden.',
+  },
+  world: {
+    title: 'Spielwelt',
+    text: 'Erzählerische Geschichten mit Entscheidungen, echter Wettbewerb mit KI-Konkurrenten am Kai und eine Weltchronik, die deine Entscheidungen dauerhaft festhält. Freiwillig, atmosphärisch, ergänzt das Wirtschafts-Gameplay.',
   },
 };

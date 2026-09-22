@@ -3,9 +3,9 @@ import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
 import { X, Search, ChevronDown } from "lucide-react";
 import { HELP_TOPICS } from "@/lib/helpContent";
-import { Compass, Package, Map, Truck, Users, Wallet, Home, Sparkles, LineChart, Building2, Mail, Trophy, BarChart3, UserCircle, Shield, Briefcase, Network } from "lucide-react";
+import { Compass, Package, Map, Truck, Users, Wallet, Home, Sparkles, LineChart, Building2, Mail, Trophy, BarChart3, UserCircle, Shield, Briefcase, Network, Anchor, Phone, BookOpen } from "lucide-react";
 
-const ICONS = { Compass, Package, Map, Truck, Users, Wallet, Home, Sparkles, LineChart, Building2, Mail, Trophy, BarChart3, UserCircle, Shield, Briefcase, Network };
+const ICONS = { Compass, Package, Map, Truck, Users, Wallet, Home, Sparkles, LineChart, Building2, Mail, Trophy, BarChart3, UserCircle, Shield, Briefcase, Network, Anchor, Phone, BookOpen };
 
 const COLOR_MAP = {
   lime:   { text: "text-lime",     bg: "bg-lime/10",     border: "border-lime/20" },
@@ -34,6 +34,7 @@ const ROUTE_TOPIC = {
   "/erfolge": "achievements",
   "/auslastung": "analytics",
   "/effizienz": "analytics",
+  "/spielwelt": "world",
 };
 
 export default function HelpPanel({ open, onClose }) {
