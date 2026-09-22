@@ -456,6 +456,7 @@ export function processContractDay(state, m, log) {
       const deliveryDeadline = dayStart + 480 + contract.opMin + contract.deliveryBufferMin;
 
       const order = {
+        transportRulesVersion:state.dach?.enabled?DACH_RULE_VERSION:undefined,
         id: orderId,
         customerId: contract.customerId,
         customer: contract.customerName,
