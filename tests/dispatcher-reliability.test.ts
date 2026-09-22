@@ -87,3 +87,14 @@ it('sucht hinter einer unbrauchbaren Spitzenauswahl nach einem ausführbaren Auf
  expect(s.orders.find(o=>o.id===good.id).status).not.toBe('offered');
  expect(s.orders.filter(o=>o.id.startsWith('impossible')).every(o=>o.status==='offered')).toBe(true);
 });
+
+it('prüft DACH-Fahrer mit unterschiedlichen Wochenlenkzeiten getrennt',async()=>{
+ const {DACH_RULE_VERSION}=await import('@/lib/simulation/dachRules');
+ const s=base();applyCommand(s,'activateDach',{});s.orders[0].transportRulesVersion=DACH_RULE_VERSION;
+ Object.assign(s.orders[0],{fromCity:'Hamburg',toCity:'Bremen',earliestPickupMin:s.gameTime,latestLoadStartMin:s.gameTime+5000,deliveryDeadlineMin:s.gameTime+1200,paymentCents:100000});
+ s.drivers.push({...structuredClone(s.drivers[0]),id:'weekly-fresh'});
+ s.drivers[0].regulation={weekIndex:0,thisWeek:3360,previousWeek:0,weeklyRestEndMin:0};
+ const opts={vehicleId:'v0',driverId:'weekly-fresh',orderIds:['o0']};
+ const feasible=buildTourPlan(s,opts);expect(feasible.ok).toBe(true);expect(feasible.lastDeliveryEndMin).toBeLessThan(s.orders[0].deliveryDeadlineMin);
+ expect(search(s).suggestions[0]?.driverId).toBe('weekly-fresh');
+});
