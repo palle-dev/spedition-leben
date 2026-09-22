@@ -47,5 +47,6 @@ for(let run=0;run<4;run++){
  if(run)searches.push({ms,suggestions:result.suggestions.length});
 }
 const report={baseline,baselineCommit:commit,count,node:process.version,days,dayMedianMs:median(days.map(x=>x.ms)),blockedSelection:searches,selectionMedianMs:median(searches.map(x=>x.ms)),limits:'Synthetic fresh fleet and market. One warmup, three independent clones. Engine only, not browser or aged user save. Day fixture starts all trucks on tours; blocked-selection fixture starts all trucks free. Dispatcher staffing/capital supplied synthetically; natural simulation during measured day.'};
-const out=path.join(root,'audit/dispatch-intake', (baseline?'before':'after')+'-'+count+'.json');
+const outArg=process.argv.indexOf('--output');
+const out=outArg>=0?path.resolve(process.argv[outArg+1]):path.join(root,'audit/dispatch-intake', (baseline?'before':'after')+'-'+count+'.json');
 fs.writeFileSync(out,JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report));
