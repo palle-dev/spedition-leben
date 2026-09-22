@@ -794,7 +794,7 @@ export function confirmTour(state, params) {
 
 // Startet einen einzelnen Einsatz innerhalb einer Tour.
 // Nutzt die vorausberechneten Phasen aus buildDeployment, ggf. zeitlich verschoben.
-function startDeployment(state, tour, dep, depIndex) {
+function startDeployment(state, tour, dep, depIndex, preparedPlan = null) {
   const vehicle = state.vehicles.find(v => v.id === tour.vehicleId);
   const driver = state.drivers.find(d => d.id === tour.driverId);
   if (!vehicle || !driver) throw new Error("Fahrzeug oder Fahrer nicht gefunden.");
@@ -805,9 +805,9 @@ function startDeployment(state, tour, dep, depIndex) {
   driver.workMinutesSinceRest = initialCounters.workMin;
   driver.driveMinutesSinceBreak = initialCounters.driveMin;
   const order = dep.orderId ? state.orders.find(o => o.id === dep.orderId) : null;
-  const fresh = order
+  const fresh = preparedPlan || (order
     ? buildDeployment(state, order, vehicle, vehicle.locationCity, state.gameTime, initialCounters)
-    : buildEmptyDeployment(state, vehicle.locationCity, dep.toCity, vehicle, state.gameTime, initialCounters);
+    : buildEmptyDeployment(state, vehicle.locationCity, dep.toCity, vehicle, state.gameTime, initialCounters));
   if (fresh.energyError) throw new Error(fresh.energyError);
   if (state.company.accountCents < fresh.fuelCents+fresh.tollCents) throw new Error("Firmenkonto reicht für den aktuellen Energie- und Mautbedarf nicht.");
   Object.assign(dep, fresh);
@@ -1077,17 +1077,6 @@ export function processTours(state, m, log) {
       continue;
     }
 
-    if (nextDep.dep.orderId) {
-      const order = state.orders.find(o => o.id === nextDep.dep.orderId);
-      const fresh = buildDeployment(state, order, vehicle, vehicle.locationCity, m, planningDriverCounters(state, driver));
-      if (fresh.energyError || order.tons > vehicle.capacityTons || !checkBodyTypeCompatibility(order, vehicle).ok ||
-          (order.windowVersion >= 2 && fresh.phases.find(p => p.type === "loading")?.startMin > order.latestLoadStartMin) ||
-          (order.isDangerousGoods && !validateDgTransport(state, order, vehicle, driver, fresh.endMin).ok)) {
-        tour.pauseReason = "Auftrag ist mit den aktuellen Ressourcen oder Ladezeiten nicht mehr ausführbar.";
-        continue;
-      }
-    }
-
     // Refresh energy and cash requirements for both loaded and return legs.
     const nextOrder = nextDep.dep.orderId ? state.orders.find(o => o.id === nextDep.dep.orderId) : null;
     const currentPlan = nextOrder
@@ -1099,6 +1088,13 @@ export function processTours(state, m, log) {
       continue;
     }
 
+    if (nextOrder && (nextOrder.tons > vehicle.capacityTons || !checkBodyTypeCompatibility(nextOrder, vehicle).ok ||
+        (nextOrder.windowVersion >= 2 && currentPlan.phases.find(p => p.type === "loading")?.startMin > nextOrder.latestLoadStartMin) ||
+        (nextOrder.isDangerousGoods && !validateDgTransport(state, nextOrder, vehicle, driver, currentPlan.endMin).ok))) {
+      tour.pauseReason = "Auftrag ist mit den aktuellen Ressourcen oder Ladezeiten nicht mehr ausführbar.";
+      continue;
+    }
+
     // Stoerungsmanagement: Technischen Defekt vor Tourbeginn pruefen
     if (maybeGenerateTechnicalDefect(state, tour, nextDep.dep, m, log)) {
       // Defekt aufgetreten — Tour blockiert, Einsatz nicht starten
@@ -1107,7 +1103,7 @@ export function processTours(state, m, log) {
     }
 
     // Starte den Einsatz
-    const startResult = startDeployment(state, tour, nextDep.dep, nextDep.index);
+    const startResult = startDeployment(state, tour, nextDep.dep, nextDep.index, currentPlan);
     nextDep.dep.tripId = startResult.tripId;
     nextDep.dep.status = "active";
     nextDep.dep.actualStartMin = m;
