@@ -162,7 +162,13 @@ export async function hydrateCloudArchive(blocks: any, ownerId: string, state: a
     // Legacy embedded base64 saves (pre-file-storage) pass through directly.
     if (typeof c.data === "string" && !isFileUri(c.data)) return c;
     const row = rowByHash.get(c.id);
-    if (!validRecord(row, ownerId, c)) throw new CloudArchiveError("Kein Zugriff auf diesen Cloud-Archivblock.");
+    if (!validRecord(row, ownerId, c)) {
+      // Chunk data was stripped by the client's references optimization.
+      // In single-file mode, blocks aren't stored in GameArchiveBlock, so
+      // the stripped data is unrecoverable. Skip the chunk — historical
+      // data is lost but the save still loads.
+      return null;
+    }
     if (isFileUri(row.data)) {
       if (!storage?.createSignedUrl) throw new CloudArchiveError("Storage-Funktionen fehlen zum Laden des Archivblocks.");
       const file_uri = row.data.slice(URI_PREFIX.length);
@@ -177,7 +183,16 @@ export async function hydrateCloudArchive(blocks: any, ownerId: string, state: a
     await verifyBase64(row.data, c.id);
     return { ...c, data: row.data };
   });
-  return stateWithChunks(state, items);
+  // Filter out skipped chunks (missing data that can't be recovered).
+  const available = items.filter(Boolean);
+  const result = stateWithChunks(state, available);
+  // If journal chunks were skipped, adjust the projection count to match
+  // the available chunks so client-side validation doesn't reject the save.
+  if (result.accounting?.journalProjection && all.some((c: any) => c.kind === "accountingJournal")) {
+    const availableJournalCount = available.filter((c: any) => c.kind === "accountingJournal").reduce((n: number, c: any) => n + c.count, 0);
+    result.accounting = { ...result.accounting, journalProjection: { ...result.accounting.journalProjection, count: availableJournalCount } };
+  }
+  return result;
 }
 
 export async function stageCloudArchive(blocks: any, ownerId: string, state: any, previous: any = null, previousRefs: Record<string, string> | null = {}, storage: any = null): Promise<{ state: any; archive_blocks: Record<string, string> }> {

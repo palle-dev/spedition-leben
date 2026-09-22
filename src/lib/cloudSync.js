@@ -67,13 +67,11 @@ export async function createCloudSave(state, partyId, saveLabel, saveType, userI
   return result;
 }
 export async function saveCloudSave(stateId, state, expectedRevision, saveLabel, saveType, userId = null) {
-  const key = ackKey(userId, stateId), ack = userId && archiveAcks.get(key);
+  const key = ackKey(userId, stateId);
+  // In single-file mode, the references optimization stripped chunk data that
+  // couldn't be recovered on load (blocks aren't stored in GameArchiveBlock).
+  // Always include full chunk data to keep saves self-contained.
   const references = new Set();
-  if (ack?.revision === expectedRevision && ack.partyId === state.meta?.partyId) {
-    for (const c of state.historyArchive?.chunks || []) {
-      if (ack.chunks.get(c.id) === archiveIdentity(c)) references.add(c.id);
-    }
-  }
   const result = await invokeCloudSync({
     command: "save", stateId,
     state: await portableHistory(state, { references, loadBlock: c => readHistoryBlock(userId, c) }),
