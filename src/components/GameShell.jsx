@@ -25,7 +25,7 @@ export default function GameShell() {
 }
 
 function GameShellContent() {
-  const { state, loading, showStart, toast, motionEnabled, overlay, dismissOverlay, toasts, dismissToast, connectionState, hasLock, localSaveError, save, exportGame, showToast } = useGame();
+  const { state, loading, loadingProgress, loadingPhase, showStart, toast, motionEnabled, overlay, dismissOverlay, toasts, dismissToast, connectionState, hasLock, localSaveError, save, exportGame, showToast } = useGame();
   const location = useLocation();
 
   if (!hasLock) return (
@@ -37,7 +37,7 @@ function GameShellContent() {
       </div>
     </div>
   );
-  if (loading) return <CinematicLoader />;
+  if (loading) return <CinematicLoader progress={loadingProgress} phase={loadingPhase} />;
   const downloadBackup = async () => {
     try {
     const data = await exportGame();

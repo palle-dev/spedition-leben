@@ -44,6 +44,8 @@ export function useDisplayGameTime() {
 export function GameProvider({ children }) {
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingPhase, setLoadingPhase] = useState("");
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(null);
   const [motionEnabled, setMotionEnabled] = useState(() => {
@@ -374,9 +376,12 @@ export function GameProvider({ children }) {
   }, [sessionToken, isCurrentSession, showToast]);
 
   // Ein Ladeweg für Startup, Cloud, Slots, Autosaves und Import.
-  const activateState = useCallback(async (raw, token, providedMeta = null, keepStart = false) => {
+  const activateState = useCallback(async (raw, token, providedMeta = null, keepStart = false, onProgress = null) => {
+    if (onProgress) onProgress(20, "Daten werden verarbeitet …");
     let loaded = await processSaveFile("prepare", raw);
+    if (onProgress) onProgress(45, "Historie wird wiederhergestellt …");
     loaded = await stageHistory(token.userId, loaded, true);
+    if (onProgress) onProgress(65, "Spielstand wird aktiviert …");
     if (providedMeta?.partyId) loaded.meta.partyId = providedMeta.partyId;
     ensurePartyId(loaded);
     let savedMeta = providedMeta;
@@ -411,6 +416,7 @@ export function GameProvider({ children }) {
     dirtySaveRef.current = true;
     cloudDirtyRef.current = !providedMeta;
     if (hasLockRef.current && !lockRequiresReloadRef.current) await saveNow(loaded);
+    if (onProgress) onProgress(85, "Sicherungen werden aktualisiert …");
     try {
       const metas = await getAllAutosaveMetas(token.userId, !!loaded.scenario);
       if (isCurrentSession(token)) setAutosaveMetas(metas);
@@ -784,19 +790,24 @@ export function GameProvider({ children }) {
     stateRef.current = null;
     syncMetaRef.current = null;
     setState(null); setSyncMeta(null); setCloudSaves([]);
-    setCloudLoading(false); setShowStart(true); setLoading(true);
+    setCloudLoading(false); setShowStart(true); setLoading(true); setLoadingProgress(0); setLoadingPhase("");
     setLocalSaveError(null);
     setAutomationEnabled(false);
     cloudDirtyRef.current = false; dirtySaveRef.current = false;
     dirtyAutosaveRef.current = false;
     if (!uid) { setLoading(false); return; }
+    const onLoadProgress = (pct, phase) => {
+      if (isCurrentSession(token)) { setLoadingProgress(pct); setLoadingPhase(phase); }
+    };
+    onLoadProgress(5, "Spielstand wird geladen …");
     (async () => {
       try {
         const loaded = await loadCurrent(uid);
         if (!isCurrentSession(token)) return;
         if (loaded) {
-          await activateState(loaded, token, null, true);
+          await activateState(loaded, token, null, true, onLoadProgress);
           if (!isCurrentSession(token)) return;
+          onLoadProgress(90, "Cloud wird synchronisiert …");
           const meta = syncMetaRef.current;
           if (navigator.onLine && meta?.cloudId) {
             try {
@@ -808,6 +819,7 @@ export function GameProvider({ children }) {
           }
         }
         if (isCurrentSession(token)) refreshCloudSaves();
+        onLoadProgress(100, "Bereit zur Abfahrt …");
       } catch (error) {
         if (isCurrentSession(token)) setLocalSaveError("Spielstand konnte nicht geladen werden: " + error.message);
       } finally {
@@ -1081,7 +1093,7 @@ export function GameProvider({ children }) {
   ]);
 
   const value = useMemo(() => ({
-    state, loading, busy, toast,
+    state, loading, loadingProgress, loadingPhase, busy, toast,
     motionEnabled, overlay,
     automationEnabled, automationBusy,
     dirty: !!localSaveError, save: async () => stateRef.current ? saveNow(stateRef.current) : null, saving: false,
@@ -1092,7 +1104,7 @@ export function GameProvider({ children }) {
     backgroundAdvance,
     syncMeta, cloudSaves, cloudLoading,
   }), [
-    state, loading, busy, toast,
+    state, loading, loadingProgress, loadingPhase, busy, toast,
     motionEnabled, overlay,
     automationEnabled, automationBusy,
     toasts, unseenCount,
