@@ -17,5 +17,9 @@
     "log": "typecheck.log"
   },
   "browserVisualAcceptance": "not performed; no browser capability available",
-  "published": false
+  "published": false,
+  "productionBuild": {
+    "command": "npm run build",
+    "exitCode": 0
+  }
 }
