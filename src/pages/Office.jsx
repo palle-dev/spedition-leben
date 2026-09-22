@@ -1,3 +1,4 @@
+import JourneyPanel from "@/components/office/JourneyPanel";
 import DayRecap from "@/components/office/DayRecap";
 import LivingOffice from "@/components/office/LivingOffice";
 import ShortGoals from "@/components/office/ShortGoals";
@@ -38,6 +39,7 @@ export default function Office() {
    <TabsContent value="overview" className="space-y-5 mt-5">
     <OfficeKPIs state={state} period={period}/>
     <section className="space-y-3"><h2 className="text-lg font-semibold">Jetzt wichtig</h2><DailyOverview state={state} maxItems={3}/></section>
+    <JourneyPanel/>
     <ForecastHints/>
     <OfficeDetail title="Heute im Betrieb" description="Kapazität, Verpflichtungen und Aufgaben des Teams"><DailyCapacity state={state}/></OfficeDetail>
     <OfficeDetail title="Dein Büro" description="Atmosphäre und Einführung"><LivingOffice state={state}/><PageHint pageKey="office"/></OfficeDetail>
