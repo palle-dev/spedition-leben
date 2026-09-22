@@ -63,6 +63,24 @@ function validRecord(row: any, ownerId: string, c: any): boolean {
 // Bounded concurrency: processes async tasks in parallel batches to avoid
 // sequential round-trips per chunk (the main cause of multi-minute sync hangs).
 const CONCURRENCY = 5;
+// Retry transient server errors (disconnects, timeouts) that were causing
+// HTTP 500 failures during archive block uploads on long-running saves.
+async function withRetry<T>(fn: () => Promise<T>, retries = 3, baseDelayMs = 1500): Promise<T> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (attempt === retries) throw error;
+      const msg = (error?.message || "") + "";
+      if (/disconnect|timeout|network|fetch|ECONNRESET|socket|503|502|504/i.test(msg)) {
+        await new Promise(r => setTimeout(r, baseDelayMs * (attempt + 1)));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error("withRetry: unreachable");
+}
 async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
   const results: R[] = new Array(items.length);
   let cursor = 0;
@@ -85,7 +103,7 @@ export async function stageState(storage: any, state: any): Promise<any> {
   if (json.length < STATE_FILE_THRESHOLD) return state;
   const blob = new Blob([json], { type: "application/json" });
   const file = new File([blob], "state.json", { type: "application/json" });
-  const { file_uri } = await storage.uploadPrivateFile({ file });
+  const { file_uri } = await withRetry(() => storage.uploadPrivateFile({ file }));
   return URI_PREFIX + file_uri;
 }
 export async function hydrateState(storage: any, state: any): Promise<any> {
@@ -184,7 +202,7 @@ export async function stageCloudArchive(blocks: any, ownerId: string, state: any
       const binary = atob(data);
       const blob = new Blob([Uint8Array.from(binary, (ch: number) => ch.charCodeAt(0))], { type: "application/gzip" });
       const file = new File([blob], c.id + ".gz", { type: "application/gzip" });
-      const { file_uri } = await storage.uploadPrivateFile({ file });
+      const { file_uri } = await withRetry(() => storage.uploadPrivateFile({ file }));
       storedData = URI_PREFIX + file_uri;
     } else {
       storedData = data;

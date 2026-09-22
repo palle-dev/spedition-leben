@@ -48,8 +48,8 @@ export default async function handleCloudSync(req) {
     const B = traced(base44.asServiceRole.entities.GameArchiveBlock, "GameArchiveBlock");
     // Private-file storage for archive payloads — keeps entity fields small.
     const storage = {
-      uploadPrivateFile: (args: any) => base44.asServiceRole.integrations.Core.UploadPrivateFile(args),
-      createSignedUrl: (args: any) => base44.asServiceRole.integrations.Core.CreateFileSignedUrl(args),
+      uploadPrivateFile: async (args: any) => { step = "UploadPrivateFile"; return await base44.asServiceRole.integrations.Core.UploadPrivateFile(args); },
+      createSignedUrl: async (args: any) => { step = "CreateFileSignedUrl"; return await base44.asServiceRole.integrations.Core.CreateFileSignedUrl(args); },
     };
     if (body?.stateId != null && (typeof body.stateId !== "string" || !body.stateId.trim())) {
       return Response.json({ error: "Ungültige stateId" }, { status: 400 });
