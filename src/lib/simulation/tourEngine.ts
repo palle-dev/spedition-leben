@@ -1261,7 +1261,7 @@ export function suggestTours(state, opts) {
   const restrictSet = restrictOrderIds ? new Set(restrictOrderIds) : null;
   if (maxSuggestions <= 0) return { suggestions: [] };
   const reliable = plan => plan.ok && plan.deployments.every(d => {
-    if (d.orderStatus === "offered" && d.deadlineBufferMin < minNewOrderBufferMin) return false;
+    if (d.orderStatus === "offered" && !(d.deadlineBufferMin >= minNewOrderBufferMin)) return false;
     const order = state._orderMap.get(d.orderId);
     // Confirmation checks ADR as well; exclude invalid candidates here so a
     // qualified driver or an ordinary offer can actually reach confirmation.

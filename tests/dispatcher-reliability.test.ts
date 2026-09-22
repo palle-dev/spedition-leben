@@ -113,3 +113,14 @@ it.each(['round','single'])('wählt ohne Gefahrgutbefugnis einen normalen Auftra
  if(kind==='round')processDispatcher(s,s.employees[0],s.gameTime,[]);else planSingleVehicle(s,s.vehicles[0],s.gameTime,[]);
  expect(s.orders[1].status).not.toBe('offered');expect(dg.status).toBe('offered');
 });
+
+it('plant ohne qualifizierten Fahrer normale Fracht statt einer nicht bestätigbaren Gefahrguttour',()=>{
+ const s=dgSetup(),dg=s.orders[0];
+ s.orders.push({...structuredClone(dg),id:'ordinary',isDangerousGoods:false,dgProfileId:null,paymentCents:100000});
+ expect(search(s).suggestions[0]?.orderIds).toEqual(['ordinary']);
+});
+it('berücksichtigt den Ablauf einer ADR-Qualifikation vor dem Tourende',()=>{
+ const s=dgSetup();
+ s.training.qualifications.push({personId:'d0',type:'adr_basic',status:'active',validUntilMin:s.gameTime+1});
+ expect(search(s).suggestions).toHaveLength(0);
+});
