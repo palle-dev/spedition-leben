@@ -41,6 +41,11 @@ export default function HelpPanel({ open, onClose }) {
   const location = useLocation();
   const [query, setQuery] = useState("");
   const [activeId, setActiveId] = useState(null);
+  const [fontScale, setFontScale] = useState(() => {
+    const saved = parseFloat(localStorage.getItem("help-font-scale"));
+    return saved >= 0.8 && saved <= 1.6 ? saved : 1;
+  });
+  const fs = (px) => ({ fontSize: `${(px * fontScale).toFixed(1)}px` });
 
   // Automatisch das zur aktuellen Seite passende Thema vorauswählen.
   const initialTopic = useMemo(() => ROUTE_TOPIC[location.pathname] || "basics", [location.pathname]);
@@ -80,9 +85,21 @@ export default function HelpPanel({ open, onClose }) {
               <div className="text-[11px] text-muted-foreground/70">FRACHTFIEBER Spielführer</div>
             </div>
           </div>
-          <button onClick={onClose} className="w-9 h-9 grid place-items-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition shrink-0" aria-label="Hilfe schließen">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => { const v = Math.max(0.8, +(fontScale - 0.1).toFixed(1)); setFontScale(v); localStorage.setItem("help-font-scale", v); }}
+              className="w-7 h-7 grid place-items-center rounded-md text-muted-foreground hover:text-foreground hover:bg-white/5 transition text-[10px] font-semibold"
+              title="Schrift verkleinern"
+            >A−</button>
+            <button
+              onClick={() => { const v = Math.min(1.6, +(fontScale + 0.1).toFixed(1)); setFontScale(v); localStorage.setItem("help-font-scale", v); }}
+              className="w-7 h-7 grid place-items-center rounded-md text-muted-foreground hover:text-foreground hover:bg-white/5 transition text-xs font-semibold"
+              title="Schrift vergrößern"
+            >A+</button>
+            <button onClick={onClose} className="w-9 h-9 grid place-items-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition" aria-label="Hilfe schließen">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Suche */}
@@ -119,15 +136,15 @@ export default function HelpPanel({ open, onClose }) {
                     <span className={`grid place-items-center w-8 h-8 rounded-lg ${color.bg} border ${color.border} shrink-0`}>
                       <Icon className={`w-4 h-4 ${color.text}`} />
                     </span>
-                    <span className="text-xs font-semibold text-foreground flex-1">{topic.title}</span>
+                    <span className="font-semibold text-foreground flex-1" style={fs(12)}>{topic.title}</span>
                     <ChevronDown className={`w-4 h-4 text-muted-foreground/50 transition-transform shrink-0 ${isActive ? "rotate-180" : ""}`} />
                   </button>
                   {isActive && (
                     <div className="px-3.5 pb-4 space-y-3.5">
                       {topic.sections.map((s, i) => (
                         <div key={i} className="space-y-1">
-                          <div className="text-[11px] font-semibold uppercase tracking-wider text-foreground/80">{s.heading}</div>
-                          <p className="text-[11px] text-muted-foreground leading-relaxed">{s.body}</p>
+                          <div className="font-semibold uppercase tracking-wider text-foreground/80" style={fs(11)}>{s.heading}</div>
+                          <p className="text-muted-foreground leading-relaxed" style={fs(11)}>{s.body}</p>
                         </div>
                       ))}
                     </div>
