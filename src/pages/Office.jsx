@@ -1,7 +1,6 @@
 import JourneyPanel from "@/components/office/JourneyPanel";
 import DayRecap from "@/components/office/DayRecap";
-import LivingOffice from "@/components/office/LivingOffice";
-import ShortGoals from "@/components/office/ShortGoals";
+import CompanyYard from "@/components/office/CompanyYard";
 import React, { useState } from "react";
 import { useGame } from "@/lib/gameContext";
 import OfficeHeader from "@/components/office/OfficeHeader";
@@ -37,12 +36,13 @@ export default function Office() {
     <TabsTrigger value="reports" className="py-2.5">Berichte & Verlauf</TabsTrigger>
    </TabsList>
    <TabsContent value="overview" className="space-y-5 mt-5">
+    <CompanyYard/>
     <OfficeKPIs state={state} period={period}/>
     <section className="space-y-3"><h2 className="text-lg font-semibold">Jetzt wichtig</h2><DailyOverview state={state} maxItems={3}/></section>
     <JourneyPanel/>
     <ForecastHints/>
     <OfficeDetail title="Heute im Betrieb" description="Kapazität, Verpflichtungen und Aufgaben des Teams"><DailyCapacity state={state}/></OfficeDetail>
-    <OfficeDetail title="Dein Büro" description="Atmosphäre und Einführung"><LivingOffice state={state}/><PageHint pageKey="office"/></OfficeDetail>
+    <OfficeDetail title="Dein Büro" description="Atmosphäre und Einführung"><PageHint pageKey="office"/></OfficeDetail>
    </TabsContent>
    <TabsContent value="operations" className="space-y-4 mt-5">
     <h2 className="text-lg font-semibold">Betrieb steuern</h2>
@@ -55,7 +55,7 @@ export default function Office() {
    </TabsContent>
    <TabsContent value="development" className="space-y-4 mt-5">
     <h2 className="text-lg font-semibold">Deine nächsten Schritte</h2>
-    <ShortGoals state={state}/>
+    <p className="text-sm text-muted-foreground">Deinen gewählten Unternehmensweg und die Wochenbilanz findest Du im Überblick. Hier entwickelst Du Team und Betrieb im Detail.</p>
     <ScenarioProgressPanel/>
     <OfficeDetail title="Entwicklung & Meilensteine" description="Langfristige Ziele und Fortschritte"><DevelopmentPanel state={state}/></OfficeDetail>
     <OfficeDetail title="Chancen in der Spielwelt" description="Neue Möglichkeiten entdecken"><WorldTeaser state={state}/></OfficeDetail>
