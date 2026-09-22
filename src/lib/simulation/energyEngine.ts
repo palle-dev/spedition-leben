@@ -58,8 +58,8 @@ export function processEnergyUntil(state,toMin) {
  while(from<toMin-EPS){
   const end=Math.min(toMin,(Math.floor(from/60)+1)*60);
   for(const branch of state.branches||[]){
-   const site=energy.sites[branch.id];if(!site||branch.status!=="active")continue;
-   let t=from;
+   const site=energy.sites[branch.id];if(!site)continue;
+   let t=branch.status === "active" ? from : end;
    const fleet=(state.vehicles||[]).filter(v=>isElectric(v)&&v.status==="free"&&v.locationCity===branch.city);
    const ports=[...Array(site.dcChargers).fill(150),...Array(site.wallboxes).fill(22)];
    while(t<end-EPS){
@@ -79,7 +79,6 @@ export function processEnergyUntil(state,toMin) {
     for(const a of active)if(a.kw>EPS)hours=Math.min(hours,(a.v.batteryCapacityKWh-a.v.batteryKWh)/(a.kw*R.chargeEfficiency));
     if(discharge>EPS)hours=Math.min(hours,site.storedKWh*R.storageEfficiency/discharge);
     if(charge>EPS)hours=Math.min(hours,(site.storageKWh-site.storedKWh)/(charge*R.storageEfficiency));
-    if(hours<EPS){site.storedKWh=Math.max(0,Math.min(site.storageKWh,site.storedKWh));break;}
     for(const a of active){
      const kwh=a.kw*hours*R.chargeEfficiency;
      a.v.batteryKWh=Math.min(a.v.batteryCapacityKWh,a.v.batteryKWh+kwh);
