@@ -1,0 +1,9 @@
+{
+  "typecheckExitCode": 0,
+  "lintExitCode": 0,
+  "buildExitCode": 0,
+  "testsPassed": 21,
+  "testFiles": 3,
+  "visualBrowserAcceptance": false,
+  "published": false
+}

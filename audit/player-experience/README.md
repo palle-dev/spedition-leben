@@ -1,5 +1,7 @@
 # Spielerlebnis – vier aufeinander aufbauende Ausbaustufen
 
+> Aktualisierung: Die schematische Hofillustration aus Stufe 2 wurde auf Nutzerwunsch entfernt und durch einen integrierten kompakten Unternehmensauftritt ersetzt. Siehe audit/company-header/README.md. Firmenfarbe und Leitsatz bleiben erhalten.
+
 ## Umsetzung
 
 1. Unternehmenswege im Büro: Verlässlichkeit, Menschen, Zukunft. Drei mit der aktiven Flotte skalierende Ziele; nur neue tatsächliche Ergebnisse zählen. Meilensteine werden einmalig vergeben. Wochenberichte entstehen am Wochenwechsel, acht bleiben unmittelbar verfügbar; ältere werden verlustfrei im vorhandenen Archiv erhalten.
