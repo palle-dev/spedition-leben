@@ -1,6 +1,7 @@
+import { privateStorageFixture } from "./fixtures/privateStorage";
 import { createInitialState } from "../base44/shared/simulationEngine";
 import { createHash } from "node:crypto";
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const mock = vi.hoisted(() => ({ client: null }));
 vi.mock('@base44/sdk', () => ({ createClientFromRequest: () => mock.client }));
 import cloud from '../base44/functions/cloudSync/entry';
@@ -14,7 +15,8 @@ const snapshot = (gameTime, meta?) => ({
 
 // Diese Tests prüfen Handler-Verträge mit einem Datenbankersatz.
 // Sie belegen keine produktive RLS-Konfiguration oder Datenbank-Atomarität.
-let records, entities, archiveRecords, archiveEntity;
+let records, entities, archiveRecords, archiveEntity, fileStore;
+afterEach(() => vi.unstubAllGlobals());
 beforeEach(() => {
   records = new Map([
     ['own', { id: 'own', owner_id: 'alice', revision: 3, state: snapshot(41135) }],
@@ -32,12 +34,13 @@ beforeEach(() => {
     }),
   };
   archiveRecords = new Map();
+  fileStore = privateStorageFixture();
   archiveEntity = {
     filter: vi.fn(async q => [...archiveRecords.values()].filter(r => Object.entries(q).every(([k,v]) => r[k] === v))),
     get: vi.fn(async id => archiveRecords.get(id)),
     create: vi.fn(async data => { const r = { ...data, id: 'block-' + archiveRecords.size }; archiveRecords.set(r.id, r); return r; }),
   };
-  mock.client = { auth: { me: vi.fn(async () => ({ id: 'alice' })) }, asServiceRole: { entities: { GameState: entities, GameArchiveBlock: archiveEntity } } };
+  mock.client = { auth: { me: vi.fn(async () => ({ id: 'alice' })) }, asServiceRole: { integrations: { Core: fileStore.core }, entities: { GameState: entities, GameArchiveBlock: archiveEntity } } };
 });
 const req = body => new Request('https://local.invalid/test', { method: 'POST', body: JSON.stringify(body) });
 
@@ -133,8 +136,9 @@ describe('Cloud archive references', () => {
     const response = await cloud(req({ command: 'save', stateId: 'own', expected_revision: 3, state: archived([ref]) }));
     expect(response.status).toBe(200);
     expect((await response.json()).archive_delta).toBe(1);
-    expect(records.get('own').state.historyArchive.chunks).toEqual([ref]);
-    expect(archiveRecords.size).toBe(1);
+    expect((await fileStore.readState(records.get('own').state)).historyArchive.chunks).toEqual([chunk]);
+    expect(archiveRecords.size).toBe(0);
+    expect(fileStore.files.size).toBe(1);
     const loaded = await cloud(req({ command: 'load', stateId: 'own' }));
     expect((await loaded.json()).state.historyArchive.chunks).toEqual([chunk]);
   });
@@ -162,23 +166,24 @@ describe('Cloud archive references', () => {
   });
 });
 
-describe('Separate archive storage lifecycle', () => {
+describe('Complete private-file storage lifecycle', () => {
   const c = { id: createHash('sha256').update('original').digest('hex'), kind: 'expiredOffers', count: 1, rawBytes: 8, data: btoa('original') };
   const full = () => ({ ...createInitialState({ companyName: 'Archive test' }).state, historyArchive: { version: 1, chunks: [c] } });
-  it('never commits a snapshot when block storage fails', async () => {
-    archiveEntity.create.mockRejectedValueOnce(Error('storage offline'));
+  it('never commits a snapshot when private-file storage fails', async () => {
+    fileStore.core.UploadPrivateFile.mockRejectedValueOnce(Error('storage offline'));
     const response = await cloud(req({ command: 'save', stateId: 'own', expected_revision: 3, state: full() }));
     expect(response.status).toBe(500);
     expect(entities.updateMany).not.toHaveBeenCalled();
     expect(records.get('own').revision).toBe(3);
   });
-  it('preserves valid old state after CAS failure and can retry staged blocks', async () => {
+  it('preserves valid old state after CAS failure and can retry a complete upload', async () => {
     entities.updateMany.mockResolvedValueOnce({ updated: 0 });
     const body = { command: 'save', stateId: 'own', expected_revision: 3, state: full() };
     expect((await cloud(req(body))).status).toBe(409);
     expect(records.get('own').state.gameTime).toBe(41135);
     expect((await cloud(req(body))).status).toBe(200);
-    expect(archiveEntity.create).toHaveBeenCalledTimes(1);
+    expect(fileStore.core.UploadPrivateFile).toHaveBeenCalledTimes(2);
+    expect((await fileStore.readState(records.get('own').state)).historyArchive.chunks).toEqual([c]);
   });
   it('loads complete data through both cloudSync and the legacy gameCommand path', async () => {
     await cloud(req({ command: 'save', stateId: 'own', expected_revision: 3, state: full() }));
@@ -189,10 +194,10 @@ describe('Separate archive storage lifecycle', () => {
       expect(body.state.historyArchive.chunks).toEqual([c]);
     }
   });
-  it('keeps immutable blocks when deleting a save, protecting other slots and in-flight saves', async () => {
+  it('keeps immutable files when deleting a save, protecting other slots and in-flight saves', async () => {
     await cloud(req({ command: 'save', stateId: 'own', expected_revision: 3, state: full() }));
     expect((await cloud(req({ command: 'delete', stateId: 'own' }))).status).toBe(200);
-    expect(archiveRecords.size).toBe(1);
+    expect(fileStore.files.size).toBe(1);
   });
 });
 
@@ -211,6 +216,9 @@ describe('Cloud operation diagnostics',()=>{
  it('identifies archive lookup failures before the snapshot is written',async()=>{
   const data=btoa('archive'),id=createHash('sha256').update('archive').digest('hex');
   const state={...snapshot(100),historyArchive:{version:1,chunks:[{id,kind:'expiredOffers',count:1,rawBytes:2,data}]}};
+  const {data: _data, ...ref}=state.historyArchive.chunks[0];
+  state.historyArchive.chunks=[ref];
+  records.get('own').state=structuredClone(state);
   archiveEntity.filter.mockRejectedValue(new Error('not-found'));
   const r=await cloud(req({command:'save',stateId:'own',expected_revision:3,state}));
   expect(r.status).toBe(500);expect(await r.json()).toMatchObject({operation:'GameArchiveBlock:filter'});expect(entities.updateMany).not.toHaveBeenCalled();
