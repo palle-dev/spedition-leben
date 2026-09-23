@@ -1,4 +1,6 @@
 import React from "react";
+import { HarborOpeningGuide } from "@/components/world/HarborOpeningPanel";
+import { harborOpeningActive, harborOpeningStartReason } from "@/lib/simulation/harborOpening";
 import { useNavigate } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import { detectOnboardingStep, getOnboardingBlocker, ONBOARDING_STEPS } from "@/lib/developmentEngine.js";
@@ -12,11 +14,13 @@ export default function OnboardingGuide() {
   const { state, send, showToast } = useGame();
   const navigate = useNavigate();
 
+  if (harborOpeningActive(state)) return <HarborOpeningGuide state={state} />;
   if (!state.onboarding?.active) return null;
 
   const stepId = detectOnboardingStep(state);
   const stepIdx = ONBOARDING_STEPS.findIndex(s => s.id === stepId);
-  const step = ONBOARDING_STEPS[stepIdx];
+  const invitation = stepId === "choose_order" && !harborOpeningStartReason(state);
+  const step = invitation ? { ...ONBOARDING_STEPS[stepIdx], title: "Anna wartet in deinem Büro", hint: "Lerne Anna kennen und fahre deinen ersten Transport für sie. Ihre Einladung wartet im Büro. Du kannst auch direkt einen Auftrag auf dem Markt wählen.", linkPath: "/" } : ONBOARDING_STEPS[stepIdx];
   const blocker = getOnboardingBlocker(state);
 
   async function handlePause() {
@@ -105,7 +109,7 @@ export default function OnboardingGuide() {
                 onClick={() => navigate(step?.linkPath || "/")}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-lime/10 text-lime border border-lime/20 hover:bg-lime/20 transition text-xs font-medium active:scale-95"
               >
-                {step?.linkPath === "/auftraege" ? "Zu den Aufträgen" :
+                {invitation ? "Zu Anna" : step?.linkPath === "/auftraege" ? "Zu den Aufträgen" :
                  step?.linkPath === "/disposition" ? "Zur Disposition" :
                  step?.linkPath === "/finanzen" ? "Zu den Finanzen" : "Öffnen"}
                 <ChevronRight className="w-3 h-3" />
