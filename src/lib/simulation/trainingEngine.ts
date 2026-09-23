@@ -1546,8 +1546,10 @@ export function getTrainingEventTimes(state, t, maxMin) {
 // Prüfe ob Person in Ausbildung/Training ist (für Disposition)
 export function isPersonInTraining(state, personId, atMin) {
   const m = atMin || state.gameTime;
+  // Neue und ältere Spielstände können vor der ersten Migration noch
+  // kein Trainingsregister haben. Die Leseprüfung legt selbst keines an.
   // Kurs
-  for (const enr of state.training.enrollments) {
+  for (const enr of state.training?.enrollments || []) {
     if (enr.personId !== personId) continue;
     if (!["reserved", "in_progress"].includes(enr.status)) continue;
     for (const bs of enr.blockStarts) {
@@ -1555,7 +1557,7 @@ export function isPersonInTraining(state, personId, atMin) {
     }
   }
   // Ausbildung
-  for (const appr of state.training.apprenticeships) {
+  for (const appr of state.training?.apprenticeships || []) {
     if (appr.personId !== personId) continue;
     if (!["theory", "practice"].includes(appr.status)) continue;
     if (appr.currentBlockStart && m >= appr.currentBlockStart && m < appr.currentBlockStart + BLOCK_MIN) return true;
