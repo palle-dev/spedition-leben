@@ -12,7 +12,7 @@ export default function OnboardingGuide() {
   const { state, send, showToast } = useGame();
   const navigate = useNavigate();
 
-  if (!state.onboarding?.active || state.onboarding.paused) return null;
+  if (!state.onboarding?.active) return null;
 
   const stepId = detectOnboardingStep(state);
   const stepIdx = ONBOARDING_STEPS.findIndex(s => s.id === stepId);
@@ -31,6 +31,16 @@ export default function OnboardingGuide() {
     try { await send("markOnboardingReviewed", {}); }
     catch (e) { showToast(e.message, "error"); }
   }
+
+  if (state.onboarding.paused) return (
+    <div className="glass border border-white/10 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+      <span className="text-xs text-muted-foreground">Begleitung pausiert</span>
+      <button onClick={async () => {
+        try { await send("resumeOnboarding", {}); }
+        catch (e) { showToast(e.message, "error"); }
+      }} className="text-xs font-medium text-lime hover:underline">Begleitung fortsetzen</button>
+    </div>
+  );
 
   return (
     <motion.div
