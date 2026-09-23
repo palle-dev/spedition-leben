@@ -18,7 +18,7 @@ export default function SiteExpansionCard({ branchId }) {
   const project = overview.activeProject;
   const cfg = EXPANSION_CONFIG[type];
   const blocked = (state.appointments || []).some(a => a.status === "active");
-  const affordable = preview.ok && state.company.accountCents >= preview.costCents;
+  const affordable = "costCents" in preview && state.company.accountCents >= preview.costCents;
   const processing = submitting || busy || !!backgroundAdvance?.active;
   const progress = Math.max(0, Math.min(100, project?.progressPct || 0));
   async function build() {
@@ -64,7 +64,7 @@ export default function SiteExpansionCard({ branchId }) {
               {Array.from({ length: cfg.maxSlots }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}</option>)}
             </select>
           </label>}
-          {preview.ok ? (
+          {"costCents" in preview ? (
             <div className="rounded-xl bg-white/5 p-3 space-y-2 text-sm" aria-live="polite">
               <p className="flex justify-between gap-3"><span>Baukosten einmalig</span><strong>{formatEuro(preview.costCents)}</strong></p>
               <p className="flex justify-between gap-3"><span>Zusätzliche Kosten ab Fertigstellung</span><strong className="shrink-0">+{formatEuro(preview.dailyCostCents)} / Tag</strong></p>

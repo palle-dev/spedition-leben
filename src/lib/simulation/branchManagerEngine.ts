@@ -360,7 +360,7 @@ function findTrainingCandidate(state: any, branch: any): any | null {
   }
 
   for (const p of persons) {
-    if (isPersonInTraining(state, p.id)) continue;
+    if (isPersonInTraining(state, p.id, state.gameTime)) continue;
     if (!isPersonAvailable(state, p.id, state.gameTime)) continue;
 
     for (const course of COURSE_CATALOG) {
@@ -490,7 +490,7 @@ function applyDecision(state: any, decision: any) {
     if (!decision.personId || !decision.courseId) return false;
     const found = findPerson(state, decision.personId);
     if (!found || !isActivelyEmployed(found.person)) return false;
-    if (isPersonInTraining(state, decision.personId)) return false;
+    if (isPersonInTraining(state, decision.personId, state.gameTime)) return false;
     const course = COURSE_CATALOG.find((c: any) => c.id === decision.courseId);
     if (!course) return false;
     if (state.company.accountCents < course.feeCents) return false;

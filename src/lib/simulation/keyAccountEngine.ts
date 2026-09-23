@@ -629,8 +629,8 @@ export function evaluateKeyAccountContracts(state, m, log) {
         `Bruttoumsatz: ${(contract.revenueCents / 100).toFixed(2)} €\n` +
         `Strafgebühren: -${(contract.penaltyCents / 100).toFixed(2)} €\n` +
         `Nettoumsatz: ${(netRevenue / 100).toFixed(2)} €\n\n` +
-        (successRate >= 85 ? "Hervorragende Leistung! Der Kunde wird weiterhin mit Ihnen zusammenarbeiten wollen." :
-         successRate >= 70 ? "Solide Leistung. Der Kunde ist zufrieden, erwartet aber Verbesserungen." :
+        (Number(successRate) >= 85 ? "Hervorragende Leistung! Der Kunde wird weiterhin mit Ihnen zusammenarbeiten wollen." :
+         Number(successRate) >= 70 ? "Solide Leistung. Der Kunde ist zufrieden, erwartet aber Verbesserungen." :
          "Die Leistung war unzureichend. Der Kunde wird zukünftige Angebote überdenken."),
       gameTime: m, category: "operations", priority: "high",
       linkedRefs: { type: "key_account_contract", id: contract.id },

@@ -2,14 +2,17 @@ import { deliverMessage, isEmployeeAvailable } from "./mailEngine.ts";
 import { isPersonAvailable } from "./absenceEngine.ts";
 import { isPersonInTraining } from "./trainingEngine.ts";
 
-const ASSISTANT = [
+type Responsibility = [string, string, boolean];
+type ManagementPhoneAction = { id: string; label: string; description: string; params: { action: string; enabled?: boolean; expected?: boolean; amountCents?: number } };
+
+const ASSISTANT: Responsibility[] = [
  ["autoAcceptOrders","Auftragsannahme",true],["autoDispatch","Disposition",false],
  ["accounting","Buchhaltungsunterstützung",true],["costOptimization","Kostenoptimierung",true],
  ["staffDevelopment","Personalentwicklung",true],["autoBookTraining","Kurse verbindlich buchen",true],
  ["orderMonitoring","Lieferfristen überwachen",true],["fleetUtilizationMonitoring","Flottenauslastung prüfen",true],
  ["managementReport","Liquidität und Personalbedarf täglich berichten",false]
 ];
-const BRANCH = [
+const BRANCH: Responsibility[] = [
  ["fleet","Fuhrpark und Wartung",true],["staff","Einstellungen und Weiterbildung",true],
  ["growth","Fahrzeugbeschaffung und Werkstattausbau",true],["orders","Aufträge und Disposition",true],
  ["costs","Standortkosten optimieren",true],["managementReport","Standortlage täglich berichten",false]
@@ -38,7 +41,7 @@ export function managementReport(state,employee) {
 }
 export function getManagementPhoneActions(state,employee) {
  const assistant=employee.role==="assistant",config=assistant?(state.assistantConfig||{}):(employee.responsibilities||{});
- const actions=(assistant?ASSISTANT:BRANCH).map(([key,label,defaultValue])=>{
+ const actions: ManagementPhoneAction[]=(assistant?ASSISTANT:BRANCH).map(([key,label,defaultValue])=>{
   const current=config[key]??defaultValue;
   return {id:"responsibility:"+key,label:(current?"Entziehen: ":"Übertragen: ")+label,
    description:(current?"Diese dauerhafte Zuständigkeit wird deaktiviert. Bereits beauftragte Maßnahmen bleiben bestehen.":"Diese Zuständigkeit wird dauerhaft übertragen. Bestehende Ausgabenregeln, Qualifikationen und Freigaben gelten weiterhin.")+(assistant?" Die Einstellung gilt für die Assistenzfunktion im Unternehmen.":" Sie gilt ausschließlich für diesen Standort."),
