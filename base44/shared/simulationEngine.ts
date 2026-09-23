@@ -966,7 +966,11 @@ export function applyCommand(state, command, params) {
       // Kein MAX_DUTY_MIN-Ablehnungsgrund mehr — lange Aufträge sind mit Pausen/Ruhe ausführbar
       // Störungsmanagement: Technischer Defekt vor Buchung von Kraftstoff/Maut prüfen
       if (maybeGenerateTechnicalDefectForTrip(state, v, d, o, state.gameTime, [])) {
-        throw new Error("Technischer Defekt! " + v.id + " kann den Transport nicht antreten. Siehe Störungen im Büro.");
+        // A defect is a committed game event, not a rejected command: throwing
+        // would discard the new disruption and RNG state at the worker boundary.
+        result = { ok: false, blockedByDisruption: true,
+          message: "Technischer Defekt! Der Lkw kann den Transport nicht antreten. Siehe Störungen im Büro." };
+        break;
       }
       const fuel = plan.fuelCents;
       const toll = tollCents(plan.totalKm);
