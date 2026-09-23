@@ -22,6 +22,7 @@ export default function DispatchWorkspace({
   activeTab, setActiveTab,
   selectedTripId, onSelectTrip,
   planningOrderId, onPlanOrder, onPlanChange, onStarted,
+  tourOrderId, onTourOrderChange,
   selectedVehicleId, onSelectVehicle,
   onShowOnMap, onShowVehicle,
   onPlanRoute,
@@ -34,7 +35,7 @@ export default function DispatchWorkspace({
   const [emptyVehicleId, setEmptyVehicleId] = useState("");
   const [emptyDriverId, setEmptyDriverId] = useState("");
   const [startingEmpty, setStartingEmpty] = useState(false);
-  const [tourOrderId, setTourOrderId] = useState(null);
+  const setTourOrderId = onTourOrderChange;
   const [bulkMode, setBulkMode] = useState(false);
 
   const running = state.trips.filter(t => t.status === "in_progress");
@@ -103,6 +104,7 @@ export default function DispatchWorkspace({
             />
           ) : tourOrderId ? (
             <TourPlanner
+              key={tourOrderId}
               primaryOrderId={tourOrderId}
               routeData={routeData}
               onBack={() => { setTourOrderId(null); onPlanRoute?.(null); }}

@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { formatEuro } from "@/lib/gameData";
+import { formatKEuro } from "@/lib/forecastData";
 import { getBalanceSheet, getPnL, getCashFlow, getLiquidityProjection, periodOf, periodStartMin, periodEndMin } from "@/lib/accountingData";
 import { Wallet, Home, TrendingUp, TrendingDown, Scale, Banknote, ArrowUpRight, ArrowDownRight, Clock } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, ReferenceLine } from "recharts";
@@ -74,7 +75,7 @@ export default function FinanceOverview({ state }) {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={cashFlowData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
               <XAxis dataKey="day" tick={{ fontSize: 10, fill: "hsl(var(--muted-text))" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-text))" }} axisLine={false} tickLine={false} tickFormatter={(v) => (v / 100).toFixed(0) + "k"} />
+              <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-text))" }} axisLine={false} tickLine={false} tickFormatter={formatKEuro} />
               <Tooltip
                 contentStyle={{ background: "hsl(var(--surface))", border: "1px solid hsl(var(--line) / 0.1)", borderRadius: 8, fontSize: 12 }}
                 formatter={(v) => formatEuro(v)}

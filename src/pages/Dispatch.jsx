@@ -6,7 +6,7 @@ import DispatchMap from "@/components/dispatch/DispatchMap";
 import DispatchWorkspace from "@/components/dispatch/DispatchWorkspace";
 import PlanningBoard from "@/components/planning/PlanningBoard";
 import { Truck, Home, Route as RouteIcon, TrafficCone, Network } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useHeaderSlot } from "@/lib/headerSlot";
 import DispatchToolbar from "@/components/dispatch/DispatchToolbar";
 import RouteDetailOverlay from "@/components/dispatch/RouteDetailOverlay";
@@ -15,6 +15,7 @@ import PartnerOverview from "@/components/partners/PartnerOverview";
 
 export default function Dispatch() {
   const { state } = useGame();
+  const location = useLocation();
   const [routeData, setRouteData] = useState(null);
   const [activeTab, setActiveTab] = useState(() => {
     const activeTripOrderIds = new Set();
@@ -23,6 +24,7 @@ export default function Dispatch() {
   });
   const [selectedTripId, setSelectedTripId] = useState(null);
   const [planningOrderId, setPlanningOrderId] = useState(null);
+  const [tourOrderId, setTourOrderId] = useState(null);
   const [selectedVehicleId, setSelectedVehicleId] = useState(null);
   const [focusAction, setFocusAction] = useState(null);
   const [planRoute, setPlanRoute] = useState(null);
@@ -41,9 +43,10 @@ export default function Dispatch() {
   }, []);
 
   // Trip aus URL-Parameter auswählen (von Büro "Zur Disposition")
-  const urlParams = new URLSearchParams(window.location.search);
+  const urlParams = new URLSearchParams(location.search);
   const tripParam = urlParams.get("trip");
   const orderParam = urlParams.get("order");
+  const actionParam = urlParams.get("action");
   useEffect(() => {
     if (tripParam) {
       setSelectedTripId(tripParam);
@@ -55,7 +58,13 @@ export default function Dispatch() {
   useEffect(() => {
     if (!orderParam) return;
     const ord = state.orders.find(o => o.id === orderParam);
-    if (ord && ord.status === "angenommen") {
+    setTourOrderId(null);
+    if (actionParam === "return" && ord && ["offered", "angenommen"].includes(ord.status)) {
+      setPlanningOrderId(null);
+      setTourOrderId(orderParam);
+      setActiveTab("auftraege");
+      setSelectedTripId(null);
+    } else if (ord && ord.status === "angenommen") {
       setPlanningOrderId(orderParam);
       setActiveTab("auftraege");
       setSelectedTripId(null);
@@ -64,7 +73,7 @@ export default function Dispatch() {
       setActiveTab("auftraege");
     }
     if (window.innerWidth < 1024) setMobileView("list");
-  }, [orderParam]);
+  }, [orderParam, actionParam]);
 
   const runningCount = state.trips.filter(t => t.status === "in_progress").length;
   const acceptedOrders = state.orders.filter(o => o.status === "angenommen" && !state.trips.some(t => t.orderId === o.id && t.status === "in_progress"));
@@ -95,6 +104,7 @@ export default function Dispatch() {
   }
 
   function handlePlanOrder(orderId) {
+    setTourOrderId(null);
     setPlanningOrderId(orderId);
     if (orderId) {
       setSelectedTripId(null);
@@ -134,6 +144,7 @@ export default function Dispatch() {
   }
 
   function handleStarted(result) {
+    setTourOrderId(null);
     setPlanningOrderId(null);
     setPlanRoute(null);
     if (result?.tripId) {
@@ -230,6 +241,8 @@ export default function Dispatch() {
             selectedTripId={selectedTripId}
             onSelectTrip={handleSelectTrip}
             planningOrderId={planningOrderId}
+            tourOrderId={tourOrderId}
+            onTourOrderChange={setTourOrderId}
             onPlanOrder={handlePlanOrder}
             onPlanChange={handlePlanChange}
             onStarted={handleStarted}

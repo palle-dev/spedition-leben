@@ -95,12 +95,18 @@ export default function DispatchToolbar({
       <div className="lg:hidden flex gap-1 bg-ink/60 border border-white/10 rounded-full p-0.5 shrink-0">
         <button
           onClick={() => setMobileView("map")}
+          aria-label="Karte anzeigen"
+          title="Karte anzeigen"
+          aria-pressed={isMapVisible}
           className={`px-2.5 py-1.5 rounded-full text-xs font-medium transition ${isMapVisible ? "bg-lime text-ink" : "text-muted-foreground"}`}
         >
           <Map className="w-3.5 h-3.5" />
         </button>
         <button
           onClick={() => setMobileView("list")}
+          aria-label="Auftragsliste anzeigen"
+          title="Auftragsliste anzeigen"
+          aria-pressed={!isMapVisible}
           className={`px-2.5 py-1.5 rounded-full text-xs font-medium transition ${!isMapVisible ? "bg-lime text-ink" : "text-muted-foreground"}`}
         >
           <List className="w-3.5 h-3.5" />
