@@ -1,6 +1,7 @@
 import { it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { createInitialState, applyCommand } from '@/lib/simulation/simulationEngine';
+import { migrateApprovals } from '@/lib/simulation/delegationEngine';
 import { createInitialState as remoteInitial, applyCommand as remoteCommand } from '../base44/shared/simulationEngine';
 
 it('Browser- und Base44-Module sind identische, überprüfbare Kopien', () => {
@@ -12,7 +13,8 @@ it('Löschen einer offenen Freigabe funktioniert in beiden Engines identisch', (
   const a = createInitialState({ companyName: 'Parity' }).state;
   const b = remoteInitial({ companyName: 'Parity' }).state;
   for (const state of [a, b]) {
-    state.approvals = { pending: [{ id: 'remove', status: 'pending' }, { id: 'keep', status: 'pending' }] };
+    migrateApprovals(state);
+    state.approvals.pending = [{ id: 'remove', status: 'pending' }, { id: 'keep', status: 'pending' }];
     state.delegation = { ...state.delegation, stats: { ...state.delegation?.stats, pendingApprovals: 2 } };
   }
   const local = applyCommand(a, 'deleteApproval', { requestId: 'remove' });
