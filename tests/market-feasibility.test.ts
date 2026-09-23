@@ -17,6 +17,29 @@ function setup() {
 }
 const status = s => assessMarketOffers(s).get('market-test')?.status;
 describe('Aktuelle Machbarkeit im Auftragsmarkt', () => {
+  it('prüft den unveränderten Startzustand schon vor dem ersten Spielbefehl korrekt', () => {
+    const s = createInitialState({}).state;
+    const before = JSON.stringify(s);
+    const offer = s.orders.find(o => o.customer === 'Hanse Handelskontor' && o.toCity === 'Bremen');
+    expect(assessMarketOffers(s).get(offer.id)?.status).toBe('on_time');
+    expect(validateTourConfirmation(s, {vehicleId:s.vehicles[0].id, driverId:s.drivers[0].id, orderIds:[offer.id]}).plan.ok).toBe(true);
+    expect(JSON.stringify(s)).toBe(before);
+  });
+  it('beachtet trainingUntil auch wenn ein älterer Stand noch kein Trainingsregister hat', () => {
+    const s = setup();
+    delete s.training;
+    s.drivers[0].trainingUntil = 6000;
+    expect(status(s)).toBe('unavailable');
+    delete s.drivers[0].trainingUntil;
+    expect(status(s)).toBe('on_time');
+  });
+  it('beachtet vorhandene Kursblöcke auch bei einem unvollständigen alten Trainingsregister', () => {
+    const s = setup();
+    s.training = {enrollments:[{personId:s.drivers[0].id, status:'in_progress', blockStarts:[s.gameTime]}]};
+    expect(status(s)).toBe('unavailable');
+    s.training = {};
+    expect(status(s)).toBe('on_time');
+  });
   it('ersetzt die alte Generatorbewertung durch einen bestätigbaren Plan ohne den Stand zu ändern', () => {
     const s = setup(), before = JSON.stringify(s);
     expect(status(s)).toBe('on_time');
