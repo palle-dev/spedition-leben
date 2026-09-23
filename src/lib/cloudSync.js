@@ -12,7 +12,6 @@ import { readHistoryBlock } from "./historyRepository";
 //   - Nur ein Upload gleichzeitig (Queue). Verspätete Antworten werden verworfen.
 //   - localBaseRevision wird nur nach bestätigter Antwort aktualisiert.
 
-import { archiveIdentity } from "./cloudArchive";
 import { portableHistory } from "./historyArchive";
 import { base44 } from "@/api/base44Client";
 
@@ -43,18 +42,8 @@ export async function listCloudSaves() {
   return await invokeCloudSync({ command: "list" });
 }
 
-// Bounded metadata-only acknowledgements. No cached bodies or cross-user reuse.
-const archiveAcks = new Map();
-function acknowledge(key, state, result) {
-  archiveAcks.delete(key);
-  if (!result?.ok || result.archive_delta !== 1) return;
-  archiveAcks.set(key, { revision: result.revision, partyId: state.meta?.partyId,
-    chunks: new Map((state.historyArchive?.chunks || []).map(c => [c.id, archiveIdentity(c)])) });
-  if (archiveAcks.size > 8) archiveAcks.delete(archiveAcks.keys().next().value);
-}
-function ackKey(userId, stateId) { return JSON.stringify([userId, stateId]); }
 export async function loadCloudSave(stateId) {
-  // First save after loading is deliberately full; only confirmed writes enable reuse.
+  // Current uploads always include complete verified archive data.
   return invokeCloudSync({ command: "load", stateId });
 }
 export async function createCloudSave(state, partyId, saveLabel, saveType, userId = null) {
@@ -63,11 +52,9 @@ export async function createCloudSave(state, partyId, saveLabel, saveType, userI
     state: await portableHistory(state, { loadBlock: c => readHistoryBlock(userId, c) }),
     party_id: partyId, save_label: saveLabel, save_type: saveType,
   });
-  if (userId && result?.stateId) acknowledge(ackKey(userId, result.stateId), state, result);
   return result;
 }
 export async function saveCloudSave(stateId, state, expectedRevision, saveLabel, saveType, userId = null) {
-  const key = ackKey(userId, stateId);
   // In single-file mode, the references optimization stripped chunk data that
   // couldn't be recovered on load (blocks aren't stored in GameArchiveBlock).
   // Always include full chunk data to keep saves self-contained.
@@ -77,12 +64,10 @@ export async function saveCloudSave(stateId, state, expectedRevision, saveLabel,
     state: await portableHistory(state, { references, loadBlock: c => readHistoryBlock(userId, c) }),
     expected_revision: expectedRevision, save_label: saveLabel, save_type: saveType,
   });
-  if (userId) acknowledge(key, state, result);
   return result;
 }
 export async function deleteCloudSave(stateId) {
   const result = await invokeCloudSync({ command: "delete", stateId });
-  for (const key of archiveAcks.keys()) if (JSON.parse(key)[1] === stateId) archiveAcks.delete(key);
   return result;
 }
 

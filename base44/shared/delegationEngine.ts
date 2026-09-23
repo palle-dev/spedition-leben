@@ -376,6 +376,18 @@ export function rejectApproval(state, requestId) {
   return { ok: true, requestId };
 }
 
+// Löscht eine Freigabe ersatzlos — ohne Genehmigung oder Ablehnung.
+// Im Gegensatz zu rejectApproval wird kein Ablehnungs-Fingerprint hinterlegt,
+// sodass der Mitarbeiter dieselbe Aktion später wieder anfragen darf.
+export function deleteApproval(state, requestId) {
+  if (!state.approvals) migrateApprovals(state);
+  const req = state.approvals.pending.find(a => a.id === requestId && a.status === "pending");
+  if (!req) throw new Error("Freigabe nicht gefunden oder bereits bearbeitet.");
+  state.approvals.pending = state.approvals.pending.filter(a => a.id !== requestId);
+  state.delegation.stats.pendingApprovals = state.approvals.pending.filter(a => a.status === "pending").length;
+  return { ok: true, requestId };
+}
+
 // Prüft, ob eine Freigabe noch gültig ist (Zustand hat sich nicht geändert).
 function recheckApproval(state, req) {
   if (req.deadlineMin != null && state.gameTime > req.deadlineMin) return { stillValid: false, reason: "Freigabefrist abgelaufen" };

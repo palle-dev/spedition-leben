@@ -1,3 +1,4 @@
+import { LIVE_TICK_MS, LIVE_TICK_MINUTES } from "./simulation/timeControlEngine";
 import { cloneSaveSnapshot } from "@/lib/simulationTransport";
 import { stageHistory, hydrateHistory } from "@/lib/historyRepository";
 import { createSimulationClient } from "@/lib/simulationWorkerClient";
@@ -658,7 +659,7 @@ export function GameProvider({ children }) {
     try {
       await send("enableAutomation", {});
       setAutomationEnabled(true);
-      if (!silent) showToast("Live-Simulation aktiviert: alle 2,5 Sekunden vergehen 15 Spielminuten.", "success");
+      if (!silent) showToast(`Live-Simulation aktiviert: alle ${(LIVE_TICK_MS / 1000).toLocaleString("de-DE")} Sekunden vergehen ${LIVE_TICK_MINUTES} Spielminuten.`, "success");
     } catch (e) { if (!silent) showToast("Automatik konnte nicht aktiviert werden: " + (e?.message || "Unbekannt"), "error"); }
     finally { setAutomationBusy(false); }
   }, [send, showToast]);
@@ -679,7 +680,7 @@ export function GameProvider({ children }) {
 
   useEffect(() => {
     if (!automationEnabled) { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } return; }
-    pollRef.current = setInterval(syncAutomation, 2500);
+    pollRef.current = setInterval(syncAutomation, LIVE_TICK_MS);
     return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
   }, [automationEnabled, syncAutomation]);
 

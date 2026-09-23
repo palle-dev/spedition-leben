@@ -8,8 +8,8 @@ import EnergyPanel from "@/components/branches/EnergyPanel";
 import SiteExpansionCard from "@/components/branches/SiteExpansionCard";
 import {
   Building2, MapPin, Truck, Users, Headset, TrendingUp, Wallet, Edit2, X,
-  Crown, Check, Zap, ShieldCheck, Wrench, Sparkles, Calculator, Briefcase,
-  ArrowRight, Activity, Gauge, Percent, Wrench as WrenchIcon, Package, Clock,
+  Crown, Check, Zap, ShieldCheck, Wrench, Briefcase,
+  ArrowRight, Gauge, Percent,
 } from "lucide-react";
 
 const ROLE_LABELS = {
