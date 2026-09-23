@@ -7,7 +7,7 @@ import {processPhoneCommunications} from "@/lib/simulation/phoneCommunications";
 function fixture(){
  const s=createInitialState({}).state;applyCommand(s,"advanceTime",{minutes:0});
  const branch=s.branches[0];
- s.employees.push({id:"phone-manager",name:"Mara Hansen",role:"branch_manager",assignedBranchId:branch.id,employmentStatus:"employed"});
+ s.employees.push({id:"phone-manager",name:"Mara Hansen",role:"branch_manager",assignedBranchId:branch.id,employmentStatus:"employed",costPerDayCents:15000});
  s.branchDecisions=[{id:"branch-phone-test",status:"pending",type:"cost_optimization",branchId:branch.id,managerId:"phone-manager",createdAt:s.gameTime,costCents:10000,savingPerDayCents:100,title:"Abläufe verbessern",description:"Neue Abläufe am Standort.",benefitDesc:"Täglich geringere Kosten"}];
  return s;
 }
