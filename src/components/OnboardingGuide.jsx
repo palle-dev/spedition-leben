@@ -1,4 +1,6 @@
 import React from "react";
+import { StormNightGuide } from "@/components/world/StormNightPanel";
+import { stormNightActive } from "@/lib/simulation/stormNight";
 import { NordSprintGuide } from "@/components/world/NordSprintChallengePanel";
 import { nordSprintActive } from "@/lib/simulation/nordSprintChallenge";
 import { HarborOpeningGuide } from "@/components/world/HarborOpeningPanel";
@@ -16,6 +18,7 @@ export default function OnboardingGuide() {
   const { state, send, showToast } = useGame();
   const navigate = useNavigate();
 
+  if (stormNightActive(state)) return <StormNightGuide state={state} />;
   if (nordSprintActive(state)) return <NordSprintGuide state={state} />;
   if (harborOpeningActive(state)) return <HarborOpeningGuide state={state} />;
   if (!state.onboarding?.active) return null;

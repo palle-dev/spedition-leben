@@ -1,3 +1,5 @@
+import StormNightPanel from "@/components/world/StormNightPanel";
+import { stormNightActive } from "@/lib/simulation/stormNight";
 import NordSprintChallengePanel from "@/components/world/NordSprintChallengePanel";
 import { nordSprintActive } from "@/lib/simulation/nordSprintChallenge";
 import CompetitionPanel from "@/components/world/CompetitionPanel";
@@ -49,6 +51,7 @@ export default function GameWorld() {
       </div>
     </header>
     {blocked && <p role="status" className="rounded-xl border border-coral/30 bg-coral/5 p-4 text-sm">Du nimmst gerade an einem Termin teil. Neue Entscheidungen und Gebote sind danach wieder möglich.</p>}
+    {tab === "stories" && <StormNightPanel key={"storm_" + state.meta?.partyId} showCompleted />}
     {tab === "stories" && <NordSprintChallengePanel key={"nordsprint_" + state.meta?.partyId} showCompleted />}
     {tab === "stories" && <HarborOpeningPanel key={"harbor_" + state.meta?.partyId} showCompleted />}
     {!w?.active ? <section className={card + " p-6 sm:p-8 space-y-6"}>
@@ -68,7 +71,7 @@ export default function GameWorld() {
       {tab === "stories" && <div className="grid xl:grid-cols-3 gap-5">
         {WORLD_STORIES.map(def => {
           const run = w.stories[def.id];
-          if (!run || (def.id === "harbor" && (harborOpeningActive(state) || nordSprintActive(state)))) return null;
+          if (!run || (def.id === "harbor" && (harborOpeningActive(state) || nordSprintActive(state) || stormNightActive(state)))) return null;
           const scene = worldScene(state, run);
           const ap = state.appointments.find(a => a.id === run.appointmentId);
           return <article key={def.id} className={card + " p-5 sm:p-6 space-y-5 " + ((def.id === "harbor" || def.id === "built_together") ? "xl:col-span-3 border-sky-300/20" : "")}>

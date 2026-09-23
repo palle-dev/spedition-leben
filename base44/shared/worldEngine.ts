@@ -1,3 +1,4 @@
+import { STORM_COMMANDS, stormNightActive, handleStormNightCommand, processStormNight } from "./stormNight.ts";
 import { NORDSPRINT_COMMANDS, nordSprintActive, handleNordSprintCommand, processNordSprintChallenge } from "./nordSprintChallenge.ts";
 import { HARBOR_OPENING_COMMANDS, harborOpeningActive, harborOpeningStartReason, handleHarborOpeningCommand, processHarborOpening } from "./harborOpening.ts";
 import { migrateCompetition, independentRival, rivalCapacity, competitionDaily } from "./competitionCore.ts";
@@ -111,6 +112,7 @@ export function worldAppointmentSlot(state) {
   return null;
 }
 export function worldChoiceReason(state, run, choice) {
+  if (run.id === "harbor" && run.stage === 2 && stormNightActive(state)) return "Deine Notfallschicht läuft bereits. Setze sie im Büro fort.";
   if (run.id === "harbor" && run.stage === 1 && nordSprintActive(state)) return "Dein Probelauf gegen NordSprint läuft bereits. Setze ihn im Büro fort.";
   if (run.id === "harbor" && run.stage === 0 && harborOpeningActive(state)) return "Dein Transport mit Anna läuft bereits. Setze ihn im Büro fort.";
   if (!actorPresent(state, run)) return "Die beteiligte Person ist nicht mehr verfügbar.";
@@ -323,6 +325,7 @@ export function processWorld(state, m) {
   observeOrders(state);
   processHarborOpening(state);
   processNordSprintChallenge(state);
+  processStormNight(state);
   processStories(state, m);
   ensureWorldContinuation(state, m);
   for (const r of w.rivals) {
@@ -345,6 +348,7 @@ export function getWorldEventTimes(state) {
   ];
 }
 export function handleWorldCommand(state, command, p) {
+  if (STORM_COMMANDS.includes(command)) return handleStormNightCommand(state, command, p);
   if (NORDSPRINT_COMMANDS.includes(command)) return handleNordSprintCommand(state, command, p);
   if (command === "startHarborOpening") {
     if (state.world?.harborOpening) return { ok: true, alreadyApplied: true };
