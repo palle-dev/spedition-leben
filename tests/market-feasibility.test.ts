@@ -61,7 +61,7 @@ describe('Aktuelle Machbarkeit im Auftragsmarkt', () => {
     expect(status(s)).toBe('unavailable');
   });
   it('weist Gefahrgut ohne geeigneten Tank und Qualifikation zurück', () => {
-    const s = setup(); Object.assign(s.orders[0], {isDangerousGoods:true, dgClass:'3', dgTransportType:'tank'});
+    const s = setup(); Object.assign(s.orders[0], {isDangerousGoods:true, dgProfileId:'dg_diesel_weser', dgClass:'3', dgTransportType:'tank'});
     expect(status(s)).toBe('unavailable');
   });
   it('begrenzt auch die gesamte Marktprüfung, ohne ungeprüfte Angebote als unmöglich auszugeben', () => {
