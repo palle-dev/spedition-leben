@@ -1,6 +1,5 @@
 // @vitest-environment happy-dom
-import React from "react";
-import { act } from "react-dom/test-utils";
+import React, { act } from "react";
 import { createRoot } from "react-dom/client";
 import { beforeEach, afterEach, it, expect, vi } from "vitest";
 import { useLocalSaveWriter } from "@/lib/useLocalSaveWriter";
