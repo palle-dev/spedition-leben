@@ -46,7 +46,7 @@ export function useCloudGameSync({
       });
     }
     return updated;
-  }, [sessionToken, isCurrentSession]);
+  }, [sessionToken, isCurrentSession, syncMetaRef, setSyncMeta, hasLockRef, lockRequiresReloadRef, setLocalSaveError]);
 
   // Cloud-Upload eines vollständigen, konsistenten Speicherpunkts.
   // Verwendet die Queue — nur ein Upload gleichzeitig, verspätete Antworten
@@ -106,7 +106,7 @@ export function useCloudGameSync({
         return { ok: false, error: error.message };
       }
     });
-  }, [sessionToken, isCurrentSession, assertWritable, updateSyncMeta]);
+  }, [sessionToken, isCurrentSession, assertWritable, updateSyncMeta, stateRef, syncMetaRef, changingStateRef, changeVersionRef, cloudDirtyRef, hasLockRef, lockRequiresReloadRef]);
 
   const retryCloudSync = useCallback(async () => {
     const current = stateRef.current;
@@ -117,7 +117,7 @@ export function useCloudGameSync({
     if (!isCurrentSession(token) || stateRef.current?.meta?.partyId !== current.meta?.partyId) return { skipped: true };
     if (!local?.ok) return { ok: false, error: "Lokale Sicherung nicht möglich. Bitte den Spielstand exportieren." };
     return uploadToCloud(current, null, "manual");
-  }, [saveNow, sessionToken, isCurrentSession, uploadToCloud]);
+  }, [saveNow, sessionToken, isCurrentSession, uploadToCloud, stateRef, syncMetaRef, changingStateRef]);
 
   // Cloud-Spielstände auflisten (für geräteübergreifendes Fortsetzen)
   const refreshCloudSaves = useCallback(async () => {
@@ -160,7 +160,7 @@ export function useCloudGameSync({
     } finally {
       if (!token || isCurrentSession(token)) { changingStateRef.current = false; setBusy(false); setLoading(false); }
     }
-  }, [beginStateChange, isCurrentSession, activateState, showToast]);
+  }, [beginStateChange, isCurrentSession, activateState, showToast, changingStateRef, setBusy, setLoading, setLoadingProgress, setLoadingPhase]);
 
   // Cloud-Spielstand löschen
   const deleteCloudGame = useCallback(async (cloudId) => {
@@ -181,7 +181,7 @@ export function useCloudGameSync({
         return { ok: true };
       });
     } catch (error) { return { ok: false, error: error.message }; }
-  }, [sessionToken, isCurrentSession, assertWritable, updateSyncMeta]);
+  }, [sessionToken, isCurrentSession, assertWritable, updateSyncMeta, syncMetaRef, cloudDirtyRef]);
 
   // Konflikt auflösen: beide Fassungen behalten (lokale als neue Partie in Cloud)
   const resolveConflictKeepBoth = useCallback(async () => {
@@ -196,13 +196,13 @@ export function useCloudGameSync({
       return await uploadToCloud(stateRef.current, "Konflikt-Kopie (lokal)", "conflict_backup");
     } catch (error) { return { ok: false, error: error.message }; }
     finally { if (token && isCurrentSession(token)) changingStateRef.current = false; }
-  }, [beginStateChange, activateState, uploadToCloud, isCurrentSession]);
+  }, [beginStateChange, activateState, uploadToCloud, isCurrentSession, stateRef, changingStateRef]);
 
   // Konflikt auflösen: mit lokaler Fassung fortsetzen (Cloud überschreiben)
   const resolveConflictKeepLocal = useCallback(async () => {
     if (!stateRef.current) return { ok: false, error: "Kein Spielstand" };
     return await uploadToCloud(stateRef.current, "Konflikt-Auflösung (lokal gewählt)", "manual", { resolveConflict: true });
-  }, [uploadToCloud]);
+  }, [uploadToCloud, stateRef]);
 
   // Konflikt auflösen: mit Cloud-Fassung fortsetzen (lokal überschreiben)
   const resolveConflictKeepCloud = useCallback(async () => {
@@ -217,7 +217,7 @@ export function useCloudGameSync({
       if (!isCurrentSession(token)) return { skipped: true };
       return await loadCloudGame(cloudId);
     } catch (error) { return { ok: false, error: error.message }; }
-  }, [assertWritable, loadCloudGame, sessionToken, isCurrentSession]);
+  }, [assertWritable, loadCloudGame, sessionToken, isCurrentSession, stateRef, syncMetaRef, userIdRef]);
 
 
   // Beim Start nur auf eine neuere Fassung hinweisen, niemals ungefragt laden.
@@ -233,7 +233,7 @@ export function useCloudGameSync({
       } catch { /* Lokales Spiel bleibt bei fehlender Verbindung verfügbar. */ }
     }
 
-  }, [isCurrentSession, updateSyncMeta]);
+  }, [isCurrentSession, updateSyncMeta, syncMetaRef]);
 
   useEffect(() => {
     const onOnline = async () => {
@@ -245,7 +245,7 @@ export function useCloudGameSync({
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
     return () => { window.removeEventListener("online", onOnline); window.removeEventListener("offline", onOffline); };
-  }, [uploadToCloud, refreshCloudSaves, updateSyncMeta]);
+  }, [uploadToCloud, refreshCloudSaves, updateSyncMeta, stateRef, cloudDirtyRef, hasLockRef, lockRequiresReloadRef]);
 
   useEffect(() => {
     const timer = setInterval(async () => {
@@ -254,7 +254,7 @@ export function useCloudGameSync({
       await uploadToCloud(stateRef.current, null, "auto");
     }, 180000);
     return () => clearInterval(timer);
-  }, [uploadToCloud]);
+  }, [uploadToCloud, stateRef, syncMetaRef, cloudDirtyRef, hasLockRef, changingStateRef]);
 
 
   return {
