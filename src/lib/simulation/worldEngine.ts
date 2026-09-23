@@ -1,3 +1,4 @@
+import { HARBOR_OPENING_COMMANDS, harborOpeningActive, harborOpeningStartReason, handleHarborOpeningCommand, processHarborOpening } from "./harborOpening.ts";
 import { migrateCompetition, independentRival, rivalCapacity, competitionDaily } from "./competitionCore.ts";
 import { processCompetition } from "./competitionDeals.ts";
 import { ENCOUNTER_ID, prepareEncounter, cycleEncounter, encounterActorPresent, rememberEncounter } from "./worldEncounters.ts";
@@ -109,6 +110,7 @@ export function worldAppointmentSlot(state) {
   return null;
 }
 export function worldChoiceReason(state, run, choice) {
+  if (run.id === "harbor" && run.stage === 0 && harborOpeningActive(state)) return "Dein Transport mit Anna läuft bereits. Setze ihn im Büro fort.";
   if (!actorPresent(state, run)) return "Die beteiligte Person ist nicht mehr verfügbar.";
   if (choice.requiresHansen && state.world.rivals.find(r => r.id === "hansen").relationship < choice.requiresHansen) return "Hansen vertraut dir noch nicht genug (mindestens " + choice.requiresHansen + ").";
   if (choice.costCents > state[choice.account].accountCents) return choice.account === "private" ? "Das Privatkonto reicht dafür nicht." : "Das Firmenkonto reicht dafür nicht.";
@@ -317,6 +319,7 @@ export function processWorld(state, m) {
   ensureWorldContinuation(state, m);
   cycleEncounter(state, m);
   observeOrders(state);
+  processHarborOpening(state);
   processStories(state, m);
   ensureWorldContinuation(state, m);
   for (const r of w.rivals) {
@@ -339,6 +342,14 @@ export function getWorldEventTimes(state) {
   ];
 }
 export function handleWorldCommand(state, command, p) {
+  if (command === "startHarborOpening") {
+    if (state.world?.harborOpening) return { ok: true, alreadyApplied: true };
+    const reason = harborOpeningStartReason(state);
+    if (reason) throw new Error(reason);
+    startWorld(state);
+    return handleHarborOpeningCommand(state, command, p);
+  }
+  if (HARBOR_OPENING_COMMANDS.includes(command)) return handleHarborOpeningCommand(state, command, p);
   if (command === "startWorld") return startWorld(state);
   if (!["chooseWorldStory", "bidWorldTender", "withdrawWorldBid", "cancelWorldAppointment"].includes(command)) return null;
   if (!state.world?.active) throw new Error("Betritt zuerst die Spielwelt.");
