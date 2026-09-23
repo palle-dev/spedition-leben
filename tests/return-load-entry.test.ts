@@ -43,7 +43,7 @@ it('öffnet die Rückladungssuche für ein Marktangebot ohne eine Annahme auszul
   expect(fixture.game.state.orders.every(o => o.status === 'offered')).toBe(true);
 });
 it('bestätigt Hin- und Rückladung erst nach Auswahl und zeigt die gestartete Tour', async () => {
-  fixture.game.send = vi.fn(async (command, params) => applyCommand(fixture.game.state, command, params));
+  fixture.game.send = vi.fn(async (command, params) => applyCommand(fixture.game.state, command, params).result);
   await render();
   await act(async () => button('Rückladung Test').click());
   expect(fixture.game.send).not.toHaveBeenCalled();
@@ -51,7 +51,7 @@ it('bestätigt Hin- und Rückladung erst nach Auswahl und zeigt die gestartete T
   expect(start.disabled).toBe(false);
   await act(async () => start.click());
   expect(fixture.game.send).toHaveBeenCalledExactlyOnceWith('confirmTour', expect.objectContaining({ orderIds: ['out', 'back'] }));
-  expect(container.textContent).toContain('PHASEN');
+  expect(container.textContent).toContain('Hinladung Test');
   expect(container.textContent).not.toContain('Tour bestätigen und starten');
   expect(fixture.game.state.orders.every(o => o.status === 'angenommen')).toBe(true);
   await act(async () => { applyCommand(fixture.game.state, 'advanceTime', { minutes: 1440 }); });
