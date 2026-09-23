@@ -31,7 +31,7 @@ export function assessMarketOffers(state, offers = state.orders.filter(o => o.st
     if (!driversByCity.has(city)) driversByCity.set(city, []);
     driversByCity.get(city)!.push(d);
   }
-  const vehicleCities = new Map(vehicles.map(v => [v.id, futureLocation(state, v)]));
+  const vehicleCities = new Map<string, string>(vehicles.map(v => [v.id, futureLocation(state, v)]));
   let totalChecks = 0;
   return withTourValidation(state, validate => {
     for (const offer of offers) {
