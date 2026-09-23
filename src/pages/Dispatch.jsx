@@ -147,10 +147,11 @@ export default function Dispatch() {
     setTourOrderId(null);
     setPlanningOrderId(null);
     setPlanRoute(null);
-    if (result?.tripId) {
-      setSelectedTripId(result.tripId);
+    const tripId = result?.tripId || result?.firstTripId;
+    if (tripId) {
+      setSelectedTripId(tripId);
       setActiveTab("touren");
-      setFocusAction({ type: "trip", tripId: result.tripId });
+      setFocusAction({ type: "trip", tripId });
     }
   }
 
