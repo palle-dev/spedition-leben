@@ -7,10 +7,11 @@ let records, db;
 beforeEach(() => {
   records = new Map();
   db = {
-    filter: vi.fn(async q => [...records.values()].filter(r => Object.entries(q).every(([k,v]) => r[k] === v))),
+    filter: vi.fn(async q => [...records.values()].filter(r => Object.entries(q).every(([k,v]) => (v && typeof v === "object" && "$in" in v ? v.$in.includes(r[k]) : r[k] === v)))),
     get: vi.fn(async id => records.get(id)),
     create: vi.fn(async data => { const row = { ...data, id: 'r' + records.size }; records.set(row.id, row); return row; }),
   };
+  db.bulkCreate = vi.fn(async rows => Promise.all(rows.map(row => db.create(row))));
 });
 it('roundtrips a full save and reuses a committed block without any archive I/O', async () => {
   const original = state(chunk());

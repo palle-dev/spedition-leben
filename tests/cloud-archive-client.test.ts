@@ -14,12 +14,12 @@ beforeEach(async () => {
   mock.read.mockResolvedValue(data);
   mock.invoke.mockImplementation(async (_, body) => ({ data: { ok: true, archive_delta: 1, revision: body.expected_revision + 1 } }));
 });
-it('reads and encodes a block only for the initial acknowledged save', async () => {
+it('includes verified originals in every complete-file save', async () => {
   await saveCloudSave('incremental', state, 1, null, null, 'u');
   expect(mock.invoke.mock.calls[0][1].state.historyArchive.chunks[0].data).toBe(btoa('preserved bytes'));
   await saveCloudSave('incremental', state, 2, null, null, 'u');
-  expect(mock.read).toHaveBeenCalledTimes(1);
-  expect(mock.invoke.mock.calls[1][1].state.historyArchive.chunks[0].data).toBeUndefined();
+  expect(mock.read).toHaveBeenCalledTimes(2);
+  expect(mock.invoke.mock.calls[1][1].state.historyArchive.chunks[0].data).toBe(btoa('preserved bytes'));
   expect(state.historyArchive.storage).toBe('indexeddb');
 });
 it.each(['revision', 'owner', 'party', 'descriptor'])('does not reuse after a %s change', async change => {
@@ -36,20 +36,20 @@ it('never infers delta support from a legacy success or conflict', async () => {
   mock.invoke.mockResolvedValueOnce({ data: { conflict: true, current_revision: 4 } });
   await saveCloudSave('legacy', state, 3, null, null, 'u');
   await saveCloudSave('legacy', state, 4, null, null, 'u');
-  expect(mock.read).toHaveBeenCalledTimes(3);
+  expect(mock.read).toHaveBeenCalledTimes(4);
 });
-it('sends newly archived content while retaining acknowledged references', async () => {
+it('sends old and newly archived originals together', async () => {
   await saveCloudSave('mixed', state, 1, null, null, 'u');
   const blob = new Blob(['new preserved bytes']);
   const id = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer())),
     b => b.toString(16).padStart(2, '0')).join('');
   state.historyArchive.chunks.push({ id, kind: 'expiredOffers', rawBytes: 19, count: 1 });
-  mock.read.mockResolvedValue(blob);
+  mock.read.mockImplementation(async (_user, c) => c.id === id ? blob : data);
   await saveCloudSave('mixed', state, 2, null, null, 'u');
   const chunks = mock.invoke.mock.calls[1][1].state.historyArchive.chunks;
-  expect(chunks[0].data).toBeUndefined();
+  expect(chunks[0].data).toBe(btoa('preserved bytes'));
   expect(chunks[1].data).toBe(btoa('new preserved bytes'));
-  expect(mock.read).toHaveBeenCalledTimes(2);
+  expect(mock.read).toHaveBeenCalledTimes(3);
 });
 it('does not invoke a save when a new local block is corrupt', async () => {
   mock.read.mockResolvedValue(new Blob(['corrupt']));

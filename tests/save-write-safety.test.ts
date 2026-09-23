@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { privateStorageFixture } from "./fixtures/privateStorage";
+import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
 const mock = vi.hoisted(() => ({ client: null }));
 vi.mock("@base44/sdk", () => ({ createClientFromRequest: () => mock.client }));
 import cloud from "../base44/functions/cloudSync/entry";
@@ -6,7 +7,8 @@ import commands from "../base44/functions/gameCommand/entry";
 import saveState from "../base44/functions/saveGameState/entry";
 import { createInitialState } from "../base44/shared/simulationEngine";
 
-let records, entities;
+let records, entities, fileStore;
+afterEach(() => vi.unstubAllGlobals());
 const snapshot = (partyId = "A") => {
   const state = createInitialState({ companyName: "Speichertest", playerName: "Test", partnerName: "Test" }).state;
   state.meta = { ...state.meta, partyId };
@@ -14,6 +16,7 @@ const snapshot = (partyId = "A") => {
 };
 const req = body => new Request("https://local.invalid/test", { method: "POST", body: JSON.stringify(body) });
 beforeEach(() => {
+  fileStore = privateStorageFixture();
   records = new Map([
     ["own", { id: "own", owner_id: "alice", revision: 3, party_id: "A", state: snapshot() }],
     ["foreign", { id: "foreign", owner_id: "bob", revision: 9, party_id: "B", state: snapshot("B") }],
@@ -31,7 +34,7 @@ beforeEach(() => {
       Object.assign(record, structuredClone(op.$set)); return { updated: 1 };
     }),
   };
-  mock.client = { auth: { me: vi.fn(async () => ({ id: "alice" })) }, asServiceRole: { entities: { GameState: entities } } };
+  mock.client = { auth: { me: vi.fn(async () => ({ id: "alice" })) }, asServiceRole: { integrations: { Core: fileStore.core }, entities: { GameState: entities } } };
 });
 const savePaths = [
   ["cloudSync", (state, revision = 3, stateId = "own") => cloud(req({ command: "save", state, stateId, expected_revision: revision }))],
@@ -70,7 +73,7 @@ describe.each(savePaths)("%s schützt gespeicherte Partien", (_name, save) => {
     const response = await save(state);
     expect(response.status).toBe(200); expect((await response.json()).revision).toBe(4);
     expect(entities.updateMany.mock.calls[0][0]).toEqual({ id: "own", owner_id: "alice", revision: 3, party_id: "A" });
-    expect(records.get("own").state.company.accountCents).toBe(state.company.accountCents);
+    expect((await fileStore.readState(records.get("own").state)).company.accountCents).toBe(state.company.accountCents);
   });
   it("übernimmt eine Kennung beim Speichern einer bislang ungebundenen Altpartie", async () => {
     delete records.get("own").party_id; delete records.get("own").state.meta.partyId;

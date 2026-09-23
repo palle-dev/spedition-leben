@@ -1,14 +1,14 @@
 // Zeitsteuerungs-Engine für FERNWERK (Auftrag 20).
-// Verwaltet den automatischen Spielzeitbetrieb mit serverseitiger Zeitautorität.
+// Verwaltet den lokalen Spielzeitbetrieb mit einem expliziten Echtzeitanker.
 // Umrechnung: 10 echte Sekunden = 60 Spielminuten = 1 Spielstunde.
-// 1 echte Millisekunde = 3/10 Spielminuten = 30 Numerator-Einheiten (1/100 Spielminute).
+// Gemeinsame Zeitkonstanten für Engine, Anzeige und Abfrageintervall.
 
 export const LIVE_TICK_MS = 2500;
 export const LIVE_TICK_MINUTES = 15;
-export const NUMERATOR_PER_REAL_MS = 0.6;
 export const NUMERATOR_PER_GAME_MINUTE = 100;
-export const REAL_MS_PER_GAME_HOUR = 10000; // 10 Sekunden = 1 Spielstunde
-export const REAL_MS_PER_GAME_DAY = 240000; // 4 Minuten = 1 Spieltag
+export const NUMERATOR_PER_REAL_MS = LIVE_TICK_MINUTES * NUMERATOR_PER_GAME_MINUTE / LIVE_TICK_MS;
+export const REAL_MS_PER_GAME_HOUR = 60 * LIVE_TICK_MS / LIVE_TICK_MINUTES; // 10 Sekunden = 1 Spielstunde
+export const REAL_MS_PER_GAME_DAY = 24 * REAL_MS_PER_GAME_HOUR; // 4 Minuten = 1 Spieltag
 
 // Berechnet das Ziel-Numerator (1/100 Spielminute) aus dem Echtzeitanker.
 // Bei deaktivierter Automatik gilt ausschließlich das eingefrorene Endziel.

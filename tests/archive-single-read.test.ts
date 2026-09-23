@@ -23,7 +23,7 @@ describe('Archive export reads each block once',()=>{
   const external={...source,historyArchive:{...source.historyArchive,storage:'indexeddb',chunks:chunks.map(({data,...c})=>c)}};
   const loadBlock=vi.fn(async c=>chunks.find(x=>x.id===c.id).data);
   const result=await portableHistory(external,{references:new Set([chunks[0].id]),loadBlock});
-  expect(loadBlock).toHaveBeenCalledTimes(2);expect(result.historyArchive.chunks[0].data).toBeUndefined();
+  expect(loadBlock).toHaveBeenCalledTimes(chunks.length - 1);expect(result.historyArchive.chunks[0].data).toBeUndefined();
   expect(result.historyArchive.chunks.slice(1).every(c=>typeof c.data==='string')).toBe(true);expect(result.historyArchive.storage).toBeUndefined();expect(external.historyArchive.storage).toBe('indexeddb');
  });
  it('rejects corrupt or missing data without replacing original blocks',async()=>{

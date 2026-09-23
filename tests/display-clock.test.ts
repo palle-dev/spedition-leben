@@ -3,13 +3,13 @@ import {displayedGameMinute} from "@/lib/displayClock";
 const tc={enabled:true,anchorRealMs:1000,anchorGameNumerator:48000};
 describe("laufende Minutenanzeige",()=>{
  it("zeigt jede Minute bei unverändertem Engine-Zustand",()=>{
-  const minutes=Array.from({length:16},(_,i)=>displayedGameMinute(480,tc,1000+Math.ceil(i*5000/15),true));
+  const minutes=Array.from({length:16},(_,i)=>displayedGameMinute(480,tc,1000+Math.ceil(i*2500/15),true));
   expect(minutes).toEqual(Array.from({length:16},(_,i)=>480+i));
  });
  it("bleibt über den 15-Minuten-Commit hinweg kontinuierlich",()=>{
-  expect(displayedGameMinute(480,tc,5900,true)).toBe(494);
-  expect(displayedGameMinute(495,tc,6000,true)).toBe(495);
-  expect(displayedGameMinute(495,tc,6340,true)).toBe(496);
+  expect(displayedGameMinute(480,tc,3400,true)).toBe(494);
+  expect(displayedGameMinute(495,tc,3500,true)).toBe(495);
+  expect(displayedGameMinute(495,tc,3670,true)).toBe(496);
  });
  it("läuft bei einem blockierten Worker höchstens einen Takt voraus",()=>{
   expect(displayedGameMinute(480,tc,301000,true)).toBe(495);
