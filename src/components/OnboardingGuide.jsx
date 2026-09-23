@@ -1,4 +1,6 @@
 import React from "react";
+import { NordSprintGuide } from "@/components/world/NordSprintChallengePanel";
+import { nordSprintActive } from "@/lib/simulation/nordSprintChallenge";
 import { HarborOpeningGuide } from "@/components/world/HarborOpeningPanel";
 import { harborOpeningActive, harborOpeningStartReason } from "@/lib/simulation/harborOpening";
 import { useNavigate } from "react-router-dom";
@@ -14,6 +16,7 @@ export default function OnboardingGuide() {
   const { state, send, showToast } = useGame();
   const navigate = useNavigate();
 
+  if (nordSprintActive(state)) return <NordSprintGuide state={state} />;
   if (harborOpeningActive(state)) return <HarborOpeningGuide state={state} />;
   if (!state.onboarding?.active) return null;
 
