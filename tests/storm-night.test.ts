@@ -20,7 +20,7 @@ function drive(s, id, driver = "d1", vehicle = "v1", execute = cmd) {
   const r = execute(s, "startTransport", { orderId: id, driverId: driver, vehicleId: vehicle });
   advance(s, r.endMin, execute);
 }
-function ready() {
+function ready(quiet = true) {
   const s = createInitialState({}).state as any;
   cmd(s, "startHarborOpening");
   drive(s, cmd(s, "chooseHarborHandover", { choiceId: "priority" }).orderId);
@@ -29,6 +29,11 @@ function ready() {
   drive(s, cmd(s, "startNordSprintChallenge", { choiceId: "quality" }).orderId, "d2", "v2");
   drive(s, cmd(s, "acceptNordSprintFollowup").orderId, "d2", "v2");
   cmd(s, "finishNordSprintChallenge");
+  // Isolate route/deadline assertions from unrelated random defects; a separate test keeps them enabled.
+  if (quiet) for (let day = 1; day <= 7; day++) {
+    s.disruptions.dailyCounters["technical_defect:" + day] = 1;
+    s.disruptions.dailyCounters["loading_delay:" + day] = 2;
+  }
   return s;
 }
 describe("Die Nacht am Kai", () => {
@@ -172,6 +177,16 @@ describe("Die Nacht am Kai", () => {
     cmd(s, "cancelOrder", { orderId: "storm_night_anna" }); reload();
     cmd(s, "finishStormNight"); reload();
     expect(arc(s).status).toBe("done");
+  });
+  it("keeps a real technical defect actionable without settling the promise", () => {
+    const s = ready(false);
+    cmd(s, "startStormNight", { choiceId: "own" });
+    expect(() => cmd(s, "startTransport", { orderId: "storm_night_own", driverId: "d1", vehicleId: "v1" })).toThrow(/Technischer Defekt/);
+    expect(arc(s).status).toBe("running");
+    expect(arc(s).results.own).toBeUndefined();
+    expect(s.orders.find(o => o.id === "storm_night_own").status).toBe("angenommen");
+    drive(s, "storm_night_own", "d1", "v3");
+    expect(arc(s).results.own.outcome).toBe("on_time");
   });
   it("matches backend results and financial bookings for parallel deliveries", () => {
     const a = ready(), b = copy(a);
