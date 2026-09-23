@@ -52,8 +52,8 @@ export default function HarborOpeningPanel({ showCompleted = false }) {
   const disabled = pending || busy || backgroundAdvance?.active || blocked;
   const startReason = !a ? harborOpeningStartReason(state) : null;
   const orderId = a?.status === "return" ? a.returnId : a?.outboundId;
-  const order = state.orders.find(o => o.id === orderId);
-  const trip = state.trips.find(t => t.orderId === orderId && t.status === "in_progress");
+  const order = (state.orders || []).find(o => o.id === orderId);
+  const trip = (state.trips || []).find(t => t.orderId === orderId && t.status === "in_progress");
   const steps = ["Anna kennenlernen", "Nach Bremen liefern", "Rückmeldung", "Zurück nach Hamburg"];
   const step = !a || a.status === "briefing" ? 0 : a.status === "outbound" ? 1 : a.status === "debrief" ? 2 : 3;
   async function act(command, params = {}, plan = false) {
@@ -74,7 +74,7 @@ export default function HarborOpeningPanel({ showCompleted = false }) {
       <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight mt-3">Ein Versprechen am Kai.</h2>
       <p className="text-sm text-slate-300 mt-2 leading-relaxed">Zwei Touren. Ein Kunde, der zweifelt. Und die Frage, ob man sich auf deine Firma verlassen kann.</p>
     </header>
-    {a && a.status !== "done" && <ol aria-label="Fortschritt des Auftakts" className="relative grid grid-cols-2 sm:grid-cols-4 gap-2">{steps.map((label, i) => <li key={label} aria-current={i === step ? "step" : undefined} className={"rounded-lg border p-2 text-xs " + (i === step ? "border-sky-300/35 bg-sky-300/10 text-sky-100" : "border-white/10 text-slate-400")}><span className="mr-2">{i < step ? "✓" : i + 1}</span>{label}</li>)}</ol>}
+    {a && a.status !== "done" && <ol aria-label="Fortschritt des Auftakts" className="relative grid grid-cols-2 sm:grid-cols-4 gap-2">{steps.map((label, i) => <li key={label} aria-current={i === step ? "step" : undefined} className={"rounded-lg border p-2 text-xs " + (i === step ? "border-sky-300/35 bg-sky-300/10 text-sky-100" : "border-white/10 text-slate-400")}><span className="mr-2">{i + 1}</span>{label}</li>)}</ol>}
     {blocked && <p role="status" className="text-sm text-amber-200">Du nimmst gerade an einem persönlichen Termin teil. Anna wartet, bis du wieder Zeit hast.</p>}
     {!a && <div className="relative space-y-4 max-w-3xl">
       <p className="text-sm text-slate-200 leading-relaxed">Anna steht mit der Tourenmappe ihres Vaters in deiner Tür. „Er fällt aus. Unser Stammkunde in Bremen braucht sechs Tonnen Ersatzteile – und Malte von NordSprint hat schon angerufen. Ich brauche jemanden, der sein Wort hält.“</p>
@@ -89,14 +89,14 @@ export default function HarborOpeningPanel({ showCompleted = false }) {
       <div className="grid md:grid-cols-2 gap-3">{HARBOR_HANDOVERS.map(c => <div key={c.id} className="rounded-2xl border border-white/10 bg-black/20 p-4 flex flex-col gap-3">
         <h4 className="font-medium text-sm">{c.label}</h4><p className="text-sm text-slate-300 leading-relaxed flex-1">{c.detail}</p>
         {(c.feeCents > 0 && state.company.accountCents < c.feeCents) && <p className="text-xs text-amber-200">Dafür reicht das Firmenkonto gerade nicht.</p>}
-        <button disabled={disabled || (c.feeCents > 0 && state.company.accountCents < c.feeCents)} className={button + " text-sky-100"} onClick={() => act("chooseHarborHandover", { choiceId: c.id }, true)}>So zusagen & planen {actionIcon}</button>
+        <button aria-label={c.label + " – zusagen und planen"} disabled={disabled || (c.feeCents > 0 && state.company.accountCents < c.feeCents)} className={button + " text-sky-100"} onClick={() => act("chooseHarborHandover", { choiceId: c.id }, true)}>So zusagen & planen {actionIcon}</button>
       </div>)}</div>
       <p className="text-xs text-slate-400">Hamburg → Bremen · 6 t Stückgut · Fristen ab deiner Zusage. Anfahrt, Lenkzeiten, Kraftstoff und Maut gelten wie bei jeder Tour. Bei Storno gilt die normale Gebühr.</p>
       <button disabled={disabled} className="text-xs text-slate-400 underline underline-offset-4 disabled:opacity-40" onClick={() => act("finishHarborOpening")}>Noch nichts zusagen und frei weiterspielen</button>
     </div>}
     {a && ["outbound", "return"].includes(a.status) && <div className="relative space-y-4">
       <h3 className="text-lg font-medium">{a.status === "return" ? "Die zweite Chance fährt nach Hause." : "Jetzt zählt, was auf der Straße passiert."}</h3>
-      <p className="text-sm text-slate-200">{trip ? ((state.drivers.find(d => d.id === trip.driverId)?.name || "Dein Fahrer") + " ist mit der Ladung unterwegs. Anna wartet auf die Rückmeldung des Kunden.") : "Der Auftrag ist angenommen. Wähle in der Disposition einen geeigneten Lkw und Fahrer und bestätige den Tourstart."}</p>
+      <p className="text-sm text-slate-200">{trip ? (((state.drivers || []).find(d => d.id === trip.driverId)?.name || "Dein Fahrer") + " ist mit der Ladung unterwegs. Anna wartet auf die Rückmeldung des Kunden.") : "Der Auftrag ist angenommen. Wähle in der Disposition einen geeigneten Lkw und Fahrer und bestätige den Tourstart."}</p>
       {order && <div className="flex flex-wrap gap-x-6 gap-y-2 rounded-xl bg-black/20 p-4 text-sm">
         <span className="flex items-center gap-2"><Truck className="w-4 h-4 text-sky-200" />{order.fromCity} → {order.toCity} · {order.tons} t</span>
         <span>{money(order.paymentCents)} Vergütung</span>
