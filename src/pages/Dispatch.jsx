@@ -14,7 +14,13 @@ import AutoOptimizePanel from "@/components/dispatch/AutoOptimizePanel";
 import PartnerOverview from "@/components/partners/PartnerOverview";
 
 export default function Dispatch() {
-  const { state } = useGame();
+  const { state, loadedStateVersion = 0 } = useGame();
+  // Loading another snapshot must also discard local planner selections,
+  // including when the party, order IDs and game time are unchanged.
+  return <DispatchView key={loadedStateVersion} state={state} />;
+}
+
+function DispatchView({ state }) {
   const location = useLocation();
   const [routeData, setRouteData] = useState(null);
   const [activeTab, setActiveTab] = useState(() => {
