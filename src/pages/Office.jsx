@@ -19,6 +19,7 @@ import ScenarioProgressPanel from "@/components/scenarios/ScenarioProgressPanel"
 import DisruptionPanel from "@/components/office/DisruptionPanel";
 import ForecastHints from "@/components/office/ForecastHints";
 import WorldTeaser from "@/components/world/WorldTeaser";
+import NordSprintChallengePanel from "@/components/world/NordSprintChallengePanel";
 import HarborOpeningPanel from "@/components/world/HarborOpeningPanel";
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -29,6 +30,7 @@ export default function Office() {
  if(!state)return null;
  return <div className="px-4 sm:px-6 lg:px-10 py-5 max-w-[1400px] mx-auto space-y-5">
   <OfficeHeader state={state} period={period} setPeriod={setPeriod}/>
+  <NordSprintChallengePanel key={"nordsprint_" + state.meta?.partyId}/>
   <HarborOpeningPanel key={"harbor_" + state.meta?.partyId}/>
   <Tabs defaultValue="overview" key={state.meta?.partyId}>
    <TabsList aria-label="Bürobereiche" className="grid grid-cols-2 sm:grid-cols-4 h-auto w-full gap-1 bg-slate-950/70 border border-white/10 p-1.5">
