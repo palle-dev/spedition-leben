@@ -1,3 +1,4 @@
+import { LIVE_TICK_MS, LIVE_TICK_MINUTES } from "@/lib/simulation/timeControlEngine";
 import React from "react";
 import { useGame } from "@/lib/gameContext";
 import { formatGameTime, dayOf } from "@/lib/gameData";
@@ -42,7 +43,7 @@ export default function OfficeHeader({ state, period, setPeriod }) {
           ))}
         </div>
 
-        <span className="text-xs text-muted-foreground" title="Steuerung unten neben +1 Tag">{automationEnabled?"Live · 15 Min / 5 Sek":"Pausiert"}</span>
+        <span className="text-xs text-muted-foreground" title="Steuerung unten neben +1 Tag">{automationEnabled ? `Live · ${LIVE_TICK_MINUTES} Min / ${(LIVE_TICK_MS / 1000).toLocaleString("de-DE")} Sek` : "Pausiert"}</span>
 
         {/* Sync-Status */}
         <div className={`flex items-center gap-1.5 text-[10px] px-2 py-1 rounded ${connectionState === "connected" ? "text-lime" : "text-amber-300"}`}>
