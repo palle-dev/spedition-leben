@@ -7,7 +7,7 @@ import { createInitialState, applyCommand } from '@/lib/simulation/simulationEng
 const fixture = vi.hoisted(() => ({ game: {} as any, setSlot: vi.fn() }));
 vi.mock('@/lib/gameContext', () => ({ useGame: () => fixture.game }));
 vi.mock('@/lib/headerSlot', () => ({ useHeaderSlot: () => ({ setSlot: fixture.setSlot }) }));
-vi.mock('@/lib/geoData', () => ({ loadRouteGeometries: async () => null, buildPlanRouteGeoJSON: () => null, buildTourRouteGeoJSON: () => null }));
+vi.mock('@/lib/geoData', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/geoData')>(), loadRouteGeometries: async () => null }));
 vi.mock('@/components/dispatch/DispatchMap', () => ({ default: () => null }));
 vi.mock('@/components/dispatch/AutoOptimizePanel', () => ({ default: () => null }));
 import Dispatch from '@/pages/Dispatch';
