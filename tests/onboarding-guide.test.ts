@@ -7,7 +7,7 @@ import { ONBOARDING_STEPS as engineSteps, detectOnboardingStep as engineStep } f
 const fixture = vi.hoisted(() => ({ game: {} as any, navigate: vi.fn() }));
 vi.mock('@/lib/gameContext', () => ({ useGame: () => fixture.game }));
 vi.mock('react-router-dom', () => ({ useNavigate: () => fixture.navigate }));
-vi.mock('framer-motion', () => ({ motion: { div: ({ children, initial, animate, exit, transition, ...props }) => <div {...props}>{children}</div> } }));
+vi.mock('framer-motion', () => ({ motion: { div: ({ children, initial, animate, exit, transition, ...props }) => React.createElement('div', props, children) } }));
 import Guide from '@/components/OnboardingGuide';
 let container, root;
 beforeEach(() => {
@@ -18,7 +18,7 @@ beforeEach(() => {
   container = document.createElement('div'); document.body.append(container); root = createRoot(container);
 });
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); });
-async function render() { await act(async () => root.render(<Guide />)); }
+async function render() { await act(async () => root.render(React.createElement(Guide))); }
 function button(text) {
   const found = Array.from(container.querySelectorAll('button')).find((b: HTMLButtonElement) => b.textContent.includes(text));
   expect(found, text).toBeTruthy(); return found as HTMLButtonElement;
@@ -63,8 +63,10 @@ it('meldet einen Fehler beim Bestätigen der Auswertung und bleibt im bisherigen
   expect(fixture.game.showToast).toHaveBeenCalledWith('Sitzung wurde gewechselt', 'error');
   expect(container.textContent).toContain('Schritt 4 / 5');
 });
-it('blendet eine pausierte Begleitung aus', async () => {
+it('bietet für eine pausierte Begleitung das Fortsetzen an', async () => {
   fixture.game.state.onboarding.paused = true;
   await render();
-  expect(container.textContent).toBe('');
+  expect(container.textContent).toContain('Begleitung pausiert');
+  await act(async () => button('Begleitung fortsetzen').click());
+  expect(fixture.game.send).toHaveBeenCalledExactlyOnceWith('resumeOnboarding', {});
 });
