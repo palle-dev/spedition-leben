@@ -44,6 +44,7 @@ export function useDisplayGameTime() {
 
 export function GameProvider({ children }) {
   const [state, setState] = useState(null);
+  const [loadedStateVersion, setLoadedStateVersion] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingPhase, setLoadingPhase] = useState("");
@@ -398,6 +399,7 @@ export function GameProvider({ children }) {
     setSyncMeta(newMeta);
     stateRef.current = loaded;
     setState(loaded);
+    setLoadedStateVersion(version => version + 1);
     setShowStart(keepStart);
     changingStateRef.current = false;
     setAutomationEnabled(false);
@@ -1103,7 +1105,7 @@ export function GameProvider({ children }) {
   ]);
 
   const value = useMemo(() => ({
-    state, loading, loadingProgress, loadingPhase, busy, toast,
+    state, loadedStateVersion, loading, loadingProgress, loadingPhase, busy, toast,
     motionEnabled, overlay,
     automationEnabled, automationBusy,
     dirty: !!localSaveError, save: async () => stateRef.current ? saveNow(stateRef.current) : null, saving: false,
@@ -1114,7 +1116,7 @@ export function GameProvider({ children }) {
     backgroundAdvance,
     syncMeta, cloudSaves, cloudLoading,
   }), [
-    state, loading, loadingProgress, loadingPhase, busy, toast,
+    state, loadedStateVersion, loading, loadingProgress, loadingPhase, busy, toast,
     motionEnabled, overlay,
     automationEnabled, automationBusy,
     toasts, unseenCount,
