@@ -14,7 +14,7 @@ export default function DispatchTourDetails({ trip, state, routeData, onBack, on
   const currentPhase = phases[currentIdx];
   const hasGeometry = phases.every(p => {
     const t = p.type;
-    if (t === "load" || t === "loading" || t === "unload" || t === "unloading" || t === "break" || t === "daily_rest") return true;
+    if (t === "wait" || t === "charging" || t === "load" || t === "loading" || t === "unload" || t === "unloading" || t === "break" || t === "daily_rest") return true;
     return hasRealGeometry(p.fromCity, p.toCity, routeData);
   });
 
@@ -138,7 +138,7 @@ function PhaseRow({ phase, isCurrent, isPast, gameTime }) {
   const label = phaseLabel(phase.type) || phase.type;
   const isBreak = phase.type === "break";
   const isRest = phase.type === "daily_rest";
-  const isStationary = phase.type === "charging" || isBreak || isRest || phase.type === "load" || phase.type === "loading" || phase.type === "unload" || phase.type === "unloading";
+  const isStationary = phase.type === "wait" || phase.type === "charging" || isBreak || isRest || phase.type === "load" || phase.type === "loading" || phase.type === "unload" || phase.type === "unloading";
 
   const dotColor = isCurrent ? (isBreak ? "bg-amber-300" : isRest ? "bg-indigo-300" : "bg-lime") : isPast ? "bg-lime/40" : "bg-white/20";
   const textColor = isCurrent ? "text-foreground" : isPast ? "text-foreground/60" : "text-muted-foreground";
@@ -150,7 +150,7 @@ function PhaseRow({ phase, isCurrent, isPast, gameTime }) {
   }
 
   const route = isStationary
-    ? (phase.fromCity || "—")
+    ? (phase.fromCity || phase.toCity || "")
     : `${phase.fromCity} → ${phase.toCity}`;
 
   return (
@@ -161,7 +161,7 @@ function PhaseRow({ phase, isCurrent, isPast, gameTime }) {
       </div>
       <div className={`flex-1 pb-2 ${textColor}`}>
         <div className="text-xs font-medium flex items-center justify-between">
-          <span>{label}: {route}</span>
+          <span>{label}{route ? `: ${route}` : ""}</span>
           {isCurrent && <span className="text-[9px] text-lime uppercase tracking-wider">aktiv</span>}
         </div>
         <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
@@ -182,6 +182,7 @@ function phaseDescription(phase) {
   const t = phase.type;
   if (t === "load" || t === "loading") return `Laden in ${phase.fromCity}`;
   if (t === "unload" || t === "unloading") return `Entladen in ${phase.toCity}`;
+  if (t === "wait" || t === "charging") return phaseLabel(t);
   if (t === "break") return `Fahrpause`;
   if (t === "daily_rest") return `Ruhezeit`;
   if (t === "empty" || t === "empty_drive") return `Leerfahrt nach ${phase.toCity}`;
