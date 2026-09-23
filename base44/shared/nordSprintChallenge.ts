@@ -83,8 +83,9 @@ export function processNordSprintChallenge(state) {
   const a = state.world?.nordSprintChallenge;
   if (!a || !["trial", "followup"].includes(a.status)) return;
   const isTrial = a.status === "trial";
-  const r = resultOf(state, isTrial ? a.trialId : a.followupId);
-  if (!r) return;
+  const observed = resultOf(state, isTrial ? a.trialId : a.followupId);
+  if (!observed) return;
+  const r = { ...observed, customerTrustDelta: 0, reputationDelta: 0 };
   const onTime = r.outcome === "on_time";
   const trustDelta = onTime ? (isTrial ? (a.choiceId === "quality" ? 35 : 20) : 15) : r.outcome === "late" ? -15 : -30;
   const reputationDelta = onTime ? (isTrial && a.choiceId === "quality" ? 5 : 3) : r.outcome === "late" ? -3 : -5;
