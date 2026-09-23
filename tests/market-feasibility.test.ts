@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { createInitialState } from '@/lib/simulation/simulationEngine';
+import { createInitialState, applyCommand } from '@/lib/simulation/simulationEngine';
 import { validateTourConfirmation } from '@/lib/simulation/tourEngine';
 import { assessMarketOffers } from '@/lib/marketFeasibility';
 
 function setup() {
   const state: any = createInitialState({ companyName: 'Marktprüfung' }).state;
+  applyCommand(state, 'advanceTime', {minutes:0});
   state.vehicles = [state.vehicles[0]];
   state.drivers = [state.drivers[0]];
   state.orders = [{ ...state.orders[0], id: 'market-test', status: 'offered',
