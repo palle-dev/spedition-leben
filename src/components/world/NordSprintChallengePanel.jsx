@@ -75,7 +75,7 @@ export default function NordSprintChallengePanel({ showCompleted = false }) {
         <button aria-label={c.label + " – Probelauf zusagen"} disabled={disabled || !!reason} className={button + " text-amber-100"} onClick={() => act("startNordSprintChallenge", { choiceId: c.id }, true)}>Probelauf zusagen & planen {icon}</button>
       </article>)}</div>
       {reason && <p className="text-sm text-amber-200">{reason}</p>}
-      <p className="text-xs text-slate-400">Keine Zusage ohne deinen Klick. Keine zusätzliche Teilnahmegebühr. Normale Fahrtkosten, Storno- und Verspätungsregeln gelten. Ein verspäteter oder stornierter Probelauf bringt keinen Folgeauftrag. Du kannst auch die bisherige Kapitelentscheidung in der Spielwelt wählen.</p>
+      <p className="text-xs text-slate-400">Keine Zusage ohne deinen Klick. Keine zusätzliche Teilnahmegebühr. Wähle einen ausgeruhten Fahrer und prüfe die Ankunft in der Dispositionsvorschau. Eine nötige Ruhezeit kann das Lieferfenster überschreiten. Normale Fahrtkosten, Storno- und Verspätungsregeln gelten. Ein verspäteter oder stornierter Probelauf bringt keinen Folgeauftrag. Du kannst auch die bisherige Kapitelentscheidung in der Spielwelt wählen.</p>
       <Link to="/spielwelt" className="text-xs text-amber-200 underline underline-offset-4">Zur Kapitelentscheidung</Link>
     </div>}
     {a && <div className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-black/15 p-3 text-sm">
