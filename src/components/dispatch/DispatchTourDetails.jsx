@@ -1,8 +1,8 @@
 import React from "react";
 import { vehicleDisplayName, driverDisplayName } from "@/lib/displayHelpers";
-import { formatGameTime, formatEuro } from "@/lib/gameData";
+import { formatGameTime, formatEuro, WORK_BUDGET_MIN, REST_MIN } from "@/lib/gameData";
 import { hasRealGeometry } from "@/lib/geoData";
-import { phaseLabel } from "@/lib/driverTimeEngine";
+import { phaseLabel, computeFinalCounters } from "@/lib/driverTimeEngine";
 import { ArrowLeft, MapPin, Clock, Package, Truck, CheckCircle2, AlertTriangle, Fuel, CreditCard, User, Coffee, Moon } from "lucide-react";
 
 export default function DispatchTourDetails({ trip, state, routeData, onBack, onShowOnMap, onShowVehicle }) {
@@ -19,6 +19,12 @@ export default function DispatchTourDetails({ trip, state, routeData, onBack, on
   });
 
   const buffer = order ? order.deliveryDeadlineMin - trip.endMin : null;
+  // Use the same phase accounting and start counters as actual trip completion.
+  const finalCounters = driver ? computeFinalCounters(phases, trip.initialCounters || {
+    workMin: driver.workMinutesSinceRest || 0,
+    driveMin: driver.driveMinutesSinceBreak || 0,
+  }) : null;
+  const remainingWorkMin = finalCounters ? Math.max(0, WORK_BUDGET_MIN - finalCounters.workMin) : 0;
 
 
   return (
@@ -91,9 +97,11 @@ export default function DispatchTourDetails({ trip, state, routeData, onBack, on
       {/* Driver rest info */}
       {driver?.status === "on_trip" && (
         <div className="text-[11px] text-muted-foreground/70 leading-relaxed">
-          {driver.workMinutesSinceRest >= 480
-            ? `Nach Abschluss ruht ${driverDisplayName(driver)} für 12 Stunden (erschöpftes Arbeitsbudget).`
-            : `Arbeitsbudget nach Abschluss: ${480 - (driver.workMinutesSinceRest || 0)} min verbleibend – kein Ruhezeitbedarf.`}
+          {trip.legacyMode
+            ? `Nach Abschluss ruht ${driverDisplayName(driver)} für ${REST_MIN / 60} Stunden (älterer Tourplan).`
+            : remainingWorkMin === 0
+              ? `Nach Abschluss ruht ${driverDisplayName(driver)} für ${REST_MIN / 60} Stunden (erschöpftes Arbeitsbudget).`
+              : `Arbeitsbudget nach Abschluss: ${remainingWorkMin} min verbleibend – kein Ruhezeitbedarf.`}
         </div>
       )}
 
