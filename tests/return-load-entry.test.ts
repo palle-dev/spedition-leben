@@ -3,7 +3,7 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MemoryRouter, useNavigate } from 'react-router-dom';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
-import { createInitialState } from '@/lib/simulation/simulationEngine';
+import { createInitialState, applyCommand } from '@/lib/simulation/simulationEngine';
 const fixture = vi.hoisted(() => ({ game: {} as any, setSlot: vi.fn() }));
 vi.mock('@/lib/gameContext', () => ({ useGame: () => fixture.game }));
 vi.mock('@/lib/headerSlot', () => ({ useHeaderSlot: () => ({ setSlot: fixture.setSlot }) }));
@@ -42,7 +42,8 @@ it('öffnet die Rückladungssuche für ein Marktangebot ohne eine Annahme auszul
   expect(fixture.game.send).not.toHaveBeenCalled();
   expect(fixture.game.state.orders.every(o => o.status === 'offered')).toBe(true);
 });
-it('bestätigt Hin- und Rückladung erst nach Auswahl und ausdrücklichem Tourstart', async () => {
+it('bestätigt Hin- und Rückladung erst nach Auswahl und zeigt die gestartete Tour', async () => {
+  fixture.game.send = vi.fn(async (command, params) => applyCommand(fixture.game.state, command, params));
   await render();
   await act(async () => button('Rückladung Test').click());
   expect(fixture.game.send).not.toHaveBeenCalled();
@@ -50,6 +51,12 @@ it('bestätigt Hin- und Rückladung erst nach Auswahl und ausdrücklichem Tourst
   expect(start.disabled).toBe(false);
   await act(async () => start.click());
   expect(fixture.game.send).toHaveBeenCalledExactlyOnceWith('confirmTour', expect.objectContaining({ orderIds: ['out', 'back'] }));
+  expect(container.textContent).toContain('PHASEN');
+  expect(container.textContent).not.toContain('Tour bestätigen und starten');
+  expect(fixture.game.state.orders.every(o => o.status === 'angenommen')).toBe(true);
+  await act(async () => { applyCommand(fixture.game.state, 'advanceTime', { minutes: 1440 }); });
+  expect(fixture.game.state.stats.totalDeliveries).toBe(2);
+  expect(fixture.game.state.tours[0].status).toBe('completed');
 });
 it('kann die Suche ohne Annahme verlassen und eine andere Hinladung öffnen', async () => {
   await render();
