@@ -74,3 +74,28 @@ it('öffnet einen angenommenen Auftrag ohne Rückladungsaktion weiterhin im Einz
   expect(container.textContent).toContain('Transport starten');
   expect(container.textContent).not.toContain('Tour bestätigen und starten');
 });
+it('schließt nach Laden eines älteren Standes den nicht mehr angenommenen Einzelauftrag', async () => {
+  fixture.game.state.orders[0].status = 'angenommen';
+  await render('/disposition?order=out');
+  expect(button('Transport starten')).toBeTruthy();
+  fixture.game.state = structuredClone(fixture.game.state);
+  fixture.game.state.orders[0].status = 'offered';
+  fixture.game.loadedStateVersion = 1;
+  await render('/disposition?order=out');
+  expect(button('Transport starten')).toBeUndefined();
+  expect(fixture.game.send).not.toHaveBeenCalled();
+});
+it('bewahrt die Auswahl bei normalen Updates, verwirft sie aber beim Laden mit gleichen IDs und gleicher Zeit', async () => {
+  await render();
+  await act(async () => button('Rückladung Test').click());
+  fixture.game.state = structuredClone(fixture.game.state);
+  await render();
+  await act(async () => button('Tour bestätigen und starten').click());
+  expect(fixture.game.send).toHaveBeenLastCalledWith('confirmTour', expect.objectContaining({orderIds:['out','back']}));
+  fixture.game.send.mockClear();
+  fixture.game.loadedStateVersion = 1;
+  fixture.game.state = structuredClone(fixture.game.state);
+  await render();
+  await act(async () => button('Tour bestätigen und starten').click());
+  expect(fixture.game.send).toHaveBeenCalledExactlyOnceWith('confirmTour', expect.objectContaining({orderIds:['out']}));
+});
