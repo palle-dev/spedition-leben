@@ -81,6 +81,7 @@ it("commits a generated defect through the worker and provider while rejecting t
   expect(s.vehicles.find(v => v.id === "v1").status).toBe("maintenance");
   expect(s.drivers.find(d => d.id === "d1").status).toBe(before.drivers.find(d => d.id === "d1").status);
   expect(s.rngSeed).not.toBe(before.rngSeed);
+  expect(s.mail.messages).toContainEqual(expect.objectContaining({ subject: "Stoerung: Technischer Defekt", linkedRefs: [{ type: "disruption", id: s.disruptions.items.at(-1).id }] }));
   expect(s.company.accountCents).toBe(before.company.accountCents);
   expect(s.accounting.journal).toEqual(before.accounting.journal);
   expect(s.trips).toEqual(before.trips);
@@ -94,6 +95,7 @@ it("commits a generated defect through the worker and provider while rejecting t
   await act(async () => { await fixture.context.save(); });
   expect(fixture.saved.disruptions.items).toEqual(s.disruptions.items);
   expect(fixture.saved.rngSeed).toBe(s.rngSeed);
+  expect(fixture.saved.mail.messages).toEqual(s.mail.messages);
   let started;
   await act(async () => { started = await fixture.context.send("startTransport", { ...params, vehicleId: "v2" }); });
   expect(started.fuelCents).toBeGreaterThan(0);
