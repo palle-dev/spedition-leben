@@ -10,7 +10,11 @@ const cmd = (s, name, p = {}) => applyCommand(s, name, p).result as any;
 const arc = s => s.world.nordSprintChallenge;
 function drive(s, id, execute = cmd) {
   const r = execute(s, "startTransport", { orderId: id, vehicleId: "v1", driverId: "d1" });
-  execute(s, "advanceTime", { minutes: r.endMin - s.gameTime });
+  while (s.gameTime < r.endMin) {
+    const before = s.gameTime;
+    execute(s, "advanceTime", { minutes: Math.min(1440, r.endMin - s.gameTime) });
+    expect(s.gameTime).toBeGreaterThan(before);
+  }
   return s.orders.find(o => o.id === id);
 }
 function ready() {
