@@ -8,6 +8,21 @@ it('Browser- und Base44-Module sind identische, überprüfbare Kopien', () => {
     expect(readFileSync('base44/shared/' + file, 'utf8'), file).toBe(readFileSync('src/lib/simulation/' + file, 'utf8'));
   }
 });
+it('Löschen einer offenen Freigabe funktioniert in beiden Engines identisch', () => {
+  const a = createInitialState({ companyName: 'Parity' }).state;
+  const b = remoteInitial({ companyName: 'Parity' }).state;
+  for (const state of [a, b]) {
+    state.approvals = { pending: [{ id: 'remove', status: 'pending' }, { id: 'keep', status: 'pending' }] };
+    state.delegation = { ...state.delegation, stats: { ...state.delegation?.stats, pendingApprovals: 2 } };
+  }
+  const local = applyCommand(a, 'deleteApproval', { requestId: 'remove' });
+  const remote = remoteCommand(b, 'deleteApproval', { requestId: 'remove' });
+  expect(remote).toEqual(local);
+  expect(a.approvals.pending.map(r => r.id)).toEqual(['keep']);
+  expect(b.approvals).toEqual(a.approvals);
+  expect(a.delegation.stats.pendingApprovals).toBe(1);
+  expect(b.delegation.stats.pendingApprovals).toBe(1);
+});
 it('Browser- und Server-Engine führen denselben Spieltag aus', () => {
   const names = { companyName: 'Parity', playerName: 'Test', partnerName: 'Test' };
   const a = createInitialState(names).state, b = remoteInitial(names).state;
