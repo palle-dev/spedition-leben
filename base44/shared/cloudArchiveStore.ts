@@ -3,11 +3,9 @@ import { archiveIdentity } from "./cloudArchive.ts";
 // Blocks are immutable and owner-scoped. Never delete during save/delete:
 // another slot or an in-flight CAS may still refer to them.
 //
-// Storage strategy: large archive payloads are uploaded as private files
-// via UploadPrivateFile. Only the resulting file_uri is stored in the
-// GameArchiveBlock.data field (prefixed with "uri:"). This keeps every
-// entity field well below the platform's maximum field size. Legacy
-// blocks with inline base64 data are still supported for backward compat.
+// Current saves are complete private files. Older embedded snapshots and
+// immutable owner-scoped archive blocks remain readable. Missing originals
+// are an error: loading must never silently shorten history or alter totals.
 export class CloudArchiveError extends Error {}
 
 const URI_PREFIX = "uri:";
@@ -18,7 +16,10 @@ function isFileUri(data: unknown): data is string {
 
 function chunks(state: any): any[] {
   const archive = state?.historyArchive;
-  if (!archive) return [];
+  if (!archive) {
+    if (state?.accounting?.journalProjection?.count) throw new CloudArchiveError("Finanzarchiv fehlt. Die Sicherung wurde nicht verändert.");
+    return [];
+  }
   if (archive.version !== 1 || !Array.isArray(archive.chunks)) throw new CloudArchiveError("Ungültiges Cloud-Archiv.");
   const seen = new Set();
   for (const c of archive.chunks) {
@@ -30,12 +31,16 @@ function chunks(state: any): any[] {
     }
     seen.add(c.id);
   }
+  if (state.accounting?.journalProjection && archive.chunks.filter(c => c.kind === "accountingJournal").reduce((n, c) => n + c.count, 0) !== state.accounting.journalProjection.count) {
+    throw new CloudArchiveError("Finanzarchiv und Auswertung sind unvollständig. Die Sicherung wurde nicht verändert.");
+  }
   return archive.chunks;
 }
 
 async function verifyBase64(data: unknown, id: string): Promise<void> {
   if (typeof data !== "string" || !data.length) throw new CloudArchiveError("Cloud-Archivblock fehlt.");
-  const binary = atob(data);
+  let binary: string;
+  try { binary = atob(data); } catch { throw new CloudArchiveError("Ungültiger Cloud-Archivinhalt."); }
   const digest = await crypto.subtle.digest("SHA-256", Uint8Array.from(binary, c => c.charCodeAt(0)));
   const actual = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
   if (actual !== id) throw new CloudArchiveError("Cloud-Archiv-Prüfsumme stimmt nicht überein.");
@@ -124,6 +129,7 @@ export async function stageState(storage: any, state: any): Promise<any> {
   const blob = new Blob([json], { type: "application/json" });
   const file = new File([blob], "state.json", { type: "application/json" });
   const { file_uri } = await withRetry(() => storage.uploadPrivateFile({ file }));
+  if (typeof file_uri !== "string" || !file_uri.trim()) throw new CloudArchiveError("Spielstandsdatei wurde nicht bestätigt.");
   return URI_PREFIX + file_uri;
 }
 export async function hydrateState(storage: any, state: any): Promise<any> {
@@ -155,68 +161,70 @@ async function fetchBlocksByHashes(blocks: any, ownerId: string, hashes: string[
 export async function hydrateCloudArchive(blocks: any, ownerId: string, state: any, refs: Record<string, string> | null = {}, storage: any = null): Promise<any> {
   state = await hydrateState(storage, state);
   const all = chunks(state);
-  // Fetch only blocks for the chunks in this state (content-addressable lookup),
-  // batched to stay within the platform's request-size limit.
-  const rowByHash = all.length > 0 ? await fetchBlocksByHashes(blocks, ownerId, all.map((c: any) => c.id)) : new Map<string, any>();
+  // Complete embedded saves need no archive-entity access.
+  const unresolved = all.filter(c => c.data == null && !refs?.[c.id]);
+  const rowByHash = unresolved.length
+    ? await fetchBlocksByHashes(blocks, ownerId, unresolved.map(c => c.id))
+    : new Map<string, any>();
   const items = await mapWithConcurrency(all, CONCURRENCY, async (c: any) => {
-    // Legacy embedded base64 saves (pre-file-storage) pass through directly.
-    if (typeof c.data === "string" && !isFileUri(c.data)) return c;
-    const row = rowByHash.get(c.id);
+    if (c.data != null) {
+      await verifyBase64(c.data, c.id);
+      return c;
+    }
+    const row = refs?.[c.id] ? await blocks.get(refs[c.id]) : rowByHash.get(c.id);
     if (!validRecord(row, ownerId, c)) {
-      // Chunk data was stripped by the client's references optimization.
-      // In single-file mode, blocks aren't stored in GameArchiveBlock, so
-      // the stripped data is unrecoverable. Skip the chunk — historical
-      // data is lost but the save still loads.
-      return null;
+      throw new CloudArchiveError("Cloud-Archivblock fehlt oder Zugriff/Archivindex ist ungültig. Die Sicherung wurde nicht verändert.");
     }
     if (isFileUri(row.data)) {
       if (!storage?.createSignedUrl) throw new CloudArchiveError("Storage-Funktionen fehlen zum Laden des Archivblocks.");
-      const file_uri = row.data.slice(URI_PREFIX.length);
-      const { signed_url } = await withRetry(() => storage.createSignedUrl({ file_uri }));
+      const { signed_url } = await withRetry(() => storage.createSignedUrl({ file_uri: row.data.slice(URI_PREFIX.length) }));
       const response = await fetchWithRetry(signed_url);
       if (!response.ok) throw new CloudArchiveError("Cloud-Archivblock konnte nicht geladen werden (" + response.status + ").");
-      const buffer = await response.arrayBuffer();
-      const base64 = bytesToBase64(buffer);
+      const base64 = bytesToBase64(await response.arrayBuffer());
       await verifyBase64(base64, c.id);
       return { ...c, data: base64 };
     }
     await verifyBase64(row.data, c.id);
     return { ...c, data: row.data };
   });
-  // Filter out skipped chunks (missing data that can't be recovered).
-  const available = items.filter(Boolean);
-  const result = stateWithChunks(state, available);
-  // If journal chunks were skipped, adjust the projection count to match
-  // the available chunks so client-side validation doesn't reject the save.
-  if (result.accounting?.journalProjection && all.some((c: any) => c.kind === "accountingJournal")) {
-    const availableJournalCount = available.filter((c: any) => c.kind === "accountingJournal").reduce((n: number, c: any) => n + c.count, 0);
-    result.accounting = { ...result.accounting, journalProjection: { ...result.accounting.journalProjection, count: availableJournalCount } };
-  }
-  return result;
+  return stateWithChunks(state, items);
 }
 
 export async function stageCloudArchive(blocks: any, ownerId: string, state: any, previous: any = null, previousRefs: Record<string, string> | null = {}, storage: any = null): Promise<{ state: any; archive_blocks: Record<string, string> }> {
-  // Single-file mode: upload the entire state (history included) as ONE private
-  // file. This replaces the per-chunk block system that caused HTTP 500 failures
-  // on long games — dozens of concurrent uploads overwhelmed the server.
-  // Tradeoff: no cross-save dedup (re-uploads each time), but far more reliable.
-  // hydrateCloudArchive already handles this format via hydrateState + inline-data
-  // pass-through, so existing saves using the old block format still load.
+  const all = chunks(state);
+  // References can only name an unchanged chunk in the owner's previous
+  // snapshot. Never accept a client-provided hash as authority to read data.
+  const needsPrevious = all.some(c => c.data == null) || (!storage?.uploadPrivateFile && Object.keys(previousRefs || {}).length > 0);
+  const oldState = needsPrevious ? await hydrateState(storage, previous) : null;
+  const oldChunks = new Map(chunks(oldState).map(c => [c.id, c]));
+  for (const c of all) {
+    if (c.data != null) await verifyBase64(c.data, c.id);
+    else if (!oldChunks.has(c.id) || archiveIdentity(oldChunks.get(c.id)) !== archiveIdentity(c)) {
+      throw new CloudArchiveError("Cloud-Archivreferenz fehlt oder wurde verändert.");
+    }
+  }
   if (storage?.uploadPrivateFile) {
-    const json = JSON.stringify(state);
-    const blob = new Blob([json], { type: "application/json" });
-    const file = new File([blob], "state.json", { type: "application/json" });
+    // Resolve legacy reference-only clients before producing a self-contained
+    // file. No archive reads are necessary for today's full client payload.
+    const resolved = await mapWithConcurrency(all, CONCURRENCY, async c => {
+      if (c.data != null) return c;
+      const old = oldChunks.get(c.id);
+      const hydrated = await hydrateCloudArchive(blocks, ownerId,
+        { historyArchive: { version: 1, chunks: [old] } }, previousRefs, storage);
+      return hydrated.historyArchive.chunks[0];
+    });
+    const complete = stateWithChunks(state, resolved);
+    const file = new File([JSON.stringify(complete)], "state.json", { type: "application/json" });
     const { file_uri } = await withRetry(() => storage.uploadPrivateFile({ file }));
+    if (typeof file_uri !== "string" || !file_uri.trim()) throw new CloudArchiveError("Spielstandsdatei wurde nicht bestätigt.");
     return { state: URI_PREFIX + file_uri, archive_blocks: {} };
   }
-  // Fallback without storage: legacy inline-block path (keeps old saves working
-  // when private-file storage is unavailable — e.g. contract tests).
-  const all = chunks(state);
+  // Legacy block storage is retained for callers without private-file storage.
   const refs: Record<string, string> = {};
   const toCreate: { chunk: any; storedData: string }[] = [];
   const reused = new Set<string>();
   for (const c of all) {
-    if (typeof previousRefs?.[c.id] === "string") {
+    if (typeof previousRefs?.[c.id] === "string" && oldChunks.has(c.id) && archiveIdentity(oldChunks.get(c.id)) === archiveIdentity(c)) {
       refs[c.id] = previousRefs[c.id];
       reused.add(c.id);
     }
@@ -230,7 +238,7 @@ export async function stageCloudArchive(blocks: any, ownerId: string, state: any
       if (c.data != null) await verifyBase64(c.data, c.id);
       return reference(c);
     }
-    const data = c.data;
+    const data = c.data ?? oldChunks.get(c.id)?.data;
     await verifyBase64(data, c.id);
     const existing = existingByHash.get(c.id);
     if (existing) {
@@ -247,9 +255,10 @@ export async function stageCloudArchive(blocks: any, ownerId: string, state: any
       owner_id: ownerId, content_hash: chunk.id, descriptor: reference(chunk), data: storedData,
     }))));
     const createdArray = Array.isArray(created) ? created : [created];
-    for (const row of createdArray) {
+    for (const { chunk } of toCreate) {
+      const row = createdArray.find(r => validRecord(r, ownerId, chunk));
       if (!row?.id) throw new CloudArchiveError("Cloud-Archivblock wurde nicht bestätigt.");
-      refs[row.content_hash] = row.id;
+      refs[chunk.id] = row.id;
     }
   }
   const strippedState = stateWithChunks(state, items);
