@@ -61,6 +61,29 @@ it("accounts for a daily rest, breaks and waiting without counting them as work"
   expect(text(state, trip)).toContain("Arbeitsbudget nach Abschluss: 360 min verbleibend");
 });
 
+it("shows waiting and charging as stationary phases without invented routes", () => {
+  for (const type of ["wait", "charging"]) {
+    const { state, trip } = fixture([{ type, durationMin: 60, startMin: 0, endMin: 60 }]);
+    const html = text(state, trip);
+    expect(html).not.toContain("undefined");
+    expect(html).not.toContain("Routenverlauf für einen Abschnitt");
+    expect(html).not.toContain("→");
+    expect(html).not.toContain(">" + type + "<");
+    if (type === "wait") expect(html.match(/Warten auf Ladefenster/g)).toHaveLength(2);
+  }
+});
+
+it("still warns when a driving phase has no route geometry", () => {
+  const { state, trip } = fixture([
+    { type: "wait", durationMin: 60, startMin: 0, endMin: 60 },
+    { type: "loaded_drive", fromCity: "Hamburg", toCity: "Bremen", durationMin: 115, startMin: 60, endMin: 175 },
+  ]);
+  const html = text(state, trip);
+  expect(html).toContain("Routenverlauf für einen Abschnitt");
+  expect(html).toContain("Hamburg → Bremen");
+  expect(html).not.toContain("undefined");
+});
+
 it("keeps the actual mandatory rest for legacy trips visible", () => {
   const { state, trip } = fixture([{ type: "loading", durationMin: 60, startMin: 0, endMin: 60 }], 0, true);
   expect(text(state, trip)).toContain("für 12 Stunden (älterer Tourplan)");
