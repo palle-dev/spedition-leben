@@ -9,6 +9,7 @@ import {processManagementReports} from "./managementResponsibilities.ts";
 import {executeStaffPhoneCommand} from "./staffPhone.ts";
 import { processPhoneCommunications } from "./phoneCommunications.ts";
 import { getEscalatedDeliveryRisks } from "./deliveryRisk.ts";
+import { NORDSPRINT_COMMANDS } from "./nordSprintChallenge.ts";
 import { HARBOR_OPENING_COMMANDS } from "./harborOpening.ts";
 import { migrateWorld, processWorld, handleWorldCommand } from "./worldEngine.ts";
 import { processAssistant, migrateAssistant } from "./assistantEngine.ts";
@@ -2513,7 +2514,7 @@ export function applyCommand(state, command, params) {
     default: {
       if(COMPETITION_COMMANDS.includes(command)){ensureNotBlocked(state);result=handleCompetitionCommand(state,command,p);break;}
       if(command === "installEnergyUpgrade"){ensureNotBlocked(state);result=installEnergyUpgrade(state,p);break;}
-      if (HARBOR_OPENING_COMMANDS.includes(command) || ["startWorld", "chooseWorldStory", "bidWorldTender", "withdrawWorldBid", "cancelWorldAppointment"].includes(command)) ensureNotBlocked(state);
+      if (NORDSPRINT_COMMANDS.includes(command) || HARBOR_OPENING_COMMANDS.includes(command) || ["startWorld", "chooseWorldStory", "bidWorldTender", "withdrawWorldBid", "cancelWorldAppointment"].includes(command)) ensureNotBlocked(state);
       const worldResult = handleWorldCommand(state, command, p);
       if (worldResult !== null) { result = worldResult; break; }
       const dgResult = handleDgCommand(state, command, p);
