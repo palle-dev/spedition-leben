@@ -53,7 +53,7 @@ it('bestätigt Hin- und Rückladung erst nach Auswahl und zeigt die gestartete T
   expect(fixture.game.send).toHaveBeenCalledExactlyOnceWith('confirmTour', expect.objectContaining({ orderIds: ['out', 'back'] }));
   expect(container.textContent).toContain('Hinladung Test');
   expect(container.textContent).not.toContain('Tour bestätigen und starten');
-  expect(fixture.game.state.orders.every(o => o.status === 'angenommen')).toBe(true);
+  expect(fixture.game.state.orders.map(o => o.status)).toEqual(['unterwegs', 'angenommen']);
   await act(async () => { applyCommand(fixture.game.state, 'advanceTime', { minutes: 1440 }); });
   expect(fixture.game.state.stats.totalDeliveries).toBe(2);
   expect(fixture.game.state.tours[0].status).toBe('completed');
