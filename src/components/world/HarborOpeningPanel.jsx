@@ -88,8 +88,8 @@ export default function HarborOpeningPanel({ showCompleted = false }) {
       <p className="text-sm text-slate-200 leading-relaxed max-w-3xl">Anna zeigt auf den Vermerk des Kunden: Die reguläre Warenannahme ist belegt. „Wir können eine zusätzliche Rampe bezahlen. Oder ich stimme ein späteres Fenster ab – dann reduziert der Kunde die Vergütung. Was passt zu deinem Betrieb?“</p>
       <div className="grid md:grid-cols-2 gap-3">{HARBOR_HANDOVERS.map(c => <div key={c.id} className="rounded-2xl border border-white/10 bg-black/20 p-4 flex flex-col gap-3">
         <h4 className="font-medium text-sm">{c.label}</h4><p className="text-sm text-slate-300 leading-relaxed flex-1">{c.detail}</p>
-        {state.company.accountCents < c.feeCents && <p className="text-xs text-amber-200">Dafür reicht das Firmenkonto gerade nicht.</p>}
-        <button disabled={disabled || state.company.accountCents < c.feeCents} className={button + " text-sky-100"} onClick={() => act("chooseHarborHandover", { choiceId: c.id }, true)}>So zusagen & planen {actionIcon}</button>
+        {(c.feeCents > 0 && state.company.accountCents < c.feeCents) && <p className="text-xs text-amber-200">Dafür reicht das Firmenkonto gerade nicht.</p>}
+        <button disabled={disabled || (c.feeCents > 0 && state.company.accountCents < c.feeCents)} className={button + " text-sky-100"} onClick={() => act("chooseHarborHandover", { choiceId: c.id }, true)}>So zusagen & planen {actionIcon}</button>
       </div>)}</div>
       <p className="text-xs text-slate-400">Hamburg → Bremen · 6 t Stückgut · Fristen ab deiner Zusage. Anfahrt, Lenkzeiten, Kraftstoff und Maut gelten wie bei jeder Tour. Bei Storno gilt die normale Gebühr.</p>
       <button disabled={disabled} className="text-xs text-slate-400 underline underline-offset-4 disabled:opacity-40" onClick={() => act("finishHarborOpening")}>Noch nichts zusagen und frei weiterspielen</button>

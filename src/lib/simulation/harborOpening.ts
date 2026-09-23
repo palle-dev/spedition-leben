@@ -136,7 +136,7 @@ export function handleHarborOpeningCommand(state, command, p) {
       throw new Error("Die Übergabe ist bereits vereinbart.");
     }
     if (a.status !== "briefing") throw new Error("Die Übergabe kann jetzt nicht mehr gewählt werden.");
-    if (state.company.accountCents < choice.feeCents) throw new Error("Das Firmenkonto reicht für die zusätzliche Rampe nicht. Die abgestimmte Übergabe benötigt keine Vorleistung.");
+    if (choice.feeCents > 0 && state.company.accountCents < choice.feeCents) throw new Error("Das Firmenkonto reicht für die zusätzliche Rampe nicht. Die abgestimmte Übergabe benötigt keine Vorleistung.");
     if (choice.feeCents) addBooking(state, state.gameTime, "Zusätzliche Rampe für Annas Transport", -choice.feeCents, "company", "harbor_opening_ramp");
     a.handover = choice.id; a.feeCents = choice.feeCents;
     a.outboundId = "harbor_opening_outbound";

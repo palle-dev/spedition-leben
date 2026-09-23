@@ -8,6 +8,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { createInitialState, applyCommand } from "../src/lib/simulation/simulationEngine";
 const fixture = vi.hoisted(() => ({ state: null as any, send: vi.fn(), showToast: vi.fn(), busy: false, backgroundAdvance: null as any }));
 vi.mock("@/lib/gameContext", () => ({ useGame: () => fixture }));
+vi.mock("framer-motion", () => ({ motion: { div: ({ children, initial, animate, exit, transition, ...props }) => React.createElement("div", props, children) } }));
 import Panel, { HarborOpeningGuide } from "../src/components/world/HarborOpeningPanel";
 import OnboardingGuide from "../src/components/OnboardingGuide";
 let root, container;

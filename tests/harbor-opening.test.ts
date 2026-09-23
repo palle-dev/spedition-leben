@@ -75,8 +75,9 @@ describe("Annas spielbarer Auftakt", () => {
     expect(() => cmd(s, "chooseHarborHandover", { choiceId: "priority" })).toThrow(/Firmenkonto/);
     expect(opening(s)).toEqual(before);
     expect(s.orders).toHaveLength(n);
+    s.company.accountCents = -100; // The free option must remain available without a cash advance.
     cmd(s, "chooseHarborHandover", { choiceId: "coordinated" });
-    expect(s.company.accountCents).toBe(0);
+    expect(s.company.accountCents).toBe(-100);
   });
   it.each(["priority", "coordinated"])("drives both real transports through completion (%s)", choice => {
     const s = fresh(), id = begin(s, choice);
