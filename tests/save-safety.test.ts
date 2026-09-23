@@ -207,6 +207,7 @@ describe("Ladepfade und Ereignisse", () => {
   it("aktiviert eine andere Partie ohne die Cloud-ID der vorherigen Partie", async () => {
     const meta = ref({ partyId: "B", cloudId: "cloud-B" });
     const current = ref(valid("B"));
+    let loadedStateVersion = 0;
     const env = {
       stageHistory: async (_userId, s) => s, processSaveFile: async (_command, raw) => prepareLoadedState(raw), ensurePartyId: noop,
       getSyncMeta: async () => ({ partyId: "B", cloudId: "cloud-B" }),
@@ -215,7 +216,7 @@ describe("Ladepfade und Ereignisse", () => {
       syncMetaRef: meta,
     hasLockRef: ref(true), lockRequiresReloadRef: ref(false),
     withCloudRetry: (task, options) => withCloudRetry(task, {...options, wait: async () => {}}), stateRef: current,
-      setSyncMeta: noop, setState: noop, setShowStart: noop, changingStateRef: ref(true),
+      setSyncMeta: noop, setState: noop, setLoadedStateVersion: update => { loadedStateVersion = update(loadedStateVersion); }, setShowStart: noop, changingStateRef: ref(true),
       setAutomationEnabled: noop, userWantsAutomationRef: ref(false),
       lastSyncGameTimeRef: ref(0), lastSyncRealMsRef: ref(0), isInitialLoadRef: ref(false),
       seenEventIdsRef: ref(new Set()), lastEventSeqRef: ref(4), setToasts: noop, setOverlay: noop,
@@ -227,6 +228,12 @@ describe("Ladepfade und Ereignisse", () => {
     await callback("activateState", env)(valid("A"), { userId: "alice" });
     expect(meta.current.partyId).toBe("A");
     expect(meta.current.cloudId).toBeNull();
+    expect(loadedStateVersion).toBe(1);
+    await callback("activateState", env)(valid("A"), { userId: "alice" });
+    expect(loadedStateVersion).toBe(2);
+    env.isCurrentSession = () => false;
+    await callback("activateState", env)(valid("A"), { userId: "alice" });
+    expect(loadedStateVersion).toBe(2);
     expect(env.isInitialLoadRef.current).toBe(true);
     expect(env.lastEventSeqRef.current).toBe(0);
   });
