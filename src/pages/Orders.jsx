@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime, CITIES, getDistance } from "@/lib/gameData";
 import { getMarketStats } from "@/lib/marketData";
+import { assessMarketOffers } from "@/lib/marketFeasibility";
 import StatusBadge from "@/components/ui/StatusBadge";
 import OfferCard from "@/components/orders/OfferCard";
 import CompletedOrdersReport from "@/components/orders/CompletedOrdersReport";
@@ -43,6 +44,7 @@ export default function Orders() {
   const [partnerOrder, setPartnerOrder] = useState(null);
 
   const marketStats = getMarketStats(state);
+  const marketAssessments = useMemo(() => assessMarketOffers(state), [state]);
 
   function toggleSelect(id) {
     setSelectedIds(prev => {
@@ -104,8 +106,7 @@ export default function Orders() {
     }
     if (filterCity) list = list.filter(o => o.fromCity === filterCity);
     if (filterType) list = list.filter(o => o.offerType === filterType);
-    if (filterFeasible === "yes") list = list.filter(o => o.feasible === true);
-    if (filterFeasible === "no") list = list.filter(o => o.feasible === false);
+    if (filterFeasible) list = list.filter(o => marketAssessments.get(o.id)?.status === filterFeasible);
     if (filterDg === "yes") list = list.filter(o => o.isDangerousGoods);
     if (filterDg === "no") list = list.filter(o => !o.isDangerousGoods);
     if (filterBranch) list = list.filter(o => (nearestBranchFor(state, o.fromCity)?.id || null) === filterBranch);
@@ -114,7 +115,7 @@ export default function Orders() {
       if (sortBy === "accept") return a.acceptDeadlineMin - b.acceptDeadlineMin;
       return a.deliveryDeadlineMin - b.deliveryDeadlineMin;
     });
-  }, [state.orders, state.branches, search, filterCity, filterType, filterFeasible, filterDg, filterBranch, sortBy]);
+  }, [state.orders, state.branches, marketAssessments, search, filterCity, filterType, filterFeasible, filterDg, filterBranch, sortBy]);
 
   const active = state.orders.filter(o => ["angenommen", "unterwegs"].includes(o.status));
   const done = state.orders.filter(o => ["geliefert", "storniert", "expired", "failed"].includes(o.status)).slice(-12);
@@ -256,8 +257,10 @@ export default function Orders() {
                 <FilterField label="Ausführbarkeit">
                   <select value={filterFeasible} onChange={e => setFilterFeasible(e.target.value)} className={selectCls}>
                     <option value="" style={optionStyle}>Alle</option>
-                    <option value="yes" style={optionStyle}>Passend</option>
-                    <option value="no" style={optionStyle}>Schwer ausführbar</option>
+                    <option value="on_time" style={optionStyle}>Fristgerecht planbar</option>
+                    <option value="late" style={optionStyle}>Nur verspätet planbar</option>
+                    <option value="unavailable" style={optionStyle}>Derzeit nicht planbar</option>
+                    <option value="unchecked" style={optionStyle}>In Dispo prüfen</option>
                   </select>
                 </FilterField>
                 <FilterField label="Gefahrgut">
@@ -279,7 +282,7 @@ export default function Orders() {
             )}
           </div>
 
-          <div className="text-xs text-muted-foreground">{offered.length} Treffer</div>
+          <div className="text-xs text-muted-foreground">{offered.length} Treffer · Prüfung je Auftrag mit aktuellem Flottenstand. Angebote können dieselben Ressourcen benötigen.</div>
 
           {/* Massen-Aktionsleiste */}
           {selectedIds.size > 0 && (
@@ -309,7 +312,7 @@ export default function Orders() {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
               {offered.map(o => {
                 const nb = nearestBranchFor(state, o.fromCity);
-                return <OfferCard key={o.id} offer={o} onAccept={accept} busy={busyId === o.id} branchName={nb?.name} branchCity={nb?.city} selected={selectedIds.has(o.id)} onToggleSelect={toggleSelect} />;
+                return <OfferCard key={o.id} offer={o} assessment={marketAssessments.get(o.id)} onAccept={accept} busy={busyId === o.id} branchName={nb?.name} branchCity={nb?.city} selected={selectedIds.has(o.id)} onToggleSelect={toggleSelect} />;
               })}
             </div>
           )}
