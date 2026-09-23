@@ -46,7 +46,8 @@ export default function HarborOpeningPanel({ showCompleted = false }) {
   const inFlight = useRef(false);
   const a = state?.world?.harborOpening;
   const available = harborOpeningAvailable(state);
-  if (!state || (!a && !available) || (a?.status === "done" && !showCompleted)) return null;
+  if (!state || (!a && !available)) return null;
+  if (a?.status === "done" && !showCompleted) return <aside className="rounded-xl border border-sky-300/20 bg-slate-950/60 p-4 flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-slate-300">{a.outboundResult ? "Anna wartet am Kai. Eure Geschichte geht weiter." : "Du spielst frei weiter. Anna bleibt Teil der Spielwelt."}</p><Link to="/spielwelt" className="text-sm text-sky-200 underline underline-offset-4">Am Kai weiterreden</Link></aside>;
   const blocked = state.appointments?.some(ap => ap.status === "active" && ap.type !== "scenario_timeoff");
   const disabled = pending || busy || backgroundAdvance?.active || blocked;
   const startReason = !a ? harborOpeningStartReason(state) : null;
