@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import { formatEuro, formatGameTime, CITIES, getDistance } from "@/lib/gameData";
@@ -29,6 +29,7 @@ export default function Orders() {
   const navigate = useNavigate();
   const [tab, setTab] = useState("boerse");
   const [busyId, setBusyId] = useState(null);
+  const acceptingRef = useRef(false);
   const [search, setSearch] = useState("");
   const [filterCity, setFilterCity] = useState("");
   const [filterType, setFilterType] = useState("");
@@ -57,11 +58,16 @@ export default function Orders() {
     setSelectedIds(new Set());
   }
 
-  async function accept(o) {
+  async function accept(o, plan = false) {
+    if (acceptingRef.current) return;
+    acceptingRef.current = true;
     setBusyId(o.id);
-    try { await send("acceptOrder", { orderId: o.id }); showToast("Auftrag angenommen.", "success"); }
-    catch (e) { showToast(e.message, "error"); }
-    finally { setBusyId(null); }
+    try {
+      await send("acceptOrder", { orderId: o.id });
+      showToast("Auftrag angenommen.", "success");
+      if (plan) navigate(`/disposition?order=${encodeURIComponent(o.id)}`);
+    } catch (e) { showToast(e.message, "error"); }
+    finally { acceptingRef.current = false; setBusyId(null); }
   }
   async function cancel(o) {
     setBusyId(o.id);
