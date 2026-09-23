@@ -1,5 +1,4 @@
 import { LIVE_TICK_MS, LIVE_TICK_MINUTES } from "./simulation/timeControlEngine";
-import { cloneSaveSnapshot } from "@/lib/simulationTransport";
 import { stageHistory } from "@/lib/historyRepository";
 import { createSimulationClient } from "@/lib/simulationWorkerClient";
 import { archiveStats } from "@/lib/historyArchive";
