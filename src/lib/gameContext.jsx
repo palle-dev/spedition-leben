@@ -347,6 +347,9 @@ export function GameProvider({ children }) {
       markDirty();
       processNewEvents(newState);
       await processResult(newState, result, command);
+      // Preserve the defect, mail and RNG before rejecting the requested start.
+      // Every transport UI must receive a rejection instead of a success popup.
+      if (command === "startTransport" && result?.blockedByDisruption) throw new Error(result.message);
       return result;
     } catch (e) {
       if (isCurrentSession(token)) showToast(e.message, "error");
