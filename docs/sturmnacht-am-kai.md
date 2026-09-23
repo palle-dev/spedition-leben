@@ -30,11 +30,14 @@ Danach folgt „Wem gehört der Norden?“. Die ursprünglichen pauschalen Kapit
 - Befehle: startStormNight und finishStormNight; gegen Wiederholung und parallele Kapitelentscheidung abgesichert.
 - Persistenz: world.stormNight, inklusive einzelner Ergebnisse; bestehender Speicher-/Archivpfad.
 - 14 neue Simulationstests und 7 Oberflächentests. Reale Fahrten nach Anna/NordSprint, drei Entscheidungen, Parallelfahrten, Ruhezeit-Verspätung, Storno, gemischte Ergebnisse, echte Panne/Ersatz-Lkw, Migration, Archivierung, Wiederholung und Backend-Gleichheit.
-- Gesamtsuite: 941 bestanden, einer übersprungen. Typprüfung, Lint, Build und Diff-Prüfung erfolgreich.
-- Statische Darstellung echter React-Komponenten mit Produktions-CSS auf Desktop und schmalem Bildschirm geprüft. UI-Interaktion zusätzlich in DOM-Tests geprüft. Liveabnahme der veröffentlichten Version steht aus.
+- Zwei zusätzliche Regressionstests mit echtem Simulationsadapter, Worker-Protokoll und montiertem GameProvider prüfen persistierte Defekte, Nachricht, Zufallszustand, ausbleibende Fahrtkosten, Ersatz-Lkw sowie unveränderte Ablehnung ungültiger Befehle.
+- Gesamtsuite: 943 bestanden, einer übersprungen. Typprüfung, Lint, Build und Diff-Prüfung erfolgreich.
+- Statische Darstellung echter React-Komponenten mit Produktions-CSS auf Desktop und schmalem Bildschirm geprüft. UI-Interaktion zusätzlich in DOM-Tests geprüft. Live geprüft: beide Zusagen und korrekte Zeitfenster. Der vollständige Lieferdurchlauf steht nach der Defektkorrektur noch aus.
 
 ## Liveabnahme nach Veröffentlichung
 
-Die Cloud-Testpartie „Codex Test – NordSprint live geprüft“ steht bei Tag 2, 16:00, pausiert, 77.079,04 € Firmenkonto. Das Hauptkapitel ist offen. „palle“ nicht laden oder verändern.
+Die Cloud-Testpartie „Codex Test – Sturmnacht vor Defektprüfung“ steht bei Tag 2, 16:00, pausiert, 77.079,04 € Firmenkonto. Beide Zusagen sind angenommen, keine Tour gestartet. Cloud-Synchronisation am 23.09.2026 um 19:39 bestätigt. „palle“ nicht laden oder verändern.
 
-Beide Zusagen wählen und zwei passende Teams disponieren; Petra hat nach NordSprint nur zehn Arbeitsminuten übrig. Pannen über vorhandene Störungsverwaltung/Ersatzfahrzeug lösen. Auf beide Transportergebnisse, Umsatz, Hansen-Verhältnis, Abschlussübergang sowie Cloud-Wiederherstellung prüfen.
+Beim Live-Start von Annas Lieferung mit Helmut Fuchs und Lkw 03 wurde ein technischer Defekt gemeldet, aber durch eine Exception an der Worker-Grenze verworfen. Korrektur: startTransport liefert bei erzeugter Panne einen Folgezustand mit blockedByDisruption zurück. Der Spielkontext übernimmt und markiert ihn zum Speichern, bevor die Oberfläche eine Ablehnung erhält. Panne, Nachricht und Zufallszustand bleiben bestehen; keine Fahrt oder Kraftstoffbuchung wird erzeugt. Frontend und Backend sind identisch angepasst.
+
+Nach erneuter Veröffentlichung den Start wiederholen, Panne im Büro prüfen und Ersatzfahrzeug disponieren. Zwei passende Teams einplanen; Petra hat nach NordSprint nur zehn Arbeitsminuten übrig. Auf beide Transportergebnisse, Umsatz, Hansen-Verhältnis, Abschlussübergang sowie Cloud-Wiederherstellung prüfen.
