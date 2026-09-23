@@ -51,17 +51,15 @@ export function setDevelopmentFocus(state, focusId) {
 
 export const ONBOARDING_STEPS = [
   { id: "choose_order", title: "Einen Auftrag auswählen", linkPath: "/auftraege",
-    hint: `Öffne die Aufträge-Seite und nimm ein passendes Angebot an. Achte auf Relation, Fracht, Vergütung und Lieferfrist.` },
-  { id: "assign_vehicle", title: "Fahrzeug und Fahrer zuordnen", linkPath: "/disposition",
-    hint: `Öffne die Disposition und wähle einen freien Lkw und einen freien Fahrer am selben Standort. Das System prüft Kapazität, Zustand und Kontostand.` },
-  { id: "start_tour", title: "Die Tour starten", linkPath: "/disposition",
-    hint: `Bestätige die Tour. Nutze „Nächstes Ereignis“ oder „1 Std“, um die Zeit weiterlaufen zu lassen. Fahrt, Beladung, Entladung und Pausen laufen automatisch ab.` },
+    hint: "Öffne die Aufträge und nimm ein passendes Angebot an. Achte auf Strecke, Fracht, Vergütung und Lieferfrist." },
+  { id: "assign_vehicle", title: "Fahrzeug und Fahrer zuordnen und Tour starten", linkPath: "/disposition",
+    hint: "Wähle in der Disposition einen verfügbaren Lkw und Fahrer, prüfe die Tour und bestätige den Start. Beachte dabei die Hinweise zu Kapazität, Standort und Verfügbarkeit." },
   { id: "await_delivery", title: "Die Lieferung abwarten", linkPath: "/disposition",
-    hint: `Die Tour läuft durch Fahr- und Beladungsphasen. Warte, bis die Lieferung abgeschlossen ist oder beschleunige die Zeit.` },
+    hint: "Starte unten die Live-Simulation oder nutze „+1 Std“. Ohne Zeitvorlauf bleibt die Tour stehen. Beladung, Fahrt, Pausen und Entladung laufen mit der Spielzeit weiter. Prüfe bei einem Stopp offene Freigaben und Meldungen." },
   { id: "review_delivery", title: "Die Lieferung auswerten", linkPath: "/finanzen",
-    hint: `Öffne die Finanzen. Vergleiche Vergütung (Umsatz) mit Kraftstoff, Maut und Fahrerlohn. Der Deckungsbeitrag zeigt, was nach variablen Kosten übrig bleibt.` },
+    hint: "Öffne die Finanzen. Vergleiche Vergütung (Umsatz) mit Kraftstoff, Maut und Fahrerlohn. Der Deckungsbeitrag zeigt, was nach variablen Kosten übrig bleibt." },
   { id: "next_decision", title: "Eine nächste Entscheidung treffen", linkPath: "/",
-    hint: `Wähle deinen nächsten Schritt: eine Rückladung, Wartung, eine weitere Tour oder die erste Delegation an einen Mitarbeiter.` },
+    hint: "Wähle deinen nächsten Schritt: eine Rückladung, Wartung, eine weitere Tour oder die erste Delegation an einen Mitarbeiter. Du kannst die Begleitung jetzt abschließen." },
 ];
 
 export function detectOnboardingStep(state) {
@@ -118,7 +116,7 @@ export function getOnboardingBlocker(state) {
   if (step === "choose_order") {
     const offered = (state.orders || []).filter(o => o.status === "offered" && o.acceptDeadlineMin > state.gameTime);
     if (offered.length === 0) {
-      return { step, blocked: true, reason: "Keine offenen Angebote verfügbar. Neue Aufträge erscheinen regelmäßig auf dem Markt.", alternative: "Warte auf die nächste Marktaktualisierung (jede Stunde) oder überspringe diesen Schritt." };
+      return { step, blocked: true, reason: "Keine offenen Angebote verfügbar. Neue Aufträge erscheinen regelmäßig auf dem Markt.", alternative: "Nutze unten „+1 Std“ oder starte die Live-Simulation, um neue Angebote abzuwarten." };
     }
   }
   if (step === "assign_vehicle") {
@@ -129,10 +127,10 @@ export function getOnboardingBlocker(state) {
     const freeVehicles = (state.vehicles || []).filter(v => v.status === "free" && v.condition >= 20 && !v.markedForSale);
     const freeDrivers = (state.drivers || []).filter(d => d.employmentStatus === "employed" && d.attendance !== "released" && d.status === "free");
     if (freeVehicles.length === 0) {
-      return { step, blocked: true, reason: "Kein freier Lkw verfügbar. Warte bis eine Tour endet oder kaufe einen weiteren Lkw.", alternative: "Überspringe die Disposition und nutze die Automatik, sobald ein Disponent eingestellt ist." };
+      return { step, blocked: true, reason: "Kein freier Lkw verfügbar. Warte bis eine Tour endet oder kaufe einen weiteren Lkw.", alternative: "Prüfe in der Disposition, wann deine Fahrzeuge wieder verfügbar sind." };
     }
     if (freeDrivers.length === 0) {
-      return { step, blocked: true, reason: "Kein freier Fahrer verfügbar. Warte bis ein Fahrer sich erholt hat oder stelle einen neuen Fahrer ein.", alternative: "Überspringe die Disposition und nutze die Automatik." };
+      return { step, blocked: true, reason: "Kein freier Fahrer verfügbar. Warte bis ein Fahrer sich erholt hat oder stelle einen neuen Fahrer ein.", alternative: "Prüfe im Personalbereich Ruhezeiten, Abwesenheiten und Einsatzplanung." };
     }
   }
   return { step, blocked: false, reason: null, alternative: null };

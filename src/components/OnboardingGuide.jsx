@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useGame } from "@/lib/gameContext";
 import { detectOnboardingStep, getOnboardingBlocker, ONBOARDING_STEPS } from "@/lib/developmentEngine.js";
@@ -11,7 +11,6 @@ import { motion } from "framer-motion";
 export default function OnboardingGuide() {
   const { state, send, showToast } = useGame();
   const navigate = useNavigate();
-  const [expanded, setExpanded] = useState(true);
 
   if (!state.onboarding?.active || state.onboarding.paused) return null;
 
@@ -28,18 +27,9 @@ export default function OnboardingGuide() {
     try { await send("dismissOnboarding", {}); showToast("Begleitung beendet", "info"); }
     catch (e) { showToast(e.message, "error"); }
   }
-  async function handleSkip() {
-    // Bei Blockierung: Schritt überspringen, indem wir als "erledigt" markieren
-    if (stepId === "review_delivery") {
-      try { await send("markOnboardingReviewed", {}); }
-      catch (e) { showToast(e.message, "error"); }
-    } else if (stepId === "next_decision") {
-      await handleDismiss();
-    } else {
-      // Für andere Schritte: zum nächsten Schritt navigieren
-      const nextStep = ONBOARDING_STEPS[stepIdx + 1];
-      if (nextStep) navigate(nextStep.linkPath);
-    }
+  async function handleReview() {
+    try { await send("markOnboardingReviewed", {}); }
+    catch (e) { showToast(e.message, "error"); }
   }
 
   return (
@@ -59,10 +49,10 @@ export default function OnboardingGuide() {
           </span>
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={handlePause} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-white/5 transition" title="Pausieren">
+          <button onClick={handlePause} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-white/5 transition" title="Begleitung pausieren" aria-label="Begleitung pausieren">
             <Pause className="w-3.5 h-3.5" />
           </button>
-          <button onClick={handleDismiss} className="p-1.5 rounded-md text-muted-foreground hover:text-coral hover:bg-white/5 transition" title="Beenden">
+          <button onClick={handleDismiss} className="p-1.5 rounded-md text-muted-foreground hover:text-coral hover:bg-white/5 transition" title="Begleitung beenden" aria-label="Begleitung beenden">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -112,18 +102,24 @@ export default function OnboardingGuide() {
               </button>
               {stepId === "review_delivery" && (
                 <button
-                  onClick={() => send("markOnboardingReviewed", {})}
+                  onClick={handleReview}
                   className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/5 text-muted-foreground hover:text-foreground border border-white/10 hover:border-white/20 transition text-xs"
                 >
                   <CheckCircle2 className="w-3 h-3" /> Als gesehen markieren
                 </button>
               )}
+              {stepId === "next_decision" && (
+                <button onClick={handleDismiss}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-lime/10 text-lime border border-lime/20 hover:bg-lime/20 transition text-xs">
+                  <CheckCircle2 className="w-3 h-3" /> Begleitung abschließen
+                </button>
+              )}
               {blocker.blocked && (
                 <button
-                  onClick={handleSkip}
+                  onClick={handlePause}
                   className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/5 text-muted-foreground hover:text-foreground border border-white/10 hover:border-white/20 transition text-xs"
                 >
-                  Überspringen <ChevronRight className="w-3 h-3" />
+                  Begleitung pausieren <Pause className="w-3 h-3" />
                 </button>
               )}
             </div>
