@@ -1,7 +1,7 @@
 [
   {
     "day": 1,
-    "elapsedMs": 79.88263400000005,
+    "elapsedMs": 78.00238799999988,
     "gameTime": 1920,
     "cashCents": 56740206,
     "delivered": 4,
@@ -11,7 +11,7 @@
   },
   {
     "day": 2,
-    "elapsedMs": 57.54844600000001,
+    "elapsedMs": 59.869118999999955,
     "gameTime": 3360,
     "cashCents": 56698268,
     "delivered": 7,
@@ -21,7 +21,7 @@
   },
   {
     "day": 3,
-    "elapsedMs": 59.584974999999986,
+    "elapsedMs": 55.7738589999999,
     "gameTime": 4800,
     "cashCents": 56606698,
     "delivered": 10,
@@ -31,7 +31,7 @@
   },
   {
     "day": 4,
-    "elapsedMs": 44.78237899999999,
+    "elapsedMs": 43.679518000000144,
     "gameTime": 6240,
     "cashCents": 56544808,
     "delivered": 13,
@@ -41,7 +41,7 @@
   },
   {
     "day": 5,
-    "elapsedMs": 53.94629000000009,
+    "elapsedMs": 53.77730099999985,
     "gameTime": 7680,
     "cashCents": 56490302,
     "delivered": 15,
@@ -51,7 +51,7 @@
   },
   {
     "day": 6,
-    "elapsedMs": 45.80446400000005,
+    "elapsedMs": 43.59012100000018,
     "gameTime": 9120,
     "cashCents": 56357858,
     "delivered": 16,
@@ -61,7 +61,7 @@
   },
   {
     "day": 7,
-    "elapsedMs": 30.56313699999987,
+    "elapsedMs": 32.555213000000094,
     "gameTime": 10560,
     "cashCents": 56342106,
     "delivered": 19,
@@ -71,7 +71,7 @@
   },
   {
     "day": 8,
-    "elapsedMs": 35.23754500000018,
+    "elapsedMs": 37.30460600000015,
     "gameTime": 12000,
     "cashCents": 56285367,
     "delivered": 22,
@@ -81,7 +81,7 @@
   },
   {
     "day": 9,
-    "elapsedMs": 36.945790000000216,
+    "elapsedMs": 35.47596500000009,
     "gameTime": 13440,
     "cashCents": 56197306,
     "delivered": 25,
@@ -91,7 +91,7 @@
   },
   {
     "day": 10,
-    "elapsedMs": 39.10732000000007,
+    "elapsedMs": 50.50407800000039,
     "gameTime": 14880,
     "cashCents": 56124890,
     "delivered": 27,
@@ -101,7 +101,7 @@
   },
   {
     "day": 11,
-    "elapsedMs": 32.053969999999936,
+    "elapsedMs": 32.793297000000166,
     "gameTime": 16320,
     "cashCents": 56118277,
     "delivered": 31,
@@ -111,7 +111,7 @@
   },
   {
     "day": 12,
-    "elapsedMs": 333.1052490000002,
+    "elapsedMs": 293.7800849999999,
     "gameTime": 17760,
     "cashCents": 56111977,
     "delivered": 34,
@@ -121,7 +121,7 @@
   },
   {
     "day": 13,
-    "elapsedMs": 43.60042900000008,
+    "elapsedMs": 42.20515999999998,
     "gameTime": 19200,
     "cashCents": 55899410,
     "delivered": 35,
@@ -131,7 +131,7 @@
   },
   {
     "day": 14,
-    "elapsedMs": 37.72805799999969,
+    "elapsedMs": 37.67082699999992,
     "gameTime": 20640,
     "cashCents": 55849440,
     "delivered": 37,
@@ -141,7 +141,7 @@
   },
   {
     "day": 15,
-    "elapsedMs": 50.02315399999998,
+    "elapsedMs": 50.263670999999704,
     "gameTime": 22080,
     "cashCents": 55875011,
     "delivered": 40,
@@ -151,7 +151,7 @@
   },
   {
     "day": 16,
-    "elapsedMs": 50.597271999999975,
+    "elapsedMs": 53.31092699999999,
     "gameTime": 23520,
     "cashCents": 55721496,
     "delivered": 42,
@@ -161,7 +161,7 @@
   },
   {
     "day": 17,
-    "elapsedMs": 45.135099999999966,
+    "elapsedMs": 48.53350099999989,
     "gameTime": 24960,
     "cashCents": 55660459,
     "delivered": 44,
@@ -171,7 +171,7 @@
   },
   {
     "day": 18,
-    "elapsedMs": 57.941077999999834,
+    "elapsedMs": 56.430383999999776,
     "gameTime": 26400,
     "cashCents": 55664324,
     "delivered": 47,
@@ -181,7 +181,7 @@
   },
   {
     "day": 19,
-    "elapsedMs": 49.16984700000012,
+    "elapsedMs": 50.77000500000031,
     "gameTime": 27840,
     "cashCents": 55550978,
     "delivered": 49,
@@ -191,7 +191,7 @@
   },
   {
     "day": 20,
-    "elapsedMs": 47.338092999999844,
+    "elapsedMs": 49.84243599999991,
     "gameTime": 29280,
     "cashCents": 55391198,
     "delivered": 50,
@@ -201,7 +201,7 @@
   },
   {
     "day": 21,
-    "elapsedMs": 50.30488500000001,
+    "elapsedMs": 48.110343000000285,
     "gameTime": 30720,
     "cashCents": 55221336,
     "delivered": 52,
@@ -211,7 +211,7 @@
   },
   {
     "day": 22,
-    "elapsedMs": 60.794347000000016,
+    "elapsedMs": 52.912197000000106,
     "gameTime": 32160,
     "cashCents": 55248500,
     "delivered": 55,
@@ -221,7 +221,7 @@
   },
   {
     "day": 23,
-    "elapsedMs": 421.4163099999996,
+    "elapsedMs": 440.47945200000004,
     "gameTime": 33600,
     "cashCents": 55146872,
     "delivered": 57,
@@ -231,7 +231,7 @@
   },
   {
     "day": 24,
-    "elapsedMs": 51.41284200000018,
+    "elapsedMs": 44.08503900000005,
     "gameTime": 35040,
     "cashCents": 55091868,
     "delivered": 59,
@@ -241,7 +241,7 @@
   },
   {
     "day": 25,
-    "elapsedMs": 50.75943199999983,
+    "elapsedMs": 41.896338000000014,
     "gameTime": 36480,
     "cashCents": 55021778,
     "delivered": 62,
@@ -251,7 +251,7 @@
   },
   {
     "day": 26,
-    "elapsedMs": 47.168842999999924,
+    "elapsedMs": 42.057214000000386,
     "gameTime": 37920,
     "cashCents": 54808838,
     "delivered": 62,
@@ -261,7 +261,7 @@
   },
   {
     "day": 27,
-    "elapsedMs": 54.33927300000005,
+    "elapsedMs": 41.84469799999988,
     "gameTime": 39360,
     "cashCents": 54836772,
     "delivered": 66,
@@ -271,7 +271,7 @@
   },
   {
     "day": 28,
-    "elapsedMs": 44.040774000000056,
+    "elapsedMs": 46.452905999999984,
     "gameTime": 40800,
     "cashCents": 54681996,
     "delivered": 68,
@@ -281,7 +281,7 @@
   },
   {
     "day": 29,
-    "elapsedMs": 46.74454399999968,
+    "elapsedMs": 40.80854199999976,
     "gameTime": 42240,
     "cashCents": 54566798,
     "delivered": 70,
@@ -291,7 +291,7 @@
   },
   {
     "day": 30,
-    "elapsedMs": 61.9259790000001,
+    "elapsedMs": 57.673417999999856,
     "gameTime": 43680,
     "cashCents": 54477604,
     "delivered": 72,
@@ -301,7 +301,7 @@
   },
   {
     "day": 31,
-    "elapsedMs": 50.82360999999992,
+    "elapsedMs": 53.28415700000005,
     "gameTime": 45120,
     "cashCents": 54451941,
     "delivered": 75,
@@ -311,7 +311,7 @@
   },
   {
     "day": 32,
-    "elapsedMs": 55.99597900000026,
+    "elapsedMs": 54.75281499999983,
     "gameTime": 46560,
     "cashCents": 54289318,
     "delivered": 76,
@@ -321,7 +321,7 @@
   },
   {
     "day": 33,
-    "elapsedMs": 451.4900859999998,
+    "elapsedMs": 502.6052410000002,
     "gameTime": 48000,
     "cashCents": 54188216,
     "delivered": 78,
@@ -331,7 +331,7 @@
   },
   {
     "day": 34,
-    "elapsedMs": 91.2088960000001,
+    "elapsedMs": 60.47769199999948,
     "gameTime": 49440,
     "cashCents": 53974117,
     "delivered": 79,
@@ -341,7 +341,7 @@
   },
   {
     "day": 35,
-    "elapsedMs": 56.909348000000136,
+    "elapsedMs": 66.03864799999974,
     "gameTime": 50880,
     "cashCents": 53926109,
     "delivered": 81,
@@ -351,7 +351,7 @@
   },
   {
     "day": 36,
-    "elapsedMs": 46.35558899999978,
+    "elapsedMs": 51.73439299999973,
     "gameTime": 52320,
     "cashCents": 53999435,
     "delivered": 84,
@@ -361,7 +361,7 @@
   },
   {
     "day": 37,
-    "elapsedMs": 56.49921099999938,
+    "elapsedMs": 54.513137999999344,
     "gameTime": 53760,
     "cashCents": 54036770,
     "delivered": 87,
@@ -371,7 +371,7 @@
   },
   {
     "day": 38,
-    "elapsedMs": 47.022469999999885,
+    "elapsedMs": 47.29736800000046,
     "gameTime": 55200,
     "cashCents": 53931139,
     "delivered": 89,
@@ -381,7 +381,7 @@
   },
   {
     "day": 39,
-    "elapsedMs": 55.15845800000079,
+    "elapsedMs": 48.25684700000056,
     "gameTime": 56640,
     "cashCents": 53896091,
     "delivered": 93,
@@ -391,7 +391,7 @@
   },
   {
     "day": 40,
-    "elapsedMs": 52.49445899999955,
+    "elapsedMs": 47.449821000000156,
     "gameTime": 58080,
     "cashCents": 53740320,
     "delivered": 95,
@@ -401,7 +401,7 @@
   },
   {
     "day": 41,
-    "elapsedMs": 421.7896860000001,
+    "elapsedMs": 40.18440499999997,
     "gameTime": 59520,
     "cashCents": 53663417,
     "delivered": 97,
@@ -411,7 +411,7 @@
   },
   {
     "day": 42,
-    "elapsedMs": 44.598619000000326,
+    "elapsedMs": 441.1354820000006,
     "gameTime": 60960,
     "cashCents": 53662510,
     "delivered": 100,
@@ -421,7 +421,7 @@
   },
   {
     "day": 43,
-    "elapsedMs": 38.394608999999946,
+    "elapsedMs": 38.085651000000325,
     "gameTime": 62400,
     "cashCents": 53564492,
     "delivered": 102,
@@ -431,7 +431,7 @@
   },
   {
     "day": 44,
-    "elapsedMs": 36.2142300000005,
+    "elapsedMs": 39.51657299999988,
     "gameTime": 63840,
     "cashCents": 53427712,
     "delivered": 103,
@@ -441,7 +441,7 @@
   },
   {
     "day": 45,
-    "elapsedMs": 64.63269300000047,
+    "elapsedMs": 65.59647900000073,
     "gameTime": 65280,
     "cashCents": 53248772,
     "delivered": 104,
@@ -451,7 +451,7 @@
   },
   {
     "day": 46,
-    "elapsedMs": 59.34254299999975,
+    "elapsedMs": 54.82583699999941,
     "gameTime": 66720,
     "cashCents": 53156313,
     "delivered": 106,
@@ -461,7 +461,7 @@
   },
   {
     "day": 47,
-    "elapsedMs": 62.9133010000005,
+    "elapsedMs": 56.804165999999896,
     "gameTime": 68160,
     "cashCents": 53175647,
     "delivered": 108,
@@ -471,7 +471,7 @@
   },
   {
     "day": 48,
-    "elapsedMs": 55.23370100000011,
+    "elapsedMs": 78.12447499999962,
     "gameTime": 69600,
     "cashCents": 53049965,
     "delivered": 110,
@@ -481,7 +481,7 @@
   },
   {
     "day": 49,
-    "elapsedMs": 67.57017000000087,
+    "elapsedMs": 47.508482000000186,
     "gameTime": 71040,
     "cashCents": 53043805,
     "delivered": 113,
@@ -491,7 +491,7 @@
   },
   {
     "day": 50,
-    "elapsedMs": 56.81964000000062,
+    "elapsedMs": 60.31872800000019,
     "gameTime": 72480,
     "cashCents": 52963469,
     "delivered": 116,
@@ -501,7 +501,7 @@
   },
   {
     "day": 51,
-    "elapsedMs": 304.1835030000002,
+    "elapsedMs": 343.7363949999999,
     "gameTime": 73920,
     "cashCents": 52902969,
     "delivered": 118,
@@ -511,7 +511,7 @@
   },
   {
     "day": 52,
-    "elapsedMs": 46.418234000000666,
+    "elapsedMs": 50.40235299999949,
     "gameTime": 75360,
     "cashCents": 52840579,
     "delivered": 120,
@@ -521,7 +521,7 @@
   },
   {
     "day": 53,
-    "elapsedMs": 42.92810999999983,
+    "elapsedMs": 41.38079800000014,
     "gameTime": 76800,
     "cashCents": 52703434,
     "delivered": 122,
@@ -531,7 +531,7 @@
   },
   {
     "day": 54,
-    "elapsedMs": 46.823505000000296,
+    "elapsedMs": 52.269132000000354,
     "gameTime": 78240,
     "cashCents": 52632620,
     "delivered": 124,
@@ -541,7 +541,7 @@
   },
   {
     "day": 55,
-    "elapsedMs": 46.30122500000016,
+    "elapsedMs": 42.29909399999997,
     "gameTime": 79680,
     "cashCents": 52612458,
     "delivered": 128,
@@ -551,7 +551,7 @@
   },
   {
     "day": 56,
-    "elapsedMs": 49.97141499999998,
+    "elapsedMs": 46.059722999999394,
     "gameTime": 81120,
     "cashCents": 52540185,
     "delivered": 130,
@@ -561,7 +561,7 @@
   },
   {
     "day": 57,
-    "elapsedMs": 48.961357999999564,
+    "elapsedMs": 54.214490999999725,
     "gameTime": 82560,
     "cashCents": 52608741,
     "delivered": 133,
@@ -571,7 +571,7 @@
   },
   {
     "day": 58,
-    "elapsedMs": 53.24213299999974,
+    "elapsedMs": 49.11851699999988,
     "gameTime": 84000,
     "cashCents": 52434025,
     "delivered": 135,
@@ -581,7 +581,7 @@
   },
   {
     "day": 59,
-    "elapsedMs": 63.23912999999993,
+    "elapsedMs": 83.45886400000018,
     "gameTime": 85440,
     "cashCents": 52453635,
     "delivered": 138,
@@ -591,7 +591,7 @@
   },
   {
     "day": 60,
-    "elapsedMs": 74.01952700000038,
+    "elapsedMs": 62.15015299999959,
     "gameTime": 86880,
     "cashCents": 52289597,
     "delivered": 140,
@@ -601,7 +601,7 @@
   },
   {
     "day": 61,
-    "elapsedMs": 63.732764999999745,
+    "elapsedMs": 222.56587299999956,
     "gameTime": 88320,
     "cashCents": 52204417,
     "delivered": 143,
@@ -611,7 +611,7 @@
   },
   {
     "day": 62,
-    "elapsedMs": 52.01947099999961,
+    "elapsedMs": 47.000012000000424,
     "gameTime": 89760,
     "cashCents": 52205785,
     "delivered": 145,
@@ -621,7 +621,7 @@
   },
   {
     "day": 63,
-    "elapsedMs": 37.89870999999948,
+    "elapsedMs": 42.60300999999981,
     "gameTime": 91200,
     "cashCents": 52091625,
     "delivered": 147,
@@ -631,7 +631,7 @@
   },
   {
     "day": 64,
-    "elapsedMs": 41.88153799999964,
+    "elapsedMs": 46.68276700000024,
     "gameTime": 92640,
     "cashCents": 51933608,
     "delivered": 148,
@@ -641,7 +641,7 @@
   },
   {
     "day": 65,
-    "elapsedMs": 42.07713700000022,
+    "elapsedMs": 44.59664299999986,
     "gameTime": 94080,
     "cashCents": 51824344,
     "delivered": 149,
@@ -651,7 +651,7 @@
   },
   {
     "day": 66,
-    "elapsedMs": 43.05789000000004,
+    "elapsedMs": 47.667685999999776,
     "gameTime": 95520,
     "cashCents": 51715299,
     "delivered": 151,
@@ -661,7 +661,7 @@
   },
   {
     "day": 67,
-    "elapsedMs": 37.28180500000053,
+    "elapsedMs": 65.94930199999999,
     "gameTime": 96960,
     "cashCents": 51548525,
     "delivered": 151,
@@ -671,7 +671,7 @@
   },
   {
     "day": 68,
-    "elapsedMs": 297.22160799999983,
+    "elapsedMs": 34.465769000000364,
     "gameTime": 98400,
     "cashCents": 51389446,
     "delivered": 152,
@@ -681,7 +681,7 @@
   },
   {
     "day": 69,
-    "elapsedMs": 54.72090700000081,
+    "elapsedMs": 343.2008800000003,
     "gameTime": 99840,
     "cashCents": 51308813,
     "delivered": 153,
@@ -691,7 +691,7 @@
   },
   {
     "day": 70,
-    "elapsedMs": 24.10260599999856,
+    "elapsedMs": 23.018057999999655,
     "gameTime": 101280,
     "cashCents": 51149813,
     "delivered": 153,
@@ -701,7 +701,7 @@
   },
   {
     "day": 71,
-    "elapsedMs": 23.871130999999878,
+    "elapsedMs": 22.273768999999447,
     "gameTime": 102720,
     "cashCents": 51000813,
     "delivered": 153,
@@ -711,7 +711,7 @@
   },
   {
     "day": 72,
-    "elapsedMs": 27.39075999999841,
+    "elapsedMs": 23.60984500000086,
     "gameTime": 104160,
     "cashCents": 50851813,
     "delivered": 153,
@@ -721,7 +721,7 @@
   },
   {
     "day": 73,
-    "elapsedMs": 22.30171800000062,
+    "elapsedMs": 21.78559099999984,
     "gameTime": 105600,
     "cashCents": 50742813,
     "delivered": 153,
@@ -731,7 +731,7 @@
   },
   {
     "day": 74,
-    "elapsedMs": 22.875766000001022,
+    "elapsedMs": 19.936830000000555,
     "gameTime": 107040,
     "cashCents": 50633813,
     "delivered": 153,
@@ -741,7 +741,7 @@
   },
   {
     "day": 75,
-    "elapsedMs": 23.317181999998866,
+    "elapsedMs": 34.54134499999964,
     "gameTime": 108480,
     "cashCents": 50524813,
     "delivered": 153,
@@ -751,7 +751,7 @@
   },
   {
     "day": 76,
-    "elapsedMs": 19.19307800000024,
+    "elapsedMs": 21.12857499999882,
     "gameTime": 109920,
     "cashCents": 50504813,
     "delivered": 153,
@@ -761,7 +761,7 @@
   },
   {
     "day": 77,
-    "elapsedMs": 41.965485999999146,
+    "elapsedMs": 18.50601900000038,
     "gameTime": 111360,
     "cashCents": 50484813,
     "delivered": 153,
@@ -771,7 +771,7 @@
   },
   {
     "day": 78,
-    "elapsedMs": 25.40913499999988,
+    "elapsedMs": 20.79693699999916,
     "gameTime": 112800,
     "cashCents": 50464813,
     "delivered": 153,
@@ -781,7 +781,7 @@
   },
   {
     "day": 79,
-    "elapsedMs": 20.053585999999996,
+    "elapsedMs": 18.88550000000032,
     "gameTime": 114240,
     "cashCents": 50444813,
     "delivered": 153,
@@ -791,7 +791,7 @@
   },
   {
     "day": 80,
-    "elapsedMs": 23.764737000001332,
+    "elapsedMs": 301.1340170000003,
     "gameTime": 115680,
     "cashCents": 50424813,
     "delivered": 153,
@@ -801,7 +801,7 @@
   },
   {
     "day": 81,
-    "elapsedMs": 18.74687499999891,
+    "elapsedMs": 21.04181199999948,
     "gameTime": 117120,
     "cashCents": 50404813,
     "delivered": 153,
@@ -811,7 +811,7 @@
   },
   {
     "day": 82,
-    "elapsedMs": 19.722027999998318,
+    "elapsedMs": 20.0018799999998,
     "gameTime": 118560,
     "cashCents": 50384813,
     "delivered": 153,
@@ -821,7 +821,7 @@
   },
   {
     "day": 83,
-    "elapsedMs": 20.261303999999654,
+    "elapsedMs": 37.52633500000047,
     "gameTime": 120000,
     "cashCents": 50364813,
     "delivered": 153,
@@ -831,7 +831,7 @@
   },
   {
     "day": 84,
-    "elapsedMs": 17.758641000000353,
+    "elapsedMs": 22.8703919999989,
     "gameTime": 121440,
     "cashCents": 50344813,
     "delivered": 153,
@@ -841,7 +841,7 @@
   },
   {
     "day": 85,
-    "elapsedMs": 28.200650999999198,
+    "elapsedMs": 17.38452200000029,
     "gameTime": 122880,
     "cashCents": 50324813,
     "delivered": 153,
@@ -851,7 +851,7 @@
   },
   {
     "day": 86,
-    "elapsedMs": 22.363181999999142,
+    "elapsedMs": 19.844027999999525,
     "gameTime": 124320,
     "cashCents": 50304813,
     "delivered": 153,
@@ -861,7 +861,7 @@
   },
   {
     "day": 87,
-    "elapsedMs": 19.676687999999558,
+    "elapsedMs": 18.836545000000115,
     "gameTime": 125760,
     "cashCents": 50284813,
     "delivered": 153,
@@ -871,7 +871,7 @@
   },
   {
     "day": 88,
-    "elapsedMs": 19.537764999999126,
+    "elapsedMs": 18.373616000000766,
     "gameTime": 127200,
     "cashCents": 50264813,
     "delivered": 153,
@@ -881,7 +881,7 @@
   },
   {
     "day": 89,
-    "elapsedMs": 19.965220000000045,
+    "elapsedMs": 21.739870999999766,
     "gameTime": 128640,
     "cashCents": 50244813,
     "delivered": 153,
@@ -891,7 +891,7 @@
   },
   {
     "day": 90,
-    "elapsedMs": 20.85168799999883,
+    "elapsedMs": 320.01973499999986,
     "gameTime": 130080,
     "cashCents": 50224813,
     "delivered": 153,
@@ -901,7 +901,7 @@
   },
   {
     "day": 91,
-    "elapsedMs": 17.418369999999413,
+    "elapsedMs": 20.64670699999988,
     "gameTime": 131520,
     "cashCents": 50204813,
     "delivered": 153,
@@ -911,7 +911,7 @@
   },
   {
     "day": 92,
-    "elapsedMs": 19.16798000000017,
+    "elapsedMs": 21.599245999999766,
     "gameTime": 132960,
     "cashCents": 50184813,
     "delivered": 153,
@@ -921,7 +921,7 @@
   },
   {
     "day": 93,
-    "elapsedMs": 19.98384900000019,
+    "elapsedMs": 18.636388999999326,
     "gameTime": 134400,
     "cashCents": 50164813,
     "delivered": 153,
@@ -931,7 +931,7 @@
   },
   {
     "day": 94,
-    "elapsedMs": 35.69530699999996,
+    "elapsedMs": 22.341252000000168,
     "gameTime": 135840,
     "cashCents": 50144813,
     "delivered": 153,
@@ -941,7 +941,7 @@
   },
   {
     "day": 95,
-    "elapsedMs": 18.440907000000152,
+    "elapsedMs": 21.373750999999174,
     "gameTime": 137280,
     "cashCents": 50124813,
     "delivered": 153,
@@ -951,7 +951,7 @@
   },
   {
     "day": 96,
-    "elapsedMs": 18.825135000000955,
+    "elapsedMs": 18.814892000000327,
     "gameTime": 138720,
     "cashCents": 50104813,
     "delivered": 153,
@@ -961,7 +961,7 @@
   },
   {
     "day": 97,
-    "elapsedMs": 19.426555000000008,
+    "elapsedMs": 37.543071000000054,
     "gameTime": 140160,
     "cashCents": 50084813,
     "delivered": 153,
@@ -971,7 +971,7 @@
   },
   {
     "day": 98,
-    "elapsedMs": 19.57155799999964,
+    "elapsedMs": 19.410313000000315,
     "gameTime": 141600,
     "cashCents": 50064813,
     "delivered": 153,
@@ -981,7 +981,7 @@
   },
   {
     "day": 99,
-    "elapsedMs": 259.7532599999995,
+    "elapsedMs": 18.073726999999053,
     "gameTime": 143040,
     "cashCents": 50044813,
     "delivered": 153,
@@ -991,7 +991,7 @@
   },
   {
     "day": 100,
-    "elapsedMs": 18.697970000001078,
+    "elapsedMs": 17.652071999998952,
     "gameTime": 144480,
     "cashCents": 50024813,
     "delivered": 153,
@@ -1001,7 +1001,7 @@
   },
   {
     "day": 101,
-    "elapsedMs": 37.37782100000004,
+    "elapsedMs": 18.174290999999357,
     "gameTime": 145920,
     "cashCents": 50004813,
     "delivered": 153,
@@ -1011,7 +1011,7 @@
   },
   {
     "day": 102,
-    "elapsedMs": 18.71186099999977,
+    "elapsedMs": 21.834626000001663,
     "gameTime": 147360,
     "cashCents": 49984813,
     "delivered": 153,
@@ -1021,7 +1021,7 @@
   },
   {
     "day": 103,
-    "elapsedMs": 19.706803999999465,
+    "elapsedMs": 18.774970999998914,
     "gameTime": 148800,
     "cashCents": 49964813,
     "delivered": 153,
@@ -1031,7 +1031,7 @@
   },
   {
     "day": 104,
-    "elapsedMs": 16.961189999999988,
+    "elapsedMs": 36.1315799999993,
     "gameTime": 150240,
     "cashCents": 49944813,
     "delivered": 153,
@@ -1041,7 +1041,7 @@
   },
   {
     "day": 105,
-    "elapsedMs": 20.229795999999624,
+    "elapsedMs": 19.453950999999506,
     "gameTime": 151680,
     "cashCents": 49924813,
     "delivered": 153,
@@ -1051,7 +1051,7 @@
   },
   {
     "day": 106,
-    "elapsedMs": 20.454658999999083,
+    "elapsedMs": 18.374598000000333,
     "gameTime": 153120,
     "cashCents": 49904813,
     "delivered": 153,
@@ -1061,7 +1061,7 @@
   },
   {
     "day": 107,
-    "elapsedMs": 20.100556999999753,
+    "elapsedMs": 17.619480999999723,
     "gameTime": 154560,
     "cashCents": 49884813,
     "delivered": 153,
@@ -1071,7 +1071,7 @@
   },
   {
     "day": 108,
-    "elapsedMs": 308.6322170000003,
+    "elapsedMs": 20.292864999999438,
     "gameTime": 156000,
     "cashCents": 49864813,
     "delivered": 153,
@@ -1081,7 +1081,7 @@
   },
   {
     "day": 109,
-    "elapsedMs": 21.031412999998793,
+    "elapsedMs": 22.13097999999991,
     "gameTime": 157440,
     "cashCents": 49844813,
     "delivered": 153,
@@ -1091,7 +1091,7 @@
   },
   {
     "day": 110,
-    "elapsedMs": 17.74798499999997,
+    "elapsedMs": 19.80727200000001,
     "gameTime": 158880,
     "cashCents": 49824813,
     "delivered": 153,
@@ -1101,7 +1101,7 @@
   },
   {
     "day": 111,
-    "elapsedMs": 20.491926999999123,
+    "elapsedMs": 24.689769000000524,
     "gameTime": 160320,
     "cashCents": 49804813,
     "delivered": 153,
@@ -1111,7 +1111,7 @@
   },
   {
     "day": 112,
-    "elapsedMs": 19.03269199999886,
+    "elapsedMs": 20.82448999999906,
     "gameTime": 161760,
     "cashCents": 49784813,
     "delivered": 153,
@@ -1121,7 +1121,7 @@
   },
   {
     "day": 113,
-    "elapsedMs": 19.231227000000217,
+    "elapsedMs": 20.158408999999665,
     "gameTime": 163200,
     "cashCents": 49764813,
     "delivered": 153,
@@ -1131,7 +1131,7 @@
   },
   {
     "day": 114,
-    "elapsedMs": 18.263874999998734,
+    "elapsedMs": 18.755081000001155,
     "gameTime": 164640,
     "cashCents": 49744813,
     "delivered": 153,
@@ -1141,7 +1141,7 @@
   },
   {
     "day": 115,
-    "elapsedMs": 22.90494199999921,
+    "elapsedMs": 18.539671000000453,
     "gameTime": 166080,
     "cashCents": 49724813,
     "delivered": 153,
@@ -1151,7 +1151,7 @@
   },
   {
     "day": 116,
-    "elapsedMs": 23.05139600000075,
+    "elapsedMs": 20.786731999998665,
     "gameTime": 167520,
     "cashCents": 49704813,
     "delivered": 153,
@@ -1161,7 +1161,7 @@
   },
   {
     "day": 117,
-    "elapsedMs": 19.655296000000817,
+    "elapsedMs": 21.498381999999765,
     "gameTime": 168960,
     "cashCents": 49684813,
     "delivered": 153,
@@ -1171,7 +1171,7 @@
   },
   {
     "day": 118,
-    "elapsedMs": 21.915726999999606,
+    "elapsedMs": 26.98701599999913,
     "gameTime": 170400,
     "cashCents": 49664813,
     "delivered": 153,
@@ -1181,7 +1181,7 @@
   },
   {
     "day": 119,
-    "elapsedMs": 18.782729000000472,
+    "elapsedMs": 21.987529999998515,
     "gameTime": 171840,
     "cashCents": 49644813,
     "delivered": 153,
@@ -1191,7 +1191,7 @@
   },
   {
     "day": 120,
-    "elapsedMs": 23.199061999999685,
+    "elapsedMs": 23.476580999998987,
     "gameTime": 173280,
     "cashCents": 49624813,
     "delivered": 153,
