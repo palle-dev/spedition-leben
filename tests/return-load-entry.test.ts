@@ -57,7 +57,8 @@ it('kann die Suche ohne Annahme verlassen und eine andere Hinladung öffnen', as
   expect(container.textContent).not.toContain('Tour planen');
   expect(fixture.game.send).not.toHaveBeenCalled();
   await act(async () => button('Andere Hinladung öffnen').click());
-  expect(container.textContent).toContain('Rückladung in Hamburg');
+  expect(container.textContent).toContain('Tour planenRückladung Test');
+  expect(Array.from(container.querySelectorAll('select')).slice(0, 2).map((s: HTMLSelectElement) => s.value)).toEqual(['', '']);
   expect(fixture.game.send).not.toHaveBeenCalled();
 });
 it('öffnet einen angenommenen Auftrag ohne Rückladungsaktion weiterhin im Einzelplaner', async () => {
