@@ -181,7 +181,7 @@ describe("Die Nacht am Kai", () => {
   it("keeps a real technical defect actionable without settling the promise", () => {
     const s = ready(false);
     cmd(s, "startStormNight", { choiceId: "own" });
-    expect(() => cmd(s, "startTransport", { orderId: "storm_night_own", driverId: "d1", vehicleId: "v1" })).toThrow(/Technischer Defekt/);
+    expect(cmd(s, "startTransport", { orderId: "storm_night_own", driverId: "d1", vehicleId: "v1" })).toMatchObject({ ok: false, blockedByDisruption: true });
     expect(arc(s).status).toBe("running");
     expect(arc(s).results.own).toBeUndefined();
     expect(s.orders.find(o => o.id === "storm_night_own").status).toBe("angenommen");
