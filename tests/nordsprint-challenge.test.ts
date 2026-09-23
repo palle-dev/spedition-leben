@@ -9,7 +9,8 @@ const copy = s => JSON.parse(JSON.stringify(s));
 const cmd = (s, name, p = {}) => applyCommand(s, name, p).result as any;
 const arc = s => s.world.nordSprintChallenge;
 function drive(s, id, execute = cmd) {
-  const r = execute(s, "startTransport", { orderId: id, vehicleId: "v1", driverId: "d1" });
+  const pair = id.startsWith("nordsprint") ? { vehicleId: "v2", driverId: "d2" } : { vehicleId: "v1", driverId: "d1" };
+  const r = execute(s, "startTransport", { orderId: id, ...pair });
   while (s.gameTime < r.endMin) {
     const before = s.gameTime;
     execute(s, "advanceTime", { minutes: Math.min(1440, r.endMin - s.gameTime) });
@@ -48,7 +49,7 @@ describe("NordSprint-Probelauf", () => {
     expect(s.orders).toHaveLength(count + 1);
     const trust = s.world.reputation.trust;
     drive(s, id);
-    expect(arc(s).trialResult).toMatchObject({ outcome: "on_time", driverName: "Klaus Werner", paidCents: o.paymentCents });
+    expect(arc(s).trialResult).toMatchObject({ outcome: "on_time", driverName: "Petra Süß", paidCents: o.paymentCents });
     expect(arc(s).trialResult.deliveredAtMin).toBeGreaterThanOrEqual(1920 + 235);
     expect(arc(s).customerTrust).toBe(choiceId === "quality" ? 75 : 60);
     expect(s.world.reputation.trust).toBeGreaterThan(trust);
@@ -104,6 +105,15 @@ describe("NordSprint-Probelauf", () => {
     expect(() => cmd(s, "acceptNordSprintFollowup")).toThrow();
     cmd(s, "finishNordSprintChallenge");
     expect(arc(s).ending).toContain("keinen Folgeauftrag");
+  });
+  it("uses real rest requirements and rejects a follow-up after a genuinely late trip", () => {
+    const s = ready(), id = cmd(s, "startNordSprintChallenge", { choiceId: "quality" }).orderId;
+    // Klaus has only ten work minutes left after Anna's two deliveries.
+    const result = cmd(s, "startTransport", { orderId: id, vehicleId: "v1", driverId: "d1" });
+    expect(result.endMin).toBeGreaterThan(s.orders.find(o => o.id === id).deliveryDeadlineMin);
+    while (s.gameTime < result.endMin) cmd(s, "advanceTime", { minutes: Math.min(1440, result.endMin - s.gameTime) });
+    expect(arc(s).trialResult).toMatchObject({ outcome: "late", paidCents: 68400 });
+    expect(() => cmd(s, "acceptNordSprintFollowup")).toThrow();
   });
   it("reports late revenue honestly and removes the follow-up", () => {
     const s = ready(), id = cmd(s, "startNordSprintChallenge", { choiceId: "price" }).orderId;
