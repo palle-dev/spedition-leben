@@ -1,15 +1,16 @@
 import { LIVE_TICK_MS, LIVE_TICK_MINUTES } from "./simulation/timeControlEngine";
 import { cloneSaveSnapshot } from "@/lib/simulationTransport";
-import { stageHistory, hydrateHistory } from "@/lib/historyRepository";
+import { stageHistory } from "@/lib/historyRepository";
 import { createSimulationClient } from "@/lib/simulationWorkerClient";
 import { archiveStats } from "@/lib/historyArchive";
 import { processSaveFile, resetHistoryQueries } from "@/lib/saveFileClient";
 import { displayedGameMinute } from "@/lib/displayClock";
 import { playExperienceSound } from "@/lib/experienceSound";
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { saveCurrent, loadCurrent, saveAutosave, loadAutosave, getAllAutosaveMetas, listManualSlots, saveManualSlot, loadManualSlot, deleteManualSlot, getSyncMeta, setSyncMeta as persistSyncMeta } from "@/lib/persistence";
+import { loadCurrent, getAllAutosaveMetas, saveManualSlot, getSyncMeta, setSyncMeta as persistSyncMeta } from "@/lib/persistence";
 import { acquireLock, refreshLock, releaseLock, LOCK_REFRESH } from "@/lib/tabLock";
-import { writeRecoverySave } from "@/lib/saveSafety";
+import { useLocalSaveWriter } from "@/lib/useLocalSaveWriter";
+import { useGameSaveActions } from "@/lib/useGameSaveActions";
 import { eventToToast, summarizeRoutineToasts, CRITICAL_EVENT_TYPES } from "@/lib/eventNotifications";
 import { getUnseenEventCount } from "@/lib/eventLogClient";
 import { useAuth } from "@/lib/AuthContext";
@@ -171,38 +172,12 @@ export function GameProvider({ children }) {
   // Dirty-Flag für debounced Speicherung — verhindert I/O auf jeden Befehl.
   const dirtySaveRef = useRef(false);
 
-  // Sofortiges Speichern (für kritische Operationen: newGame, loadSlot, beforeunload).
-  const saveNow = useCallback(async (s) => {
-    const token = sessionToken();
-    const version = changeVersionRef.current;
-    if (!s || changingStateRef.current || !isCurrentSession(token)) return { skipped: true };
-    const snapshot = cloneSaveSnapshot(s);
-    const partyId = snapshot.meta?.partyId;
-    const meta = syncMetaRef.current?.partyId === partyId ? { ...syncMetaRef.current } : null;
-    const task = async () => {
-      if (!isCurrentSession(token) || stateRef.current?.meta?.partyId !== partyId) return { skipped: true };
-      try { assertWritable(); } catch (error) { return { ok: false, error: error.message }; }
-      const savedAt = Date.now();
-      let recoveryError = null, databaseError = null;
-      try { writeRecoverySave(token.userId, snapshot, savedAt); } catch (error) { recoveryError = error; }
-      try { await saveCurrent(token.userId, snapshot, meta, savedAt); } catch (error) { databaseError = error; }
-      if (!isCurrentSession(token)) return { skipped: true };
-      if (databaseError) {
-        dirtySaveRef.current = true;
-        setLocalSaveError(recoveryError
-          ? "Spielstand konnte nicht lokal gespeichert werden. Bitte Speicherplatz freigeben und den Spielstand exportieren."
-          : "Nur die lokale Sicherheitskopie wurde gespeichert. Die Speicherung wird erneut versucht.");
-      } else {
-        if (changeVersionRef.current === version) dirtySaveRef.current = false;
-        setLocalSaveError(null);
-      }
-      dirtyAutosaveRef.current = true;
-      return { ok: !databaseError || !recoveryError, degraded: !!databaseError };
-    };
-    const pending = localSaveQueueRef.current.then(task, task);
-    localSaveQueueRef.current = pending.then(() => {}, () => {});
-    return pending;
-  }, [sessionToken, isCurrentSession, assertWritable]);
+  const { saveNow } = useLocalSaveWriter({
+    sessionToken, isCurrentSession, assertWritable,
+    stateRef, syncMetaRef, changingStateRef, hasLockRef, lockRequiresReloadRef,
+    userIdRef, changeVersionRef, dirtySaveRef, dirtyAutosaveRef,
+    localSaveQueueRef, autosaveIndexRef, setLocalSaveError, setAutosaveMetas,
+  });
 
   // Markiert den Zustand als geändert — Speicherung erfolgt debounced (alle 3 s).
   const markDirty = useCallback(() => {
@@ -697,26 +672,6 @@ export function GameProvider({ children }) {
   }, [automationEnabled, automationBusy, enableAutomation, pauseAutomation]);
 
   useEffect(() => {
-    const onBeforeUnload = () => {
-      if (!stateRef.current || changingStateRef.current || !hasLockRef.current || lockRequiresReloadRef.current) return;
-      try {
-        assertWritable();
-        // Synchroner, benutzergetrennter Fallback vor dem Schließen.
-        writeRecoverySave(userIdRef.current, stateRef.current);
-      } catch { /* Der persistente Fehlerhinweis ist während der Sitzung sichtbar. */ }
-      saveNow(stateRef.current);
-      releaseLock();
-    };
-    const onHidden = () => { if (document.hidden && stateRef.current) saveNow(stateRef.current); };
-    window.addEventListener("beforeunload", onBeforeUnload);
-    document.addEventListener("visibilitychange", onHidden);
-    return () => {
-      window.removeEventListener("beforeunload", onBeforeUnload);
-      document.removeEventListener("visibilitychange", onHidden);
-    };
-  }, [saveNow, assertWritable]);
-
-  useEffect(() => {
     const onOnline = async () => {
       refreshCloudSaves();
       if (!hasLockRef.current || lockRequiresReloadRef.current) return;
@@ -727,36 +682,6 @@ export function GameProvider({ children }) {
     window.addEventListener("offline", onOffline);
     return () => { window.removeEventListener("online", onOnline); window.removeEventListener("offline", onOffline); };
   }, [uploadToCloud, refreshCloudSaves, updateSyncMeta]);
-
-  // Rotierende Sicherungen behalten die Änderungsmarkierung bis zum Erfolg.
-  useEffect(() => {
-    const timer = setInterval(async () => {
-      if (!dirtyAutosaveRef.current || !stateRef.current || !hasLockRef.current || changingStateRef.current) return;
-      const token = sessionToken();
-      const version = changeVersionRef.current;
-      const snapshot = cloneSaveSnapshot(stateRef.current);
-      const index = autosaveIndexRef.current;
-      try {
-        assertWritable();
-        await saveAutosave(token.userId, index, snapshot);
-        if (!isCurrentSession(token)) return;
-        if (changeVersionRef.current === version) dirtyAutosaveRef.current = false;
-        autosaveIndexRef.current = (index + 1) % 3;
-        const metas = await getAllAutosaveMetas(token.userId, !!snapshot.scenario);
-        if (isCurrentSession(token)) setAutosaveMetas(metas);
-      } catch {
-        if (isCurrentSession(token)) setLocalSaveError("Automatische Sicherung fehlgeschlagen. Bitte den Spielstand exportieren und den Browserspeicher prüfen.");
-      }
-    }, 60000);
-    return () => clearInterval(timer);
-  }, [sessionToken, isCurrentSession, assertWritable]);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      if (dirtySaveRef.current && stateRef.current && hasLockRef.current && !changingStateRef.current) saveNow(stateRef.current);
-    }, 3000);
-    return () => clearInterval(timer);
-  }, [saveNow]);
 
   useEffect(() => {
     const timer = setInterval(async () => {
@@ -847,13 +772,14 @@ export function GameProvider({ children }) {
   }, [send]);
 
   // Vor dem Ersetzen bleibt jede Partie als eigener, wieder ladbarer Slot erhalten.
-  const preserveCurrentParty = useCallback(async (token) => {
-    if (!stateRef.current) return;
-    const snapshot = cloneSaveSnapshot(stateRef.current);
-    ensurePartyId(snapshot);
-    await saveManualSlot(token.userId, "Partie · " + snapshot.company.name + " · " + snapshot.meta.partyId, snapshot);
-    if (!isCurrentSession(token)) throw new Error("Die Sitzung hat sich geändert. Bitte erneut versuchen.");
-  }, [ensurePartyId, isCurrentSession]);
+  const {
+    preserveCurrentParty, reload, exportGame, queryHistory, queryJournal, exportHistory,
+    importGame, saveSlot, loadSlot, deleteSlot, listSlots, loadAutosaveSlot,
+  } = useGameSaveActions({
+    sessionToken, isCurrentSession, assertWritable, beginStateChange, activateState,
+    stateRef, userIdRef, changingStateRef, ensurePartyId,
+    uploadToCloud, refreshCloudSaves, showToast, setLocalSaveError,
+  });
 
   const openStartScreen = useCallback(async () => {
     if (sendInFlightRef.current || syncInFlightRef.current || backgroundAdvanceRef.current || changingStateRef.current) {
@@ -913,107 +839,6 @@ export function GameProvider({ children }) {
       showToast("Szenario abgeschlossen — das Spiel wird als freie Partie fortgesetzt.", "success");
     } catch (error) { showToast(error.message, "error"); }
   }, [send, saveNow, showToast]);
-
-  const reload = useCallback(async () => {
-    let token;
-    try {
-      token = beginStateChange();
-      const loaded = await loadCurrent(token.userId);
-      if (loaded) return await activateState(loaded, token);
-      return { ok: false, error: "Kein Spielstand gefunden." };
-    } catch (error) { showToast(error.message, "error"); return { ok: false, error: error.message }; }
-    finally { if (token && isCurrentSession(token)) changingStateRef.current = false; }
-  }, [beginStateChange, activateState, isCurrentSession, showToast]);
-
-  // ---- Export / Import / Manuelle Slots ----
-  const exportGame = useCallback(async () => {
-    if (!stateRef.current) return null;
-    return processSaveFile("export", await hydrateHistory(userIdRef.current, stateRef.current));
-  }, []);
-
-  const queryHistory = useCallback(async (snapshot, options = {}) => {
-    const token = sessionToken();
-    const result = await processSaveFile("historyPage", { ...options, state: { historyArchive: snapshot.historyArchive }, userId: token.userId, sessionGeneration: token.generation });
-    if (!isCurrentSession(token)) throw Error("Spielstand wurde inzwischen gewechselt.");
-    return result;
-  }, [sessionToken, isCurrentSession]);
-  const queryJournal = useCallback(async (snapshot, options = {}) => {
-    const token = sessionToken();
-    const result = await processSaveFile("journalPage", { ...options, state: { historyArchive: snapshot.historyArchive, accounting: { journal: snapshot.accounting?.journal } }, userId: token.userId, sessionGeneration: token.generation });
-    if (!isCurrentSession(token)) throw Error("Spielstand wurde inzwischen gewechselt.");
-    return result;
-  }, [sessionToken, isCurrentSession]);
-  const exportHistory = useCallback(async () => processSaveFile("archive", await hydrateHistory(userIdRef.current, stateRef.current)), []);
-
-  const importGame = useCallback(async (exportStr) => {
-    let token;
-    try {
-      // Ein ungültiger Import soll nicht einmal die laufende Partie pausieren.
-      const importToken = sessionToken();
-      const imported = await processSaveFile("import", exportStr);
-      if (!isCurrentSession(importToken)) return { skipped: true };
-      token = beginStateChange();
-      await preserveCurrentParty(token);
-      return await activateState(imported, token);
-    } catch (error) { return { ok: false, error: error.message }; }
-    finally { if (token && isCurrentSession(token)) changingStateRef.current = false; }
-  }, [beginStateChange, activateState, isCurrentSession, sessionToken, preserveCurrentParty]);
-
-  const saveSlot = useCallback(async (name) => {
-    if (!stateRef.current) return { ok: false, error: "Kein Spielstand" };
-    const token = sessionToken();
-    const snapshot = stateRef.current;
-    try {
-      assertWritable();
-      await saveManualSlot(token.userId, name, cloneSaveSnapshot(snapshot));
-      if (!isCurrentSession(token)) return { skipped: true };
-      if (navigator.onLine) {
-        const result = await uploadToCloud(snapshot, name, "manual");
-        if (result.error || result.conflict) showToast("Lokal gespeichert. Die Cloud-Sicherung ist noch offen.", "info");
-        if (isCurrentSession(token)) refreshCloudSaves();
-      }
-      return { ok: true };
-    } catch (error) {
-      if (isCurrentSession(token)) setLocalSaveError("Manueller Speicherpunkt konnte nicht gespeichert werden: " + error.message);
-      return { ok: false, error: error.message };
-    }
-  }, [sessionToken, isCurrentSession, assertWritable, uploadToCloud, refreshCloudSaves, showToast]);
-
-  const loadSlot = useCallback(async (name, isScenario = !!stateRef.current?.scenario) => {
-    let token;
-    try {
-      token = beginStateChange();
-      await preserveCurrentParty(token);
-      const loaded = await loadManualSlot(token.userId, name, isScenario);
-      if (!loaded) throw new Error("Slot nicht gefunden");
-      return await activateState(loaded, token);
-    } catch (error) { return { ok: false, error: error.message }; }
-    finally { if (token && isCurrentSession(token)) changingStateRef.current = false; }
-  }, [beginStateChange, activateState, isCurrentSession, preserveCurrentParty]);
-
-  const deleteSlot = useCallback(async (name) => {
-    try {
-      assertWritable();
-      await deleteManualSlot(userIdRef.current, name, !!stateRef.current?.scenario);
-      return { ok: true };
-    } catch (error) { return { ok: false, error: error.message }; }
-  }, [assertWritable]);
-
-  const listSlots = useCallback(async (isScenario = !!stateRef.current?.scenario) => {
-    try { return await listManualSlots(userIdRef.current, isScenario); }
-    catch (e) { return []; }
-  }, []);
-
-  const loadAutosaveSlot = useCallback(async (index) => {
-    let token;
-    try {
-      token = beginStateChange();
-      const loaded = await loadAutosave(token.userId, index, !!stateRef.current?.scenario);
-      if (!loaded) throw new Error("Autosave-Slot leer");
-      return await activateState(loaded, token);
-    } catch (error) { return { ok: false, error: error.message }; }
-    finally { if (token && isCurrentSession(token)) changingStateRef.current = false; }
-  }, [beginStateChange, activateState, isCurrentSession]);
 
   const dismissBackgroundAdvanceResult = useCallback(() => {
     setBackgroundAdvance(null);
