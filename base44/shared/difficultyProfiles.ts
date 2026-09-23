@@ -10,7 +10,7 @@ export const DIFFICULTY_PROFILES = [
     label: "Entspannt",
     description: "Mehr Startkapital, großzügige Lieferfristen, seltene Störungen. Ideal zum Entdecken und Ausprobieren.",
     startCapitalCents: 12_000_000,     // 120.000 €
-    privateCapitalCents: 10_000_000,   // 10.000 €
+    privateCapitalCents: 1_000_000,   // 10.000 €
     bufferHoursFactor: 1.5,            // 50% mehr Zeitpuffer bei Lieferfristen
     disruptionRateFactor: 0.5,         // Halbierte Störungswahrscheinlichkeit
   },
@@ -19,7 +19,7 @@ export const DIFFICULTY_PROFILES = [
     label: "Standard",
     description: "Ausgewogene Herausforderung für erfahrene Spieler. Das klassische FERNWERK-Erlebnis.",
     startCapitalCents: 7_500_000,      // 75.000 €
-    privateCapitalCents: 7_500_000,    // 7.500 €
+    privateCapitalCents: 750_000,    // 7.500 €
     bufferHoursFactor: 1.0,            // Standard-Zeitpuffer
     disruptionRateFactor: 1.0,         // Standard-Störungen
   },
@@ -28,7 +28,7 @@ export const DIFFICULTY_PROFILES = [
     label: "Anspruchsvoll",
     description: "Knappes Kapital, enge Lieferfristen, häufige Störungen. Für Spieler, die eine echte Herausforderung suchen.",
     startCapitalCents: 5_000_000,      // 50.000 €
-    privateCapitalCents: 5_000_000,    // 5.000 €
+    privateCapitalCents: 500_000,    // 5.000 €
     bufferHoursFactor: 0.6,            // 40% weniger Zeitpuffer
     disruptionRateFactor: 1.6,         // 60% mehr Störungen
   },
