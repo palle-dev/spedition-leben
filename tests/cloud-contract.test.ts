@@ -45,6 +45,20 @@ beforeEach(() => {
 const req = body => new Request('https://local.invalid/test', { method: 'POST', body: JSON.stringify(body) });
 
 describe('Cloud-Handler-Verträge', () => {
+  it.each([
+    [{ scenario: { scenarioId: 'modern' }, difficulty: { profileId: 'expert' } }, 'modern', 'expert'],
+    [{ scenario: { id: 'legacy' }, difficultyProfile: 'easy' }, 'legacy', 'easy'],
+    [{ meta: { difficultyProfile: 'legacy-meta' } }, null, 'legacy-meta'],
+    [{}, null, 'standard'],
+  ])('erhält Szenario und Schwierigkeit in Cloud-Metadaten (%j)', async (fields, scenario, difficulty) => {
+    const state = { ...snapshot(100), ...fields };
+    const saved = await cloud(req({ command: 'save', stateId: 'own', expected_revision: 3, state }));
+    expect(saved.status).toBe(200);
+    expect(records.get('own').scenario_id).toBe(scenario);
+    expect(records.get('own').difficulty_profile).toBe(difficulty);
+    const loaded = await cloud(req({ command: 'load', stateId: 'own' }));
+    expect((await loaded.json()).state).toEqual(state);
+  });
   it.each([null, { id: 'alice', role: 'user' }])('globale Zeitautomatik benötigt einen belegten Admin', async user => {
     mock.client.auth.me.mockResolvedValue(user);
     expect((await tick(req({}))).status).toBe(403);
