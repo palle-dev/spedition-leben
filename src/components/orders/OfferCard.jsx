@@ -109,7 +109,8 @@ export default function OfferCard({ offer, onAccept, busy, branchName, branchCit
           {busy ? <span className="w-3.5 h-3.5 border-2 border-ink/30 border-t-ink rounded-full animate-spin" /> : <><Check className="w-3.5 h-3.5" /> Nur annehmen</>}
         </button>
         <button
-          onClick={() => navigate(`/disposition?order=${offer.id}`)}
+          onClick={() => onAccept(offer, true)}
+          disabled={busy}
           className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2.5 bg-white/5 border border-white/10 text-xs hover:bg-white/10 transition active:scale-[0.98]"
         >
           <RouteIcon className="w-3.5 h-3.5" /> Annehmen & planen
