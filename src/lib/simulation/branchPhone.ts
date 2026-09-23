@@ -1,8 +1,10 @@
 // Read-only projection: existing pending requests become calls without save migration.
 export function getBranchDecisionCalls(state) {
+ const pending=(state.branchDecisions||[]).filter(d=>d.status==="pending");
+ if(!pending.length)return [];
  const branches=new Map((state.branches||[]).map(b=>[b.id,b]));
  const managers=new Map((state.employees||[]).map(e=>[e.id,e]));
- return (state.branchDecisions||[]).filter(d=>d.status==="pending").map(d=>{
+ return pending.map(d=>{
   const branch:any=branches.get(d.branchId), manager:any=managers.get(d.managerId);
   return {key:"branch_"+d.id,id:d.id,type:"branch_decision",title:d.title||"Bitte um Freigabe",
    source:manager?.name||"Filialleitung",portraitId:manager?.portraitId||manager?.portrait_id,
