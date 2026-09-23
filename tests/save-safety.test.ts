@@ -10,7 +10,7 @@ import { localSaveKey, readRecoverySave, writeRecoverySave, prepareLoadedState }
 
 const sdk = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@/api/base44Client", () => ({ base44: { functions: { invoke: sdk.invoke } } }));
-const sources = ["src/lib/gameContext.jsx", "src/lib/useLocalSaveWriter.js", "src/lib/useGameSaveActions.js"]
+const sources = ["src/lib/gameContext.jsx", "src/lib/useLocalSaveWriter.js", "src/lib/useGameSaveActions.js", "src/lib/useCloudGameSync.js"]
   .map(path => ts.createSourceFile(path, fs.readFileSync(path, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.JSX));
 // Führt die tatsächlichen Provider- und Speicher-Callbacks mit kontrollierten IO-Grenzen aus.
 function callback(name, deps) {
