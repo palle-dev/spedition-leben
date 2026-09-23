@@ -6,7 +6,7 @@ import { MapPin, ArrowRight, Clock, Package, Zap, CalendarClock, Check, Route as
 
 // Angebot-Karte für die Frachtbörse.
 // Zeigt Kundendaten, Route, Fracht, Preis, Fristen und Aktionen.
-export default function OfferCard({ offer, onAccept, busy, branchName, branchCity, selected, onToggleSelect }) {
+export default function OfferCard({ offer, assessment = null, onAccept, busy, branchName, branchCity, selected, onToggleSelect }) {
   const navigate = useNavigate();
   const typeIcon = offer.offerType === "express" ? Zap : offer.offerType === "advance" ? CalendarClock : Package;
 
@@ -52,14 +52,9 @@ export default function OfferCard({ offer, onAccept, busy, branchName, branchCit
           {React.createElement(typeIcon, { className: "w-2.5 h-2.5" })}
           {getOfferTypeLabel(offer.offerType)}
         </span>
-        {offer.feasible === false && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded border bg-amber-500/10 text-amber-300 border-amber-400/20">
-            Schwer ausführbar
-          </span>
-        )}
-        {offer.feasible === true && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded border bg-lime/10 text-lime border-lime/20">
-            Passend
+        {assessment && (
+          <span title={assessment.detail} className={`text-[10px] px-1.5 py-0.5 rounded border ${assessment.status === "on_time" ? "bg-lime/10 text-lime border-lime/20" : "bg-amber-500/10 text-amber-300 border-amber-400/20"}`}>
+            {assessment.label}
           </span>
         )}
         {offer.isDangerousGoods && (
