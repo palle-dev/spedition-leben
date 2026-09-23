@@ -2,6 +2,7 @@ import PhoneScreen from "./PhoneScreen";
 import StaffPhoneDialog from "./StaffPhoneDialog";
 import {getStaffPhoneContacts} from "@/lib/simulation/staffPhone";
 import PhoneConversation from "./PhoneConversation";
+import BranchPhoneDecision from "./BranchPhoneDecision";
 import { getPhoneProposals } from "@/lib/simulation/phoneProposals";
 import { setOfficeDucked } from "@/lib/officeAudio";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -50,7 +51,11 @@ export default function PhoneCenter() {
  const detail=useMemo(()=>selected?.demo ? {
   status:"decision_open", cause:"Hier ist die Leitstelle. Das ist ein Testanruf. Du kannst annehmen und auflegen; deine Spedition bleibt unverändert.",
   orders:[],options:[{id:"demo_done",label:"Verstanden – Verbindung steht",description:"Testgespräch beenden",costCents:0,estimatedDurationMin:0,available:true}]
- } : selected?.type==="delivery_risk" ? (() => {
+ } : selected?.type==="branch_decision" ? (() => {
+ const decision=(state.branchDecisions||[]).find(d=>d.id===selected.id);
+ return {status:decision?.status==="pending"?"decision_open":"completed",cause:selected.location+" · Deine Filialleitung bittet um eine Entscheidung.",
+ completionSummary:decision?.status==="approved"?"Die Maßnahme wurde freigegeben und ausgeführt.":decision?.status==="rejected"?"Die Anfrage wurde abgelehnt.":"Diese Anfrage ist nicht mehr offen.",orders:[],options:[]};
+ })() : selected?.type==="delivery_risk" ? (() => {
  const risk=queue.calls.find(c=>c.id===selected.id);
  if(!risk)return {status:"completed",completionSummary:"Diese Liefergefährdung besteht im aktuellen Spielstand nicht mehr.",orders:[],options:[]};
  return {status:"decision_open",cause: risk.customer+": "+risk.fromCity+" → "+risk.toCity+". "+risk.description+(risk.eta!==null?" Geplante Ankunft: "+formatGameTime(risk.eta)+".":""),
@@ -82,7 +87,7 @@ export default function PhoneCenter() {
  <Dialog open={showList&&!selected} onOpenChange={setShowList}>
  <PhoneScreen gameTime={state.gameTime} footer={<nav aria-label="Telefonnavigation" className="ff-phone-tabs">{[{id:"calls",label:"Anrufe",Icon:Clock},{id:"contacts",label:"Kontakte",Icon:Users},{id:"missed",label:"Verpasst",Icon:PhoneMissed}].map(({id,label,Icon})=><button key={id} type="button" aria-pressed={phoneTab===id} onClick={()=>setPhoneTab(id)}><Icon size={22}/><span>{label}{id==="missed"&&missed.length>0?" · "+missed.length:""}</span></button>)}</nav>}>
  <DialogTitle>{phoneTab==="contacts"?"Kontakte":phoneTab==="missed"?"Verpasst":"Anrufe"}</DialogTitle>
- <DialogDescription className="text-slate-400">Anrufe und Rückrufe deiner Leitstelle. Anrufe pausieren die Spielzeit nicht.</DialogDescription>
+ <DialogDescription className="text-slate-400">Anrufe deiner Leitstelle und Filialleitungen. Anrufe pausieren die Spielzeit nicht.</DialogDescription>
  <button onClick={()=>{setShowList(false);navigate("/postfach");}} className="text-xs flex items-center gap-2 text-slate-300"><Mail className="w-4 h-4"/>Postfach · {queue.emails.length} Entscheidungen</button>
  {incoming && !selected && !overlay && <div className="border-t border-white/10 p-3">
  <div className="flex items-center gap-3"><motion.div animate={motionEnabled&&!reduced?{rotate:[0,-12,12,0]}:{rotate:0}} transition={{duration:.5,repeat:2}}><PhoneIncoming className="text-emerald-300 w-6 h-6"/></motion.div><div><p className="text-sm font-semibold text-white">{incoming.source}</p><p className="text-xs text-slate-300">{incoming.title}</p></div></div>
@@ -91,7 +96,7 @@ export default function PhoneCenter() {
  {showList&&phoneTab==="contacts"&&<section aria-label="Team anrufen" className="border-t border-white/10 p-3 space-y-2"><h3 className="font-semibold text-sm text-cyan-100">Team anrufen</h3><p className="text-xs text-slate-400">Status abfragen und Anweisungen im Gespräch erteilen.</p>{contacts.length===0?<p className="text-xs text-slate-300">Stelle eine Assistenz ein oder weise einem aktiven Standort eine Filialleitung zu, um hier anzurufen.</p>:contacts.map(c=><button key={c.id} disabled={blocked} onClick={()=>{setShowList(false);setStaffId(c.id);}} className="w-full text-left p-3 rounded-xl border border-white/10 bg-white/5 hover:border-cyan-300/40 disabled:opacity-40"><span className="block text-sm">{c.name}</span><span className="block text-xs text-slate-400 mt-1">{c.label}</span><span className={"block text-xs mt-1 "+(c.available?"text-emerald-300":"text-amber-200")}>{c.available?"Anrufen":c.reason}</span></button>)}</section>}
  {showList&&phoneTab!=="contacts"&&missed.length>0&&<section aria-label="Verpasste Anrufe" className="border-t border-white/10 p-3 space-y-2"><h3 className="text-sm font-semibold">Verpasste Anrufe im Zeitvorlauf</h3><p className="text-xs text-slate-400">Tippe auf einen offenen Anruf, um zurückzurufen. Erledigte Anliegen bleiben hier dokumentiert.</p><div className="max-h-40 overflow-y-auto space-y-2">{missed.slice(-20).reverse().map(c=>{const active=queue.calls.find(q=>q.id===c.id);return <button key={c.id} disabled={blocked||!active} onClick={()=>answer(active)} className="block w-full text-left border-b border-white/10 py-3 disabled:opacity-60"><span className="block text-sm font-medium text-red-300">{c.source||"Leitstelle"}</span><span className="block text-xs text-slate-400 mt-1">{formatGameTime(c.missedAtMin)} · {c.title||"Lieferung in Gefahr"}</span><span className="block text-xs mt-1">{active?"Rückruf offen":"Nicht mehr offen"}</span></button>;})}</div></section>}
  {showList && phoneTab==="calls" && <div className="border-t border-white/10 px-3 py-3 space-y-2">
- <p className="text-[10px] text-slate-400">Anrufe entstehen bei offenen dringenden Einsätzen. Automatisch gelöste Anliegen bleiben im Verlauf sichtbar.</p>
+ <p className="text-[10px] text-slate-400">Anrufe entstehen bei dringenden Einsätzen und Freigabeanfragen deiner Filialleitungen. Im Zeitvorlauf erscheinen sie als verpasste Anrufe.</p>
  {recent.length>0&&<details className="text-xs text-slate-300"><summary className="cursor-pointer">Letzte erledigte Anliegen ({recent.length})</summary>{recent.map(d=><div key={d.id} className="mt-2 border-t border-white/10 pt-2"><p>{d.cause}</p><p className="text-[10px] text-emerald-200">{d.autoResolved ? "Vom Team erledigt" : "Erledigt"}{d.autoResolvedBy ? " · "+d.autoResolvedBy : ""}</p></div>)}</details>}
  </div>}
  {phoneTab==="missed"&&missed.length===0&&<p className="py-12 text-center text-sm text-slate-400">Keine verpassten Anrufe.</p>}
@@ -113,7 +118,9 @@ export default function PhoneCenter() {
  </>}
  {detail.status!=="decision_open"&&<p className="text-xs text-emerald-300">Entscheidung übernommen. Den Verlauf findest du im Postfach.</p>}
  </>}
- {selected&&!selected.demo&&<PhoneConversation key={selected.id} proposals={proposals} blocked={busy||!!backgroundAdvance?.active} onConfirm={confirmProposal} onBusy={setSending}/>}
+ {selected&&!selected.demo&&(selected.type==="branch_decision"
+ ? <BranchPhoneDecision key={selected.id} proposal={proposals[0]} blocked={busy||!!backgroundAdvance?.active} onConfirm={confirmProposal} onBusy={setSending}/>
+ : <PhoneConversation key={selected.id} proposals={proposals} blocked={busy||!!backgroundAdvance?.active} onConfirm={confirmProposal} onBusy={setSending}/>)}
  {error&&<p role="alert" className="text-sm text-red-300">{error}</p>}
  {automationEnabled&&<button disabled={blocked} onClick={()=>pauseAutomation()} className="text-xs underline text-amber-200">Spielzeit läuft automatisch · jetzt pausieren</button>}
  <button disabled={sending} onClick={defer} className="ff-phone-hangup"><PhoneOff className="w-4 h-4"/>{detail?.status==="decision_open"?"Auflegen · später zurückrufen":"Gespräch beenden"}</button>

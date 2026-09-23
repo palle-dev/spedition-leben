@@ -1,3 +1,4 @@
+import { getBranchDecisionCalls } from "./branchPhone.ts";
 import { withOrderLookup, findOrder, currentOrders } from "./orderLookup.ts";
 import { getPhoneProposals, withPhoneProposalSearch } from "./phoneProposals.ts";
 import { getDeliveryRisks, getEscalatedDeliveryRisks } from "./deliveryRisk.ts";
@@ -21,6 +22,7 @@ export function processPhoneCommunications(state, silent=false){
   if(d.status!=="decision_open"||d.type==="loading_delay"||calls.some(c=>c.id===d.id))continue;
   calls.push({id:d.id,type:"disruption",title:d.cause||"Rückruf der Leitstelle",source:"Leitstelle",disruptionId:d.id});
  }
+ calls.push(...getBranchDecisionCalls(state));
  const actionable=[];
  withPhoneProposalSearch(state,()=>{
  for(const call of calls){

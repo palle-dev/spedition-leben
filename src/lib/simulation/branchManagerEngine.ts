@@ -114,13 +114,7 @@ export function generateBranchDecisions(state: any): any {
       state.branchDecisions.push(decision);
     } else {
       state.branchDecisions.push(decision);
-      deliverMessage(state, {
-        fromId: mgr.id, toId: "player", subject: decision.title || "Bitte um Freigabe",
-        body: (decision.description || "Bitte prüfe diese Maßnahme.") + "\n\nDie Antwortmöglichkeiten findest du im Entscheidungsbereich des Postfachs.",
-        gameTime: state.gameTime, category: "operations", priority: "normal",
-        linkedRefs: { type: "branch_decision", id: decision.id },
-        dedupKey: "branch_request:" + decision.id,
-      });
+      // Pending requests are projected into the phone queue, including old saves.
     }
   }
 

@@ -10,7 +10,6 @@ import BranchOverview from "@/components/branches/BranchOverview";
 import OpenBranchDialog from "@/components/branches/OpenBranchDialog";
 import MoveResourceDialog from "@/components/branches/MoveResourceDialog";
 import AssignEmployeeDialog from "@/components/branches/AssignEmployeeDialog";
-import BranchDecisionsPanel from "@/components/branches/BranchDecisionsPanel";
 import BranchDetailDialog from "@/components/branches/BranchDetailDialog";
 import { Building2, Plus, Truck, Users, MapPin, ArrowRight, LayoutGrid, List, Briefcase, Network } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -82,9 +81,6 @@ export default function Branches() {
           </button>
         </div>
       </div>
-
-      {/* Filialleiter-Entscheidungen */}
-      <BranchDecisionsPanel />
 
       {/* Tabs */}
       <div className="flex flex-wrap items-center gap-1 border-b border-white/10">

@@ -1,3 +1,4 @@
+import { getBranchDecisionCalls } from "@/lib/simulation/branchPhone";
 import { getPhoneProposals } from "@/lib/simulation/phoneProposals";
 import { getRoutineDelayResolver } from "@/lib/simulation/disruptionEngine";
 import { getEscalatedDeliveryRisks } from "@/lib/simulation/deliveryRisk";
@@ -20,6 +21,7 @@ export function getCommunicationQueue(state) {
   (urgent?calls:emails).push(entry);
  }
  calls.push(...risks.filter(r=>!r.disruptionId || !calls.some(c=>c.id===r.disruptionId)));
+ calls.push(...getBranchDecisionCalls(state));
  emails.push(...getPendingDecisions(state));
  calls.sort((a,b)=>(a.deadline??Infinity)-(b.deadline??Infinity)||(a.createdAt||0)-(b.createdAt||0)||a.key.localeCompare(b.key));
  const actionable=[];

@@ -1,3 +1,4 @@
+import { getBranchPhoneProposal } from "./branchPhone.ts";
 import { checkBodyTypeCompatibility } from "./gameRules.ts";
 import { findOrder } from "./orderLookup.ts";
 import { withTourValidation, getOrderReservation } from "./tourEngine.ts";
@@ -24,7 +25,9 @@ export function proposalSignature(option) {
  return JSON.stringify([option.id,option.costCents,option.estimatedDurationMin,option.description,option.params]);
 }
 export function getPhoneProposals(state, call, limit = 2) {
- if (!call || call.demo || (state.appointments||[]).some(a=>a.status==="active"&&a.type!=="scenario_timeoff")) return [];
+ if (!call || call.demo) return [];
+ if (call.type==="branch_decision") {const proposal=getBranchPhoneProposal(state,call.id);return proposal?[proposal]:[];}
+ if ((state.appointments||[]).some(a=>a.status==="active"&&a.type!=="scenario_timeoff")) return [];
  if (call.type !== "delivery_risk") {
   return getValidatedDisruptionOptions(state,call.id).map(o=>({...o,command:"resolveDisruption",params:{disruptionId:call.id,optionId:o.id,params:{phoneQuote:{cost:o.costCents,duration:o.estimatedDurationMin,description:o.description}}},informationOnly:o.id==="inform_customer"}));
  }
